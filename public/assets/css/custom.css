@@ -1,0 +1,70 @@
+/* Custom theme enhancements for multi recharge admin */
+body {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  background: #f8fafc;
+}
+
+.page-content, .main-content {
+  background: #f8fafc;
+}
+
+.card, .modal-content, .table, .form-control, .form-select, .btn, .mini-stats-wid, .recharge-action-card, .list-group-item, .dropdown-menu {
+  transition: all 0.2s ease;
+}
+
+.card, .modal-content, .recharge-action-card, .mini-stats-wid, .list-group-item, .dropdown-menu {
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.btn {
+  border-radius: 0.75rem;
+}
+
+.form-control, .form-select {
+  border-radius: 0.75rem;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.table thead {
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.04), rgba(37, 99, 235, 0.04));
+}
+
+.badge-soft-success {
+  color: #15803d;
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.badge-soft-danger {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.badge-soft-warning {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.badge-soft-info {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.recharge-action-card {
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.06), rgba(37, 99, 235, 0.06));
+}
+
+.mini-stats-wid {
+  background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+}
+
+.navbar-menu .nav-link.active {
+  background: rgba(15, 118, 110, 0.12);
+  color: #0f766e;
+}
+
+.page-title-box .page-title {
+  color: #0f172a;
+  font-weight: 700;
+}

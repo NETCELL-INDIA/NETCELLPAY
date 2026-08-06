@@ -1,0 +1,123 @@
+// 
+// Widgets.scss
+// 
+
+.main-chart {
+    .chart-border-left {
+        border-left: 1.4px solid $border-color;
+        padding: 2px 20px;
+
+        &:last-child {
+            margin-right: 0px;
+        }
+    }
+}
+
+
+
+/* Activity */
+
+.activity-feed {
+    list-style: none;
+
+    .feed-item {
+        position: relative;
+        padding-bottom: 27px;
+        padding-left: 16px;
+        border-left: 2px solid $light;
+
+        &:after {
+            content: "";
+            display: block;
+            position: absolute;
+            top: 4px;
+            left: -6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid $primary;
+            background-color: $card-bg;
+        }
+
+        &:last-child {
+            border-color: transparent;
+        }
+    }
+}
+
+// mini-stats-wid
+.mini-stats-wid {
+    position: relative;
+    border-radius: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+
+    .mini-stat-icon {
+        overflow: hidden;
+        position: relative;
+
+        &:before,
+        &:after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 69px;
+            background-color: rgba($success, .1);
+            left: 3px;
+            transform: rotate(32deg);
+            top: -8px;
+            transition: all 0.4s;
+        }
+
+        &::after {
+            left: 27px;
+            width: 8px;
+            transition: all 0.2s;
+        }
+    }
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+
+        .mini-stat-icon {
+            &::after {
+                left: 60px;
+            }
+
+            &::before {
+                left: 50px;
+            }
+        }
+    }
+}
+
+.badge-soft-success,
+.badge-soft-danger,
+.badge-soft-warning,
+.badge-soft-info {
+    border-radius: 999px;
+    padding: 0.45rem 0.7rem;
+    font-weight: 600;
+}
+
+.badge-soft-success {
+    color: #15803d;
+    background: rgba(22, 163, 74, 0.12);
+}
+
+.badge-soft-danger {
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.badge-soft-warning {
+    color: #d97706;
+    background: rgba(245, 158, 11, 0.14);
+}
+
+.badge-soft-info {
+    color: #0f766e;
+    background: rgba(15, 118, 110, 0.12);
+}
