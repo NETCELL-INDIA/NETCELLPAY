@@ -5,15 +5,7 @@
 
     RewriteEngine On
 
-    # Keep real files/folders
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteRule ^ - [L]
-
-    # Route admin traffic into admin/public
+    # Always send admin traffic into admin/public (fixes 403 on /admin/)
+    RewriteRule ^$ public/index.php [L]
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
-
-<FilesMatch "^\.env">
-    Require all denied
-</FilesMatch>
