@@ -735,7 +735,9 @@ class Str
             while (($len = strlen($string)) < $length) {
                 $size = $length - $len;
 
-                $bytes = random_bytes($size);
+                $bytesSize = (int) ceil($size / 3) * 3;
+
+                $bytes = random_bytes($bytesSize);
 
                 $string .= substr(str_replace(['/', '+', '='], '', base64_encode($bytes)), 0, $size);
             }
@@ -750,7 +752,7 @@ class Str
      * @param  callable|null  $factory
      * @return void
      */
-    public static function createRandomStringsUsing(callable $factory = null)
+    public static function createRandomStringsUsing(?callable $factory = null)
     {
         static::$randomStringFactory = $factory;
     }
@@ -1073,7 +1075,7 @@ class Str
      */
     public static function squish($value)
     {
-        return preg_replace('~(\s|\x{3164})+~u', ' ', preg_replace('~^[\s﻿]+|[\s﻿]+$~u', '', $value));
+        return preg_replace('~(\s|\x{3164})+~u', ' ', preg_replace('~^[\s\x{FEFF}]+|[\s\x{FEFF}]+$~u', '', $value));
     }
 
     /**
@@ -1125,11 +1127,12 @@ class Str
      * @param  string  $string
      * @param  int  $start
      * @param  int|null  $length
+     * @param  string  $encoding
      * @return string
      */
-    public static function substr($string, $start, $length = null)
+    public static function substr($string, $start, $length = null, $encoding = 'UTF-8')
     {
-        return mb_substr($string, $start, $length, 'UTF-8');
+        return mb_substr($string, $start, $length, $encoding);
     }
 
     /**
@@ -1268,7 +1271,7 @@ class Str
      * @param  callable|null  $factory
      * @return void
      */
-    public static function createUuidsUsing(callable $factory = null)
+    public static function createUuidsUsing(?callable $factory = null)
     {
         static::$uuidFactory = $factory;
     }
@@ -1313,7 +1316,7 @@ class Str
      * @param  \Closure|null  $callback
      * @return \Ramsey\Uuid\UuidInterface
      */
-    public static function freezeUuids(Closure $callback = null)
+    public static function freezeUuids(?Closure $callback = null)
     {
         $uuid = Str::uuid();
 

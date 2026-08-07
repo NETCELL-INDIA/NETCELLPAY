@@ -27,9 +27,9 @@ final class Question
      */
     private SymfonyQuestionHelper $helper;
 
-    public function __construct(SymfonyQuestionHelper $helper = null)
+    public function __construct(?SymfonyQuestionHelper $helper = null)
     {
-        $this->helper = $helper ?? new QuestionHelper();
+        $this->helper = $helper ?? new QuestionHelper;
     }
 
     /**
@@ -37,7 +37,7 @@ final class Question
      */
     public static function setStreamableInput(StreamableInputInterface|null $streamableInput): void
     {
-        self::$streamableInput = $streamableInput ?? new ArgvInput();
+        self::$streamableInput = $streamableInput ?? new ArgvInput;
     }
 
     /**
@@ -45,15 +45,23 @@ final class Question
      */
     public static function getStreamableInput(): StreamableInputInterface
     {
-        return self::$streamableInput ??= new ArgvInput();
+        return self::$streamableInput ??= new ArgvInput;
     }
 
     /**
      * Renders a prompt to the user.
+     *
+     * @param  iterable<array-key, string>|null  $autocomplete
      */
-    public function ask(string $question): mixed
+    public function ask(string $question, ?iterable $autocomplete = null): mixed
     {
         $html = (new HtmlRenderer)->parse($question)->toString();
+
+        $question = new SymfonyQuestion($html);
+
+        if ($autocomplete !== null) {
+            $question->setAutocompleterValues($autocomplete);
+        }
 
         $output = Termwind::getRenderer();
 
@@ -65,12 +73,12 @@ final class Question
 
             $currentHelper = $property->isInitialized($output)
                 ? $property->getValue($output)
-                : new SymfonyQuestionHelper();
+                : new SymfonyQuestionHelper;
 
             $property->setValue($output, new QuestionHelper);
 
             try {
-                return $output->ask($html);
+                return $output->askQuestion($question);
             } finally {
                 $property->setValue($output, $currentHelper);
             }
@@ -79,7 +87,7 @@ final class Question
         return $this->helper->ask(
             self::getStreamableInput(),
             Termwind::getRenderer(),
-            new SymfonyQuestion($html)
+            $question,
         );
     }
 }

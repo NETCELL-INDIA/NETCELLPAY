@@ -3,11 +3,10 @@
 /public/hot
 /public/storage
 /storage/*.key
+/vendor
 .env
 .env.backup
 .env.production
-admin/.env
-admin/.env.backup
 .phpunit.result.cache
 Homestead.json
 Homestead.yaml
@@ -17,14 +16,3 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
-*.log
-admin/storage/logs/*.log
-storage/logs/*.log
-admin/storage/backups/*.sql
-mysql-8.4/
-oldvendor/
-admin/oldvendor/
-new-netcell/
-user/
-users_shiba/
-.cursor/

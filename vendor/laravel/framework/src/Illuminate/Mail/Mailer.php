@@ -95,7 +95,7 @@ class Mailer implements MailerContract, MailQueueContract
      * @param  \Illuminate\Contracts\Events\Dispatcher|null  $events
      * @return void
      */
-    public function __construct(string $name, Factory $views, TransportInterface $transport, Dispatcher $events = null)
+    public function __construct(string $name, Factory $views, TransportInterface $transport, ?Dispatcher $events = null)
     {
         $this->name = $name;
         $this->views = $views;
@@ -252,6 +252,8 @@ class Mailer implements MailerContract, MailQueueContract
         if ($view instanceof MailableContract) {
             return $this->sendMailable($view);
         }
+
+        $data['mailer'] = $this->name;
 
         // First we need to parse the view, which could either be a string or an array
         // containing both an HTML and plain text versions of the view which should

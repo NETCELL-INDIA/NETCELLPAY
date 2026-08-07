@@ -15,6 +15,8 @@ class Client
 
     protected int $timeout;
 
+    protected $lastRequest = null;
+
     public function __construct(
         ?string $apiToken = null,
         string $baseUrl = 'https://reporting.flareapp.io/api',
@@ -138,7 +140,7 @@ class Client
             throw NotFound::createForResponse($response);
         }
 
-        if ($response->getHttpResponseCode() !== 200 && $response->getHttpResponseCode() !== 204) {
+        if (! in_array($response->getHttpResponseCode(), [200, 201, 204], true)) {
             throw BadResponseCode::createForResponse($response);
         }
 

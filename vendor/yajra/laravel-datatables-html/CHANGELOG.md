@@ -8,6 +8,19 @@
 
 ## CHANGELOG
 
+### v9.4.3 - 2025-09-06
+
+- Fix namespace of laravellux/html in Html/Builder #243
+
+### v9.4.2 - 2025-09-03
+
+- Fix namespace of laravellux/html HtmlServiceProvider #242
+- Fixes #241
+
+### v9.4.1 - 2025-08-29
+
+- fix: change laravelcollective/html form to laravellux/html #240
+
 ### v9.4.0 - 2023-02-20
 
 - feat: allow callable exportFormat parameter #167

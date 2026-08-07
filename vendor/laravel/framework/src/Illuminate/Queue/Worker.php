@@ -108,7 +108,7 @@ class Worker
                                 Dispatcher $events,
                                 ExceptionHandler $exceptions,
                                 callable $isDownForMaintenance,
-                                callable $resetScope = null)
+                                ?callable $resetScope = null)
     {
         $this->events = $events;
         $this->manager = $manager;
@@ -224,7 +224,7 @@ class Worker
             }
 
             $this->kill(static::EXIT_ERROR, $options);
-        });
+        }, true);
 
         pcntl_alarm(
             max($this->timeoutForJob($job, $options), 0)

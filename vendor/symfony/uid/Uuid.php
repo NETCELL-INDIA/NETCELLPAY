@@ -14,7 +14,7 @@ namespace Symfony\Component\Uid;
 /**
  * @author Grégoire Pineau <lyrixx@lyrixx.info>
  *
- * @see https://tools.ietf.org/html/rfc4122#appendix-C for details about namespaces
+ * @see https://datatracker.ietf.org/doc/html/rfc9562/#section-6.6 for details about namespaces
  */
 class Uuid extends AbstractUid
 {
@@ -32,13 +32,13 @@ class Uuid extends AbstractUid
         $type = preg_match('{^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$}Di', $uuid) ? (int) $uuid[14] : false;
 
         if (false === $type || (static::TYPE ?: $type) !== $type) {
-            throw new \InvalidArgumentException(sprintf('Invalid UUID%s: "%s".', static::TYPE ? 'v'.static::TYPE : '', $uuid));
+            throw new \InvalidArgumentException(\sprintf('Invalid UUID%s.', static::TYPE ? 'v'.static::TYPE : ''));
         }
 
         $this->uid = strtolower($uuid);
 
         if ($checkVariant && !\in_array($this->uid[19], ['8', '9', 'a', 'b'], true)) {
-            throw new \InvalidArgumentException(sprintf('Invalid UUID%s: "%s".', static::TYPE ? 'v'.static::TYPE : '', $uuid));
+            throw new \InvalidArgumentException(\sprintf('Invalid UUID%s.', static::TYPE ? 'v'.static::TYPE : ''));
         }
     }
 
@@ -56,7 +56,7 @@ class Uuid extends AbstractUid
             $uuid = substr_replace($uuid, '-', 18, 0);
             $uuid = substr_replace($uuid, '-', 23, 0);
         } elseif (26 === \strlen($uuid) && Ulid::isValid($uuid)) {
-            $ulid = new Ulid('00000000000000000000000000');
+            $ulid = new NilUlid();
             $ulid->uid = strtoupper($uuid);
             $uuid = $ulid->toRfc4122();
         }
@@ -132,6 +132,14 @@ class Uuid extends AbstractUid
 
     public static function isValid(string $uuid): bool
     {
+        if (self::NIL === $uuid && \in_array(static::class, [__CLASS__, NilUuid::class], true)) {
+            return true;
+        }
+
+        if (self::MAX === strtr($uuid, 'F', 'f') && \in_array(static::class, [__CLASS__, MaxUuid::class], true)) {
+            return true;
+        }
+
         if (!preg_match('{^[0-9a-f]{8}(?:-[0-9a-f]{4}){2}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$}Di', $uuid)) {
             return false;
         }
@@ -144,6 +152,13 @@ class Uuid extends AbstractUid
         return uuid_parse($this->uid);
     }
 
+    /**
+     * Returns the identifier as a RFC 9562/4122 case insensitive string.
+     *
+     * @see https://datatracker.ietf.org/doc/html/rfc9562/#section-4
+     *
+     * @example 09748193-048a-4bfb-b825-8528cf74fdc1 (len=36)
+     */
     public function toRfc4122(): string
     {
         return $this->uid;
