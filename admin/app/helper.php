@@ -620,7 +620,7 @@ class Helper {
         }        
     }
 
-    public static function curl($url , $method='GET', $parameters, $header, $log="no", $modal="none", $txnid="none")
+    public static function curl($url, $method = 'GET', $parameters = null, $header = [], $log = "no", $modal = "none", $txnid = "none")
     {   
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, FALSE);

@@ -30,8 +30,8 @@
         <!-- Start right Content here -->
         <!-- ============================================================== -->
         <div class="main-content">
-            <div class="page-content">
-                <div class="container-fluid">
+            <div class="page-content portal-content">
+                <div class="container-fluid portal-shell">
                     @yield('content')
                 </div>
                 <!-- container-fluid -->

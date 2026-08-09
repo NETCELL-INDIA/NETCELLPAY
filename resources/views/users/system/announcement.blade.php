@@ -73,7 +73,7 @@
     }
 
     function update() {
-        $("#edit_details_btn").text('Please wait...');
+        $("#edit_details_btn").text('Loading...');
         $('#edit_details_btn').prop('disabled', true);
         $.ajax({
           url: '{{ route('announcementUpdate') }}',

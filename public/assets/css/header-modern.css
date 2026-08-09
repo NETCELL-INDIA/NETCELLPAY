@@ -1,0 +1,273 @@
+:root {
+    --nc-header-height: 64px;
+    --nc-nav-height: 50px;
+    --nc-header-bg: linear-gradient(135deg, #121826 0%, #1e293b 48%, #172033 100%);
+    --nc-header-accent: #635bff;
+    --nc-header-teal: #00bfa6;
+}
+
+.nc-topbar {
+    position: relative;
+    background: var(--nc-header-bg) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    box-shadow: 0 4px 18px rgba(15, 23, 42, .16);
+}
+
+.nc-topbar::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    content: "";
+    background: linear-gradient(90deg, var(--nc-header-accent), var(--nc-header-teal), var(--nc-header-accent));
+    opacity: .75;
+}
+
+.nc-navbar-header {
+    height: var(--nc-header-height) !important;
+    padding: 0 1rem !important;
+}
+
+.nc-header-left,
+.nc-header-right {
+    gap: 10px;
+}
+
+.nc-header-left .horizontal-logo .logo-dark {
+    display: none;
+}
+
+.nc-header-left .horizontal-logo .logo-light {
+    display: block;
+}
+
+.nc-brand-link {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    max-width: min(240px, 42vw);
+    padding: 5px 10px 5px 5px;
+    text-decoration: none;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 12px;
+}
+
+.nc-brand-logo {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    padding: 3px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.nc-brand-mark {
+    display: grid;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    color: var(--nc-header-accent);
+    font-size: 12px;
+    font-weight: 800;
+    background: #fff;
+    border-radius: 8px;
+}
+
+.nc-brand-text strong {
+    display: block;
+    overflow: hidden;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nc-header-left .horizontal-logo {
+    display: block !important;
+}
+
+.nc-header-left .navbar-brand-box {
+    padding-right: 4px;
+}
+
+.nc-topbar .app-search {
+    padding: 0 !important;
+}
+
+.nc-wallet-btn {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    height: 38px;
+    padding: 0 14px 0 10px;
+    color: #fff !important;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: 1px solid rgba(255, 255, 255, .16) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 6px 16px rgba(16, 185, 129, .22);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.nc-wallet-btn:hover,
+.nc-wallet-btn:focus {
+    color: #fff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(16, 185, 129, .28);
+}
+
+.nc-wallet-btn .wallet-icon-wrap {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    font-size: 15px;
+    background: rgba(255, 255, 255, .16);
+    border-radius: 50%;
+}
+
+.nc-wallet-btn .wallet-label {
+    color: rgba(255, 255, 255, .78);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .35px;
+    line-height: 1;
+}
+
+.nc-wallet-btn .wallet-amount {
+    font-size: 13px;
+    line-height: 1.15;
+}
+
+.nc-header-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 3px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 999px;
+}
+
+.nc-topbar .btn-topbar {
+    width: 32px !important;
+    height: 32px !important;
+    color: rgba(255, 255, 255, .82) !important;
+    background: transparent !important;
+    border-radius: 50% !important;
+    transition: background .2s ease, color .2s ease;
+}
+
+.nc-topbar .btn-topbar i {
+    font-size: 18px !important;
+}
+
+.nc-topbar .btn-topbar:hover,
+.nc-topbar .btn-topbar:focus {
+    color: #fff !important;
+    background: rgba(255, 255, 255, .1) !important;
+}
+
+.nc-topbar .topbar-user {
+    margin-left: 2px !important;
+    background: rgba(255, 255, 255, .06) !important;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 12px !important;
+}
+
+.nc-topbar .topbar-user > .btn {
+    padding: 4px 10px 4px 4px !important;
+}
+
+.nc-topbar .header-profile-user {
+    width: 34px !important;
+    height: 34px !important;
+    object-fit: cover;
+    border: 2px solid rgba(99, 91, 255, .5);
+    box-shadow: 0 0 0 2px rgba(99, 91, 255, .12);
+}
+
+.nc-topbar .user-name-text {
+    color: #fff !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1.2;
+}
+
+.nc-topbar .user-name-sub-text {
+    color: rgba(255, 255, 255, .62) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.1;
+}
+
+.nc-header-actions .header-item {
+    margin-left: 0 !important;
+}
+
+.nc-topbar .topbar-head-dropdown .btn-topbar img {
+    height: 16px !important;
+}
+
+[data-topbar=dark] .nc-topbar .topbar-user {
+    background: rgba(255, 255, 255, .06) !important;
+}
+
+[data-layout=horizontal] .navbar-menu {
+    margin-top: var(--nc-header-height) !important;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(148, 163, 184, .16);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .05);
+}
+
+@media (min-width: 1024.1px) {
+    [data-layout=horizontal] .page-content.portal-content {
+        margin-top: var(--nc-header-height) !important;
+        padding-top: calc(var(--nc-nav-height) + 14px) !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .nc-navbar-header {
+        padding: 0 .75rem !important;
+    }
+
+    .nc-wallet-btn {
+        height: 36px;
+        padding: 0 12px 0 10px;
+    }
+
+    .nc-wallet-btn .wallet-label {
+        display: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    :root {
+        --nc-header-height: 60px;
+    }
+
+    .nc-header-left .horizontal-logo {
+        display: block !important;
+    }
+
+    .nc-brand-text strong {
+        max-width: 120px;
+        font-size: 12px;
+    }
+
+    .nc-topbar .user-name-text,
+    .nc-topbar .user-name-sub-text {
+        display: none !important;
+    }
+}

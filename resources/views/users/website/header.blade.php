@@ -1,141 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ========== Meta Tags ========== -->
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="We are providing  Online Mobile Recharge Portal Service.
-We are a website and software development company, dedicated to creating innovative solutions that empower businesses to thrive in the digital world. Our expertise lies in delivering cutting-edge technology and exceptional user experiences.
-At our website and software development company, we combine technical expertise with creative flair to build custom websites and software solutions tailored to your unique business needs. With a focus on quality, scalability, and user-centric design, we strive to exceed expectations and drive your digital success.">
+    <meta name="description" content="{{ $company->company_name }} provides secure digital payments, recharges, bill payments and business banking services across India.">
+    <meta name="theme-color" content="#111936">
 
-    <!-- ========== Page Title ========== -->
-    <title>{{$company->company_name}}</title>
+    <title>{{ $company->company_name }} | Digital Payments for Every Business</title>
 
-    <!-- ========== Favicon Icon ========== -->
-    <link rel="shortcut icon" href="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_icon}}" type="image/x-icon">
+    @if(!empty($company->company_icon))
+        <link rel="shortcut icon" href="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_icon }}" type="image/x-icon">
+    @endif
 
-    <!-- ========== Start Stylesheet ========== -->
-    <link href="{{ URL::asset('web_template/css/bootstrap.min.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/font-awesome.min.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/flaticon-set.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/magnific-popup.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/owl.carousel.min.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/owl.theme.default.min.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/animate.css') }}" rel="stylesheet" />
-    <link href="{{ URL::asset('web_template/css/bootsnav.css') }}" rel="stylesheet" />
+    <link href="{{ URL::asset('web_template/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ URL::asset('web_template/css/font-awesome.min.css') }}" rel="stylesheet">
+    <link href="{{ URL::asset('web_template/css/animate.css') }}" rel="stylesheet">
     <link href="{{ URL::asset('web_template/css/style.css') }}" rel="stylesheet">
-    <link href="{{ URL::asset('web_template/css/responsive.css') }}" rel="stylesheet" />
-    <!-- ========== End Stylesheet ========== -->
-    <!-- ========== Google Fonts ========== -->
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css?family=Poppins:400,500,600,700,800" rel="stylesheet">
-<!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16658014418">
-  </script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+    <link href="{{ URL::asset('web_template/css/responsive.css') }}" rel="stylesheet">
+    <link href="{{ URL::asset('web_template/css/netcell-site.css') }}" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    gtag('config', 'AW-16658014418');
-  </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-16658014418"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'AW-16658014418');
+    </script>
 </head>
 
-<body>
-
-    <!-- Preloader Start -->
-    <div class="se-pre-con"></div>
-    <!-- Preloader Ends -->
-    <!-- Start Header Top
-    ============================================= -->
-    <div class="top-bar-area address-two-lines bg-dark text-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-8 address-info">
-                    <div class="info box">
-                        <ul>
-
-                            <li>
-                                <span><i class="fas fa-envelope-open"></i> Email: {{$company->support_email}} </span>
-                            </li>
-                            <li>
-                                <span><i class="fas fa-phone"></i> Contact: {{$company->support_number}}</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+<body class="nc-site">
+    <div class="nc-announcement">
+        <div class="nc-container nc-announcement-inner">
+            <p><span class="nc-status-dot"></span> Fast, secure and trusted digital payment services</p>
+            <div class="nc-contact-links">
+                @if(!empty($company->support_email))
+                    <a href="mailto:{{ $company->support_email }}">
+                        <i class="fas fa-envelope"></i>{{ $company->support_email }}
+                    </a>
+                @endif
+                @if(!empty($company->support_number))
+                    <a href="tel:{{ preg_replace('/[^0-9+]/', '', $company->support_number) }}">
+                        <i class="fas fa-phone"></i>{{ $company->support_number }}
+                    </a>
+                @endif
             </div>
         </div>
     </div>
-    <!-- End Header Top -->
-    <!-- Header
-    ============================================= -->
-    <header id="home">
 
-        <!-- Start Navigation -->
-        <nav class="navbar navbar-default navbar-sticky bootsnav">
+    <header class="nc-header" id="site-header">
+        <div class="nc-container nc-navbar">
+            <a class="nc-brand" href="{{ url('/') }}" aria-label="{{ $company->company_name }} home">
+                @if(!empty($company->company_logo))
+                    <img src="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_logo }}"
+                        alt="{{ $company->company_name }}"
+                        onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+                    <span class="nc-brand-fallback" hidden>
+                        <span class="nc-brand-symbol"><i class="fas fa-bolt"></i></span>
+                        <span>{{ $company->company_name }}</span>
+                    </span>
+                @else
+                    <span class="nc-brand-symbol"><i class="fas fa-bolt"></i></span>
+                    <span>{{ $company->company_name }}</span>
+                @endif
+            </a>
 
-            <!-- Start Top Search -->
-            <div class="container">
-                <div class="row">
-                    <div class="top-search">
-                        <div class="input-group">
-                            <form action="#">
-                                <input type="text" name="text" class="form-control" placeholder="Search">
-                                <button type="submit">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- End Top Search -->
+            <button class="nc-menu-toggle" type="button" aria-controls="nc-navigation" aria-expanded="false">
+                <span></span><span></span><span></span>
+                <span class="sr-only">Toggle navigation</span>
+            </button>
 
-            <div class="container">
+            <nav class="nc-navigation" id="nc-navigation" aria-label="Primary navigation">
+                <a class="{{ request()->is('/') || request()->is('home') ? 'active' : '' }}" href="{{ url('/') }}">Home</a>
+                <a class="{{ request()->is('about-us') ? 'active' : '' }}" href="{{ url('/about-us') }}">About</a>
+                <a class="{{ request()->is('services') ? 'active' : '' }}" href="{{ url('/services') }}">Services</a>
+                <a class="{{ request()->is('contact-us') ? 'active' : '' }}" href="{{ url('/contact-us') }}">Contact</a>
+            </nav>
 
-                <!-- Start Atribute Navigation -->
-                <!-- End Atribute Navigation -->
-                <!-- Start Header Navigation -->
-                <div class="navbar-header">
-                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-menu">
-                        <i class="fa fa-bars"></i>
-                    </button>
-                    <a class="navbar-brand cusnavbar-brand" href="home">
-                        <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" class="logo" alt="Logo" style="width: auto;height: 60px;">
+            <div class="nc-nav-actions">
+                @if(!empty($company->apk_file_name))
+                    <a class="nc-app-link" href="{{ $company->apk_file_name }}" target="_blank" rel="noopener">
+                        <i class="fab fa-android"></i><span>Get App</span>
                     </a>
-                </div>
-                <!-- End Header Navigation -->
-                <!-- Collect the nav links, forms, and other content for toggling -->
-                <div class="collapse navbar-collapse" id="navbar-menu">
-                    <ul class="nav navbar-nav navbar-right" data-in="#" data-out="#">
-                        <li>
-                            <a href="home">Home</a>
-                        </li>
-                        <li>
-                            <a href="about-us">About</a>
-                        </li>
-                        <li>
-                            <a href="services">Services</a>
-                        </li>
-
-                        <li>
-                            <a href="contact-us">contact</a>
-                        </li>
-                        <li>
-                            <a href="users/login">Login</a>
-                        </li>
-                        <li class="last-list-sec">
-                            <a href="{{$company->apk_file_name}}"><i class="fab fa-android"></i>Download App</a>
-                        </li>
-                    </ul>
-                </div><!-- /.navbar-collapse -->
+                @endif
+                <a class="nc-login-link" href="{{ url('/users/login') }}">
+                    Login <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
-
-        </nav>
-        <!-- End Navigation -->
-
+        </div>
     </header>
-    <!-- End Header -->
 

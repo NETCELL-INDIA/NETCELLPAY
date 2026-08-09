@@ -20,7 +20,7 @@
                 <h4 class="card-title mb-0 flex-grow-1">SMS Template List</h4>
             </div>
             <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
             </div>
         </div>
     </div>
@@ -189,7 +189,7 @@
     $("#edit_details_form").submit(function(e) {
         e.preventDefault();
         const fd = new FormData(this);
-        $("#edit_details_btn").text('Please wait...');
+        $("#edit_details_btn").text('Loading...');
         $('#edit_details_btn').prop('disabled', true);
         $.ajax({
           url: '{{ route('smsTemplateUpdate') }}',

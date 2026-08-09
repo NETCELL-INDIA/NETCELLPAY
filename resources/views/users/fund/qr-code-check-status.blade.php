@@ -72,7 +72,7 @@
             <i class="fa fa-spinner" style="font-size: 200px;color:#efd518;animation: time 2s infinite linear;transform: rotate(100deg);"></i>
         </div>
         <h1 id="status">Processing</h1>
-        <p id="message">Please wait...</p>
+        <p id="message">Loading...</p>
     </br>
         <button class="button button1" onclick="homePage()">Back To Home</button>
     </div>

@@ -62,23 +62,25 @@ class ProfileController extends Controller
         ->where('domain', $_SERVER['HTTP_HOST'])
         ->first();
 
-        $announcements = DB::table('announcements')
+        $announcementRow = DB::table('announcements')
         ->select('message')
-        ->where('id',1)
-        ->first()->message;
-        if($user){
+        ->where('id', 1)
+        ->first();
+        $announcements = $announcementRow->message ?? '';
+
+        if ($user) {
             $data['type'] = 'success';
             $data['message'] = "Fatch Sucessfuly";
             $data['data']['user'] = $user;
             $data['data']['login_history'] = $login_history;
             $data['data']['company'] = $company;
             $data['data']['announcements'] = $announcements;
-        }else{
+        } else {
             $data['type'] = 'error';
             $data['message'] = "Something went wrong!";
         }
 
-        return $data;
+        return response()->json($data);
     }
 
 

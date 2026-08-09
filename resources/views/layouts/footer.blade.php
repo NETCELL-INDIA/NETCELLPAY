@@ -71,8 +71,27 @@
         return dt;
     }
 
+    function updateProfileUI(user) {
+        if (!user) return;
+        var fullName = [user.first_name, user.last_name].filter(Boolean).join(' ') || '—';
+        $(".user-name-text").text(user.first_name || '—');
+        $(".user-name-sub-text").text(user.role_name || '—');
+        $("#nav_first_name").text("Welcome " + (user.first_name || '') + "!");
+        $("#nav_full_name").text(fullName);
+        $("#nav_role_name").text(user.role_name || '—');
+        $("#nav_outlet_name").text(user.outlet_name || '—');
+        $("#nav_first_name_val").text(user.first_name || '—');
+        $("#nav_last_name").text(user.last_name || '—');
+        $("#nav_mobile_number").text(user.mobile_number ? ('+91-' + user.mobile_number) : '—');
+        $("#nav_email_address").text(user.email_address || '—');
+        if ($("#dp_outlet_name").length) {
+            $("#dp_outlet_name").text(user.outlet_name || '—');
+        }
+    }
+
     function dateTime() {
-        var data = $.parseJSON(localStorage.getItem("profileData"));
+        var raw = localStorage.getItem("profileData");
+        var data = raw ? $.parseJSON(raw) : null;
         const myDate = new Date();
         const hrs = myDate.getHours();
         let greet;
@@ -82,16 +101,21 @@
             greet = 'Good Afternoon';
         else if (hrs >= 17 && hrs <= 24)
             greet = 'Good Evening';
-        $("#dayMessage").text(greet+", "+data.user.first_name+"!");
-        var ndate = new Date();
-        var h = ndate.getHours() % 12;
-        var format = h >= 12 ? 'PM' : 'AM';
-        var m = ndate.getMinutes().toString();
-        var s = ndate.getSeconds().toString();
+        if (data && data.user && data.user.first_name && $("#dayMessage").length) {
+            $("#dayMessage").text(greet+", "+data.user.first_name+"!");
+        }
         $('#date_time_footer').text(myDate);
     }
 
     ajaxCall();
+    (function () {
+        var raw = localStorage.getItem("profileData");
+        if (!raw) return;
+        try {
+            var data = $.parseJSON(raw);
+            if (data && data.user) updateProfileUI(data.user);
+        } catch (e) {}
+    })();
     dateTime();
     setInterval(dateTime, 1000);
     setInterval(ajaxCall, 25000);
@@ -103,11 +127,20 @@
             success: function(data) {
                 if(data.type == "success"){
                     localStorage.setItem("profileData", JSON.stringify(data.data));
-                    $(".LoadWallet").html('<i class="mdi mdi-wallet label-icon align-middle rounded-pill fs-16 me-2"></i>₹ '+data.data.user.wallet_balance.toFixed(2));
-                    $("#nav_first_name").text("Welcome "+data.data.user.first_name+"!");
-                    $("#nav_wallet_balance").text("₹ "+data.data.user.wallet_balance.toFixed(2));
+                    var u = data.data.user;
+                    $(".LoadWallet").html('<span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span><span class="text-start"><span class="d-block wallet-label">Wallet Balance</span><span class="d-block wallet-amount">₹ '+u.wallet_balance.toFixed(2)+'</span></span>');
+                    $("#nav_wallet_balance").text("₹ "+u.wallet_balance.toFixed(2));
                     admin_url = '{{env('ADMIN_HOST')}}';
-                    $("#nav_profile_pic").attr("src", admin_url+"/public/profile_pic/"+data.data.user.profile_pic);
+                    var profilePic = admin_url+"/public/profile_pic/"+u.profile_pic;
+                    $("#nav_profile_pic").attr("src", profilePic);
+                    $("#nav_profile_pic_menu").attr("src", profilePic);
+                    updateProfileUI(u);
+                    if ($("#da_announcements_data").length) {
+                        $("#da_announcements_data").text(data.data.announcements || '');
+                    }
+                    if (typeof dateTime === 'function') {
+                        dateTime();
+                    }
 
                     ////Help & Support Modal Start
                     $("#sh_comapany_logo").attr("src", admin_url+"/public/company_logo/"+data.data.company.company_logo);

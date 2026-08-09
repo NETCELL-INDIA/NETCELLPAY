@@ -758,25 +758,29 @@ class helpers
 
         if($log != "no"){
 
-            DB::table('apilogs')->insert([
+            try {
+                DB::table('apilogs')->insert([
 
-                "url" => $url,
+                    "url" => $url,
 
-                "modal" => $modal,
+                    "modal" => $modal,
 
-                "txnid" => $txnid,
+                    "txnid" => $txnid,
 
-                "header" => json_encode($header),
+                    "header" => json_encode($header),
 
-                "request" => json_encode($parameters),
+                    "request" => json_encode($parameters),
 
-                "response" => $response,
+                    "response" => $response,
 
-                'created_at' => Carbon::now(),
+                    'created_at' => Carbon::now(),
 
-                'updated_at' => Carbon::now()
+                    'updated_at' => Carbon::now()
 
-            ]);
+                ]);
+            } catch (\Throwable $e) {
+                // API logging should never break the primary request flow.
+            }
 
         }
 

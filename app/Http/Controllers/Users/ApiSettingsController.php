@@ -9,8 +9,17 @@ use Illuminate\Support\Facades\Session;
 
 class ApiSettingsController extends Controller
 {
+    private function denyForDistributionRoles()
+    {
+        if (in_array((int) Session::get('role_id'), [4, 5, 6], true)) {
+            abort(403, 'You are not allowed to access API Configuration.');
+        }
+    }
+
     public function index()
     {
+        $this->denyForDistributionRoles();
+
         $company = DB::table('companies')
             ->where('status', '1')
             ->where('domain', $_SERVER['HTTP_HOST'] ?? '')
@@ -26,6 +35,8 @@ class ApiSettingsController extends Controller
 
     public function store(Request $request)
     {
+        $this->denyForDistributionRoles();
+
         $company = DB::table('companies')
             ->where('status', '1')
             ->where('domain', $_SERVER['HTTP_HOST'] ?? '')

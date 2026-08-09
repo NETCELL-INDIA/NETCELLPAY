@@ -69,42 +69,51 @@ Route::get('/job', function() {
     // return $return;
 });
 ////Website Start
-Route::get('/', function () {
+$websiteCompany = function () {
+    $company = DB::table('companies')
+        ->where('status', '1')
+        ->where('domain', request()->getHost())
+        ->first();
 
-    $company['company'] = DB::table('companies')
+    $company = $company ?: DB::table('companies')
         ->where('status', '1')
         ->first();
 
-    return view('users.website.welcome', $company);
+    abort_unless($company, 503, 'Website configuration is not available.');
 
+    return $company;
+};
+
+Route::get('/', function () use ($websiteCompany) {
+    return view('users.website.welcome', ['company' => $websiteCompany()]);
+})->name('website.home');
+
+Route::get('/home', function () use ($websiteCompany) {
+    return view('users.website.welcome', ['company' => $websiteCompany()]);
 });
-Route::get('/home', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.welcome',$company);
+
+Route::get('/about-us', function () use ($websiteCompany) {
+    return view('users.website.about-us', ['company' => $websiteCompany()]);
 });
-Route::get('/about-us', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.about-us',$company);
+
+Route::get('/services', function () use ($websiteCompany) {
+    return view('users.website.services', ['company' => $websiteCompany()]);
 });
-Route::get('/services', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.services',$company);
+
+Route::get('/contact-us', function () use ($websiteCompany) {
+    return view('users.website.contact-us', ['company' => $websiteCompany()]);
 });
-Route::get('/contact-us', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.contact-us',$company);
+
+Route::get('/privacy-policy', function () use ($websiteCompany) {
+    return view('users.website.privacy-policy', ['company' => $websiteCompany()]);
 });
-Route::get('/privacy-policy', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.privacy-policy',$company);
+
+Route::get('/term-and-condition', function () use ($websiteCompany) {
+    return view('users.website.term-and-condition', ['company' => $websiteCompany()]);
 });
-Route::get('/term-and-condition', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.term-and-condition',$company);
-});
-Route::get('/refunds', function () {
-    $company['company'] = DB::table('companies')->where('status', "1")->first();
-   return view('users.website.refunds',$company);
+
+Route::get('/refunds', function () use ($websiteCompany) {
+    return view('users.website.refunds', ['company' => $websiteCompany()]);
 });
 ////Website End
 ///All Callback Url Start

@@ -18,7 +18,7 @@
     <div class="col-lg-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Search</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Filter</h4>
                 <div class="flex-shrink-0">
                 </div>
             </div>
@@ -47,7 +47,7 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Transaction Type </label>
                             <select class="form-select mb-3" name="tr_type"  id="tr_type">
-                                <option selected value="">---Select---</option>
+                                <option selected value="">Select Option</option>
                                 <option value="Recharge">Recharge</option>
                                 <option value="Commission">Commission</option>
                                 <option value="Refund">Refund</option>
@@ -64,7 +64,7 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Credit/Debit </label>
                             <select class="form-select mb-3" name="fund_type"  id="fund_type">
-                                <option selected value="">---Select---</option>
+                                <option selected value="">Select Option</option>
                                 <option value="Credit">Credit</option>
                                 <option value="Debit">Debit</option>
                             </select>
@@ -79,7 +79,7 @@
                         <div class="col-lg-1">
                             <div>
                                 <label class="form-label mb-0"></label>
-                                <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAllSearch()">Search Records</button>
+                                <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAllSearch()">Search</button>
                             </div>  
                         </div>
                     </div>                          
@@ -98,7 +98,7 @@
                 </div>
             </div>
             <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
             </div>
         </div>
     </div>
@@ -121,7 +121,7 @@
 
         var tbl_type = $("#tbl_type").val();
 
-        $("#search_btn").text('Please wait...');
+        $("#search_btn").text('Loading...');
         $('#search_btn').prop('disabled', true);
         $.ajax({
             url: '{{ route('accountReportsList') }}',
@@ -138,7 +138,7 @@
                 _token: '{{csrf_token()}}',
             },
             success: function(res) {
-                $("#search_btn").text('Search Records');
+                $("#search_btn").text('Search');
                 $('#search_btn').prop('disabled', false);
                 $("#list_result").html(res);
                 // var table = new DataTable('#scroll-vertical', {

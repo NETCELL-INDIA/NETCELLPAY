@@ -30,7 +30,7 @@
                 </div>
             </div>
             <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
             </div>
         </div>
     </div>
@@ -269,7 +269,7 @@
 
                 </br>
                 <div class="card-body" id="provider_code_result">
-                    <h4 class="text-center text-secondary my-3">No record found</h4>
+                    <h4 class="text-center text-secondary my-3">No records found</h4>
                 </div>
             </div>
             <div class="modal-footer">
@@ -430,7 +430,7 @@
     $("#bulkUpdateForm").submit(function(e) {
         e.preventDefault();
         const fd = new FormData(this);
-        $("#bulk_update_provider_code").text('Please wait...');
+        $("#bulk_update_provider_code").text('Loading...');
         $('#bulk_update_provider_code').prop('disabled', true);
         $.ajax({
           url: '{{ route('apisBulkUpdateProviderCode') }}',
@@ -570,7 +570,7 @@
     $("#edit_details_form").submit(function(e) {
         e.preventDefault();
         const fd = new FormData(this);
-        $("#edit_details_btn").text('Please wait...');
+        $("#edit_details_btn").text('Loading...');
         $('#edit_details_btn').prop('disabled', true);
         $.ajax({
           url: '{{ route('apisUpdate') }}',

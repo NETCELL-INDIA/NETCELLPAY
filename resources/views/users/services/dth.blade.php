@@ -192,7 +192,7 @@
 
                 <div class="card-body" id="list_result">
 
-                    <h4 class="text-center text-secondary my-3">No record found</h4>
+                    <h4 class="text-center text-secondary my-3">No records found</h4>
 
                 </div>
 
@@ -760,7 +760,7 @@
 
         function receiptView(id) {
 
-            $("#receipt_btn").text('Please wait...');
+            $("#receipt_btn").text('Loading...');
 
             $('#receipt_btn').prop('disabled', true);
 
@@ -838,7 +838,7 @@
 
             var subject = $("#cs_subject").val();
 
-            $("#complaint_now_btn").text('Please wait...');
+            $("#complaint_now_btn").text('Loading...');
 
             $('#complaint_now_btn').prop('disabled', true);
 
@@ -922,7 +922,7 @@
 
             var pin = $("#t_pin").val();
 
-            $("#recharge_now_btn").text('Please wait...');
+            $("#recharge_now_btn").text('Loading...');
 
             $('#recharge_now_btn').prop('disabled', true);
 

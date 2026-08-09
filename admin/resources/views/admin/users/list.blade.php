@@ -308,6 +308,99 @@
 
 
 
+<!-- Reset Password Modal -->
+
+<div id="resetPasswordModal" class="modal fade" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" style="display: none;">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title" id="resetPasswordModalLabel">Reset Password</h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+            </div>
+
+            <form id="reset_password_form" autocomplete="off">
+
+                @csrf
+
+                <input type="hidden" name="id" id="reset_password_user_id">
+
+                <div class="modal-body">
+
+                    <p class="text-muted mb-3" id="reset_password_user_label">Set a new password for this user.</p>
+
+                    <div class="alert alert-secondary py-2 px-3 mb-3" id="reset_current_credentials">
+                        <div class="fw-semibold mb-2"><i class="ri-information-line me-1"></i> Current Credentials</div>
+                        <div class="small mb-1"><span class="text-muted">Mobile:</span> <span id="reset_cred_mobile">—</span></div>
+                        <div class="small mb-1"><span class="text-muted">T-PIN:</span> <strong id="reset_cred_pin">—</strong></div>
+                        <div class="small mb-0">
+                            <span class="text-muted">Password:</span>
+                            <strong id="reset_cred_password">—</strong>
+                            <span class="text-muted" id="reset_cred_password_note"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label for="reset_password" class="form-label">New Password <span class="text-danger">*</span></label>
+
+                        <div class="position-relative auth-pass-inputgroup">
+
+                            <input type="password" class="form-control pe-5 password-input" name="password" id="reset_password" minlength="8" required autocomplete="new-password" placeholder="Enter new password">
+
+                            <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button" aria-label="Show password">
+
+                                <i class="ri-eye-fill align-middle"></i>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    <div class="mb-0">
+
+                        <label for="reset_password_confirmation" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+
+                        <div class="position-relative auth-pass-inputgroup">
+
+                            <input type="password" class="form-control pe-5 password-input" name="password_confirmation" id="reset_password_confirmation" minlength="8" required autocomplete="new-password" placeholder="Confirm new password">
+
+                            <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button" aria-label="Show password">
+
+                                <i class="ri-eye-fill align-middle"></i>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+
+                    <button type="submit" class="btn btn-primary" id="reset_password_btn">Save Password</button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
 <!-- Details Modals -->
 
 <div id="detailsModal" class="modal bs-example-modal-lg" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" style="display: none;">
@@ -533,6 +626,54 @@
                                         <option value="OTP">OTP</option>
 
                                     </select>
+
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6" id="user_password_wrap">
+
+                                <div>
+
+                                    <label for="user_password" class="form-label">Password: <span class="text-danger user-password-required">*</span></label>
+
+                                    <div class="position-relative auth-pass-inputgroup">
+
+                                        <input type="password" class="form-control pe-5 password-input" name="password" id="user_password" minlength="8" autocomplete="new-password" placeholder="Enter password">
+
+                                        <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button" aria-label="Show password">
+
+                                            <i class="ri-eye-fill align-middle"></i>
+
+                                        </button>
+
+                                    </div>
+
+                                    <small class="text-muted user-password-hint-edit" style="display:none">Leave blank to keep current password.</small>
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-xxl-3 col-md-6" id="user_password_confirm_wrap">
+
+                                <div>
+
+                                    <label for="user_password_confirmation" class="form-label">Confirm Password: <span class="text-danger user-password-required">*</span></label>
+
+                                    <div class="position-relative auth-pass-inputgroup">
+
+                                        <input type="password" class="form-control pe-5 password-input" name="password_confirmation" id="user_password_confirmation" minlength="8" autocomplete="new-password" placeholder="Confirm password">
+
+                                        <button class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon" type="button" aria-label="Show password">
+
+                                            <i class="ri-eye-fill align-middle"></i>
+
+                                        </button>
+
+                                    </div>
 
                                 </div>
 
@@ -946,6 +1087,52 @@
 
     }
 
+    function setUserPasswordMode(isCreate) {
+        $('#user_password, #user_password_confirmation').val('').attr('type', 'password');
+
+        if (isCreate) {
+            $('#user_password, #user_password_confirmation').prop('required', true);
+            $('.user-password-required').show();
+            $('.user-password-hint-edit').hide();
+            $('#detailsModalLabel').text('Create Details');
+        } else {
+            $('#user_password, #user_password_confirmation').prop('required', false);
+            $('.user-password-required').hide();
+            $('.user-password-hint-edit').show();
+            $('#detailsModalLabel').text('Edit Details');
+        }
+    }
+
+    function validateUserPasswordFields(isCreate) {
+        var pwd = $('#user_password').val();
+        var pwdConfirm = $('#user_password_confirmation').val();
+
+        if (isCreate) {
+            if (!pwd || pwd.length < 8) {
+                Error_Msg('Error', 'Password must be at least 8 characters.', 'error');
+                return false;
+            }
+            if (pwd !== pwdConfirm) {
+                Error_Msg('Error', 'Password confirmation does not match.', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        if (pwd || pwdConfirm) {
+            if (!pwd || pwd.length < 8) {
+                Error_Msg('Error', 'Password must be at least 8 characters.', 'error');
+                return false;
+            }
+            if (pwd !== pwdConfirm) {
+                Error_Msg('Error', 'Password confirmation does not match.', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     function showDuplicateUserError(data) {
         if (!data.existing_user) {
             Error_Msg(capitalizeFirstLetter(data.type), data.message, data.type);
@@ -1043,8 +1230,10 @@
                 $("#complaint_callback_url").val(data.data.complaint_callback_url);
                 $("#old_profile_pic").val(data.data.profile_pic);
                 $("#edit_id").val(data.data.id);
+                $("#user_password").val('');
+                $("#user_password_confirmation").val('');
+                setUserPasswordMode(false);
                 $(".status").val(data.data.status).change();
-                $('#detailsModalLabel').text('Edit Details');
                 $('#detailsModal').modal('show');
             },
             error: function() {
@@ -1480,8 +1669,65 @@
         e.preventDefault();
 
         let id = $(this).attr('id');
+        let userName = $(this).data('user-name') || 'this user';
+        let userMobile = $(this).data('user-mobile') || '—';
+        let userPin = $(this).data('user-pin') || '—';
 
-        let csrf = '{{ csrf_token() }}';
+        $("#reset_password_form")[0].reset();
+        $("#reset_password_user_id").val(id);
+        $("#reset_password_user_label").text('Set a new password for ' + userName + '.');
+        $("#reset_cred_mobile").text(userMobile);
+        $("#reset_cred_pin").text(userPin || '—');
+        $("#reset_cred_password").text('—');
+        $("#reset_cred_password_note").text('Loading...');
+        $('#resetPasswordModal').modal({backdrop: 'static', keyboard: false});
+        $('#resetPasswordModal').modal('show');
+
+        $.ajax({
+            url: '{{ route('userlistGet') }}',
+            method: 'post',
+            data: { id: id, _token: '{{ csrf_token() }}' },
+            success: function(data) {
+                if (data.type === 'success' && data.data) {
+                    $("#reset_cred_mobile").text(data.data.mobile_number || userMobile);
+                    $("#reset_cred_pin").text(data.data.t_pin || '—');
+                    if (data.data.visible_password) {
+                        $("#reset_cred_password").text(data.data.visible_password);
+                        $("#reset_cred_password_note").text('');
+                    } else {
+                        $("#reset_cred_password").text('Not available');
+                        $("#reset_cred_password_note").text(' — set a new password below to save it for admin reference.');
+                    }
+                }
+            },
+            error: function() {
+                $("#reset_cred_password_note").text('');
+            }
+        });
+
+    });
+
+
+
+    $("#reset_password_form").submit(function(e) {
+
+        e.preventDefault();
+
+        var pwd = $("#reset_password").val();
+        var pwdConfirm = $("#reset_password_confirmation").val();
+
+        if (!pwd || pwd.length < 8) {
+            Error_Msg("Error", "Password must be at least 8 characters.", "error");
+            return;
+        }
+
+        if (pwd !== pwdConfirm) {
+            Error_Msg("Error", "Password confirmation does not match.", "error");
+            return;
+        }
+
+        $("#reset_password_btn").text('Please wait...');
+        $('#reset_password_btn').prop('disabled', true);
 
         $.ajax({
 
@@ -1489,13 +1735,9 @@
 
             method: 'post',
 
-            data: {
+            data: $(this).serialize(),
 
-            id: id,
-
-            _token: csrf
-
-            },
+            dataType: 'json',
 
             success: function(data) {
 
@@ -1505,19 +1747,25 @@
 
                 }else if(data.type=="success"){
 
-                    Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
+                    Error_Msg("Success", data.message + "\n\nNew password: " + pwd, "success");
+                    $("#resetPasswordModal").modal('hide');
 
                 }else{
 
                     Error_Msg("Oops...","Something went wrong!","error");
 
-                }           
+                }
+
+                $("#reset_password_btn").text('Save Password');
+                $('#reset_password_btn').prop('disabled', false);
 
             },
 
             error: function( jqXhr, textStatus, errorThrown ){
 
                 Error_Msg("Oops...","Something went wrong!","error");
+                $("#reset_password_btn").text('Save Password');
+                $('#reset_password_btn').prop('disabled', false);
 
             }
 
@@ -1681,6 +1929,11 @@
 
         e.preventDefault();
 
+        var isCreate = !$("#edit_id").val() || $("#edit_id").val() === "0";
+        if (!validateUserPasswordFields(isCreate)) {
+            return;
+        }
+
         const fd = new FormData(this);
 
         $("#edit_details_btn").text('Please wait...');
@@ -1776,6 +2029,8 @@
         $("#edit_details_form")[0].reset();
 
         $("#edit_id").val(0);
+
+        setUserPasswordMode(true);
 
         $("#area_locality_list").empty();
 
@@ -1910,6 +2165,8 @@
 <script src="{{ URL::asset('assets/libs/prismjs/prism.js') }}"></script>
 
 
+
+<script src="{{ URL::asset('assets/js/pages/password-addon.init.js') }}"></script>
 
 <script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 

@@ -158,11 +158,13 @@
                 </li>
 
 
+                @if(!in_array((int) Session::get('role_id'), [4, 5, 6], true))
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="{{ URL::asset('users/api-settings') }}">
                         <i class='bx bx-link-alt'></i> <span>API Settings</span>
                     </a>
                 </li>
+                @endif
 
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarSupport" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarSupport">

@@ -18,7 +18,7 @@
     <div class="col-lg-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Search</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Filter</h4>
                 <div class="flex-shrink-0">
                 </div>
             </div>
@@ -93,7 +93,7 @@
                 </div>
             </div>
             <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
             </div>
         </div>
     </div>
@@ -458,7 +458,7 @@
     $("#fund_details_form").submit(function(e) {
         e.preventDefault();
         const fd = new FormData(this);
-        $("#fund_details_btn").text('Please wait...');
+        $("#fund_details_btn").text('Loading...');
         $('#fund_details_btn').prop('disabled', true);
         $.ajax({
           url: '{{ route('fundUpdate') }}',
@@ -558,7 +558,7 @@
     $("#edit_details_form").submit(function(e) {
         e.preventDefault();
         const fd = new FormData(this);
-        $("#edit_details_btn").text('Please wait...');
+        $("#edit_details_btn").text('Loading...');
         $('#edit_details_btn').prop('disabled', true);
         $.ajax({
           url: '{{ route('userlistUpdate') }}',

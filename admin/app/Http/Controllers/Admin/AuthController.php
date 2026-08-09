@@ -148,7 +148,7 @@ class AuthController extends Controller
             $data['type'] = 'error';
             $data['message'] = "Invalid mobile number";
         }
-        return $data;
+        return response()->json($data);
     }
 
 
@@ -218,7 +218,7 @@ class AuthController extends Controller
             $data['type'] = 'error';
             $data['message'] = "Invalid mobile number";
         }
-        return $data;
+        return response()->json($data);
     }
 
 

@@ -2,49 +2,39 @@
     .badge {
         --vz-badge-font-size: 0.75rem;
     }
-.card {
-    border-color: #ee5a7b !important;
-    margin-bottom: 1.5rem;
-    box-shadow: 0px 0px 3px 3px #009688;
-}
-.card-header {
-    border-bottom: 1px solid var(--vz-border-color);
-    background: linear-gradient(to bottom, #E91E63 32%, #FF5722 100%);
-
-}
-.form-control{
-    border-radius: 0;
-}
-.form-select{
-    border-radius: 0;
-}
-.btn.active, .btn.show, .btn:active, .btn:first-child:active, .btn:focus, .btn:hover, :not(.btn-check)+.btn:active {
-    border-color: transparent;
-    background-color: #4CAF50;
-    color: white;
-}
+.header-profile-menu { min-width: 300px; padding-top: 0; }
+.header-profile-card { padding: 16px 16px 12px; }
+.header-profile-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.header-profile-head img { width: 46px; height: 46px; object-fit: cover; }
+.header-profile-head h6 { color: #0f172a; font-weight: 700; }
+.header-profile-role { display: inline-block; padding: 4px 10px; color: #635bff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; background: rgba(99, 91, 255, .1); border-radius: 999px; }
+.header-profile-details { display: grid; gap: 8px; }
+.header-profile-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.header-profile-row span { color: #718096; font-weight: 600; }
+.header-profile-row strong { color: #172033; font-weight: 600; text-align: right; word-break: break-word; }
 </style>
-<header id="page-topbar">
+<header id="page-topbar" class="nc-topbar">
     <div class="layout-width">
-        <div class="navbar-header">
-            <div class="d-flex">
-                <!-- LOGO -->
+        <div class="navbar-header nc-navbar-header">
+            <div class="nc-header-left d-flex align-items-center">
+                @php
+                    $adminHost = rtrim(env('ADMIN_HOST', ''), '/');
+                    if (app()->environment('local') && $adminHost !== 'http://127.0.0.1:8001') {
+                        $adminHost = 'http://127.0.0.1:8001';
+                    }
+                    $brandName = $company->company_name ?? config('app.name', 'NETCELL PAY');
+                    $brandLogoFile = $company->company_icon ?? $company->company_logo ?? null;
+                    $brandLogo = $brandLogoFile ? $adminHost . '/company_logo/' . $brandLogoFile : null;
+                @endphp
                 <div class="navbar-brand-box horizontal-logo">
-                    <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-dark">
-                        <span class="logo-sm">
-                            <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_icon}}" alt="" height="22">
-                        </span>
-                        <span class="logo-lg">
-                            <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" style="height: 40px;">
-                        </span>
-                    </a>
-
-                    <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-light">
-                        <span class="logo-sm">
-                            <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_icon}}" alt="" height="22">
-                        </span>
-                        <span class="logo-lg">
-                            <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" style="height: 40px;">
+                    <a href="{{ URL::asset('users/dashboard') }}" class="nc-brand-link" title="{{ $brandName }}">
+                        @if($brandLogo)
+                            <img src="{{ $brandLogo }}" alt="{{ $brandName }}" class="nc-brand-logo">
+                        @else
+                            <span class="nc-brand-mark">{{ strtoupper(substr($brandName, 0, 2)) }}</span>
+                        @endif
+                        <span class="nc-brand-text">
+                            <strong>{{ $brandName }}</strong>
                         </span>
                     </a>
                 </div>
@@ -58,20 +48,22 @@
                     </span>
                 </button>
 
-                <!-- App Search-->
-                <form class="app-search d-none d-md-block">
+                <!-- Wallet -->
+                <form class="app-search d-none d-md-block mb-0">
                     <div class="position-relative">
-                        <button type="button" class="btn btn-se btn-success rounded-pill LoadWallet"><i
-                                class="mdi mdi-wallet label-icon align-middle rounded-pill fs-16 me-2"></i> ₹
-                                {{DB::table('users')->where('id',Session::get('user_id'))->first()->wallet_balance}}</button>
+                        <button type="button" class="btn nc-wallet-btn LoadWallet">
+                            <span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span>
+                            <span class="text-start">
+                                <span class="d-block wallet-label">Wallet Balance</span>
+                                <span class="d-block wallet-amount">₹ {{ number_format((float) DB::table('users')->where('id', Session::get('user_id'))->value('wallet_balance'), 2) }}</span>
+                            </span>
+                        </button>
                     </div>
-
                 </form>
             </div>
 
-            <div class="d-flex align-items-center">
-
-
+            <div class="nc-header-right d-flex align-items-center">
+                <div class="nc-header-actions d-none d-sm-flex">
                 <div class="dropdown ms-1 topbar-head-dropdown header-item">
                     <button type="button" class="btn btn-icon btn-topbar btn-ghost-secondary rounded-circle"
                         data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -168,6 +160,7 @@
                         <i class='bx bx-moon fs-22'></i>
                     </button>
                 </div>
+                </div>
 
                 <div class="dropdown ms-sm-3 header-item topbar-user">
                     <button type="button" class="btn" id="page-header-user-dropdown" data-bs-toggle="dropdown"
@@ -175,15 +168,46 @@
                         <span class="d-flex align-items-center">
                             <img class="rounded-circle header-profile-user"
                                 src="" id="nav_profile_pic" alt="Header Avatar">
-                            <span class="text-start ms-xl-2">
-                                <span class="d-none d-xl-inline-block ms-1 fw-medium user-name-text"></span>
-                                <span class="d-none d-xl-block ms-1 fs-12 text-muted user-name-sub-text"></span>
+                            <span class="text-start ms-2 ms-xl-2">
+                                <span class="d-none d-lg-inline-block ms-1 fw-medium user-name-text">—</span>
+                                <span class="d-none d-lg-block ms-1 fs-12 text-muted user-name-sub-text">—</span>
                             </span>
                         </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end">
-                        <!-- item-->
-                        <h6 class="dropdown-header" id="nav_first_name">Welcome Shiba!</h6>
+                    <div class="dropdown-menu dropdown-menu-end header-profile-menu">
+                        <div class="header-profile-card">
+                            <div class="header-profile-head">
+                                <img class="rounded-circle" src="" id="nav_profile_pic_menu" alt="Profile">
+                                <div>
+                                    <h6 class="mb-1" id="nav_full_name">—</h6>
+                                    <span class="header-profile-role" id="nav_role_name">—</span>
+                                </div>
+                            </div>
+                            <div class="header-profile-details">
+                                <div class="header-profile-row">
+                                    <span>Outlet Name</span>
+                                    <strong id="nav_outlet_name">—</strong>
+                                </div>
+                                <div class="header-profile-row">
+                                    <span>First Name</span>
+                                    <strong id="nav_first_name_val">—</strong>
+                                </div>
+                                <div class="header-profile-row">
+                                    <span>Last Name</span>
+                                    <strong id="nav_last_name">—</strong>
+                                </div>
+                                <div class="header-profile-row">
+                                    <span>Mobile Number</span>
+                                    <strong id="nav_mobile_number">—</strong>
+                                </div>
+                                <div class="header-profile-row">
+                                    <span>Email Address</span>
+                                    <strong id="nav_email_address">—</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <h6 class="dropdown-header" id="nav_first_name">Welcome!</h6>
                         <a class="dropdown-item" href="{{ route('myProfile') }}"><i
                                 class="mdi mdi-account-circle text-muted fs-16 align-middle me-1"></i> <span
                                 class="align-middle">Profile</span></a>

@@ -1,261 +1,266 @@
-
 @include('users.website.header')
-<div id="myCarousel" class="carousel slide" data-ride="carousel">
-    <!-- Indicators -->
-    <ol class="carousel-indicators">
-        <li data-target="#myCarousel" data-slide-to="0" class="active"></li>
-        <li data-target="#myCarousel" data-slide-to="1"></li>
-        <li data-target="#myCarousel" data-slide-to="2"></li>
-        <li data-target="#myCarousel" data-slide-to="3"></li>
-        <li data-target="#myCarousel" data-slide-to="4"></li>
-    </ol>
 
-    <!-- Wrapper for slides -->
-    <div class="carousel-inner">
-        <div class="item active cus-item">
-            <img src="{{ URL::asset('web_template/img/banner/banner4.jpg') }}" alt="Los Angeles">
-        </div>
-        <div class="item cus-item">
-            <img src="{{ URL::asset('web_template/img/banner/banner3.jpg') }}" alt="New York">
-        </div>
-        <div class="item cus-item">
-            <img src="{{ URL::asset('web_template/img/banner/banner2.jpg') }}" alt="New York">
-        </div>
-        <div class="item cus-item">
-            <img src="{{ URL::asset('web_template/img/banner/banner1.jpg') }}" alt="New York">
-        </div>
-    </div>
-
-    <!-- Left and right controls -->
-    <a class="left carousel-control" href="#myCarousel" data-slide="prev">
-        <span class="fa fa-angle-left"></span>
-        <span class="sr-only">Previous</span>
-    </a>
-    <a class="right carousel-control" href="#myCarousel" data-slide="next">
-        <span class="fa fa-angle-right"></span>
-        <span class="sr-only">Next</span>
-    </a>
-</div>
-<div class="about-area about-area-back default-padding">
-    <div class="container">
-        <div class="row">
-            <div class="about-info">
-                <div class="col-md-6 thumb">
-                    <img src="{{ URL::asset('web_template/img/about/1.png') }}" alt="Thumb">
+<main class="nc-home">
+    <section class="nc-hero">
+        <div class="nc-hero-glow nc-hero-glow-one"></div>
+        <div class="nc-hero-glow nc-hero-glow-two"></div>
+        <div class="nc-container nc-hero-grid">
+            <div class="nc-hero-content">
+                <span class="nc-eyebrow"><i class="fas fa-bolt"></i> One platform. Endless possibilities.</span>
+                <h1>Powering every payment, <span>every business.</span></h1>
+                <p>{{ $company->company_name }} brings recharges, bill payments, money transfers and assisted banking together in one fast, secure platform.</p>
+                <div class="nc-hero-actions">
+                    <a class="nc-button nc-button-primary" href="{{ url('/users/login') }}">
+                        Get started <i class="fas fa-arrow-right"></i>
+                    </a>
+                    <a class="nc-button nc-button-ghost" href="{{ url('/services') }}">
+                        Explore services
+                    </a>
                 </div>
-                <div class="col-md-6 info">
-                    <h5>WELCOME TO {{$company->company_name}}</h5>
-                    <h2>Money Transfer</h2>
-                    <p>
-                    {{$company->company_name}} offers the fastest and easiest way of money transfer to more than 400 banks in India. Based on the IMPS technology, our safe, instant and easy domestic money remittance (DMR) service allows you to send money to any bank account in India.
-                    </p>
-
-                    <a href="#" class="btn btn-dark border btn-md">Read More</a>
+                <div class="nc-hero-proof">
+                    <div class="nc-avatar-stack" aria-hidden="true">
+                        <span>NP</span><span>₹</span><span>24</span>
+                    </div>
+                    <p><strong>Trusted operations</strong><br>Built for retailers and growing businesses</p>
                 </div>
             </div>
-            <div class="about-info">
-                <div class="col-md-6 info info1">
-                    <h2>Aadhaar Enabled Payment System</h2>
-                    <p>
-                        {{$company->company_name}} AEPS service enables our customers for hassel free, secure and biometric authenticated cash withdraw & balance enquiry from their aadhaar linked bank accounts.
-                    </p>
 
-                    <a href="#" class="btn btn-dark border btn-md">Read More</a>
+            <div class="nc-hero-visual" aria-label="Digital payment dashboard preview">
+                <div class="nc-dashboard-card">
+                    <div class="nc-dashboard-head">
+                        <div>
+                            <small>Available services</small>
+                            <strong>All-in-one dashboard</strong>
+                        </div>
+                        <span class="nc-live-pill"><i></i> Live</span>
+                    </div>
+                    <div class="nc-balance-card">
+                        <div>
+                            <small>Fast settlement</small>
+                            <strong>Secure & reliable</strong>
+                        </div>
+                        <span class="nc-balance-icon"><i class="fas fa-wallet"></i></span>
+                    </div>
+                    <div class="nc-dashboard-services">
+                        <div><span><i class="fas fa-mobile-alt"></i></span><small>Recharge</small></div>
+                        <div><span><i class="fas fa-file-invoice"></i></span><small>BBPS</small></div>
+                        <div><span><i class="fas fa-fingerprint"></i></span><small>AEPS</small></div>
+                        <div><span><i class="fas fa-exchange-alt"></i></span><small>Transfer</small></div>
+                    </div>
+                    <div class="nc-activity-card">
+                        <div class="nc-activity-icon"><i class="fas fa-check"></i></div>
+                        <div><strong>Transaction successful</strong><small>Processed securely in seconds</small></div>
+                        <span>Done</span>
+                    </div>
                 </div>
-                <div class="col-md-6 thumb">
-                    <img src="{{ URL::asset('web_template/img/about/2.png') }}" alt="Thumb" style="float: right;">
+                <div class="nc-float-card nc-float-security">
+                    <i class="fas fa-shield-alt"></i>
+                    <div><strong>Protected</strong><small>Secure transactions</small></div>
                 </div>
-            </div>
-            <div class="about-info">
-                <div class="col-md-6 thumb">
-                    <img src="{{ URL::asset('web_template/img/about/3.png') }}" alt="Thumb">
-                </div>
-                <div class="col-md-6 info info1">
-                    <h2>Prepaid Cards</h2>
-                    <p>
-                        {{$company->company_name}} prepaid cards can be used for your daily transactions. {{$company->company_name}} prepaid cards are ideal way of payments for shopping at Shops, Malls, Movies, Restaurants etc. and online payments.
-                    </p>
-
-                    <a href="#" class="btn btn-dark border btn-md">Read More</a>
+                <div class="nc-float-card nc-float-support">
+                    <i class="fas fa-headset"></i>
+                    <div><strong>Here to help</strong><small>Dedicated support</small></div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-<div class="wcs-area bg-dark  text-light">
-    <div class="container-full">
-        <div class="row">
-            <div class="col-md-6 thumb bg-cover" style="background-image: url({{ URL::asset('web_template/img/banner/16.jpg') }});background-size: cover;background-repeat: no-repeat;"></div>
-            <div class="col-md-6 content">
-                <div class="site-heading text-left">
-                    <h2>Our Services</h2>
+    </section>
 
-                </div>
+    <section class="nc-trust-strip">
+        <div class="nc-container nc-trust-grid">
+            <div><strong>24/7</strong><span>Platform access</span></div>
+            <div><strong>10+</strong><span>Digital services</span></div>
+            <div><strong>Fast</strong><span>Transaction processing</span></div>
+            <div><strong>Secure</strong><span>Business operations</span></div>
+        </div>
+    </section>
 
-                <!-- item -->
-                <div class="item">
-                    <div class="icon">
-                        <img src="{{ URL::asset('web_template/img/banner/recharge.png') }}">
-                    </div>
-                    <div class="info">
-                        <h4>
-                            <a href="#">Recharge Api (DTH, Mobile, Ticket Booking)</a>
-                        </h4>
-                        <p> API Makes Shows Your Business Environment smoother and enables your whole framework clients to investigate extra Services For same Resources </p>
-                    </div>
+    <section class="nc-section nc-services-section" id="services">
+        <div class="nc-container">
+            <div class="nc-section-heading">
+                <div>
+                    <span class="nc-kicker">Everything you need</span>
+                    <h2>Financial services, simplified.</h2>
                 </div>
-                <div class="item">
-                    <div class="icon">
-                        <img src="{{ URL::asset('web_template/img/banner/bill.png') }}">
-                    </div>
-                    <div class="info">
-                        <h4>
-                            <a href="#">DMT (Domestic Money Transfer)</a>
-                        </h4>
-                        <p>Domestic Money Transfer (DMT) benefit is an enormous market in India which got much more lift with current increment in advanced exchanges.</p>
-                    </div>
-                </div>
-                <div class="item">
-                    <div class="icon">
-                        <img src="{{ URL::asset('web_template/img/banner/aeps.png') }}">
-                    </div>
-                    <div class="info">
-                        <h4>
-                            <a href="#">AEPS - Aadhaar Enabled Payment System</a>
-                        </h4>
-                        <p>Domestic Money Transfer (DMT) benefit is an enormous market in India which got much more lift with current increment in advanced exchanges.</p>
-                    </div>
-                </div>
+                <p>Offer more services to your customers and manage every transaction from one unified platform.</p>
+            </div>
 
-                <div class="item">
-                    <div class="icon">
-                        <img src="{{ URL::asset('web_template/img/banner/bbps.png') }}">
+            <div class="nc-service-grid">
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/blog/01.png') }}" alt="Mobile and DTH recharge">
                     </div>
-                    <div class="info">
-                        <h4>
-                            <a href="#">Bharat Bill Payment System (BBPS)</a>
-                        </h4>
-                        <p>Bharat Bill Payment System is a stage for a wide range of bill installments. National Payments Corporation of India has created it to... </p>
+                    <span class="nc-service-icon nc-icon-purple"><i class="fas fa-mobile-alt"></i></span>
+                    <h3>Mobile & DTH Recharge</h3>
+                    <p>Instant prepaid, postpaid, DTH and data card recharges across leading operators.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
+
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/blog/02.png') }}" alt="Bharat Bill Payment System">
                     </div>
-                </div>
+                    <span class="nc-service-icon nc-icon-teal"><i class="fas fa-file-invoice"></i></span>
+                    <h3>Bill Payments</h3>
+                    <p>Pay electricity, water, gas, broadband and other bills through BBPS.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
+
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/about/2.png') }}" alt="Aadhaar enabled payment service">
+                    </div>
+                    <span class="nc-service-icon nc-icon-blue"><i class="fas fa-fingerprint"></i></span>
+                    <h3>AEPS Banking</h3>
+                    <p>Enable Aadhaar-authenticated cash withdrawal, balance enquiry and mini statements.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
+
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/blog/10.jpg') }}" alt="Domestic money transfer">
+                    </div>
+                    <span class="nc-service-icon nc-icon-orange"><i class="fas fa-exchange-alt"></i></span>
+                    <h3>Money Transfer</h3>
+                    <p>Send money quickly to bank accounts across India through a simple assisted flow.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
+
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/blog/03.png') }}" alt="FASTag recharge">
+                    </div>
+                    <span class="nc-service-icon nc-icon-pink"><i class="fas fa-car"></i></span>
+                    <h3>FASTag Recharge</h3>
+                    <p>Recharge FASTag accounts and keep highway travel seamless for your customers.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
+
+                <article class="nc-service-card">
+                    <div class="nc-service-image">
+                        <img src="{{ URL::asset('web_template/img/blog/06.png') }}" alt="Micro ATM">
+                    </div>
+                    <span class="nc-service-icon nc-icon-green"><i class="fas fa-credit-card"></i></span>
+                    <h3>Micro ATM</h3>
+                    <p>Bring convenient card-based cash and banking services closer to every customer.</p>
+                    <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
+                </article>
             </div>
         </div>
-    </div>
-</div>
-<div class="popular-courses about-area-back circle bg-gray carousel-shadow default-padding">
-    <div class="container">
-        <div class="row">
-            <div class="site-heading text-center">
-                <div class="col-md-8 col-md-offset-2">
-                    <h2>Popular Services</h2>
+    </section>
 
+    <section class="nc-section nc-value-section">
+        <div class="nc-container nc-value-grid">
+            <div class="nc-value-visual">
+                <div class="nc-orbit nc-orbit-one"></div>
+                <div class="nc-orbit nc-orbit-two"></div>
+                <div class="nc-phone-frame">
+                    <div class="nc-phone-top"><span></span></div>
+                    <div class="nc-phone-screen">
+                        <div class="nc-phone-brand">
+                            <span class="nc-brand-symbol"><i class="fas fa-bolt"></i></span>
+                            <strong>{{ $company->company_name }}</strong>
+                        </div>
+                        <small>Quick services</small>
+                        <div class="nc-phone-services">
+                            <span><i class="fas fa-mobile-alt"></i>Recharge</span>
+                            <span><i class="fas fa-bolt"></i>Electricity</span>
+                            <span><i class="fas fa-fingerprint"></i>AEPS</span>
+                            <span><i class="fas fa-university"></i>Banking</span>
+                        </div>
+                        <div class="nc-phone-success">
+                            <i class="fas fa-check-circle"></i>
+                            <div><strong>Simple. Fast. Secure.</strong><small>Everything in one place</small></div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="nc-value-content">
+                <span class="nc-kicker">Built for your growth</span>
+                <h2>A better way to run your digital services business.</h2>
+                <p>Spend less time switching between systems and more time serving customers. {{ $company->company_name }} gives your business the tools to operate with confidence.</p>
+                <div class="nc-benefit-list">
+                    <div>
+                        <span><i class="fas fa-bolt"></i></span>
+                        <div><h3>Fast transactions</h3><p>Responsive workflows designed to help you serve customers without delay.</p></div>
+                    </div>
+                    <div>
+                        <span><i class="fas fa-chart-line"></i></span>
+                        <div><h3>One clear dashboard</h3><p>Track activity and manage multiple services from a single account.</p></div>
+                    </div>
+                    <div>
+                        <span><i class="fas fa-user-shield"></i></span>
+                        <div><h3>Secure by design</h3><p>Account controls and protected transaction flows keep operations safer.</p></div>
+                    </div>
+                </div>
+                <a class="nc-text-link" href="{{ url('/about-us') }}">Discover our platform <i class="fas fa-arrow-right"></i></a>
             </div>
         </div>
-        <div class="row">
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/01.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>Recharges : Prepaid <br><small>  Mobile | DTH | Data Card</small></h4>
+    </section>
 
-                    </div>
-                </div>
+    <section class="nc-section nc-how-section">
+        <div class="nc-container">
+            <div class="nc-centered-heading">
+                <span class="nc-kicker">Get started easily</span>
+                <h2>From login to transaction in three steps.</h2>
+                <p>A focused workflow that keeps everyday financial services straightforward.</p>
             </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/02.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>Bill Payments : BBPS <br><small>  Phone | Electricity | Gas | Water</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/03.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>FasTag <br><small> FasTag</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/04.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>Insurance <br><small> Insurance</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/06.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>MicroATM <br><small> MicroATM</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/08.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>PAN Card Center <br><small> PAN Card Center</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/07.png') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>Billpayment <br><small> Billpayment</small></h4>
-                    </div>
-                </div>
-            </div>
-            <div class="product-layout product-grid col-lg-4 col-md-4 col-sm-6 col-xs-12">
-                <div class="product-thumb">
-                    <div class="image">
-                        <a href="#">
-                            <img src="{{ URL::asset('web_template/img/blog/10.jpg') }}" class="img-responsive" alt="img" title="img">
-                        </a>
-                    </div>
-                    <div class="caption">
-                        <h4>Money Transfer <br><small> Money Transfer </small></h4>
-                    </div>
-                </div>
+            <div class="nc-steps-grid">
+                <article>
+                    <span class="nc-step-number">01</span>
+                    <div class="nc-step-icon"><i class="fas fa-user-check"></i></div>
+                    <h3>Access your account</h3>
+                    <p>Sign in securely using your registered mobile number and password.</p>
+                </article>
+                <article>
+                    <span class="nc-step-number">02</span>
+                    <div class="nc-step-icon"><i class="fas fa-th-large"></i></div>
+                    <h3>Choose a service</h3>
+                    <p>Select recharge, BBPS, AEPS, money transfer or another available service.</p>
+                </article>
+                <article>
+                    <span class="nc-step-number">03</span>
+                    <div class="nc-step-icon"><i class="fas fa-check-double"></i></div>
+                    <h3>Complete instantly</h3>
+                    <p>Enter the details, confirm the transaction and receive its status in real time.</p>
+                </article>
             </div>
         </div>
-    </div>
-</div>
+    </section>
 
+    <section class="nc-section nc-security-section">
+        <div class="nc-container nc-security-card">
+            <div class="nc-security-copy">
+                <span class="nc-eyebrow nc-eyebrow-light"><i class="fas fa-lock"></i> Security first</span>
+                <h2>Your business deserves confidence with every transaction.</h2>
+                <p>We combine controlled access, secure workflows and dependable infrastructure to protect your everyday operations.</p>
+                <div class="nc-security-points">
+                    <span><i class="fas fa-check"></i> Protected account access</span>
+                    <span><i class="fas fa-check"></i> Transparent transaction status</span>
+                    <span><i class="fas fa-check"></i> Reliable platform support</span>
+                </div>
+            </div>
+            <div class="nc-shield-visual">
+                <div class="nc-shield-ring"><i class="fas fa-shield-alt"></i></div>
+                <span class="nc-security-tag nc-tag-one"><i class="fas fa-lock"></i> Encrypted</span>
+                <span class="nc-security-tag nc-tag-two"><i class="fas fa-check-circle"></i> Verified</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="nc-section nc-final-cta">
+        <div class="nc-container nc-cta-card">
+            <div>
+                <span class="nc-kicker">Ready when you are</span>
+                <h2>Move your business forward with {{ $company->company_name }}.</h2>
+                <p>Log in to access your services or speak with our team to learn how the platform can support your business.</p>
+            </div>
+            <div class="nc-cta-actions">
+                <a class="nc-button nc-button-light" href="{{ url('/users/login') }}">Login to dashboard</a>
+                <a class="nc-button nc-button-outline-light" href="{{ url('/contact-us') }}">Contact us</a>
+            </div>
+        </div>
+    </section>
+</main>
 
 @include('users.website.footer')
-
-
-    

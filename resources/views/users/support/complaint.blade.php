@@ -18,7 +18,7 @@
     <div class="col-lg-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Search</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Filter</h4>
                 <div class="flex-shrink-0">
                 </div>
             </div>
@@ -41,7 +41,7 @@
                         <div class="col-lg-2">
                             <div>
                                 <label class="form-label mb-0"></label>
-                                <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAllSearch()">Search Records</button>
+                                <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAllSearch()">Search</button>
                             </div>  
                         </div>
                     </div>                          
@@ -60,7 +60,7 @@
                 </div>
             </div>
             <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
             </div>
         </div>
     </div>
@@ -95,7 +95,7 @@
         var from_date = $("#from_date").val();
         var to_date = $("#to_date").val();
         var tbl_type = 0;
-        $("#search_btn").text('Please wait...');
+        $("#search_btn").text('Loading...');
         $('#search_btn').prop('disabled', true);
         $.ajax({
             url: '{{ route('ComplaintsList') }}',
@@ -109,7 +109,7 @@
                 _token: '{{csrf_token()}}',
             },
             success: function(res) {
-                $("#search_btn").text('Search Records');
+                $("#search_btn").text('Search');
                 $('#search_btn').prop('disabled', false);
                 $("#list_result").html(res);
                 // var table = new DataTable('#scroll-vertical', {

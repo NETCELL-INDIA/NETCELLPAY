@@ -62,7 +62,7 @@
 
             <div class="card-body" id="list_result">
 
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+                <h4 class="text-center text-secondary my-3">No records found</h4>
 
             </div>
 
@@ -81,7 +81,7 @@
 <script>
     fetchAll(1,10);
     function fetchAllSearch() {
-        $("#search_btn").text('Please wait...');
+        $("#search_btn").text('Loading...');
 
         $('#search_btn').prop('disabled', true);
 
@@ -102,7 +102,7 @@
 
             success: function(res) {
 
-                $("#search_btn").text('Search Records');
+                $("#search_btn").text('Search');
 
                 $('#search_btn').prop('disabled', false);
 

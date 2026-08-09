@@ -136,7 +136,7 @@
 
                                     <button type="button" onclick="getRoffer()" id="get_roffer_btn"
 
-                                        class="form-control btn btn-secondary bg-gradient waves-effect waves-light">Roffer</button>
+                                        class="form-control btn btn-secondary bg-gradient waves-effect waves-light">Best Offer</button>
 
                                 </div>
 
@@ -204,7 +204,7 @@
 
                 <div class="card-body" id="list_result">
 
-                    <h4 class="text-center text-secondary my-3">No record found</h4>
+                    <h4 class="text-center text-secondary my-3">No records found</h4>
 
                 </div>
 
@@ -652,7 +652,7 @@
 
                 <div class="modal-header">
 
-                    <h5 class="modal-title" id="rofferModalLabel">Roffer Details</h5>
+                    <h5 class="modal-title" id="rofferModalLabel">Best Offer Details</h5>
 
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"> </button>
 
@@ -930,7 +930,7 @@
 
         function receiptView(id) {
 
-            $("#receipt_btn").text('Please wait...');
+            $("#receipt_btn").text('Loading...');
 
             $('#receipt_btn').prop('disabled', true);
 
@@ -1008,7 +1008,7 @@
 
             var subject = $("#cs_subject").val();
 
-            $("#complaint_now_btn").text('Please wait...');
+            $("#complaint_now_btn").text('Loading...');
 
             $('#complaint_now_btn').prop('disabled', true);
 
@@ -1094,7 +1094,7 @@
 
             var pin = $("#t_pin").val();
 
-            $("#recharge_now_btn").text('Please wait...');
+            $("#recharge_now_btn").text('Loading...');
 
             $('#recharge_now_btn').prop('disabled', true);
 
@@ -1297,7 +1297,7 @@
 
                     success: function(data) {
 
-                        $("#get_roffer_btn").text('Roffer');
+                        $("#get_roffer_btn").text('Best Offer');
 
                         $('#get_roffer_btn').prop('disabled', false);
 
@@ -1353,7 +1353,7 @@
 
                         Error_Msg("Oops...", "Something went wrong!", "error");
 
-                        $("#get_roffer_btn").text('Roffer');
+                        $("#get_roffer_btn").text('Best Offer');
 
                         $('#get_roffer_btn').prop('disabled', false);
 

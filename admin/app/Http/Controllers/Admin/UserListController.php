@@ -345,6 +345,7 @@ class UserListController extends Controller
                     <a id="' . $row->id . '" class="btn btn-soft-info editDetails" title="View"><i class="ri-eye-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-primary editDetails" title="Edit"><i class="ri-pencil-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-success fundTransfer" title="Fund"><i class="ri-wallet-3-line"></i></a>
+                    <a id="' . $row->id . '" class="btn btn-soft-warning resetPassword" title="Reset Password" data-user-name="' . e($fullName) . '" data-user-mobile="' . e($row->mobile_number) . '" data-user-pin="' . e($row->t_pin ?? '') . '"><i class="ri-lock-password-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-danger deleteData" title="Delete"><i class="ri-delete-bin-line"></i></a>
                     </div>
                 </td>
@@ -394,6 +395,7 @@ class UserListController extends Controller
     {
         $get = DB::table('users')->where('id', $post->id)->first();
         if($get){
+            unset($get->password, $get->login_key, $get->otp, $get->email_otp);
             $data['type'] = 'success';
             $data['message'] = "Get sucessfuly";
             $data['data'] = $get;
@@ -453,6 +455,12 @@ class UserListController extends Controller
             'status' => 'required|numeric|digits:1',
         );
 
+        if (!$isEdit) {
+            $rules['password'] = 'required|string|min:8|confirmed';
+        } elseif ($post->filled('password')) {
+            $rules['password'] = 'required|string|min:8|confirmed';
+        }
+
         $bankAccountNumber = $bankEnabled ? $post->bank_account_number : '';
         $branchName = $bankEnabled ? $post->branch_name : '';
         $ifscCode = $bankEnabled ? $post->ifsc_code : '';
@@ -497,7 +505,7 @@ class UserListController extends Controller
                 $profilePic = "avatar-2.png";
             }
             try {
-                $g_pass = Str::random(8);
+                $g_pass = (string) $post->password;
                 $password = Hash::make($g_pass);
                 $t_pin = rand(1111,9999);
                 $update = DB::table('users')->insert([
@@ -512,6 +520,7 @@ class UserListController extends Controller
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
                     'password' => $password,
+                    'visible_password' => $g_pass,
                     't_pin' => $t_pin,
                     'login_type'  => $post->login_type,
                     'gender'  => $post->gender,
@@ -589,7 +598,7 @@ class UserListController extends Controller
             }
 
             try {
-                $update = DB::table('users')->where('id', $post->edit_id)->update([
+                $updateFields = [
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
                     'scheme_id'  => $post->scheme_id,
@@ -620,7 +629,14 @@ class UserListController extends Controller
                     'profile_pic' => $profilePic,
                     'status' => $post->status,
                     'updated_at' => Carbon::now()
-                ]);
+                ];
+
+                if ($post->filled('password')) {
+                    $updateFields['password'] = Hash::make((string) $post->password);
+                    $updateFields['visible_password'] = (string) $post->password;
+                }
+
+                $update = DB::table('users')->where('id', $post->edit_id)->update($updateFields);
                 $message = "Update sucessfuly";
             } catch (\Exception $e) {
                 return response()->json(
@@ -643,9 +659,13 @@ class UserListController extends Controller
     {
         $rules = array(
             'id'  => 'required|numeric',
+            'password' => 'required|string|min:8|confirmed',
         );
 
-        $validator = \Validator::make($post->all(), array_reverse($rules));
+        $validator = \Validator::make($post->all(), array_reverse($rules), [
+            'password.confirmed' => 'Password confirmation does not match.',
+            'password.min' => 'Password must be at least 8 characters.',
+        ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->messages() as $key => $value) {
                 $error = $value[0];
@@ -655,53 +675,62 @@ class UserListController extends Controller
                 'message' => $error
             ));
         }
-        $g_pass = Str::random(8);
+
+        $g_pass = (string) $post->password;
         $password = Hash::make($g_pass);
-        $user = DB::table('users')->where('id', $post->id)->update(['password' => $password]);
+        $updated = DB::table('users')->where('id', $post->id)->update([
+            'password' => $password,
+            'visible_password' => $g_pass,
+        ]);
         $user = DB::table('users')->where('id', $post->id)->first();
-        if($user){
-            ////Send Whatsapp Message Start
-            $slug = 'forgot_password';
-            $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-            if ($sms_tmp) {
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
-                $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
-                $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
-                $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                $content = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content);
-                $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
-                $content = str_replace('{PIN}', '' . $user->t_pin . '', $content);
-                if ($sms_tmp->status == 1) {
-                    $msg_data = [
-                        'mobile_number' => $user->mobile_number,
-                        'content' => $content,
-                        'template_id' => $sms_tmp->template_id,
-                    ];
-                    Common::sendWhatasappMsg($msg_data);
+        if($user && $updated){
+            try {
+                ////Send Whatsapp Message Start
+                $slug = 'forgot_password';
+                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
+                if ($sms_tmp) {
+                    $content = $sms_tmp->content;
+                    $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
+                    $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
+                    $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
+                    $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
+                    $content = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content);
+                    $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
+                    $content = str_replace('{PIN}', '' . $user->t_pin . '', $content);
+                    if ($sms_tmp->status == 1) {
+                        $msg_data = [
+                            'mobile_number' => $user->mobile_number,
+                            'content' => $content,
+                            'template_id' => $sms_tmp->template_id,
+                        ];
+                        Common::sendWhatasappMsg($msg_data);
+                    }
                 }
-            }
-            ////Send Whatsapp Message End
-            ////Send Email Start
-            $company = Common::getCompanyByHost();
-            if (!empty($company) && $company->email_message == 1) {
-                $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                if ($email_tmp) {
-                    $content_email = $email_tmp->content;
-                    $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
-                    $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
-                    $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
-                    $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                    $content_email = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content_email);
-                    $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
-                    $content_email = str_replace('{PIN}', '' . $user->t_pin . '', $content_email);
-                    Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                ////Send Whatsapp Message End
+                ////Send Email Start
+                $company = Common::getCompanyByHost();
+                if (!empty($company) && $company->email_message == 1) {
+                    $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                    if ($email_tmp) {
+                        $content_email = $email_tmp->content;
+                        $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                        $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                        $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                        $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                        $content_email = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content_email);
+                        $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
+                        $content_email = str_replace('{PIN}', '' . $user->t_pin . '', $content_email);
+                        Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                    }
                 }
+                ////Send Email End
+            } catch (\Throwable $e) {
+                // Password is already updated; notification failures should not block reset.
             }
-            ////Send Email End
+
             return response()->json(array(
                 'type' => 'success',  
-                'message' => "Password Reset Successfuly."
+                'message' => "Password reset successfully."
             ));
         }else{
             return response()->json(array(
@@ -709,8 +738,6 @@ class UserListController extends Controller
                 'message' => "Something went wrong."
             ));
         }
-        
-
     }
 
 
