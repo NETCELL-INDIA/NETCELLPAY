@@ -40,7 +40,8 @@ public_html/admin/.env      ← from admin/.env.example
 
 Set:
 - `APP_URL=https://netcellpay.in`
-- Admin `APP_URL=https://netcellpay.in/admin`
+- Admin `APP_URL=https://netcellpay.in/admin` (required for correct admin asset URLs)
+- Optional admin override: `ASSET_URL=https://netcellpay.in/admin`
 - DB credentials
 - `APP_DEBUG=false`
 

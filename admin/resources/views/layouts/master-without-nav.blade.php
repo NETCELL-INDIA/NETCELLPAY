@@ -18,6 +18,8 @@
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- Bootstrap Css -->
     <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" id="bootstrap-style" rel="stylesheet" type="text/css" />
+    <link href="{{ URL::asset('assets/css/icons.min.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ URL::asset('assets/css/netcell-rambhiya.css') }}?v=20260809" rel="stylesheet" type="text/css" />
     <!-- App favicon -->
     @if(!empty($company?->company_icon))
         <link rel="shortcut icon" href="{{ env('ADMIN_HOST') }}/company_logo/{{ $company->company_icon }}">
