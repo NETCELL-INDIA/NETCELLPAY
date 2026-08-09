@@ -179,8 +179,11 @@
                             Error_Msg("Oops...", "Something went wrong!", "error");
                         }
                     },
-                    error: function() {
-                        Error_Msg("Oops...", "Something went wrong!", "error");
+                    error: function(jqXhr) {
+                        var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message)
+                            ? jqXhr.responseJSON.message
+                            : "Something went wrong!";
+                        Error_Msg("Oops...", msg, "error");
                     }
                 });
             }
@@ -221,8 +224,11 @@
                             Error_Msg("Oops...", "Something went wrong!", "error");
                         }
                     },
-                    error: function() {
-                        Error_Msg("Oops...", "Something went wrong!", "error");
+                    error: function(jqXhr) {
+                        var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message)
+                            ? jqXhr.responseJSON.message
+                            : "Something went wrong!";
+                        Error_Msg("Oops...", msg, "error");
                     }
                 });
             }
