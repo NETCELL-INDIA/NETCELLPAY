@@ -10,7 +10,7 @@ use App\Http\Controllers\AndroidApp\UserController;
 use App\Http\Controllers\AndroidApp\ReportController;
 use App\Http\Controllers\AndroidApp\RechargeController;
 use App\Http\Controllers\BillPayController;
-use App\Http\Controllers\OrderController;
+// use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UpiGatewayController;
 use App\Http\Controllers\BbpsController;
 use App\Http\Controllers\AndroidApp\BillavenueController;
@@ -55,7 +55,7 @@ Route::any('one_gateway/call_back',[OneGatewayController::class,'callBack']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::post('payment/status',[OrderController::class,'paymentCallback']);
+// Route::post('payment/status',[OrderController::class,'paymentCallback']);
 ///
 Route::get('get/banks/{id}',[BankController::class,'banks_list']);
 

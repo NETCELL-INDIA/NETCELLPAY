@@ -31,7 +31,15 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 |
 */
 
-require __DIR__.'/../vendor/autoload.php';
+$autoload = __DIR__.'/../vendor/autoload.php';
+if (! file_exists($autoload)) {
+    http_response_code(503);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'Admin dependencies are missing on the server. Run: cd admin && composer install --no-dev --optimize-autoloader';
+    exit;
+}
+
+require $autoload;
 
 /*
 |--------------------------------------------------------------------------

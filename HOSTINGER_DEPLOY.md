@@ -44,7 +44,18 @@ Set:
 - DB credentials
 - `APP_DEBUG=false`
 
-## 5) SSH commands (recommended)
+## 5) SSH commands (required for admin)
+
+**Important:** the user app `vendor/` folder is in git, but **`admin/vendor/` is not**.  
+If `/admin/` shows HTTP 500 after git deploy, install admin dependencies first:
+
+```bash
+cd ~/domains/netcellpay.in/public_html/admin
+composer install --no-dev --optimize-autoloader
+```
+
+Then run app setup:
+
 ```bash
 cd ~/domains/netcellpay.in/public_html
 

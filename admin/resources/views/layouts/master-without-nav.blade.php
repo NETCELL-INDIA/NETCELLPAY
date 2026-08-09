@@ -19,7 +19,7 @@
     <!-- Bootstrap Css -->
     <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" id="bootstrap-style" rel="stylesheet" type="text/css" />
     <!-- App favicon -->
-    @if(!empty($company->company_icon))
+    @if(!empty($company?->company_icon))
         <link rel="shortcut icon" href="{{ env('ADMIN_HOST') }}/company_logo/{{ $company->company_icon }}">
     @else
         <link rel="shortcut icon" href="{{ URL::asset('assets/images/favicon.ico') }}">
