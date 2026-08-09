@@ -60,6 +60,13 @@ php artisan storage:link
 php artisan config:cache
 ```
 
+After changing `.env` or deploying CSRF/session fixes, clear cached config first:
+```bash
+php artisan config:clear
+php artisan cache:clear
+php artisan config:cache
+```
+
 If `vendor` is missing:
 ```bash
 composer install --no-dev --optimize-autoloader
