@@ -393,7 +393,9 @@ var urlParams = new URLSearchParams(window.location.search);
 
             icon: icon,
 
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+            },
 
             buttonsStyling: false,
 

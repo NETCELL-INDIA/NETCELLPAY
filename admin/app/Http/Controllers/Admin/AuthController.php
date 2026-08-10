@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Common;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Schema;
 use App\Mail\SendEmail;
 class AuthController extends Controller
 {
@@ -68,32 +67,19 @@ class AuthController extends Controller
                     }
                     if($otpLimit !== 5){
                         try {
-                            if (app()->environment('local')) {
-                                $email_otp = 123456;
-                                $email_otp_g = Hash::make($email_otp);
-                                $mobile_otp = 123456;
-                                $mobile_otp_g = Hash::make($mobile_otp);
-                            } else {
-                                $email_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                                $email_otp_g = Hash::make($email_otp);
-                                $mobile_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                                $mobile_otp_g = Hash::make($mobile_otp);
-                            }
+                            $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                            $otpHash = Hash::make($otp);
 
                             $updateData = [
-                                'otp' => $mobile_otp_g,
+                                'otp' => $otpHash,
+                                'email_otp' => $otpHash,
                                 'otp_limit' => $otpLimit + 1,
                                 'otp_created_at' => Carbon::now(),
                             ];
-                            if (Schema::hasColumn('users', 'email_otp')) {
-                                $updateData['email_otp'] = $email_otp_g;
-                            }
 
                             DB::table('users')->where("id",$user->id)->update($updateData);
                             $data['type'] = 'otp_verify';
-                            $data['message'] = app()->environment('local')
-                                ? "OTP send successfully. Local OTP: 123456"
-                                : "OTP send email & mobile number successfully.";
+                            $data['message'] = 'OTP sent to email and mobile number successfully.';
 
                             if (!app()->environment('local')) {
                                 try {
@@ -105,7 +91,7 @@ class AuthController extends Controller
                                         $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
                                         $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                                         $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                                        $content = str_replace('{OTP}', '' . $mobile_otp . '', $content);
+                                        $content = str_replace('{OTP}', $otp, $content);
                                         if($sms_tmp->status == 1){
                                             Common::sendWhatasappMsg([
                                                 'mobile_number' => $user->mobile_number,
@@ -125,7 +111,7 @@ class AuthController extends Controller
                                             $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
                                             $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
                                             $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                                            $content_email = str_replace('{OTP}', '' . $mobile_otp . '', $content_email);
+                                            $content_email = str_replace('{OTP}', $otp, $content_email);
                                             Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
                                         }
                                     }
@@ -186,12 +172,7 @@ class AuthController extends Controller
             if(Hash::check($post->password, $user->password)){
 
                 if($user->status==1){
-                    $otpValid = false;
-                    if (app()->environment('local') && $post->mobile_otp === '123456' && $post->email_otp === '123456') {
-                        $otpValid = true;
-                    } elseif (Hash::check($post->mobile_otp, $user->otp) && Hash::check($post->email_otp, $user->email_otp)) {
-                        $otpValid = true;
-                    }
+                    $otpValid = $this->verifyUnifiedLoginOtp($post, $user);
 
                     if ($otpValid) {
                         $data['type'] = 'success';
@@ -272,27 +253,16 @@ class AuthController extends Controller
                     }
                 }
                 if($user->otp_limit!=5){
-                    if (app()->environment('local')) {
-                        $email_otp = 123456;
-                        $email_otp_g = Hash::make($email_otp);
-                        $mobile_otp = 123456;
-                        $mobile_otp_g = Hash::make($mobile_otp);
-                    } else {
-                        $email_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                        $email_otp_g = Hash::make($email_otp);
-                        $mobile_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                        $mobile_otp_g = Hash::make($mobile_otp);
-                    }
+                    $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                    $otpHash = Hash::make($otp);
                     $update = DB::table('users')->where("id",$user->id)->update([
-                        'otp' => $mobile_otp_g,
-                        'email_otp' => $email_otp_g,
+                        'otp' => $otpHash,
+                        'email_otp' => $otpHash,
                         'otp_limit' => $user->otp_limit + 1,
                         'otp_created_at' => Carbon::now(),
                     ]);
                     $data['type'] = 'otp_verify';
-                    $data['message'] = app()->environment('local')
-                        ? 'OTP sent successfully. Local OTP: 123456'
-                        : 'OTP sent to email and mobile number successfully.';
+                    $data['message'] = 'OTP sent to email and mobile number successfully.';
                     if (!app()->environment('local')) {
                     $slug = 'otp';
                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -302,7 +272,7 @@ class AuthController extends Controller
                     $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
                     $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                     $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                    $content = str_replace('{OTP}', '' . $mobile_otp. '', $content);
+                    $content = str_replace('{OTP}', $otp, $content);
                     if($sms_tmp->status == 1){
                         $msg_data = [
                             'mobile_number' => $user->mobile_number,
@@ -323,7 +293,7 @@ class AuthController extends Controller
                         $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
                         $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
                         $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                        $content_email = str_replace('{OTP}', '' . $email_otp. '', $content_email);
+                        $content_email = str_replace('{OTP}', $otp, $content_email);
                         Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
                         }
                     }
@@ -369,12 +339,7 @@ class AuthController extends Controller
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->where("role_id",1)->first();
         if($user){
             if($user->status==1){
-                $otpValid = false;
-                if (app()->environment('local') && $post->mobile_otp === '123456' && $post->email_otp === '123456') {
-                    $otpValid = true;
-                } elseif (Hash::check($post->mobile_otp, $user->otp) && Hash::check($post->email_otp, $user->email_otp)) {
-                    $otpValid = true;
-                }
+                $otpValid = $this->verifyUnifiedLoginOtp($post, $user);
 
                 if ($otpValid) {
                     ////
@@ -431,5 +396,43 @@ class AuthController extends Controller
     {
         $post->session()->flush();
         return redirect()->route('loginPage');
+    }
+
+    /**
+     * Verify mobile and email OTP fields against the same stored login OTP.
+     */
+    private function verifyUnifiedLoginOtp(Request $post, object $user): bool
+    {
+        $mobileOtp = trim((string) $post->mobile_otp);
+        $emailOtp = trim((string) $post->email_otp);
+
+        if ($mobileOtp === '' || $emailOtp === '' || $mobileOtp !== $emailOtp || empty($user->otp)) {
+            return false;
+        }
+
+        if (!empty($user->otp_created_at)) {
+            $minutes = (Carbon::now()->timestamp - strtotime((string) $user->otp_created_at)) / 60;
+            if ($minutes >= 10) {
+                return false;
+            }
+        }
+
+        return $this->otpMatchesStoredValue($mobileOtp, $user->otp);
+    }
+
+    /**
+     * Match entered OTP against stored hash (or legacy plain 6-digit value).
+     */
+    private function otpMatchesStoredValue(string $otp, ?string $stored): bool
+    {
+        if ($stored === null || $stored === '') {
+            return false;
+        }
+
+        if (Hash::check($otp, $stored)) {
+            return true;
+        }
+
+        return strlen($stored) === 6 && ctype_digit($stored) && hash_equals($stored, $otp);
     }
 }

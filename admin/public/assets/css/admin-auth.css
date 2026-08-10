@@ -269,6 +269,13 @@
     color: var(--rb-muted);
 }
 
+.np-login-build-serial {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: #94a3b8;
+}
+
 @media (max-width: 991.98px) {
     .np-login-page {
         flex-direction: column;

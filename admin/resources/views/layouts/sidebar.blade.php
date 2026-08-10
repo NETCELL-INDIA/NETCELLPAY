@@ -157,9 +157,7 @@
 
 @php
     $brandName = $company->company_name ?? 'NETCELL PAY';
-    $brandIcon = !empty($company->company_icon)
-        ? (rtrim(env('APP_URL'), '/') . '/company_logo/' . $company->company_icon)
-        : null;
+    $brandIcon = admin_company_logo($company->company_icon ?? null);
 @endphp
 <div class="app-menu navbar-menu">
     <div class="navbar-brand-box">

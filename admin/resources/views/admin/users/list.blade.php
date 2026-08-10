@@ -1077,7 +1077,9 @@
 
             icon: icon,
 
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+            },
 
             buttonsStyling: false,
 
@@ -1159,8 +1161,10 @@
             showCancelButton: true,
             confirmButtonText: 'View User',
             cancelButtonText: 'Show In List',
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
-            cancelButtonClass: 'btn btn-soft-secondary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+                cancelButton: 'btn btn-soft-secondary w-xs mt-2',
+            },
             buttonsStyling: false,
             showCloseButton: true
         }).then(function(result) {

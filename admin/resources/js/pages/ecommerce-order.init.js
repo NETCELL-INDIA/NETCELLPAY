@@ -527,7 +527,9 @@ function deleteMultiple() {
     } else {
         Swal.fire({
             title: 'Please select at least one checkbox',
-            confirmButtonClass: 'btn btn-info',
+            customClass: {
+                confirmButton: 'btn btn-info',
+            },
             buttonsStyling: false,
             showCloseButton: true
         });

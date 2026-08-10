@@ -871,7 +871,9 @@
 
             icon: icon,
 
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+            },
 
             buttonsStyling: false,
 

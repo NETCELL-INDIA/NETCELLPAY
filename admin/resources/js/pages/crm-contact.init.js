@@ -506,8 +506,10 @@ function deleteMultiple(){
             text: "You won't be able to revert this!",
             icon: "warning",
             showCancelButton: true,
-            confirmButtonClass: 'btn btn-primary w-xs me-2 mt-2',
-            cancelButtonClass: 'btn btn-danger w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs me-2 mt-2',
+                cancelButton: 'btn btn-danger w-xs mt-2',
+            },
             confirmButtonText: "Yes, delete it!",
             buttonsStyling: false,
             showCloseButton: true
@@ -521,7 +523,9 @@ function deleteMultiple(){
                     title: 'Deleted!',
                     text: 'Your data has been deleted.',
                     icon: 'success',
-                    confirmButtonClass: 'btn btn-info w-xs mt-2',
+                    customClass: {
+                        confirmButton: 'btn btn-info w-xs mt-2',
+                    },
                     buttonsStyling: false
                 });
             }
@@ -529,7 +533,9 @@ function deleteMultiple(){
     }else{
         Swal.fire({
             title: 'Please select at least one checkbox',
-            confirmButtonClass: 'btn btn-info',
+            customClass: {
+                confirmButton: 'btn btn-info',
+            },
             buttonsStyling: false,
             showCloseButton: true
         });

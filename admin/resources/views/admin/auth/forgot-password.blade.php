@@ -6,9 +6,7 @@
 @php
     $company = $company ?? null;
     $companyName = $company->company_name ?? 'NETCELL PAY';
-    $companyLogo = !empty($company->company_logo)
-        ? rtrim(env('APP_URL'), '/') . '/company_logo/' . $company->company_logo
-        : null;
+    $companyLogo = admin_company_logo($company->company_logo ?? null);
 @endphp
 
 <div class="np-login-page">
@@ -80,14 +78,9 @@
                 <a href="{{ route('loginPage') }}" class="np-login-forgot"><i class="ri-arrow-left-line"></i> Back to Login</a>
             </div>
 
-            @if(app()->environment('local'))
-                <div class="np-login-note" id="local_otp_hint" style="display:none">
-                    Local development OTP: use <strong>123456</strong> in both fields.
-                </div>
-            @endif
-
             <div class="np-login-footer">
                 &copy; <script>document.write(new Date().getFullYear())</script> {{ $companyName }}. All rights reserved.
+                <div class="np-login-build-serial">Update Serial: {{ admin_build_serial() }}</div>
             </div>
         </div>
     </section>
@@ -107,7 +100,9 @@
                 title: title,
                 text: text,
                 icon: icon,
-                confirmButtonClass: 'btn btn-primary w-xs mt-2',
+                customClass: {
+                    confirmButton: 'btn btn-primary w-xs mt-2',
+                },
                 buttonsStyling: false,
                 showCloseButton: true
             });

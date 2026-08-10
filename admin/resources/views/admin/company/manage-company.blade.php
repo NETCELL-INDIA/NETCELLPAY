@@ -727,7 +727,9 @@
 
             icon: icon,
 
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+            },
 
             buttonsStyling: false,
 
@@ -803,7 +805,7 @@
 
             }else if(data.type=="success"){  
 
-                admin_url = '{{env('APP_URL')}}';
+                admin_logo_base = @json(rtrim(admin_asset('company_logo'), '/'));
 
                 $("#edit_id").val(data.data.id);
 
@@ -831,11 +833,11 @@
 
                 $("#apk_file_name").val(data.data.apk_file_name);
 
-                $("#company_logo_file").attr("src",admin_url+"/company_logo/"+data.data.company_logo);
+                $("#company_logo_file").attr("src", admin_logo_base + "/" + data.data.company_logo);
 
-                $("#company_icon_file").attr("src",admin_url+"/company_logo/"+data.data.company_icon);
+                $("#company_icon_file").attr("src", admin_logo_base + "/" + data.data.company_icon);
 
-                $("#invoice_logo_file").attr("src",admin_url+"/company_logo/"+data.data.invoice_logo);
+                $("#invoice_logo_file").attr("src", admin_logo_base + "/" + data.data.invoice_logo);
 
                 $(".payment_gateway").val(data.data.payment_gateway).change();
 

@@ -5,9 +5,7 @@
                 <div class="navbar-brand-box horizontal-logo">
                     @php
                         $tbBrand = $company->company_name ?? 'NETCELL PAY';
-                        $tbIcon = !empty($company->company_icon)
-                            ? (rtrim(env('APP_URL'), '/') . '/company_logo/' . $company->company_icon)
-                            : null;
+                        $tbIcon = admin_company_logo($company->company_icon ?? null);
                     @endphp
                     <a href="{{ URL::asset('admin/dashboard') }}" class="np-h-brand logo logo-dark logo-light" title="{{ $tbBrand }}">
                         @if($tbIcon)
@@ -67,9 +65,8 @@
                     }
                     $topUserMobile = $topUser->mobile_number ?? '';
                     $topUserWallet = round($topUser->wallet_balance ?? 0, 2);
-                    $topUserAvatar = !empty($company->company_icon)
-                        ? (rtrim(env('APP_URL'), '/') . '/company_logo/' . $company->company_icon)
-                        : URL::asset('assets/images/users/avatar-1.jpg');
+                    $topUserAvatar = admin_company_logo($company->company_icon ?? null)
+                        ?? admin_asset('assets/images/users/avatar-1.jpg');
                 @endphp
                 <div class="dropdown ms-1">
                     <button type="button" class="btn rb-user-btn" id="page-header-user-dropdown"

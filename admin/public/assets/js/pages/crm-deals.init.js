@@ -81,8 +81,10 @@ form.addEventListener('submit', function (event) {
       text: 'Deal Inserted successfully in ' + deatType + ' Tab.',
       icon: 'success',
       showCancelButton: true,
-      confirmButtonClass: 'btn btn-primary w-xs me-2 mt-2',
-      cancelButtonClass: 'btn btn-danger w-xs mt-2',
+      customClass: {
+          confirmButton: 'btn btn-primary w-xs me-2 mt-2',
+          cancelButton: 'btn btn-danger w-xs mt-2',
+      },
       buttonsStyling: false,
       showCloseButton: true
     });

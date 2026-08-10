@@ -33,7 +33,9 @@ function capitalizeFirstLetter(string){
             title: title,
             text: text,
             icon: icon,
-            confirmButtonClass: 'btn btn-primary w-xs mt-2',
+            customClass: {
+                confirmButton: 'btn btn-primary w-xs mt-2',
+            },
             buttonsStyling: false,
             showCloseButton: true
         });

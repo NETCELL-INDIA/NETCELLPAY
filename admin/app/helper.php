@@ -771,3 +771,27 @@ if (! function_exists('admin_asset')) {
         return asset($path);
     }
 }
+
+if (! function_exists('admin_company_logo')) {
+    /**
+     * Public URL for files stored in admin/public/company_logo/.
+     */
+    function admin_company_logo(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        return admin_asset('company_logo/'.ltrim($filename, '/'));
+    }
+}
+
+if (! function_exists('admin_build_serial')) {
+    /**
+     * Visible deploy marker on admin auth pages. Bump on each production release.
+     */
+    function admin_build_serial(): string
+    {
+        return '20260810-OTP-001';
+    }
+}
