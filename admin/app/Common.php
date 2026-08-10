@@ -156,9 +156,13 @@ use Illuminate\Http\Request;
 
             $w_api = DB::table('companies')->where('id', 1)->first(['whatsapp_request_url','whatsapp_api_method']);
 
-            $url = $w_api->whatsapp_request_url;
+            if (!$w_api) {
+                return 1;
+            }
 
-            if($url !=0 || $url !=""){
+            $url = $w_api->whatsapp_request_url ?? null;
+
+            if($url !=0 && $url !=""){
 
                 $url = str_replace('{MOB}', '' . $data['mobile_number'] . '', $url);
 

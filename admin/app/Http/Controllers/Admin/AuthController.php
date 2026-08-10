@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Common;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\SendEmail;
 class AuthController extends Controller
 {
@@ -56,85 +57,92 @@ class AuthController extends Controller
             if(Hash::check($post->password, $user->password)){
 
                 if($user->status==1){
-                    if($user->otp_limit == 5){
+                    $otpLimit = (int) $user->otp_limit;
+                    if($otpLimit === 5){
                         $time_diff = strtotime(Carbon::now()) - strtotime($user->otp_created_at);
                         $time_diff_min = $time_diff / 60;
                         if($time_diff_min >= 10){
-                            $otp_limit = 0;
-                            DB::table('users')->where("id",$user->id)->update(['otp_limit'=>$otp_limit]);
+                            DB::table('users')->where("id",$user->id)->update(['otp_limit' => 0]);
+                            $otpLimit = 0;
                         }
                     }
-                    if($user->otp_limit!=5){
-                        // Local/dev: fixed OTP so login works without SMS/email
-                        if (app()->environment('local')) {
-                            $email_otp = 123456;
-                            $email_otp_g = Hash::make($email_otp);
-                            $mobile_otp = 123456;
-                            $mobile_otp_g = Hash::make($mobile_otp);
-                        } else {
-                            $email_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                            $email_otp_g = Hash::make($email_otp);
-                            ///Mobile Otp Generate
-                            $mobile_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                            $mobile_otp_g = Hash::make($mobile_otp);
-                        }
-                      
-                        $update = DB::table('users')->where("id",$user->id)->update([
-                            'otp' => $mobile_otp_g,
-                            'email_otp' => $email_otp_g,
-                            'otp_limit' => $user->otp_limit + 1,
-                            'otp_created_at' => Carbon::now(),
-                        ]);
-                        $data['type'] = 'otp_verify';
-                        //$data['message'] = "OTP send email & mobile number successfully."."Mobile- ".$mobile_otp." Email- ".$email_otp;
-                        $data['message'] = app()->environment('local')
-                            ? "OTP send successfully. Local OTP: 123456"
-                            : "OTP send email & mobile number successfully.";
-                        ////Send Whatsapp Message Start
-                        if (!app()->environment('local')) {
-                        $slug = 'otp';
-                        $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                        if ($sms_tmp) {
-                        $content = $sms_tmp->content;
-                        $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
-                        $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
-                        $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
-                        $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                        $content = str_replace('{OTP}', '' . $mobile_otp. '', $content);
-                        if($sms_tmp->status == 1){
-                            $msg_data = [
-                                'mobile_number' => $user->mobile_number,
-                                'content' => $content,
-                                'template_id' => $sms_tmp->template_id,
-                            ];
-                            $sms = Common::sendWhatasappMsg($msg_data);
-                        }
-                        }
-                        ////Send Whatsapp Message End
-                        
-                        ////Send Email Start
-                        $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                        if($company && $company->email_message == 1){
-                            $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                            if ($email_tmp) {
-                            $content_email = $email_tmp->content;
-                            $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
-                            $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
-                            $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
-                            $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                            $content_email = str_replace('{OTP}', '' . $mobile_otp. '', $content_email);
-                            Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                    if($otpLimit !== 5){
+                        try {
+                            if (app()->environment('local')) {
+                                $email_otp = 123456;
+                                $email_otp_g = Hash::make($email_otp);
+                                $mobile_otp = 123456;
+                                $mobile_otp_g = Hash::make($mobile_otp);
+                            } else {
+                                $email_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
+                                $email_otp_g = Hash::make($email_otp);
+                                $mobile_otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
+                                $mobile_otp_g = Hash::make($mobile_otp);
                             }
-                        }
-                        ////Send Email End
+
+                            $updateData = [
+                                'otp' => $mobile_otp_g,
+                                'otp_limit' => $otpLimit + 1,
+                                'otp_created_at' => Carbon::now(),
+                            ];
+                            if (Schema::hasColumn('users', 'email_otp')) {
+                                $updateData['email_otp'] = $email_otp_g;
+                            }
+
+                            DB::table('users')->where("id",$user->id)->update($updateData);
+                            $data['type'] = 'otp_verify';
+                            $data['message'] = app()->environment('local')
+                                ? "OTP send successfully. Local OTP: 123456"
+                                : "OTP send email & mobile number successfully.";
+
+                            if (!app()->environment('local')) {
+                                try {
+                                    $slug = 'otp';
+                                    $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
+                                    if ($sms_tmp) {
+                                        $content = $sms_tmp->content;
+                                        $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
+                                        $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
+                                        $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
+                                        $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
+                                        $content = str_replace('{OTP}', '' . $mobile_otp . '', $content);
+                                        if($sms_tmp->status == 1){
+                                            Common::sendWhatasappMsg([
+                                                'mobile_number' => $user->mobile_number,
+                                                'content' => $content,
+                                                'template_id' => $sms_tmp->template_id,
+                                            ]);
+                                        }
+                                    }
+
+                                    $company = DB::table('companies')->where('status', "1")->where('domain', request()->getHost())->first();
+                                    $company = $company ?: DB::table('companies')->where('status', "1")->first();
+                                    if($company && $company->email_message == 1){
+                                        $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                                        if ($email_tmp && !empty($user->email_address)) {
+                                            $content_email = $email_tmp->content;
+                                            $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                                            $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                                            $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                                            $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                                            $content_email = str_replace('{OTP}', '' . $mobile_otp . '', $content_email);
+                                            Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                                        }
+                                    }
+                                } catch (\Throwable $e) {
+                                    // OTP is already saved; delivery failures should not block login.
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            return response()->json([
+                                'type' => 'error',
+                                'message' => 'Unable to process login OTP. Please try again.',
+                            ]);
                         }
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "otp limit exhausted login after 10 minutes.";
-                        
                     }
-                    ///Email Otp Generate
-                    
                 }else{
                     $data['type'] = 'error';
                     $data['message'] = "Account not active contact service provider.";
