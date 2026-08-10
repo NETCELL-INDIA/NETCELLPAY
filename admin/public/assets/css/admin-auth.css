@@ -1,0 +1,298 @@
+:root {
+    --rb-blue: #405189;
+    --rb-title: #212529;
+    --rb-card-border: #e9ebec;
+    --rb-success: #0ab39c;
+    --rb-muted: #878a99;
+}
+
+.np-login-page {
+    min-height: 100vh;
+    display: flex;
+    background: #eef2f7;
+    font-family: "Poppins", "Segoe UI", sans-serif;
+}
+
+.np-login-brand {
+    flex: 1 1 48%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2.5rem;
+    background: linear-gradient(145deg, #3b2a6e 0%, #405189 55%, #2a4f7f 100%);
+    color: #fff;
+    overflow: hidden;
+}
+
+.np-login-brand::before,
+.np-login-brand::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.np-login-brand::before {
+    width: 420px;
+    height: 420px;
+    top: -120px;
+    right: -100px;
+}
+
+.np-login-brand::after {
+    width: 280px;
+    height: 280px;
+    bottom: -80px;
+    left: -60px;
+}
+
+.np-login-brand-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+}
+
+.np-login-brand-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.np-login-brand-logo img {
+    max-width: 52px;
+    max-height: 52px;
+    object-fit: contain;
+}
+
+.np-login-brand-mark {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.np-login-brand h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    line-height: 1.25;
+}
+
+.np-login-brand p {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.np-login-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.85rem;
+}
+
+.np-login-features li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.np-login-features i {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 179, 156, 0.22);
+    color: #7ef0df;
+    font-size: 1rem;
+}
+
+.np-login-panel {
+    flex: 1 1 52%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.25rem;
+}
+
+.np-login-card {
+    width: 100%;
+    max-width: 440px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 18px 50px rgba(64, 81, 137, 0.12);
+    border: 1px solid var(--rb-card-border);
+    padding: 2rem 2rem 1.75rem;
+}
+
+.np-login-card-head {
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+.np-login-card-head h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--rb-title);
+    margin-bottom: 0.35rem;
+}
+
+.np-login-card-head p {
+    color: var(--rb-muted);
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.np-login-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.np-login-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--rb-muted);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: #f3f6f9;
+}
+
+.np-login-step.active {
+    background: rgba(10, 179, 156, 0.12);
+    color: #0a8f7d;
+}
+
+.np-login-field label {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.4rem;
+}
+
+.np-login-input-wrap {
+    position: relative;
+}
+
+.np-login-input-wrap i.field-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--rb-muted);
+    font-size: 1.05rem;
+    pointer-events: none;
+}
+
+.np-login-input-wrap .form-control {
+    padding-left: 2.65rem;
+    min-height: 46px;
+    border-radius: 12px;
+    border-color: #dfe3e8;
+    font-size: 0.92rem;
+}
+
+.np-login-input-wrap .form-control:focus {
+    border-color: var(--rb-success);
+    box-shadow: 0 0 0 0.2rem rgba(10, 179, 156, 0.15);
+}
+
+.np-login-input-wrap .password-addon {
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 34px;
+    width: 34px;
+    padding: 0;
+    border: 0;
+    z-index: 4;
+}
+
+.np-login-forgot {
+    font-size: 0.82rem;
+    color: var(--rb-blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.np-login-forgot:hover {
+    color: #3b2a6e;
+}
+
+.np-login-submit {
+    min-height: 48px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: linear-gradient(135deg, #0ab39c 0%, #099885 100%) !important;
+    border: none !important;
+    box-shadow: 0 10px 24px rgba(10, 179, 156, 0.28);
+}
+
+.np-login-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(10, 179, 156, 0.34);
+}
+
+.np-login-note {
+    margin-top: 1.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px dashed #d7dee8;
+    font-size: 0.8rem;
+    color: var(--rb-muted);
+    text-align: center;
+}
+
+.np-login-footer {
+    margin-top: 1.25rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--rb-muted);
+}
+
+@media (max-width: 991.98px) {
+    .np-login-page {
+        flex-direction: column;
+    }
+
+    .np-login-brand {
+        flex: none;
+        padding: 2rem 1.5rem;
+    }
+
+    .np-login-brand h1 {
+        font-size: 1.5rem;
+    }
+
+    .np-login-features {
+        display: none;
+    }
+
+    .np-login-panel {
+        padding: 0 1rem 2rem;
+        margin-top: -1.5rem;
+    }
+
+    .np-login-card {
+        padding: 1.5rem 1.25rem;
+    }
+}

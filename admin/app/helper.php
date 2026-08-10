@@ -745,3 +745,29 @@ class Helper {
         }
     }
 }
+
+if (! function_exists('admin_asset')) {
+    /**
+     * Build a public asset URL for the admin app, including /admin on Hostinger.
+     */
+    function admin_asset(string $path): string
+    {
+        $path = ltrim($path, '/');
+
+        if (! app()->runningInConsole() && ! empty($_SERVER['SCRIPT_NAME'])) {
+            $scriptName = str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME']);
+
+            if (preg_match('#(/admin)/public/index\.php$#', $scriptName, $matches)) {
+                return rtrim(request()->getSchemeAndHttpHost(), '/').$matches[1].'/'.$path;
+            }
+        }
+
+        $configuredPath = parse_url((string) config('app.url'), PHP_URL_PATH) ?: '';
+
+        if ($configuredPath !== '' && $configuredPath !== '/') {
+            return rtrim((string) config('app.url'), '/').'/'.$path;
+        }
+
+        return asset($path);
+    }
+}
