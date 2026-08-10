@@ -197,12 +197,16 @@ class AuthController extends Controller
                             }
                         }
                         if($user->otp_limit!=5){
-                            $otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                            $otp_g = Hash::make($otp);
+                            $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                            $otpHash = Hash::make($otp);
                             $data['type'] = 'otp_verify';
-                            $data['message'] = "OTP send email & mobile number successfully.";
-                            //$data['message'] = "OTP send email & mobile number successfully. ".$otp;
-                            $update = DB::table('users')->where("id",$user->id)->update(['otp'=>$otp_g,'otp_limit'=>$user->otp_limit+1,'otp_created_at' => Carbon::now()]);
+                            $data['message'] = 'OTP sent to email and mobile number successfully.';
+                            $update = DB::table('users')->where("id",$user->id)->update([
+                                'otp' => $otpHash,
+                                'email_otp' => $otpHash,
+                                'otp_limit' => $user->otp_limit + 1,
+                                'otp_created_at' => Carbon::now(),
+                            ]);
                             ////Send Whatsapp Message Start
                             $slug = 'otp';
                             $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -211,7 +215,7 @@ class AuthController extends Controller
                             $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
                             $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                             $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                            $content = str_replace('{OTP}', '' . $otp . '', $content);
+                            $content = str_replace('{OTP}', $otp, $content);
                             if($sms_tmp->status == 1){
                                 $msg_data = [
                                     'mobile_number' => $user->mobile_number,
@@ -230,7 +234,7 @@ class AuthController extends Controller
                                 $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
                                 $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
                                 $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                                $content_email = str_replace('{OTP}', '' . $otp . '', $content_email);
+                                $content_email = str_replace('{OTP}', $otp, $content_email);
                                 Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
                             }
                             ////Send Email End
@@ -317,12 +321,16 @@ class AuthController extends Controller
                             DB::table('users')->where("id",$user->id)->update(['otp_limit'=>$otp_limit]);
                         }
                     }
-                    $otp = str_pad(mt_rand(1, 999999),6,0,STR_PAD_LEFT);
-                    $otp_g = Hash::make($otp);
+                    $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                    $otpHash = Hash::make($otp);
                     $data['type'] = 'otp_verify';
-                    $data['message'] = "OTP send email & mobile number successfully.";
-                    //$data['message'] = "OTP send email & mobile number successfully. ".$otp;
-                    $update = DB::table('users')->where("id",$user->id)->update(['otp'=>$otp_g,'otp_limit'=>$user->otp_limit+1,'otp_created_at' => Carbon::now()]);
+                    $data['message'] = 'OTP sent to email and mobile number successfully.';
+                    $update = DB::table('users')->where("id",$user->id)->update([
+                        'otp' => $otpHash,
+                        'email_otp' => $otpHash,
+                        'otp_limit' => $user->otp_limit + 1,
+                        'otp_created_at' => Carbon::now(),
+                    ]);
                     ////Send Whatsapp Message Start
                     $slug = 'otp';
                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -331,7 +339,7 @@ class AuthController extends Controller
                     $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
                     $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                     $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                    $content = str_replace('{OTP}', '' . $otp . '', $content);
+                    $content = str_replace('{OTP}', $otp, $content);
                     if($sms_tmp->status == 1){
                         $msg_data = [
                             'mobile_number' => $user->mobile_number,
@@ -350,7 +358,7 @@ class AuthController extends Controller
                         $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
                         $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
                         $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                        $content_email = str_replace('{OTP}', '' . $otp . '', $content_email);
+                        $content_email = str_replace('{OTP}', $otp, $content_email);
                         Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
                     }
                     ////Send Email End
@@ -388,11 +396,16 @@ class AuthController extends Controller
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
                 if($user->status==1){
-                    if(Hash::check($post->otp, $user->otp)){
+                    if($this->verifyMobileLoginOtp($post->otp, $user)){
                         $password_g = Str::random(8);
                         $password = Hash::make($password_g);
                         $user_data = DB::table('users')->where('id', $user->id)->first();
-                        $user = DB::table('users')->where('id', $user->id)->update(['password' => $password]);
+                        DB::table('users')->where('id', $user->id)->update([
+                            'password' => $password,
+                            'otp' => null,
+                            'email_otp' => null,
+                            'otp_limit' => 0,
+                        ]);
                         
                          ////Send Whatsapp Message Start
                          $slug = 'forgot_password';
@@ -477,10 +490,15 @@ class AuthController extends Controller
             if(Hash::check($post->password, $user->password)){
 
                 if($user->status==1){
-                    if(Hash::check($post->otp, $user->otp)){
+                    if($this->verifyMobileLoginOtp($post->otp, $user)){
                         ////
                         $random = Str::random(40);
-                        $update = DB::table('users')->where("id",$user->id)->update(['login_key'=>$random]);
+                        $update = DB::table('users')->where("id",$user->id)->update([
+                            'login_key' => $random,
+                            'otp' => null,
+                            'email_otp' => null,
+                            'otp_limit' => 0,
+                        ]);
                         ///
                         $user = DB::table('users')->where("id",$user->id)->first();
                         $data['data'] = [
@@ -946,6 +964,29 @@ class AuthController extends Controller
             $data['message'] = "Current pin do not match.";
         }
         return $data;
+    }
+
+    private function verifyMobileLoginOtp(string $enteredOtp, object $user): bool
+    {
+        $otp = trim($enteredOtp);
+        if ($otp === '' || empty($user->otp)) {
+            return false;
+        }
+
+        if (!empty($user->otp_created_at)) {
+            $minutes = (Carbon::now()->timestamp - strtotime((string) $user->otp_created_at)) / 60;
+            if ($minutes >= 10) {
+                return false;
+            }
+        }
+
+        if (Hash::check($otp, $user->otp)) {
+            return true;
+        }
+
+        return strlen((string) $user->otp) === 6
+            && ctype_digit((string) $user->otp)
+            && hash_equals((string) $user->otp, $otp);
     }
 
 }
