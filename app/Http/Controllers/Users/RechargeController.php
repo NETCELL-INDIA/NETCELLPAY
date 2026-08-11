@@ -792,7 +792,7 @@ class RechargeController extends Controller
 
                                                             }
 
-                                                            return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
+                                                            return response()->json($data_show);
 
                                                         }
 
@@ -840,7 +840,7 @@ class RechargeController extends Controller
 
                                                 }
 
-                                                return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
+                                                return response()->json($data_show);
 
                                             }
 
@@ -888,7 +888,7 @@ class RechargeController extends Controller
 
                                     }
 
-                                    return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
+                                    return response()->json($data_show);
 
                                 }
 
@@ -942,7 +942,7 @@ class RechargeController extends Controller
 
                         }
 
-                        return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
+                        return response()->json($data_show);
 
                     }
 

@@ -670,14 +670,48 @@ class helpers
     public static function RunApi($api_id,$provider_id,$report_id,$service)
     {
         $started = microtime(true);
+        $report_id = (int) $report_id;
         $report = DB::table('reports')->where('id', $report_id)->first();
         $orderRef = self::maskOrderId($report->order_id ?? null);
 
-        // Single background path for shared hosts — afterResponse() races with shutdown and is often skipped.
-        self::scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef);
+        self::$rechargeShutdownRegistered[$report_id] = true;
 
         self::logRechargeTiming([
-            'phase' => 'queued_after_response',
+            'phase' => 'sync_process_start',
+            'order_ref' => $orderRef,
+            'report_id' => $report_id,
+            'provider_id' => $provider_id,
+            'api_id' => $api_id,
+            'service' => $service,
+            'started_at' => date('c'),
+            'result' => ['status' => 'Pending'],
+        ]);
+
+        try {
+            if (class_exists(\App\Jobs\ProcessRecharge::class)) {
+                (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
+            }
+        } catch (\Throwable $e) {
+            self::logRechargeTiming([
+                'phase' => 'sync_process_failed',
+                'order_ref' => $orderRef,
+                'report_id' => $report_id,
+                'provider_id' => $provider_id,
+                'api_id' => $api_id,
+                'service' => $service,
+                'started_at' => date('c'),
+                'queue_ms' => (int) round((microtime(true) - $started) * 1000),
+                'result' => ['status' => 'error', 'message' => 'process_failed'],
+            ]);
+
+            self::$rechargeShutdownRegistered[$report_id] = false;
+            self::scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef);
+        }
+
+        $fresh = DB::table('reports')->where('id', $report_id)->first();
+
+        self::logRechargeTiming([
+            'phase' => 'sync_process_complete',
             'order_ref' => $orderRef,
             'report_id' => $report_id,
             'provider_id' => $provider_id,
@@ -685,14 +719,14 @@ class helpers
             'service' => $service,
             'started_at' => date('c'),
             'queue_ms' => (int) round((microtime(true) - $started) * 1000),
-            'result' => ['status' => 'Pending'],
+            'result' => ['status' => $fresh->status ?? 'Pending'],
         ]);
 
         return [
-            'status' => 'Pending',
-            'operator_id' => '',
-            'remark' => $service . ' Queued for processing',
-            'order_id' => $report->order_id ?? '',
+            'status' => $fresh->status ?? 'Pending',
+            'operator_id' => $fresh->operator_id ?? '',
+            'remark' => $fresh->remark ?? ($service . ' Pending'),
+            'order_id' => $fresh->order_id ?? '',
         ];
     }
 
@@ -709,64 +743,6 @@ class helpers
             'user_agent' => substr((string) request()->userAgent(), 0, 200),
             'referer' => substr((string) request()->header('referer', ''), 0, 200),
         ];
-    }
-
-    /**
-     * Send recharge JSON to the browser, then run ProcessRecharge (Hostinger-safe).
-     */
-    public static function returnRechargeJson(array $payload, $apiId, $providerId, $reportId, $service = 'Recharge')
-    {
-        if (($payload['status'] ?? '') === 'Pending' && class_exists(\App\Jobs\ProcessRecharge::class)) {
-            self::jsonResponseThenProcessRecharge($payload, (int) $apiId, (int) $providerId, (int) $reportId, $service);
-        }
-
-        return response()->json($payload);
-    }
-
-    /**
-     * Flush JSON response first so the browser is not blocked, then call netcell.in.
-     */
-    public static function jsonResponseThenProcessRecharge(array $payload, int $apiId, int $providerId, int $reportId, string $service = 'Recharge'): void
-    {
-        self::$rechargeShutdownRegistered[$reportId] = true;
-
-        $orderRef = self::maskOrderId($payload['order_id'] ?? null);
-        $response = response()->json($payload);
-        $response->send();
-
-        if (function_exists('fastcgi_finish_request')) {
-            @fastcgi_finish_request();
-        }
-
-        @ignore_user_abort(true);
-        @set_time_limit(120);
-
-        self::logRechargeTiming([
-            'phase' => 'post_response_process_start',
-            'order_ref' => $orderRef,
-            'report_id' => $reportId,
-            'provider_id' => $providerId,
-            'api_id' => $apiId,
-            'service' => $service,
-            'started_at' => date('c'),
-            'result' => ['status' => 'Pending'],
-        ]);
-
-        try {
-            (new \App\Jobs\ProcessRecharge($apiId, $providerId, $reportId, $service))->handle();
-        } catch (\Throwable $e) {
-            self::logRechargeTiming([
-                'phase' => 'post_response_process_failed',
-                'order_ref' => $orderRef,
-                'report_id' => $reportId,
-                'provider_id' => $providerId,
-                'api_id' => $apiId,
-                'service' => $service,
-                'result' => ['status' => 'error', 'message' => 'process_failed'],
-            ]);
-        }
-
-        exit;
     }
 
     /** @var array<int, bool> */
