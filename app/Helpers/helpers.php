@@ -929,3 +929,22 @@ if (! function_exists('user_build_serial')) {
     }
 }
 
+if (! function_exists('admin_slider_image_url')) {
+    /**
+     * Public slider image URL served from the admin app.
+     */
+    function admin_slider_image_url(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        $base = rtrim((string) env('ADMIN_HOST', ''), '/');
+        if ($base === '') {
+            $base = rtrim(url('/admin'), '/');
+        }
+
+        return $base.'/slider_image/'.rawurlencode(basename($filename));
+    }
+}
+

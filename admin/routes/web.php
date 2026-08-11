@@ -294,6 +294,10 @@ Route::post('admin/verify-otp-forgot-password',[AuthController::class,'verifyOtp
 
 Route::get('admin/logout',[AuthController::class,'Logout'])->name('adminLogout');
 
+Route::get('admin/slider_image/{filename}', [SliderController::class, 'showImage'])
+    ->where('filename', '[^/]+')
+    ->name('adminSliderImage');
+
 
 
 //Admin Portal Routes AdminCheck(middleware)

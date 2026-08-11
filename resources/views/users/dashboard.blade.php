@@ -30,7 +30,7 @@ Dashboard
                         @foreach($slider_list as $list)
                             <div class="mySlides fade">
                                 <div class="numbertext">{{ $i }} / {{ $t }}</div>
-                                <img src="{{ rtrim(env('ADMIN_HOST'), '/') }}/slider_image/{{ $list->image }}" alt="{{ $list->title }}">
+                                <img src="{{ admin_slider_image_url($list->image) }}" alt="{{ $list->title }}">
                                 <div class="text">{{ $list->title }}</div>
                             </div>
                             @php $i++; @endphp

@@ -36,7 +36,7 @@ class SliderController extends Controller
 				$output .= '<tr>
                 <td>' . $i . '</td>
                 <td>' . $list->title . '</td>
-                <td><img src="'.asset("slider_image/".$list->image).'" class="avatar-xs rounded-3 me-2" style="height: 120px;width: 200px;"></td>
+                <td><img src="'.e(admin_slider_image($list->image)).'" class="avatar-xs rounded-3 me-2" style="height: 120px;width: 200px;"></td>
                 
                 <td>
                     <a id="' . $list->id . '" class="badge text-bg-danger deleteData"><i class="ri-delete-bin-fill align-bottom"></i> Delete</a>
@@ -88,7 +88,7 @@ class SliderController extends Controller
        // return $post->account_type;
         if($post->slider_title){
                 $slider_image = csrf_token().time().'.'.$post->slider_image->extension();  
-                $post->slider_image->move(public_path('slider_image'), $slider_image);
+                $post->slider_image->move(admin_slider_image_dir(), $slider_image);
             $update = DB::table('sliders')->insert([
                 'user_id' => 1,
                 'title' => $post->slider_title,
@@ -108,5 +108,23 @@ class SliderController extends Controller
             $data['message'] = "Something went wrong!";
         }
         return $data;
+    }
+
+    public function showImage(string $filename)
+    {
+        $filename = basename($filename);
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        if ($filename === '' || ! in_array($extension, $allowed, true)) {
+            abort(404);
+        }
+
+        $path = admin_slider_image_disk_path($filename);
+        if (! $path) {
+            abort(404);
+        }
+
+        return response()->file($path);
     }
 }

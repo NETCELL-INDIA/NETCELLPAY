@@ -797,6 +797,59 @@ if (! function_exists('admin_company_logo')) {
     }
 }
 
+if (! function_exists('admin_slider_image_dir')) {
+    function admin_slider_image_dir(): string
+    {
+        $dir = public_path('slider_image');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        return $dir;
+    }
+}
+
+if (! function_exists('admin_slider_image_disk_path')) {
+    /**
+     * Resolve an uploaded slider image from admin/public or legacy locations.
+     */
+    function admin_slider_image_disk_path(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        $filename = basename($filename);
+        $candidates = [
+            public_path('slider_image/'.$filename),
+            base_path('public/slider_image/'.$filename),
+            dirname(base_path()).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'slider_image'.DIRECTORY_SEPARATOR.$filename,
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('admin_slider_image')) {
+    /**
+     * Public URL for files stored in admin/public/slider_image/.
+     */
+    function admin_slider_image(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        return admin_asset('slider_image/'.basename($filename));
+    }
+}
+
 if (! function_exists('admin_build_serial')) {
     /**
      * Visible deploy marker on admin auth pages. Bump on each production release.
