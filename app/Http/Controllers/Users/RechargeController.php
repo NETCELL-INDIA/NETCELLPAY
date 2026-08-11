@@ -452,8 +452,14 @@ class RechargeController extends Controller
         if ($inProgress) {
             $ageSeconds = Carbon::now()->diffInSeconds(Carbon::parse($inProgress->created_at));
 
-            // Stuck Pending (>45s): re-trigger provider call on the same report instead of blocking the user.
-            if ($inProgress->status === 'Pending' && $ageSeconds >= 45 && !empty($inProgress->api_id)) {
+            // Stuck Pending/Processing (>45s): reset and re-trigger on the same report.
+            if ($ageSeconds >= 45 && !empty($inProgress->api_id)) {
+                if (in_array($inProgress->status, ['Pending', 'Processing'], true)) {
+                    DB::table('reports')->where('id', $inProgress->id)->update([
+                        'status' => 'Pending',
+                        'updated_at' => Carbon::now(),
+                    ]);
+                }
                 \helpers::RunApi($inProgress->api_id, $inProgress->provider_id, $inProgress->id, 'Recharge');
             }
 
@@ -481,22 +487,6 @@ class RechargeController extends Controller
 
 
         $post['order_id'] = "RC" . date("YmdHis") . rand(11111, 999999) . rand(1, 3) . rand(3, 6) . rand(6, 9);
-
-        // Log incoming recharge request for traceability
-        try {
-            DB::table('apilogs')->insert([
-                'url' => 'recharge_request',
-                'modal' => 'RechargeRequest',
-                'txnid' => $post['order_id'],
-                'header' => json_encode(\helpers::safeRequestMeta()),
-                'request' => json_encode($post->except(['pin', '_token', 'api_key', 'login_key'])),
-                'response' => '',
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
-        } catch (\Throwable $e) {
-            // ignore logging failure
-        }
 
         $post['commission'] = \helpers::getCommission($post->amount, $user->scheme_id, $post->provider_id, $user->role_id);
 

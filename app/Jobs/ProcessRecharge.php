@@ -54,6 +54,15 @@ class ProcessRecharge implements ShouldQueue
             // Only one worker/request may claim a Pending report (prevents duplicate netcell.in hits).
             if ($report->status !== 'Pending') {
                 DB::commit();
+                \helpers::logRechargeTiming([
+                    'phase' => 'process_recharge_skipped',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $this->api_id,
+                    'service' => $this->service,
+                    'result' => ['status' => $report->status, 'message' => 'not_pending'],
+                ]);
                 return;
             }
 
@@ -90,27 +99,62 @@ class ProcessRecharge implements ShouldQueue
             DB::commit();
 
             if (!$claimed) {
+                \helpers::logRechargeTiming([
+                    'phase' => 'process_recharge_skipped',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $this->api_id,
+                    'service' => $this->service,
+                    'result' => ['status' => 'error', 'message' => 'claim_failed'],
+                ]);
                 return;
             }
 
             $report = DB::table('reports')->where('id', $this->report_id)->first();
 
-$provider = DB::table('providers')->where('id', $this->provider_id)->first();
-if (!$provider) return;
+            $provider = DB::table('providers')->where('id', $this->provider_id)->first();
+            if (!$provider) {
+                DB::table('reports')->where('id', $this->report_id)->where('status', 'Processing')->update([
+                    'status' => 'Pending',
+                    'remark' => 'Recharge provider not found',
+                    'updated_at' => Carbon::now(),
+                ]);
+                \helpers::logRechargeTiming([
+                    'phase' => 'process_recharge_skipped',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $this->api_id,
+                    'service' => $this->service,
+                    'result' => ['status' => 'error', 'message' => 'provider_not_found'],
+                ]);
+                return;
+            }
 
-$api_ids_to_try = [];
+            $api_ids_to_try = [];
             $api_ids_to_try[] = $this->api_id;
             if ($provider->backup_api_id) $api_ids_to_try[] = $provider->backup_api_id;
             if ($provider->backup_api2_id) $api_ids_to_try[] = $provider->backup_api2_id;
             if ($provider->backup_api3_id) $api_ids_to_try[] = $provider->backup_api3_id;
 
-
             $final_result = null;
+            $api_called = false;
             foreach ($api_ids_to_try as $try_api_id) {
                 $apiStarted = microtime(true);
-                // build URL and call API using helpers::curl and parsing logic similar to previous RunApi implementation
                 $api_details = DB::table('apis')->where('id', $try_api_id)->first();
-                if (!$api_details || $api_details->status != '1') continue;
+                if (!$api_details || $api_details->status != '1') {
+                    \helpers::logRechargeTiming([
+                        'phase' => 'process_recharge_skipped',
+                        'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                        'report_id' => $this->report_id,
+                        'provider_id' => (int) $this->provider_id,
+                        'api_id' => (int) $try_api_id,
+                        'service' => $this->service,
+                        'result' => ['status' => 'error', 'message' => 'api_inactive_or_missing'],
+                    ]);
+                    continue;
+                }
 
                 $provider_code = \helpers::ApiProviderCode($try_api_id, $this->provider_id);
                 $state_code = \helpers::ApiStateCode($try_api_id, $report->state_id);
@@ -134,7 +178,8 @@ $api_ids_to_try = [];
                     $method = 'GET';
                 }
 
-                $result = \helpers::curl($url, $method, $parameters, $header, "yes", $this->service, $report->order_id);
+                $result = \helpers::curl($url, $method, $parameters, $header, "yes", "Recharge", $report->order_id);
+                $api_called = true;
                 $apiDurationMs = (int) round((microtime(true) - $apiStarted) * 1000);
 
                 \helpers::logRechargeTiming([
@@ -279,6 +324,23 @@ if ($result && isset($result['response']) && $api_details->api_format == 'JSON')
     }
 }
 
+            if (!$api_called) {
+                DB::table('reports')->where('id', $this->report_id)->where('status', 'Processing')->update([
+                    'status' => 'Pending',
+                    'remark' => 'Recharge API unavailable — check admin API settings',
+                    'updated_at' => Carbon::now(),
+                ]);
+                \helpers::logRechargeTiming([
+                    'phase' => 'process_recharge_skipped',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $this->api_id,
+                    'service' => $this->service,
+                    'result' => ['status' => 'error', 'message' => 'no_active_api'],
+                ]);
+            }
+
 // If final_result is Failed after all attempts, schedule a delayed retry or refund
 if ($final_result && $final_result['status'] == 'Failed') {
     try {
@@ -324,7 +386,7 @@ if ($final_result && $final_result['status'] == 'Failed') {
             DB::table('apilogs')->insert([
                 'url' => 'JobProcessRecharge',
                 'modal' => 'ProcessRecharge',
-                'txnid' => $this->report_id,
+                'txnid' => DB::table('reports')->where('id', $this->report_id)->value('order_id') ?: (string) $this->report_id,
                 'header' => json_encode([]),
                 'request' => json_encode(['api_id'=>$this->api_id,'provider_id'=>$this->provider_id]),
                 'response' => $th->getMessage(),
