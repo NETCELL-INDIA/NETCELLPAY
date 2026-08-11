@@ -104,8 +104,9 @@ class ProfileController extends Controller
 
         $user = DB::table('users')->where("id",Session::get('user_id'))->whereNotIn("role_id",[1,2])->first();
         if(\helpers::verifyUserPassword($post->current_password, $user)){
-            $password = Hash::make($post->confirm_password);
-            $user = DB::table('users')->where('id', $user->id)->update(['password' => $password]);
+            $user = DB::table('users')->where('id', $user->id)->update(
+                \helpers::userPasswordUpdateFields($post->confirm_password)
+            );
             if($user){
                 return response()->json(array(
                     'type' => 'success',  

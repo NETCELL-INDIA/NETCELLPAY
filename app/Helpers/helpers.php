@@ -895,5 +895,27 @@ class helpers
         return false;
     }
 
+    public static function ensureVisiblePasswordColumn(): void
+    {
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'visible_password')) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Schema::table('users', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->string('visible_password', 255)->nullable()->after('password');
+        });
+    }
+
+    public static function userPasswordUpdateFields(string $plain): array
+    {
+        self::ensureVisiblePasswordColumn();
+
+        return [
+            'password' => Hash::make($plain),
+            'visible_password' => $plain,
+            'updated_at' => now(),
+        ];
+    }
+
 }
 

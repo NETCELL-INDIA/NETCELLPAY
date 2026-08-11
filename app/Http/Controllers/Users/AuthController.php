@@ -361,11 +361,16 @@ class AuthController extends Controller
         if($user){
             if($user->status==1){
                 if($this->verifyUserDualOtp($post->mobile_otp, $post->email_otp, $user)){
-                    ////
-                    $random = Str::random(40);
                     $pass_g = Str::random(8);
-                    $pass = Hash::make($pass_g);
-                    $update = DB::table('users')->where("id",$user->id)->update(['login_key'=>$random,'password'=>$pass]);
+                    $update = DB::table('users')->where("id",$user->id)->update(array_merge(
+                        \helpers::userPasswordUpdateFields($pass_g),
+                        [
+                            'login_key' => Str::random(40),
+                            'otp' => null,
+                            'email_otp' => null,
+                            'otp_limit' => 0,
+                        ]
+                    ));
                     if($update){
                         $data['type'] = 'success';
                         $data['message'] = "New password send sucessfuly check email & mobile number.";

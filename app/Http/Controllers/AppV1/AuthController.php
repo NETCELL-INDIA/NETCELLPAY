@@ -211,41 +211,49 @@ class AuthController extends Controller
                                 'otp_limit' => $user->otp_limit + 1,
                                 'otp_created_at' => Carbon::now(),
                             ]);
-                            ////Send Whatsapp Message Start
-                            $slug = 'otp';
-                            $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                            $content = $sms_tmp->content;
-                            $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
-                            $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
-                            $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
-                            $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                            $content = str_replace('{OTP}', $otp, $content);
-                            if($sms_tmp->status == 1){
-                                $msg_data = [
-                                    'mobile_number' => $user->mobile_number,
-                                    'content' => $content,
-                                    'template_id' => $sms_tmp->template_id,
-                                ];
-                                $sms = \helpers::sendWhatasappMsg($msg_data);
+                            try {
+                                ////Send Whatsapp Message Start
+                                $slug = 'otp';
+                                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
+                                if ($sms_tmp) {
+                                    $content = $sms_tmp->content;
+                                    $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
+                                    $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
+                                    $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
+                                    $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
+                                    $content = str_replace('{OTP}', $otp, $content);
+                                    if($sms_tmp->status == 1){
+                                        $msg_data = [
+                                            'mobile_number' => $user->mobile_number,
+                                            'content' => $content,
+                                            'template_id' => $sms_tmp->template_id,
+                                        ];
+                                        \helpers::sendWhatasappMsg($msg_data);
+                                    }
+                                }
+                                ////Send Whatsapp Message End
+                                ////Send Email Start
+                                $company = DB::table('companies')->where('status', "1")->where('domain', request()->getHost())->first();
+                                $company = $company ?: DB::table('companies')->where('status', "1")->first();
+                                if($company && $company->email_message == 1){
+                                    $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                                    if ($email_tmp) {
+                                        $content_email = $email_tmp->content;
+                                        $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                                        $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                                        $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                                        $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                                        $content_email = str_replace('{OTP}', $otp, $content_email);
+                                        Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                                    }
+                                }
+                                ////Send Email End
+                            } catch (\Throwable $e) {
+                                // OTP is already saved; delivery failures should not block login.
                             }
-                            ////Send Whatsapp Message End
-                            ////Send Email Start
-                            $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                            if($company->email_message == 1){
-                                $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                                $content_email = $email_tmp->content;
-                                $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
-                                $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
-                                $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
-                                $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                                $content_email = str_replace('{OTP}', $otp, $content_email);
-                                Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
-                            }
-                            ////Send Email End
                         }else{
                             $data['type'] = 'error';
                             $data['message'] = "otp limit exhausted login after 10 minutes.";
-                            
                         }
                     }else{
                         
@@ -323,49 +331,68 @@ class AuthController extends Controller
                         if($time_diff_min >= 10){
                             $otp_limit = 0;
                             DB::table('users')->where("id",$user->id)->update(['otp_limit'=>$otp_limit]);
+                            $user = DB::table('users')->where('id', $user->id)->first();
                         }
                     }
-                    $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-                    $otpHash = Hash::make($otp);
-                    $data['type'] = 'otp_verify';
-                    $data['message'] = 'OTP sent to email and mobile number successfully.';
-                    $update = DB::table('users')->where("id",$user->id)->update([
-                        'otp' => $otpHash,
-                        'email_otp' => $otpHash,
-                        'otp_limit' => $user->otp_limit + 1,
-                        'otp_created_at' => Carbon::now(),
-                    ]);
-                    ////Send Whatsapp Message Start
-                    $slug = 'otp';
-                    $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                    $content = $sms_tmp->content;
-                    $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
-                    $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
-                    $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
-                    $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
-                    $content = str_replace('{OTP}', $otp, $content);
-                    if($sms_tmp->status == 1){
-                        $msg_data = [
-                            'mobile_number' => $user->mobile_number,
-                            'content' => $content,
-                            'template_id' => $sms_tmp->template_id,
-                        ];
-                        $sms = \helpers::sendWhatasappMsg($msg_data);
+                    if($user->otp_limit != 5){
+                        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                        $otpHash = Hash::make($otp);
+                        $data['type'] = 'otp_verify';
+                        $data['message'] = 'OTP sent to email and mobile number successfully.';
+                        if (app()->environment('local')) {
+                            $data['local_otp'] = $otp;
+                            $data['message'] = 'Local dev OTP generated. Use the code shown on screen.';
+                        }
+                        DB::table('users')->where("id",$user->id)->update([
+                            'otp' => $otpHash,
+                            'email_otp' => $otpHash,
+                            'otp_limit' => $user->otp_limit + 1,
+                            'otp_created_at' => Carbon::now(),
+                        ]);
+                        try {
+                            ////Send Whatsapp Message Start
+                            $slug = 'otp';
+                            $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
+                            if ($sms_tmp) {
+                                $content = $sms_tmp->content;
+                                $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
+                                $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
+                                $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
+                                $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
+                                $content = str_replace('{OTP}', $otp, $content);
+                                if($sms_tmp->status == 1){
+                                    $msg_data = [
+                                        'mobile_number' => $user->mobile_number,
+                                        'content' => $content,
+                                        'template_id' => $sms_tmp->template_id,
+                                    ];
+                                    \helpers::sendWhatasappMsg($msg_data);
+                                }
+                            }
+                            ////Send Whatsapp Message End
+                            ////Send Email Start
+                            $company = DB::table('companies')->where('status', "1")->where('domain', request()->getHost())->first();
+                            $company = $company ?: DB::table('companies')->where('status', "1")->first();
+                            if($company && $company->email_message == 1){
+                                $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                                if ($email_tmp) {
+                                    $content_email = $email_tmp->content;
+                                    $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                                    $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                                    $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                                    $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                                    $content_email = str_replace('{OTP}', $otp, $content_email);
+                                    Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                                }
+                            }
+                            ////Send Email End
+                        } catch (\Throwable $e) {
+                            // OTP is already saved; delivery failures should not block recovery.
+                        }
+                    }else{
+                        $data['type'] = 'error';
+                        $data['message'] = "otp limit exhausted login after 10 minutes.";
                     }
-                    ////Send Whatsapp Message End
-                    ////Send Email Start
-                    $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                    if($company->email_message == 1){
-                        $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                        $content_email = $email_tmp->content;
-                        $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
-                        $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
-                        $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
-                        $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                        $content_email = str_replace('{OTP}', $otp, $content_email);
-                        Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
-                    }
-                    ////Send Email End
                 }else{
                     $data['type'] = 'error';
                     $data['message'] = "Account not active contact service provider.";
@@ -402,53 +429,65 @@ class AuthController extends Controller
                 if($user->status==1){
                     if($this->verifyMobileLoginOtp($post->otp, $user)){
                         $password_g = Str::random(8);
-                        $password = Hash::make($password_g);
                         $user_data = DB::table('users')->where('id', $user->id)->first();
-                        DB::table('users')->where('id', $user->id)->update([
-                            'password' => $password,
-                            'otp' => null,
-                            'email_otp' => null,
-                            'otp_limit' => 0,
-                        ]);
-                        
+                        DB::table('users')->where('id', $user->id)->update(array_merge(
+                            \helpers::userPasswordUpdateFields($password_g),
+                            [
+                                'otp' => null,
+                                'email_otp' => null,
+                                'otp_limit' => 0,
+                            ]
+                        ));
+
+                        try {
                          ////Send Whatsapp Message Start
                          $slug = 'forgot_password';
                          $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                         $content = $sms_tmp->content;
-                         $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                         $content = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content);
-                         $content = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content);
-                         $content = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content);
-                         $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
-                         $content = str_replace('{PASSWORD}', '' . $password_g . '', $content);
-                         $content = str_replace('{PIN}', '' . $user_data->t_pin . '', $content);
-                         if($sms_tmp->status == 1){
-                             $msg_data = [
-                                 'mobile_number' => $post->mobile_number,
-                                 'content' => $content,
-                                 'template_id' => $sms_tmp->template_id,
-                             ];
-                             $sms = \helpers::sendWhatasappMsg($msg_data);
+                         if ($sms_tmp) {
+                             $content = $sms_tmp->content;
+                             $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+                             $content = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content);
+                             $content = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content);
+                             $content = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content);
+                             $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
+                             $content = str_replace('{PASSWORD}', '' . $password_g . '', $content);
+                             $content = str_replace('{PIN}', '' . $user_data->t_pin . '', $content);
+                             if($sms_tmp->status == 1){
+                                 $msg_data = [
+                                     'mobile_number' => $post->mobile_number,
+                                     'content' => $content,
+                                     'template_id' => $sms_tmp->template_id,
+                                 ];
+                                 \helpers::sendWhatasappMsg($msg_data);
+                             }
                          }
                          ////Send Whatsapp Message End
                          ////Send Email Start
-                        $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                        if($company->email_message == 1){
+                        $company = DB::table('companies')->where('status', "1")->where('domain', request()->getHost())->first();
+                        $company = $company ?: DB::table('companies')->where('status', "1")->first();
+                        if($company && $company->email_message == 1 && !empty($user_data->email_address)){
                             $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                            $content_email = $email_tmp->content;
-                            $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
-                             $content_email = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content_email);
-                             $content_email = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content_email);
-                             $content_email = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content_email);
-                             $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
-                             $content_email = str_replace('{PASSWORD}', '' . $password_g . '', $content_email);
-                             $content_email = str_replace('{PIN}', '' . $user_data->t_pin . '', $content_email);
-                            Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                            if ($email_tmp) {
+                                $content_email = $email_tmp->content;
+                                $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
+                                $content_email = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content_email);
+                                $content_email = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content_email);
+                                $content_email = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content_email);
+                                $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
+                                $content_email = str_replace('{PASSWORD}', '' . $password_g . '', $content_email);
+                                $content_email = str_replace('{PIN}', '' . $user_data->t_pin . '', $content_email);
+                                Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                            }
                         }
                         ////Send Email End
+                        } catch (\Throwable $e) {
+                            // Password is already reset; delivery failures should not block recovery.
+                        }
+
                         return response()->json(array(
-                            'type' => 'success',  
-                            'message' => 'New Password check Email & Mobile Send Successfuly.'
+                            'type' => 'success',
+                            'message' => 'New Password check Email & Mobile Send Successfuly.',
+                            'password' => app()->environment('local') ? $password_g : null,
                         ));
                     }else{
                         $data['type'] = 'error';
@@ -858,8 +897,9 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("id",$post->user_id)->first();
         if(\helpers::verifyUserPassword($post->current_password, $user)){
-            $password = Hash::make($post->confirm_password);
-            $user = DB::table('users')->where('id', $user->id)->update(['password' => $password]);
+            $user = DB::table('users')->where('id', $user->id)->update(
+                \helpers::userPasswordUpdateFields($post->confirm_password)
+            );
             if($user){
                 return response()->json(array(
                     'type' => 'success',  
