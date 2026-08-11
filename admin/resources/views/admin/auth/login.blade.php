@@ -91,6 +91,11 @@
                     </div>
                 </div>
 
+                <div id="local_otp_hint" class="alert alert-warning py-2 px-3 mb-3" style="display:none">
+                    <strong>Local OTP:</strong> <span id="local_otp_value"></span>
+                    <div class="small mt-1">Enter this same code in both Mobile OTP and Email OTP fields.</div>
+                </div>
+
                 <div class="mt-4" id="lg-btn-div">
                     <button class="btn btn-success w-100 np-login-submit" type="button" onclick="login()">
                         <i class="ri-login-circle-line me-1"></i> Sign In
@@ -135,7 +140,7 @@
             });
         }
 
-        function showOtpStep() {
+        function showOtpStep(localOtp) {
             $("#mobile_number_div").hide();
             $("#password-input-div").hide();
             $("#mobile_otp_code_div").show();
@@ -144,6 +149,13 @@
             $("#otp-btn-div").show();
             $("#login_step_badge").removeClass('active');
             $("#otp_step_badge").addClass('active');
+
+            if (localOtp) {
+                $("#local_otp_value").text(localOtp);
+                $("#local_otp_hint").show();
+                $("#mobile_otp_code").val(localOtp);
+                $("#email_otp_code").val(localOtp);
+            }
         }
 
         function login() {
@@ -168,7 +180,7 @@
                             Error_Msg(capitalizeFirstLetter(data.type), data.message, data.type);
                         } else if (data.type === "otp_verify") {
                             Error_Msg("OTP Sent", data.message, "info");
-                            showOtpStep();
+                            showOtpStep(data.local_otp || "");
                         } else {
                             Error_Msg("Oops...", "Something went wrong!", "error");
                         }

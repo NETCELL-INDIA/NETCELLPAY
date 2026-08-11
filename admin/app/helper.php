@@ -228,17 +228,28 @@ class Helper {
                         'sms_file' => "",
                         'status' => '1',
         ]);
-        if(isset($company->sms_request_url)){ 
+        $order_id = "MSG".rand(1111111111, 9999999999);
+        $header = [];
+
+        $smsApi = \App\Services\SmsApiService::resolveForSend();
+        if ($smsApi) {
+            $url = \App\Services\SmsApiService::buildUrl($smsApi, (string) $mobile_number, (string) $content, (string) $tmp_id);
+            $method = $smsApi->api_method ?: 'GET';
+            \helper::curl($url, $method, "", $header, "yes", "MESSAGE", $order_id);
+
+            return "success";
+        }
+
+        if (isset($company->sms_request_url) && $company->sms_request_url !== '') {
             $url = $company->sms_request_url;
             $url = str_replace('{MOB}', '' . $mobile_number . '', $url);
             $url = str_replace('{MSG}', '' . urlencode($content) . '', $url);
             $url = str_replace('{TMPID}', '' . $tmp_id . '', $url);
-            $order_id = "MSG".rand(1111111111, 9999999999);
-            $header = [];
-            $result = \helper::curl($url, $company->sms_api_method, "", $header, "yes", "MESSAGE", $order_id);
-            //echo "<pre>";print_r($result);die();
+            \helper::curl($url, $company->sms_api_method, "", $header, "yes", "MESSAGE", $order_id);
+
             return "success";
         }
+
         return "fail";
     }
 
@@ -792,6 +803,6 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20260810-OTP-001';
+        return '20260810-SMS-API-001';
     }
 }

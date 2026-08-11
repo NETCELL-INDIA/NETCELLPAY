@@ -287,6 +287,8 @@
                     <div class="collapse menu-dropdown" id="sidebarApis">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Add / List APIs</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/apis/plan-circle-dth-api') }}" class="nav-link">Plan / Circle / DTH Info Fetch API</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/plan-logs-report') }}" class="nav-link">Plan / Roffer / HLR Logs</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Balance &amp; Status Check</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Plan / Circle / Provider Codes</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Inward Margins (Scheme)</a></li>
@@ -344,6 +346,7 @@
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/announcement') }}" class="nav-link">Manage News</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/slider') }}" class="nav-link">Sliders</a></li>
+                            <li class="nav-item"><a href="{{ route('smsApiListPage') }}" class="nav-link">SMS API List</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>
                             <li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>

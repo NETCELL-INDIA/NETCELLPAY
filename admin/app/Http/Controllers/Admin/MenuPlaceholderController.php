@@ -38,7 +38,8 @@ class MenuPlaceholderController extends Controller
         'apis/quick-add' => 'admin/system/apis',
         'apis/add-api' => 'admin/system/apis',
         'apis/bill-fetch-settings' => 'admin/system/apis',
-        'apis/plan-circle-dth-api' => 'admin/system/apis',
+        'apis/plan-circle-dth-api' => 'admin/apis/plan-circle-dth-api',
+        'apis/plan_circle_fetch_api_settings' => 'admin/apis/plan_circle_fetch_api_settings',
         'apis/balance-status-check' => 'admin/system/apis',
         'apis/special-inward-margins' => 'admin/system/scheme',
 
@@ -58,6 +59,8 @@ class MenuPlaceholderController extends Controller
         'extras/manage-news' => 'admin/system/announcement',
         'extras/send-mobile-notification' => 'admin/users/send-message',
         'extras/send-sms' => 'admin/users/send-message',
+        'extras/sms-api-list' => 'admin/extras/sms-api-list',
+        'extras/sms-api' => 'admin/extras/sms-api-list',
         'extras/send-whatsapp' => 'admin/users/send-message',
         'extras/send-email' => 'admin/company/email-template',
         'extras/api-document' => 'admin/admin-reports/api-log-report',

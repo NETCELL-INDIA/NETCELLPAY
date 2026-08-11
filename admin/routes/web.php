@@ -49,6 +49,8 @@ use App\Http\Controllers\Admin\SliderController;
 
 use App\Http\Controllers\Admin\ApiController;
 
+use App\Http\Controllers\Admin\PlanCircleDthApiController;
+
 
 
 use App\Http\Controllers\Admin\UserListController;
@@ -95,6 +97,8 @@ use App\Http\Controllers\Admin\EmailTemplateController;
 
 
 use App\Http\Controllers\Admin\SmsTemplateController;
+
+use App\Http\Controllers\Admin\SmsApiController;
 
 
 
@@ -639,7 +643,12 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::get('admin/system/apis',[ApiController::class,'index']);
 
-
+    Route::get('admin/system/plan-circle-dth-api', [PlanCircleDthApiController::class, 'index']);
+    Route::get('admin/apis/plan-circle-dth-api', [PlanCircleDthApiController::class, 'index']);
+    Route::get('admin/apis/plan_circle_fetch_api_settings', [PlanCircleDthApiController::class, 'index']);
+    Route::post('admin/system/plan-circle-dth-api/list', [PlanCircleDthApiController::class, 'list'])->name('planCircleDthApiList');
+    Route::post('admin/system/plan-circle-dth-api/save', [PlanCircleDthApiController::class, 'save'])->name('planCircleDthApiSave');
+    Route::post('admin/system/plan-circle-dth-api/reset', [PlanCircleDthApiController::class, 'reset'])->name('planCircleDthApiReset');
 
     Route::post('admin/system/apis/list',[ApiController::class,'fetchAll'])->name('apisList');
 
@@ -905,6 +914,15 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/company/sms-template/update',[SmsTemplateController::class,'updateData'])->name('smsTemplateUpdate');
+
+    // SMS API List
+    Route::get('admin/extras/sms-api-list', [SmsApiController::class, 'index'])->name('smsApiListPage');
+    Route::get('admin/company/sms-api-list', [SmsApiController::class, 'index']);
+    Route::post('admin/extras/sms-api-list/list', [SmsApiController::class, 'fetchAll'])->name('smsApiList');
+    Route::post('admin/extras/sms-api-list/get', [SmsApiController::class, 'getData'])->name('smsApiGet');
+    Route::post('admin/extras/sms-api-list/update', [SmsApiController::class, 'updateData'])->name('smsApiUpdate');
+    Route::post('admin/extras/sms-api-list/delete', [SmsApiController::class, 'deleteData'])->name('smsApiDelete');
+    Route::post('admin/extras/sms-api-list/set-primary', [SmsApiController::class, 'setPrimary'])->name('smsApiSetPrimary');
 
     ///Routes Settings
 

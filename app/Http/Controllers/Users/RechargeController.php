@@ -8,6 +8,8 @@ namespace App\Http\Controllers\Users;
 
 use App\Http\Controllers\Controller;
 
+use App\Services\PlanInfoFetchService;
+
 use Illuminate\Http\Request;
 
 use Carbon\Carbon;
@@ -1804,17 +1806,17 @@ class RechargeController extends Controller
 
         // }
 
-        $api = DB::table('apis')->where('id', '6')->first();
+        $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
 
-        $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+        $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
 
-        $url = $api->api_url . 'plans.php?apikey=' . $api->api_key . '&operator=' . $provider_code . '&offer=roffer&tel=' . $post->number;
+            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
 
-        $order_id = "ROF" . rand(1111111111, 9999999999);
+            $key = $api->resolved_api_key ?: $api->api_key;
 
-        $header = [];
+            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
-        $result = \helpers::curl($url, "GET", "", $header, "yes", "Roffer", $order_id);
+        }, 'Roffer', 'ROF');
 
         //echo "<pre>";print_r($result);die;
 
@@ -1884,17 +1886,15 @@ class RechargeController extends Controller
 
         }
 
-        $api = DB::table('apis')->where('id', '6')->first();
+        $result = PlanInfoFetchService::fetch('dth_customer', function ($api) use ($post) {
 
-        $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
 
-        $url = $api->api_url . 'Dthinfo.php?apikey=' . $api->api_key . '&operator=' . $provider_code . '&offer=roffer&tel=' . $post->number;
+            $key = $api->resolved_api_key ?: $api->api_key;
 
-        $order_id = "ROF" . rand(1111111111, 9999999999);
+            return rtrim($api->api_url, '/') . '/Dthinfo.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
-        $header = [];
-
-        $result = \helpers::curl($url, "GET", "", $header, "yes", "DTH INFO", $order_id);
+        }, 'DTH INFO', 'ROF');
 
         //echo "<pre>";print_r($result);die;
 
@@ -1966,17 +1966,15 @@ class RechargeController extends Controller
 
         }
 
-        $api = DB::table('apis')->where('id', '6')->first();
+        $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
 
-        $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
 
-        $url = $api->api_url . 'Dthheavy.php?apikey=' . $api->api_key . '&operator=' . $provider_code . '&offer=roffer&tel=' . $post->number;
+            $key = $api->resolved_api_key ?: $api->api_key;
 
-        $order_id = "ROF" . rand(1111111111, 9999999999);
+            return rtrim($api->api_url, '/') . '/Dthheavy.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
-        $header = [];
-
-        $result = \helpers::curl($url, "GET", "", $header, "yes", "DTH INFO", $order_id);
+        }, 'DTH INFO', 'ROF');
 
         //echo "<pre>";print_r($result);die;
 
@@ -2042,15 +2040,11 @@ class RechargeController extends Controller
 
         }
 
-        $api = DB::table('apis')->where('id', '7')->first();
+        $result = PlanInfoFetchService::fetch('hlr', function ($api) use ($post) {
 
-        $url = $api->api_url . 'Mobile/OperatorFetchNew?ApiUserID=' . $api->api_username . '&ApiPassword=' . $api->api_password . '&Mobileno=' . $post->number;
+            return rtrim($api->api_url, '/') . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($api->resolved_username) . '&ApiPassword=' . urlencode($api->resolved_password) . '&Mobileno=' . urlencode($post->number);
 
-        $order_id = "CMN" . rand(1111111111, 9999999999);
-
-        $header = [];
-
-        $result = \helpers::curl($url, "GET", "", $header, "yes", "CHECK_MOBILE", $order_id);
+        }, 'CHECK_MOBILE', 'CMN');
 
         if ($result) {
 
@@ -2058,7 +2052,7 @@ class RechargeController extends Controller
 
             // return $data;
 
-            $provider = DB::table('api_provider_codes')->where('api_id', '7')->where('provider_code', $data['OpCode'])->first();
+            $provider = DB::table('api_provider_codes')->where('api_id', $result['api_id'])->where('provider_code', $data['OpCode'])->first();
 
             $provider_data = DB::table('providers')->where('id', $provider->provider_id)->first();
 
@@ -2158,25 +2152,21 @@ class RechargeController extends Controller
 
         // }
 
-        $api = DB::table('apis')->where('id', '6')->first();
-
-        $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+        $serviceKey = PlanInfoFetchService::planServiceKey((int) $post->provider_id);
 
         $state = DB::table('states')->where('id', $post->state_id)->first();
 
         $state_code = str_replace(" ", "%20", $state->mplan_state_code);
 
-        //echo "<pre>";print_r();die;
+        $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post, $state_code) {
 
-        //https://www.mplan.in/api/plans.php?apikey=[yourapikey]&cricle=[Gujarat](given below)&operator=[operator](BSNL,Idea,given below)
+            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
 
-        $url = $api->api_url . 'plans.php?apikey=' . $api->api_key . '&operator=' . $provider_code . '&cricle=' . $state_code;
+            $key = $api->resolved_api_key ?: $api->api_key;
 
-        $order_id = "ROP" . rand(1111111111, 9999999999);
+            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
 
-        $header = [];
-
-        $result = \helpers::curl($url, "GET", "", $header, "yes", "Plans", $order_id);
+        }, 'Plans', 'ROP');
 
         //echo "<pre>";print_r($result);die;
 

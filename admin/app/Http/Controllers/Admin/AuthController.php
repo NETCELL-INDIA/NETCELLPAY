@@ -80,6 +80,7 @@ class AuthController extends Controller
                             DB::table('users')->where("id",$user->id)->update($updateData);
                             $data['type'] = 'otp_verify';
                             $data['message'] = 'OTP sent to email and mobile number successfully.';
+                            $this->attachLocalOtpHint($data, $otp);
 
                             if (!app()->environment('local')) {
                                 try {
@@ -263,6 +264,7 @@ class AuthController extends Controller
                     ]);
                     $data['type'] = 'otp_verify';
                     $data['message'] = 'OTP sent to email and mobile number successfully.';
+                    $this->attachLocalOtpHint($data, $otp);
                     if (!app()->environment('local')) {
                     $slug = 'otp';
                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -396,6 +398,21 @@ class AuthController extends Controller
     {
         $post->session()->flush();
         return redirect()->route('loginPage');
+    }
+
+    /**
+     * Expose OTP on local dev only (SMS/email delivery is skipped there).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function attachLocalOtpHint(array &$data, string $otp): void
+    {
+        if (!app()->environment('local')) {
+            return;
+        }
+
+        $data['local_otp'] = $otp;
+        $data['message'] = 'Local dev OTP generated. Use the code shown on screen in both Mobile and Email OTP fields.';
     }
 
     /**
