@@ -1756,7 +1756,7 @@
 
                 }else{
 
-                    Error_Msg("Oops...","Something went wrong!","error");
+                    Error_Msg("Oops...", data.message || "Something went wrong!", "error");
 
                 }
 
@@ -1767,7 +1767,10 @@
 
             error: function( jqXhr, textStatus, errorThrown ){
 
-                Error_Msg("Oops...","Something went wrong!","error");
+                var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message)
+                    ? jqXhr.responseJSON.message
+                    : "Something went wrong!";
+                Error_Msg("Oops...", msg, "error");
                 $("#reset_password_btn").text('Save Password');
                 $('#reset_password_btn').prop('disabled', false);
 

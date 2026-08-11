@@ -393,17 +393,22 @@ class UserListController extends Controller
 
     public function getData(Request $post)
     {
+        ensure_user_visible_password_column();
+
         $get = DB::table('users')->where('id', $post->id)->first();
         if($get){
             unset($get->password, $get->login_key, $get->otp, $get->email_otp);
-            $data['type'] = 'success';
-            $data['message'] = "Get sucessfuly";
-            $data['data'] = $get;
-        } else {
-            $data['type'] = 'error';
-            $data['message'] = "Something went wrong!";
+            return response()->json([
+                'type' => 'success',
+                'message' => 'Get sucessfuly',
+                'data' => $get,
+            ]);
         }
-        return $data;
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'User not found.',
+        ]);
     }
 
 
@@ -505,10 +510,10 @@ class UserListController extends Controller
                 $profilePic = "avatar-2.png";
             }
             try {
+                ensure_user_visible_password_column();
                 $g_pass = (string) $post->password;
-                $password = Hash::make($g_pass);
                 $t_pin = normalize_user_pin(random_int(0, 9999));
-                $update = DB::table('users')->insert([
+                $update = DB::table('users')->insert(array_merge([
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
                     'scheme_id'  => $post->scheme_id,
@@ -519,8 +524,6 @@ class UserListController extends Controller
                     'date_of_birth'  => $post->date_of_birth,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
-                    'password' => $password,
-                    'visible_password' => $g_pass,
                     't_pin' => $t_pin,
                     'login_type'  => $post->login_type,
                     'gender'  => $post->gender,
@@ -544,7 +547,7 @@ class UserListController extends Controller
                     'status' => $post->status,
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now()
-                ]);
+                ], user_password_update_fields($g_pass)));
                 //$message = "Create sucessfuly. Password Is: " .$g_pass;
                 ////Send Whatsapp Message Start
                 $user_data = DB::table('users')->where('mobile_number', $post->mobile_number)->first();
@@ -632,8 +635,10 @@ class UserListController extends Controller
                 ];
 
                 if ($post->filled('password')) {
-                    $updateFields['password'] = Hash::make((string) $post->password);
-                    $updateFields['visible_password'] = (string) $post->password;
+                    $updateFields = array_merge(
+                        $updateFields,
+                        user_password_update_fields((string) $post->password)
+                    );
                 }
 
                 $update = DB::table('users')->where('id', $post->edit_id)->update($updateFields);
@@ -676,14 +681,21 @@ class UserListController extends Controller
             ));
         }
 
-        $g_pass = (string) $post->password;
-        $password = Hash::make($g_pass);
-        $updated = DB::table('users')->where('id', $post->id)->update([
-            'password' => $password,
-            'visible_password' => $g_pass,
-        ]);
-        $user = DB::table('users')->where('id', $post->id)->first();
-        if($user && $updated){
+        try {
+            ensure_user_visible_password_column();
+
+            $g_pass = (string) $post->password;
+            $user = DB::table('users')->where('id', $post->id)->first();
+            if (!$user) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'User not found.',
+                ]);
+            }
+
+            DB::table('users')->where('id', $post->id)->update(user_password_update_fields($g_pass));
+            $user = DB::table('users')->where('id', $post->id)->first();
+
             try {
                 ////Send Whatsapp Message Start
                 $slug = 'forgot_password';
@@ -709,7 +721,7 @@ class UserListController extends Controller
                 ////Send Whatsapp Message End
                 ////Send Email Start
                 $company = Common::getCompanyByHost();
-                if (!empty($company) && $company->email_message == 1) {
+                if (!empty($company) && $company->email_message == 1 && !empty($user->email_address)) {
                     $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
                     if ($email_tmp) {
                         $content_email = $email_tmp->content;
@@ -729,13 +741,13 @@ class UserListController extends Controller
             }
 
             return response()->json(array(
-                'type' => 'success',  
+                'type' => 'success',
                 'message' => "Password reset successfully."
             ));
-        }else{
+        } catch (\Throwable $e) {
             return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something went wrong."
+                'type' => 'error',
+                'message' => 'Password reset failed. Please try again.',
             ));
         }
     }

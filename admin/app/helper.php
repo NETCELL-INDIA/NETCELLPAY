@@ -815,3 +815,29 @@ if (! function_exists('normalize_user_pin')) {
         return str_pad(substr($digits, -4), 4, '0', STR_PAD_LEFT);
     }
 }
+
+if (! function_exists('ensure_user_visible_password_column')) {
+    function ensure_user_visible_password_column(): void
+    {
+        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'visible_password')) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Schema::table('users', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->string('visible_password', 255)->nullable()->after('password');
+        });
+    }
+}
+
+if (! function_exists('user_password_update_fields')) {
+    function user_password_update_fields(string $plain): array
+    {
+        ensure_user_visible_password_column();
+
+        return [
+            'password' => \Illuminate\Support\Facades\Hash::make($plain),
+            'visible_password' => $plain,
+            'updated_at' => now(),
+        ];
+    }
+}
