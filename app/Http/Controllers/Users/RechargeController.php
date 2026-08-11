@@ -1892,6 +1892,8 @@ class RechargeController extends Controller
 
         }
 
+        try {
+
         $result = PlanInfoFetchService::fetch('dth_customer', function ($api) use ($post) {
 
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
@@ -1902,11 +1904,10 @@ class RechargeController extends Controller
 
         }, 'DTH INFO', 'ROF');
 
-        //echo "<pre>";print_r($result);die;
-
         if ($result) {
 
             $data = json_decode($result['response'], true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
 
             return response()->json([
 
@@ -1914,20 +1915,25 @@ class RechargeController extends Controller
 
                 'message' => 'Fatch Successfully',
 
-                'data' => $data['records']
+                'data' => $records
 
             ]);
 
-        } else {
+        }
 
-            return response()->json(array(
+        return response()->json(array(
 
+            'type' => 'error',
+
+            'message' => "Unable to fetch DTH info. Please try again."
+
+        ));
+
+        } catch (\Throwable $e) {
+            return response()->json([
                 'type' => 'error',
-
-                'message' => "Something Went Wrong S"
-
-            ));
-
+                'message' => 'Unable to fetch DTH info. Please try again.',
+            ]);
         }
 
     }
@@ -1972,6 +1978,8 @@ class RechargeController extends Controller
 
         }
 
+        try {
+
         $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
 
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
@@ -1982,11 +1990,10 @@ class RechargeController extends Controller
 
         }, 'DTH INFO', 'ROF');
 
-        //echo "<pre>";print_r($result);die;
-
         if ($result) {
 
             $data = json_decode($result['response'], true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
 
             return response()->json([
 
@@ -1994,20 +2001,25 @@ class RechargeController extends Controller
 
                 'message' => 'Fatch Successfully',
 
-                'data' => $data['records']
+                'data' => $records
 
             ]);
 
-        } else {
+        }
 
-            return response()->json(array(
+        return response()->json(array(
 
+            'type' => 'error',
+
+            'message' => "Unable to refresh DTH info. Please try again."
+
+        ));
+
+        } catch (\Throwable $e) {
+            return response()->json([
                 'type' => 'error',
-
-                'message' => "Something Went Wrong S"
-
-            ));
-
+                'message' => 'Unable to refresh DTH info. Please try again.',
+            ]);
         }
 
     }

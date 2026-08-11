@@ -812,24 +812,30 @@ class RechargeControllerV2 extends Controller
                 'message' => $error
             ));
         }
+        try {
         $result = PlanInfoFetchService::fetch('dth_customer', function ($api) use ($post) {
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
             $key = $api->resolved_api_key ?: $api->api_key;
             return rtrim($api->api_url, '/') . '/Dthinfo.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
         }, 'DTH INFO', 'ROF');
-        //echo "<pre>";print_r($result);die;
         if($result){
             $data= json_decode($result['response'],true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
             return response()->json([
                 'type'=> 'success',
                 'message'=>'Fatch Successfully',
-                'data' => $data['records']
+                'data' => $records
             ]);
-        }else{
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something Went Wrong S"
-            ));
+        }
+        return response()->json(array(
+            'type' => 'error',
+            'message' => "Unable to fetch DTH info. Please try again."
+        ));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to fetch DTH info. Please try again.',
+            ]);
         }
    }
 
@@ -852,24 +858,30 @@ class RechargeControllerV2 extends Controller
                 'message' => $error
             ));
         }
+        try {
         $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
             $key = $api->resolved_api_key ?: $api->api_key;
             return rtrim($api->api_url, '/') . '/Dthheavy.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
         }, 'DTH INFO', 'ROF');
-        //echo "<pre>";print_r($result);die;
         if($result){
             $data= json_decode($result['response'],true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
             return response()->json([
                 'type'=> 'success',
                 'message'=>'Fatch Successfully',
-                'data' => $data['records']
+                'data' => $records
             ]);
-        }else{
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something Went Wrong S"
-            ));
+        }
+        return response()->json(array(
+            'type' => 'error',
+            'message' => "Unable to refresh DTH info. Please try again."
+        ));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to refresh DTH info. Please try again.',
+            ]);
         }
    }
 
