@@ -43,17 +43,17 @@ class ProcessRecharge implements ShouldQueue
      */
     public function handle()
     {
+        @set_time_limit(120);
+        @ignore_user_abort(true);
+
         try {
-            DB::beginTransaction();
-            $report = DB::table('reports')->where('id', $this->report_id)->lockForUpdate()->first();
+            $report = DB::table('reports')->where('id', $this->report_id)->first();
             if (!$report) {
-                DB::commit();
                 return;
             }
 
             // Only one worker/request may claim a Pending report (prevents duplicate netcell.in hits).
             if ($report->status !== 'Pending') {
-                DB::commit();
                 \helpers::logRechargeTiming([
                     'phase' => 'process_recharge_skipped',
                     'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
@@ -83,7 +83,6 @@ class ProcessRecharge implements ShouldQueue
                         'callback_status' => $existing->callback_status ?? 1,
                         'updated_at' => Carbon::now(),
                     ]);
-                    DB::commit();
                     return;
                 }
             }
@@ -95,8 +94,6 @@ class ProcessRecharge implements ShouldQueue
                     'status' => 'Processing',
                     'updated_at' => Carbon::now(),
                 ]);
-
-            DB::commit();
 
             if (!$claimed) {
                 \helpers::logRechargeTiming([

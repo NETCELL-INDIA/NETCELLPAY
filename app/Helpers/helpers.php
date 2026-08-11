@@ -670,6 +670,9 @@ class helpers
     public static function RunApi($api_id,$provider_id,$report_id,$service)
     {
         $started = microtime(true);
+        @set_time_limit(120);
+        @ignore_user_abort(true);
+
         $report_id = (int) $report_id;
         $report = DB::table('reports')->where('id', $report_id)->first();
         $orderRef = self::maskOrderId($report->order_id ?? null);
@@ -709,6 +712,49 @@ class helpers
         }
 
         $fresh = DB::table('reports')->where('id', $report_id)->first();
+        $orderId = $fresh->order_id ?? null;
+
+        if ($orderId && class_exists(\App\Jobs\ProcessRecharge::class)) {
+            $hasProviderLog = DB::table('apilogs')
+                ->where('txnid', $orderId)
+                ->where('modal', 'Recharge')
+                ->exists();
+
+            if (!$hasProviderLog && in_array($fresh->status ?? 'Pending', ['Pending', 'Processing'], true)) {
+                if (($fresh->status ?? '') === 'Processing') {
+                    DB::table('reports')->where('id', $report_id)->update([
+                        'status' => 'Pending',
+                        'updated_at' => Carbon::now(),
+                    ]);
+                }
+
+                self::logRechargeTiming([
+                    'phase' => 'sync_process_retry',
+                    'order_ref' => $orderRef,
+                    'report_id' => $report_id,
+                    'provider_id' => $provider_id,
+                    'api_id' => $api_id,
+                    'service' => $service,
+                    'result' => ['status' => 'Pending', 'message' => 'retry_no_provider_log'],
+                ]);
+
+                try {
+                    (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
+                } catch (\Throwable $retryError) {
+                    self::logRechargeTiming([
+                        'phase' => 'sync_process_retry_failed',
+                        'order_ref' => $orderRef,
+                        'report_id' => $report_id,
+                        'provider_id' => $provider_id,
+                        'api_id' => $api_id,
+                        'service' => $service,
+                        'result' => ['status' => 'error', 'message' => 'retry_failed'],
+                    ]);
+                }
+
+                $fresh = DB::table('reports')->where('id', $report_id)->first();
+            }
+        }
 
         self::logRechargeTiming([
             'phase' => 'sync_process_complete',
