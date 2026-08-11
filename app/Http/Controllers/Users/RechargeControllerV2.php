@@ -171,7 +171,7 @@ class RechargeControllerV2 extends Controller
                 'url' => 'recharge_request_v2',
                 'modal' => 'RechargeRequest',
                 'txnid' => $post['order_id'],
-                'header' => json_encode($_SERVER),
+                'header' => json_encode(\helpers::safeRequestMeta()),
                 'request' => json_encode($post->all()),
                 'response' => '',
                 'created_at' => Carbon::now(),

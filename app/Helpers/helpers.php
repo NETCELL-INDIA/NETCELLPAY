@@ -696,6 +696,79 @@ class helpers
         ];
     }
 
+    /**
+     * Safe request metadata for apilogs — never includes $_SERVER env secrets.
+     */
+    public static function safeRequestMeta(): array
+    {
+        return [
+            'ip' => request()->ip(),
+            'method' => request()->method(),
+            'path' => request()->path(),
+            'host' => request()->getHost(),
+            'user_agent' => substr((string) request()->userAgent(), 0, 200),
+            'referer' => substr((string) request()->header('referer', ''), 0, 200),
+        ];
+    }
+
+    /**
+     * Send recharge JSON to the browser, then run ProcessRecharge (Hostinger-safe).
+     */
+    public static function returnRechargeJson(array $payload, $apiId, $providerId, $reportId, $service = 'Recharge')
+    {
+        if (($payload['status'] ?? '') === 'Pending' && class_exists(\App\Jobs\ProcessRecharge::class)) {
+            self::jsonResponseThenProcessRecharge($payload, (int) $apiId, (int) $providerId, (int) $reportId, $service);
+        }
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Flush JSON response first so the browser is not blocked, then call netcell.in.
+     */
+    public static function jsonResponseThenProcessRecharge(array $payload, int $apiId, int $providerId, int $reportId, string $service = 'Recharge'): void
+    {
+        self::$rechargeShutdownRegistered[$reportId] = true;
+
+        $orderRef = self::maskOrderId($payload['order_id'] ?? null);
+        $response = response()->json($payload);
+        $response->send();
+
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+        }
+
+        @ignore_user_abort(true);
+        @set_time_limit(120);
+
+        self::logRechargeTiming([
+            'phase' => 'post_response_process_start',
+            'order_ref' => $orderRef,
+            'report_id' => $reportId,
+            'provider_id' => $providerId,
+            'api_id' => $apiId,
+            'service' => $service,
+            'started_at' => date('c'),
+            'result' => ['status' => 'Pending'],
+        ]);
+
+        try {
+            (new \App\Jobs\ProcessRecharge($apiId, $providerId, $reportId, $service))->handle();
+        } catch (\Throwable $e) {
+            self::logRechargeTiming([
+                'phase' => 'post_response_process_failed',
+                'order_ref' => $orderRef,
+                'report_id' => $reportId,
+                'provider_id' => $providerId,
+                'api_id' => $apiId,
+                'service' => $service,
+                'result' => ['status' => 'error', 'message' => 'process_failed'],
+            ]);
+        }
+
+        exit;
+    }
+
     /** @var array<int, bool> */
     private static $rechargeShutdownRegistered = [];
 
@@ -717,6 +790,11 @@ class helpers
 
         register_shutdown_function(function () use ($api_id, $provider_id, $report_id, $service, $orderRef) {
             try {
+                $row = DB::table('reports')->where('id', $report_id)->first();
+                if (!$row || $row->status !== 'Pending') {
+                    return;
+                }
+
                 if (function_exists('fastcgi_finish_request')) {
                     @fastcgi_finish_request();
                 }

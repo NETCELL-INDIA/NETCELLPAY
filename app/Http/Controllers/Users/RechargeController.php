@@ -488,7 +488,7 @@ class RechargeController extends Controller
                 'url' => 'recharge_request',
                 'modal' => 'RechargeRequest',
                 'txnid' => $post['order_id'],
-                'header' => json_encode($_SERVER),
+                'header' => json_encode(\helpers::safeRequestMeta()),
                 'request' => json_encode($post->except(['pin', '_token', 'api_key', 'login_key'])),
                 'response' => '',
                 'created_at' => Carbon::now(),
@@ -792,7 +792,7 @@ class RechargeController extends Controller
 
                                                             }
 
-                                                            return response()->json($data_show);
+                                                            return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
 
                                                         }
 
@@ -840,7 +840,7 @@ class RechargeController extends Controller
 
                                                 }
 
-                                                return response()->json($data_show);
+                                                return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
 
                                             }
 
@@ -888,7 +888,7 @@ class RechargeController extends Controller
 
                                     }
 
-                                    return response()->json($data_show);
+                                    return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
 
                                 }
 
@@ -942,7 +942,7 @@ class RechargeController extends Controller
 
                         }
 
-                        return response()->json($data_show);
+                        return \helpers::returnRechargeJson($data_show, $api_id, $post->provider_id, $report, 'Recharge');
 
                     }
 
