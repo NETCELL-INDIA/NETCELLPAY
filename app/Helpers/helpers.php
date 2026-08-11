@@ -623,46 +623,93 @@ class helpers
 
 
 
-    public static function RunApi($api_id,$provider_id,$report_id,$service)
+    /**
+     * Safe recharge timing log — never includes credentials, PINs, or full customer numbers.
+     */
+    public static function logRechargeTiming(array $payload): void
     {
-        $jobClass = \App\Jobs\ProcessRecharge::class;
-
         try {
-            if (class_exists($jobClass)) {
-                if (config('queue.default') === 'sync') {
-                    (new $jobClass($api_id, $provider_id, $report_id, $service))->handle();
-                } else {
-                    $jobClass::dispatch($api_id, $provider_id, $report_id, $service);
-                }
-            }
-        } catch (\Throwable $e) {
             DB::table('apilogs')->insert([
-                'url' => 'RunApi-dispatch',
-                'modal' => 'RunApi',
-                'txnid' => (string) $report_id,
+                'url' => 'recharge-timing',
+                'modal' => 'RechargeTiming',
+                'txnid' => (string) ($payload['order_ref'] ?? 'unknown'),
                 'header' => json_encode([]),
-                'request' => json_encode(['api_id' => $api_id, 'provider_id' => $provider_id]),
-                'response' => $e->getMessage(),
+                'request' => json_encode($payload),
+                'response' => json_encode($payload['result'] ?? []),
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
+        } catch (\Throwable $e) {
+            // never break recharge flow for logging
+        }
+    }
+
+    public static function maskOrderId(?string $orderId): string
+    {
+        if (!$orderId || strlen($orderId) < 8) {
+            return '***';
         }
 
+        return substr($orderId, 0, 4) . '***' . substr($orderId, -4);
+    }
+
+    /**
+     * Strip credential-like query params before persisting outbound API URLs.
+     */
+    public static function redactUrlSecrets(string $url): string
+    {
+        return (string) preg_replace(
+            '/((?:api[_-]?key|api[_-]?password|apitoken|username|userid|token|password|ApiPassword|Tokenid|Token|UserID))=[^&]*/i',
+            '$1=[REDACTED]',
+            $url
+        );
+    }
+
+
+
+    public static function RunApi($api_id,$provider_id,$report_id,$service)
+    {
+        $started = microtime(true);
         $report = DB::table('reports')->where('id', $report_id)->first();
-        if ($report) {
-            return [
-                'status' => $report->status ?: 'Pending',
-                'operator_id' => $report->operator_id ?? '',
-                'remark' => $report->remark ?? ($service . ' Pending'),
-                'order_id' => $report->order_id,
-            ];
+        $orderRef = self::maskOrderId($report->order_id ?? null);
+
+        try {
+            if (class_exists(\App\Jobs\ProcessRecharge::class)) {
+                // Never block the browser request on external recharge APIs.
+                \App\Jobs\ProcessRecharge::dispatch($api_id, $provider_id, $report_id, $service)
+                    ->afterResponse();
+            }
+        } catch (\Throwable $e) {
+            self::logRechargeTiming([
+                'phase' => 'queue_failed',
+                'order_ref' => $orderRef,
+                'report_id' => $report_id,
+                'provider_id' => $provider_id,
+                'api_id' => $api_id,
+                'service' => $service,
+                'started_at' => date('c'),
+                'queue_ms' => (int) round((microtime(true) - $started) * 1000),
+                'result' => ['status' => 'error', 'message' => 'dispatch_failed'],
+            ]);
         }
+
+        self::logRechargeTiming([
+            'phase' => 'queued_after_response',
+            'order_ref' => $orderRef,
+            'report_id' => $report_id,
+            'provider_id' => $provider_id,
+            'api_id' => $api_id,
+            'service' => $service,
+            'started_at' => date('c'),
+            'queue_ms' => (int) round((microtime(true) - $started) * 1000),
+            'result' => ['status' => 'Pending'],
+        ]);
 
         return [
             'status' => 'Pending',
             'operator_id' => '',
-            'remark' => $service . ' Pending',
-            'order_id' => '',
+            'remark' => $service . ' Queued for processing',
+            'order_id' => $report->order_id ?? '',
         ];
     }
 
@@ -755,7 +802,10 @@ class helpers
 
         curl_setopt($curl, CURLOPT_ENCODING, "");
 
-        curl_setopt($curl, CURLOPT_TIMEOUT, 180);
+        $connectTimeout = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 10));
+        $timeout = max($connectTimeout, (int) env('RECHARGE_API_TIMEOUT', 30));
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $connectTimeout);
+        curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
 
         curl_setopt($curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
 
@@ -792,7 +842,7 @@ class helpers
             try {
                 DB::table('apilogs')->insert([
 
-                    "url" => $url,
+                    "url" => self::redactUrlSecrets($url),
 
                     "modal" => $modal,
 

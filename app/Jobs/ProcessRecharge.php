@@ -103,6 +103,7 @@ $api_ids_to_try = [];
 
             $final_result = null;
             foreach ($api_ids_to_try as $try_api_id) {
+                $apiStarted = microtime(true);
                 // build URL and call API using helpers::curl and parsing logic similar to previous RunApi implementation
                 $api_details = DB::table('apis')->where('id', $try_api_id)->first();
                 if (!$api_details || $api_details->status != '1') continue;
@@ -120,11 +121,33 @@ $api_ids_to_try = [];
                 $url = str_replace('{AMOUNT}', '' . $report->total_amount . '', $url);
                 $url = str_replace('{ORDER_ID}', '' . $report->order_id . '', $url);
 
-                $method = $api_details->api_method;
+                $method = strtoupper(trim($api_details->api_method ?: 'GET'));
                 $header = [];
                 $parameters = "";
 
+                // Query-string URLs (e.g. netcell.in transaction-request) must use GET when no POST body is set.
+                if ($method === 'POST' && $parameters === '' && str_contains($url, '?')) {
+                    $method = 'GET';
+                }
+
                 $result = \helpers::curl($url, $method, $parameters, $header, "yes", $this->service, $report->order_id);
+                $apiDurationMs = (int) round((microtime(true) - $apiStarted) * 1000);
+
+                \helpers::logRechargeTiming([
+                    'phase' => 'external_api_call',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $try_api_id,
+                    'service' => $this->service,
+                    'api_host' => parse_url($url, PHP_URL_HOST) ?: 'unknown',
+                    'api_http_code' => $result['code'] ?? null,
+                    'api_ms' => $apiDurationMs,
+                    'curl_error' => !empty($result['error']),
+                    'result' => [
+                        'parsed_status' => null,
+                    ],
+                ]);
 
 // If curl returned an error or no response or server error, treat as transient and allow job retry/backoff
 if ((empty($result['response']) && !empty($result['error'])) || empty($result['response']) || (isset($result['code']) && $result['code'] >= 500)) {
@@ -143,19 +166,30 @@ $update = [
 
 if ($result && isset($result['response']) && $api_details->api_format == 'JSON') {
     $data = json_decode($result['response'], true);
+    if (!is_array($data)) {
+        $update['status'] = 'Pending';
+    } else {
     $status_key = $api_details->status_value;
     $error_key = $api_details->error_value;
+
+    // netcell.in may return Response=Success alongside Status=Success
+    if ($status_key && !isset($data[$status_key]) && isset($data['Response']) && $data['Response'] === ($api_details->success_value ?: 'Success')) {
+        $data[$status_key] = $api_details->success_value ?: 'Success';
+    }
+
                     if (isset($data[$status_key])) {
                         if ($data[$status_key] == $api_details->success_value) {
                             $update['status'] = 'Success';
                             $update['operator_id'] = $data[$api_details->operator_id_value] ?? '';
                             $update['api_operator_id'] = $data[$api_details->order_id_value] ?? '';
-                            $update['remark'] = $this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number;
+                            $msg = $data['Message'] ?? $data['message'] ?? '';
+                            $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                         } else if ($data[$status_key] == $api_details->failed_value || $data[$status_key] == $api_details->refund_value) {
                             $update['status'] = 'Failed';
                             $update['operator_id'] = $data[$api_details->operator_id_value] ?? '';
                             $update['api_operator_id'] = $data[$api_details->order_id_value] ?? '';
-                            $update['remark'] = $this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number;
+                            $msg = $data['Message'] ?? $data['message'] ?? '';
+                            $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                         } else if (isset($data[$error_key]) && $data[$error_key] == $api_details->error_value_response) {
                             $update['status'] = 'Failed';
                             $update['operator_id'] = '';
@@ -167,12 +201,26 @@ if ($result && isset($result['response']) && $api_details->api_format == 'JSON')
                     } else {
                         $update['status'] = 'Pending';
                     }
+    }
                 } else {
                     // keep pending
                 }
 
                 // Update api_id on reports (important when trying backups)
                 DB::table('reports')->where('id', $this->report_id)->update(array_merge(['api_id' => $try_api_id], $update));
+
+                \helpers::logRechargeTiming([
+                    'phase' => 'external_api_result',
+                    'order_ref' => \helpers::maskOrderId($report->order_id ?? null),
+                    'report_id' => $this->report_id,
+                    'provider_id' => (int) $this->provider_id,
+                    'api_id' => (int) $try_api_id,
+                    'service' => $this->service,
+                    'api_ms' => $apiDurationMs,
+                    'result' => [
+                        'status' => $update['status'] ?? 'Unknown',
+                    ],
+                ]);
 
                 if ($update['status'] == 'Success') {
                     // set commission and stop
