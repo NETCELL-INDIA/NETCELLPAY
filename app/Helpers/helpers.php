@@ -673,25 +673,8 @@ class helpers
         $report = DB::table('reports')->where('id', $report_id)->first();
         $orderRef = self::maskOrderId($report->order_id ?? null);
 
-        try {
-            if (class_exists(\App\Jobs\ProcessRecharge::class)) {
-                // Never block the browser request on external recharge APIs.
-                \App\Jobs\ProcessRecharge::dispatch($api_id, $provider_id, $report_id, $service)
-                    ->afterResponse();
-            }
-        } catch (\Throwable $e) {
-            self::logRechargeTiming([
-                'phase' => 'queue_failed',
-                'order_ref' => $orderRef,
-                'report_id' => $report_id,
-                'provider_id' => $provider_id,
-                'api_id' => $api_id,
-                'service' => $service,
-                'started_at' => date('c'),
-                'queue_ms' => (int) round((microtime(true) - $started) * 1000),
-                'result' => ['status' => 'error', 'message' => 'dispatch_failed'],
-            ]);
-        }
+        // Single background path for shared hosts — afterResponse() races with shutdown and is often skipped.
+        self::scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef);
 
         self::logRechargeTiming([
             'phase' => 'queued_after_response',
@@ -711,6 +694,60 @@ class helpers
             'remark' => $service . ' Queued for processing',
             'order_id' => $report->order_id ?? '',
         ];
+    }
+
+    /** @var array<int, bool> */
+    private static $rechargeShutdownRegistered = [];
+
+    /**
+     * Run ProcessRecharge after the HTTP response is sent to the browser.
+     * Uses atomic Pending→Processing claim inside the job to prevent duplicate provider calls.
+     */
+    private static function scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef): void
+    {
+        if (!class_exists(\App\Jobs\ProcessRecharge::class)) {
+            return;
+        }
+
+        $report_id = (int) $report_id;
+        if (isset(self::$rechargeShutdownRegistered[$report_id])) {
+            return;
+        }
+        self::$rechargeShutdownRegistered[$report_id] = true;
+
+        register_shutdown_function(function () use ($api_id, $provider_id, $report_id, $service, $orderRef) {
+            try {
+                if (function_exists('fastcgi_finish_request')) {
+                    @fastcgi_finish_request();
+                }
+
+                @ignore_user_abort(true);
+                @set_time_limit(120);
+
+                self::logRechargeTiming([
+                    'phase' => 'shutdown_fallback_start',
+                    'order_ref' => $orderRef,
+                    'report_id' => $report_id,
+                    'provider_id' => (int) $provider_id,
+                    'api_id' => (int) $api_id,
+                    'service' => $service,
+                    'started_at' => date('c'),
+                    'result' => ['status' => 'Pending'],
+                ]);
+
+                (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
+            } catch (\Throwable $e) {
+                self::logRechargeTiming([
+                    'phase' => 'shutdown_fallback_failed',
+                    'order_ref' => $orderRef,
+                    'report_id' => $report_id,
+                    'provider_id' => (int) $provider_id,
+                    'api_id' => (int) $api_id,
+                    'service' => $service,
+                    'result' => ['status' => 'error', 'message' => 'fallback_failed'],
+                ]);
+            }
+        });
     }
 
 

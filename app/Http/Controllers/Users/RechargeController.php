@@ -450,6 +450,13 @@ class RechargeController extends Controller
             ->first();
 
         if ($inProgress) {
+            $ageSeconds = Carbon::now()->diffInSeconds(Carbon::parse($inProgress->created_at));
+
+            // Stuck Pending (>45s): re-trigger provider call on the same report instead of blocking the user.
+            if ($inProgress->status === 'Pending' && $ageSeconds >= 45 && !empty($inProgress->api_id)) {
+                \helpers::RunApi($inProgress->api_id, $inProgress->provider_id, $inProgress->id, 'Recharge');
+            }
+
             return response()->json([
                 'type' => 'success',
                 'status' => $inProgress->status,
@@ -458,8 +465,12 @@ class RechargeController extends Controller
                 'amount' => $inProgress->total_amount,
                 'number' => $inProgress->number,
                 'operator_id' => $inProgress->operator_id ?? '',
-                'remark' => 'Transaction already in progress. Check report for final status.',
-                'message' => 'Transaction already in progress. Check report for final status.',
+                'remark' => $ageSeconds >= 45 && $inProgress->status === 'Pending'
+                    ? 'Retrying recharge. Check report for final status.'
+                    : 'Transaction already in progress. Check report for final status.',
+                'message' => $ageSeconds >= 45 && $inProgress->status === 'Pending'
+                    ? 'Retrying recharge. Check report for final status.'
+                    : 'Transaction already in progress. Check report for final status.',
                 'commission' => $inProgress->commission ?? 0,
                 'date_time' => $inProgress->created_at,
             ]);

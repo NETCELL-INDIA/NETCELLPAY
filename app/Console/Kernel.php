@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         'App\Console\Commands\RechargeCallback',
         'App\Console\Commands\ComplaintCallback',
         'App\Console\Commands\SendSms',
+        'App\Console\Commands\ProcessPendingRecharges',
     ];
 
     protected function schedule(Schedule $schedule)
@@ -26,6 +27,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('recharge_callback')->everyMinute();
         $schedule->command('complaint_callback')->everyMinute();
         $schedule->command('send_sms_every_minutes')->everyMinute();
+        $schedule->command('process_pending_recharges')->everyMinute();
     }
 
     /**

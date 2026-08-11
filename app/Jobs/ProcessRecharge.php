@@ -43,7 +43,6 @@ class ProcessRecharge implements ShouldQueue
      */
     public function handle()
     {
-        // Add idempotency: lock the report row, check for duplicates (request_order_id), and mark as Processing
         try {
             DB::beginTransaction();
             $report = DB::table('reports')->where('id', $this->report_id)->lockForUpdate()->first();
@@ -52,8 +51,8 @@ class ProcessRecharge implements ShouldQueue
                 return;
             }
 
-            // If already processed (not Pending or Processing), skip work (idempotent)
-            if (!in_array($report->status, ['Pending', 'Processing'])) {
+            // Only one worker/request may claim a Pending report (prevents duplicate netcell.in hits).
+            if ($report->status !== 'Pending') {
                 DB::commit();
                 return;
             }
@@ -67,7 +66,6 @@ class ProcessRecharge implements ShouldQueue
                     ->first();
 
                 if ($existing) {
-                    // copy final status from existing to avoid double-processing
                     DB::table('reports')->where('id', $report->id)->update([
                         'status' => $existing->status,
                         'operator_id' => $existing->operator_id,
@@ -81,15 +79,21 @@ class ProcessRecharge implements ShouldQueue
                 }
             }
 
-// mark as Processing to indicate work-in-progress (callbacks and retries are handled safely)
-            DB::table('reports')->where('id', $report->id)->update([
-                'status' => 'Processing',
-                'updated_at' => Carbon::now(),
-            ]);
+            $claimed = DB::table('reports')
+                ->where('id', $report->id)
+                ->where('status', 'Pending')
+                ->update([
+                    'status' => 'Processing',
+                    'updated_at' => Carbon::now(),
+                ]);
+
             DB::commit();
 
-// refresh report for further processing (outside transaction)
-$report = DB::table('reports')->where('id', $this->report_id)->first();
+            if (!$claimed) {
+                return;
+            }
+
+            $report = DB::table('reports')->where('id', $this->report_id)->first();
 
 $provider = DB::table('providers')->where('id', $this->provider_id)->first();
 if (!$provider) return;
@@ -282,9 +286,11 @@ if ($final_result && $final_result['status'] == 'Failed') {
         $retryCount = $reportRow->retry_count ?? 0;
         $maxRetries = 1; // one auto-retry after 5 minutes
         if ($retryCount < $maxRetries) {
-            // increment retry_count and dispatch delayed job
-            DB::table('reports')->where('id', $this->report_id)->update(['retry_count' => $retryCount + 1, 'updated_at' => Carbon::now()]);
-            // dispatch another job after 5 minutes
+            DB::table('reports')->where('id', $this->report_id)->update([
+                'retry_count' => $retryCount + 1,
+                'status' => 'Pending',
+                'updated_at' => Carbon::now(),
+            ]);
             \App\Jobs\ProcessRecharge::dispatch($this->api_id, $this->provider_id, $this->report_id, $this->service)->delay(now()->addMinutes(5));
         } else {
             // already retried, perform refund
@@ -307,7 +313,14 @@ if ($final_result && $final_result['status'] == 'Failed') {
 }
 
         } catch (\Throwable $th) {
-    // log and rethrow so transient problems trigger the job retry/backoff policy
+            try {
+                DB::table('reports')
+                    ->where('id', $this->report_id)
+                    ->where('status', 'Processing')
+                    ->update(['status' => 'Pending', 'updated_at' => Carbon::now()]);
+            } catch (\Throwable $ignored) {
+            }
+
             DB::table('apilogs')->insert([
                 'url' => 'JobProcessRecharge',
                 'modal' => 'ProcessRecharge',
