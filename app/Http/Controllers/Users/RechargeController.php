@@ -1806,6 +1806,8 @@ class RechargeController extends Controller
 
         // }
 
+        try {
+
         $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
 
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
@@ -1818,11 +1820,10 @@ class RechargeController extends Controller
 
         }, 'Roffer', 'ROF');
 
-        //echo "<pre>";print_r($result);die;
-
         if ($result) {
 
             $data = json_decode($result['response'], true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? []) : [];
 
             return response()->json([
 
@@ -1830,20 +1831,25 @@ class RechargeController extends Controller
 
                 'message' => 'Fatch Successfully',
 
-                'data' => $data['records']
+                'data' => $records
 
             ]);
 
-        } else {
+        }
 
-            return response()->json(array(
+        return response()->json(array(
 
+            'type' => 'error',
+
+            'message' => "Unable to fetch offers. Please try again."
+
+        ));
+
+        } catch (\Throwable $e) {
+            return response()->json([
                 'type' => 'error',
-
-                'message' => "Something Went Wrong S"
-
-            ));
-
+                'message' => 'Unable to fetch offers. Please try again.',
+            ]);
         }
 
     }
@@ -2040,6 +2046,8 @@ class RechargeController extends Controller
 
         }
 
+        try {
+
         $result = PlanInfoFetchService::fetch('hlr', function ($api) use ($post) {
 
             return rtrim($api->api_url, '/') . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($api->resolved_username) . '&ApiPassword=' . urlencode($api->resolved_password) . '&Mobileno=' . urlencode($post->number);
@@ -2050,13 +2058,41 @@ class RechargeController extends Controller
 
             $data = json_decode($result['response'], true);
 
-            // return $data;
+            if (!is_array($data)) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Invalid response from operator API.',
+                ]);
+            }
 
-            $provider = DB::table('api_provider_codes')->where('api_id', $result['api_id'])->where('provider_code', $data['OpCode'])->first();
+            $opCode = $data['OpCode'] ?? $data['opcode'] ?? $data['OperatorCode'] ?? null;
+            $circleCode = $data['CircleCode'] ?? $data['circlecode'] ?? $data['Circle'] ?? null;
+
+            if (!$opCode || !$circleCode) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Operator or circle not found for this number.',
+                ]);
+            }
+
+            $provider = DB::table('api_provider_codes')->where('api_id', $result['api_id'])->where('provider_code', $opCode)->first();
+
+            if (!$provider) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Provider mapping not found. Contact admin.',
+                ]);
+            }
 
             $provider_data = DB::table('providers')->where('id', $provider->provider_id)->first();
+            $state = DB::table('states')->where('plan_api_code', $circleCode)->first();
 
-            $state = DB::table('states')->where('plan_api_code', $data['CircleCode'])->first();
+            if (!$provider_data || !$state) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Provider or circle mapping not found. Contact admin.',
+                ]);
+            }
 
             return response()->json([
 
@@ -2076,16 +2112,21 @@ class RechargeController extends Controller
 
             ]);
 
-        } else {
+        }
 
-            return response()->json(array(
+        return response()->json(array(
 
+            'type' => 'error',
+
+            'message' => "Unable to fetch operator details. Please try again."
+
+        ));
+
+        } catch (\Throwable $e) {
+            return response()->json([
                 'type' => 'error',
-
-                'message' => "Something Went Wrong S"
-
-            ));
-
+                'message' => 'Unable to check mobile number. Please try again.',
+            ]);
         }
 
     }
@@ -2152,9 +2193,18 @@ class RechargeController extends Controller
 
         // }
 
+        try {
+
         $serviceKey = PlanInfoFetchService::planServiceKey((int) $post->provider_id);
 
         $state = DB::table('states')->where('id', $post->state_id)->first();
+
+        if (!$state || empty($state->mplan_state_code)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Invalid state selected.',
+            ]);
+        }
 
         $state_code = str_replace(" ", "%20", $state->mplan_state_code);
 
@@ -2168,11 +2218,10 @@ class RechargeController extends Controller
 
         }, 'Plans', 'ROP');
 
-        //echo "<pre>";print_r($result);die;
-
         if ($result) {
 
             $data = json_decode($result['response'], true);
+            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? []) : [];
 
             return response()->json([
 
@@ -2180,20 +2229,25 @@ class RechargeController extends Controller
 
                 'message' => 'Fatch Successfully',
 
-                'data' => $data['records']
+                'data' => $records
 
             ]);
 
-        } else {
+        }
 
-            return response()->json(array(
+        return response()->json(array(
 
+            'type' => 'error',
+
+            'message' => "Unable to fetch plans. Please try again."
+
+        ));
+
+        } catch (\Throwable $e) {
+            return response()->json([
                 'type' => 'error',
-
-                'message' => "Something Went Wrong S"
-
-            ));
-
+                'message' => 'Unable to fetch plans. Please try again.',
+            ]);
         }
 
     }

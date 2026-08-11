@@ -68,22 +68,26 @@ class PlanInfoFetchService
             return;
         }
 
-        Schema::create('plan_info_fetch_settings', function ($table) {
-            $table->id();
-            $table->string('service_key', 64)->unique();
-            $table->string('service_label');
-            $table->unsignedBigInteger('primary_api_id')->nullable();
-            $table->string('primary_username', 255)->nullable();
-            $table->string('primary_password', 255)->nullable();
-            $table->unsignedBigInteger('backup_api_id')->nullable();
-            $table->string('backup_username', 255)->nullable();
-            $table->string('backup_password', 255)->nullable();
-            $table->boolean('is_routing')->default(false);
-            $table->unsignedTinyInteger('sort_order')->default(0);
-            $table->timestamps();
-        });
+        try {
+            Schema::create('plan_info_fetch_settings', function ($table) {
+                $table->id();
+                $table->string('service_key', 64)->unique();
+                $table->string('service_label');
+                $table->unsignedBigInteger('primary_api_id')->nullable();
+                $table->string('primary_username', 255)->nullable();
+                $table->string('primary_password', 255)->nullable();
+                $table->unsignedBigInteger('backup_api_id')->nullable();
+                $table->string('backup_username', 255)->nullable();
+                $table->string('backup_password', 255)->nullable();
+                $table->boolean('is_routing')->default(false);
+                $table->unsignedTinyInteger('sort_order')->default(0);
+                $table->timestamps();
+            });
 
-        self::seedDefaults();
+            self::seedDefaults();
+        } catch (\Throwable $e) {
+            // Fall back to legacy API ids when table cannot be created.
+        }
     }
 
     public static function seedDefaults(): void
@@ -208,7 +212,9 @@ class PlanInfoFetchService
     {
         self::ensureTable();
 
-        $setting = DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first();
+        $setting = Schema::hasTable('plan_info_fetch_settings')
+            ? DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first()
+            : null;
         if (!$setting) {
             return self::legacyFetch($serviceKey, $urlBuilder, $modal, $orderPrefix);
         }

@@ -803,7 +803,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20260811-USER-AUTH-001';
+        return '20260811-MOBILE-001';
     }
 }
 
