@@ -4,6 +4,7 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 use Illuminate\Http\Request;
 
@@ -23,6 +24,20 @@ class helpers
 
         echo "<pre>";print_r($data);die;
 
+    }
+
+    /**
+     * Keep only columns that exist on reports (avoids insert/update SQL errors on older DBs).
+     */
+    public static function filterReportColumns(array $data): array
+    {
+        static $columns = null;
+
+        if ($columns === null) {
+            $columns = array_flip(Schema::getColumnListing('reports'));
+        }
+
+        return array_intersect_key($data, $columns);
     }
 
 
@@ -87,7 +102,7 @@ class helpers
 
         $refund['updated_at'] = Carbon::now();                  
 
-        $report = DB::table('reports')->insertGetId($refund);
+        $report = DB::table('reports')->insertGetId(self::filterReportColumns($refund));
 
         return $report;
 
@@ -152,7 +167,7 @@ class helpers
  
               $data['closing_balance'] = $user->wallet_balance;
  
-              $update = DB::table('reports')->insertGetId($data);
+              $update = DB::table('reports')->insertGetId(self::filterReportColumns($data));
          }
          return 0;
      }
@@ -235,7 +250,7 @@ class helpers
 
              $data['closing_balance'] = $parent->wallet_balance;                    
 
-             $report = DB::table('reports')->insertGetId($data);
+             $report = DB::table('reports')->insertGetId(self::filterReportColumns($data));
 
              ////
 
@@ -312,7 +327,7 @@ class helpers
 
                  $data['closing_balance'] = $parent->wallet_balance;                    
 
-                 $report = DB::table('reports')->insertGetId($data);
+                 $report = DB::table('reports')->insertGetId(self::filterReportColumns($data));
 
                  ////
 
@@ -389,7 +404,7 @@ class helpers
 
                      $data['closing_balance'] = $parent->wallet_balance;                    
 
-                     $report = DB::table('reports')->insertGetId($data);
+                     $report = DB::table('reports')->insertGetId(self::filterReportColumns($data));
 
                      ////
 
@@ -610,30 +625,45 @@ class helpers
 
     public static function RunApi($api_id,$provider_id,$report_id,$service)
     {
-        // Dispatch background job to process API call and fallbacks for reliability.
-        try {
-    if (class_exists(\App\Jobs\ProcessRecharge::class)) {
-        \App\Jobs\ProcessRecharge::dispatch(
-            $api_id,
-            $provider_id,
-            $report_id,
-            $service
-        );
-    }
-} catch (\Throwable $e) {
-    // If dispatch fails, fall back to synchronous call.
-}
+        $jobClass = \App\Jobs\ProcessRecharge::class;
 
-        // Return a pending response to the caller. The background job will update the reports row when done.
-        $order = DB::table('reports')->where('id', $report_id)->value('order_id');
-        $update = [
+        try {
+            if (class_exists($jobClass)) {
+                if (config('queue.default') === 'sync') {
+                    (new $jobClass($api_id, $provider_id, $report_id, $service))->handle();
+                } else {
+                    $jobClass::dispatch($api_id, $provider_id, $report_id, $service);
+                }
+            }
+        } catch (\Throwable $e) {
+            DB::table('apilogs')->insert([
+                'url' => 'RunApi-dispatch',
+                'modal' => 'RunApi',
+                'txnid' => (string) $report_id,
+                'header' => json_encode([]),
+                'request' => json_encode(['api_id' => $api_id, 'provider_id' => $provider_id]),
+                'response' => $e->getMessage(),
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+        }
+
+        $report = DB::table('reports')->where('id', $report_id)->first();
+        if ($report) {
+            return [
+                'status' => $report->status ?: 'Pending',
+                'operator_id' => $report->operator_id ?? '',
+                'remark' => $report->remark ?? ($service . ' Pending'),
+                'order_id' => $report->order_id,
+            ];
+        }
+
+        return [
             'status' => 'Pending',
             'operator_id' => '',
-            'remark' => $service . ' Queued for processing',
-            'order_id' => $order,
+            'remark' => $service . ' Pending',
+            'order_id' => '',
         ];
-        return $update;
-
     }
 
 

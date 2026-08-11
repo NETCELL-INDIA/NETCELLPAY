@@ -11,6 +11,7 @@ use App\Http\Middleware\AppUserCheck;
 ////App APis Controllers Start
 use App\Http\Controllers\AppV1\AuthController;
 use App\Http\Controllers\AppV1\ReportsController;
+use App\Http\Controllers\AppV1\ServicesController;
 use App\Http\Controllers\AppV1\ParentController;
 use Illuminate\Support\Facades\Redirect;
 
@@ -65,6 +66,11 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/recharge-reciept',[RechargeController::class,'getRechargeReciept']);
     Route::post('/v1/dth-info',[RechargeController::class,'dthInfo']);
     Route::post('/v1/dth-heavy-refresh',[RechargeController::class,'dthHeavyRefresh']);
+    Route::post('/v1/services-list',[ServicesController::class,'servicesList']);
+    Route::post('/v1/service-providers',[ServicesController::class,'serviceProviders']);
+    Route::post('/v1/bill-params',[ServicesController::class,'billParams']);
+    Route::post('/v1/bill-fetch',[ServicesController::class,'billFetch']);
+    Route::post('/v1/bill-pay',[ServicesController::class,'billPay']);
     Route::post('/v1/instant-add-money',[addMoneyController::class,'addMoneyRequestSubmit']);
     Route::post('/v1/instant-add-money-qr-code',[allUpiMoneyController::class,'addMoneyRequestSubmit']);
     Route::post('/v1/send-complaint',[RechargeController::class,'submitRechargeComplaint']);

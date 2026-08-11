@@ -269,8 +269,10 @@ class AuthController extends Controller
                             'role_id' => $user->role_id,
                             'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
                             'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->where('service_id',4)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
                             'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                            'bbps_services' => config('recharge_services.bbps', []),
+                            'recharge_services' => config('recharge_services.recharge', []),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -551,8 +553,10 @@ class AuthController extends Controller
                             'role_id' => $user->role_id,
                             'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
                             'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->where('service_id',4)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
                             'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                            'bbps_services' => config('recharge_services.bbps', []),
+                            'recharge_services' => config('recharge_services.recharge', []),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -748,8 +752,10 @@ class AuthController extends Controller
                         'role_id' => $user->role_id,
                         'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
                         'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                        'postpaid_provider' =>   DB::table('providers')->where('status',1)->where('service_id',4)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                        'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
                         'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
+                        'bbps_services' => config('recharge_services.bbps', []),
+                        'recharge_services' => config('recharge_services.recharge', []),
                     ];
                     // 
                     DB::table('login_histories')->insert([

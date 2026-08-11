@@ -39,7 +39,7 @@
                     <i class="bx bxs-dashboard"></i> <span>Dashboard</span>
                     </a>
                 </li>
-                @if(Session::get('role_id') == 6)
+                @if(in_array((int) Session::get('role_id'), [3, 4, 5, 6], true))
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarServices" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarSupport">
                         <i class='bx bxs-spreadsheet' ></i> <span>Services</span>
@@ -50,20 +50,14 @@
                                 <a href="{{ URL::asset('users/services/mobile') }}" class="nav-link">Mobile Recharge</a>
                             </li>
                             <li class="nav-item">
+                                <a href="{{ URL::asset('users/services/postpaid') }}" class="nav-link">Postpaid</a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ URL::asset('users/services/dth') }}" class="nav-link">DTH Recharge</a>
                             </li>
-                            <!-- <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/bbps/electricity') }}" class="nav-link">Electricity</a>
-                            </li>
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/money-transfer') }}" class="nav-link">Money Transfer</a>
+                                <a href="{{ URL::asset('users/services/bill-payments') }}" class="nav-link">Bill Payments (BBPS)</a>
                             </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/aeps') }}" class="nav-link">ICICI Aeps</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/payout') }}" class="nav-link">Payout</a>
-                            </li> -->
                         </ul>
                     </div>
                 </li>

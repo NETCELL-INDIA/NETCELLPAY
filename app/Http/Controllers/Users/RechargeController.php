@@ -42,6 +42,14 @@ class RechargeController extends Controller
 
     }
 
+    public function postpaidIndex(Request $post)
+
+    {
+
+        return view('users.services.postpaid');
+
+    }
+
 
 
 
@@ -90,7 +98,7 @@ class RechargeController extends Controller
 
             'state_id' => 'numeric',
 
-            'number' => 'required|min:8|max:12',
+            'number' => 'required|min:4|max:20',
 
             'amount' => 'required|numeric|min:1',
 
@@ -470,7 +478,11 @@ class RechargeController extends Controller
 
         $post['fund_type'] = "Debit";
 
-        $post['transaction_type'] = "Recharge";
+        $txnType = $post->transaction_type ?? 'Recharge';
+        if (!in_array($txnType, ['Recharge', 'Bill Pay', 'Bill Payment'], true)) {
+            $txnType = 'Recharge';
+        }
+        $post['transaction_type'] = $txnType;
 
         $post['transaction_date'] = Carbon::now() . ":" . rand(111, 999);
 
@@ -486,7 +498,7 @@ class RechargeController extends Controller
 
         $post['api_id'] = $api_id;
 
-        $post['remark'] = "Recharge For Rs. " . $total_amount . " Number " . $post->number;
+        $post['remark'] = ($txnType === 'Recharge' ? 'Recharge' : 'Bill Pay') . " For Rs. " . $total_amount . " Number " . $post->number;
 
         $post['status'] = "Pending";
 
@@ -556,7 +568,7 @@ class RechargeController extends Controller
 
                 $post['closing_balance'] = $user->wallet_balance;
 
-                $report = DB::table('reports')->insertGetId($post->all());
+                $report = DB::table('reports')->insertGetId(\helpers::filterReportColumns($post->all()));
 
                 DB::commit();
 
@@ -918,21 +930,34 @@ class RechargeController extends Controller
 
         } catch (\Throwable $th) {
 
-            //DB::rollback();
+            DB::rollBack();
 
-            return $th->getMessage();
+            try {
+                DB::table('apilogs')->insert([
+                    'url' => 'rechargeCall-error',
+                    'modal' => 'Recharge',
+                    'txnid' => $post['order_id'] ?? 'unknown',
+                    'header' => json_encode([]),
+                    'request' => json_encode($post->except(['pin', '_token'])),
+                    'response' => $th->getMessage(),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            } catch (\Throwable $e) {
+                // ignore logging failure
+            }
 
             return response()->json(array(
 
+                'status' => 'Failed',
+
                 'type' => 'error',
 
-                'message' => "Internal Server Error C"
+                'message' => "Internal Server Error"
 
             ));
 
         }
-
-
 
         //Ptd($post->all());
 
@@ -974,7 +999,15 @@ class RechargeController extends Controller
 
         }
 
-        $provider = DB::table('providers')->select('id', 'provider_name')->where('service_id', $post->service)->where('deleted_at', '!=', 1)->where('status', 1)->get();
+        $serviceId = (int) $post->service;
+        $serviceIds = ($serviceId === 4) ? [4, 15] : [$serviceId];
+
+        $provider = DB::table('providers')->select('id', 'provider_name')
+            ->whereIn('service_id', $serviceIds)
+            ->where('deleted_at', '!=', 1)
+            ->where('status', 1)
+            ->orderBy('provider_name')
+            ->get();
 
         $states = DB::table('states')->select('id', 'state_name')->where('status', 1)->get();
 

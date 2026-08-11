@@ -147,7 +147,7 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::get('users/api-settings', [ApiSettingsController::class, 'index'])->name('apiSettings');
     Route::post('users/api-settings/save', [ApiSettingsController::class, 'store'])->name('apiSettingsStore');
     Route::get('users/profile/my-profile',[ProfileController::class,'myProfile'])->name('myProfile');
-    Route::post('users/profile/my-profile-data',[ProfileController::class,'myProfileData'])->name('myProfileData');
+    Route::get('users/profile/my-profile-data',[ProfileController::class,'myProfileData'])->name('myProfileData');
     Route::post('users/profile/my-profile-password-change',[ProfileController::class,'myProfilePasswordChange'])->name('myProfilePasswordChange');
     Route::post('users/profile/my-profile-pin-change',[ProfileController::class,'myProfilePinChange'])->name('myProfilePinChange');
     Route::post('users/profile/my-profile-generate-key',[ProfileController::class,'myProfileGenerateKey'])->name('myProfileGenerateKey');
@@ -173,9 +173,12 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::post('users/services/recharge-check-mobile',[RechargeController::class,'RechargeCheckMobile'])->name('serviceRechargeCheckMobile');
     //DTH Recharge Routes
     Route::get('users/services/dth',[RechargeController::class,'dthIndex']);
+    Route::get('users/services/postpaid',[RechargeController::class,'postpaidIndex']);
     //Bill Payments Routes
     Route::get('users/services/bill-payments', [BillPaymentsController::class, 'index']);
     Route::post('users/services/bill-payments/params', [BillPaymentsController::class, 'fetchProviderParams'])->name('fetchProviderParams');
+    Route::post('users/services/bill-payments/fetch', [BillPaymentsController::class, 'fetchBill'])->name('fetchBill');
+    Route::post('users/services/bill-payments/pay', [BillPaymentsController::class, 'payBill'])->name('payBill');
     //User List Routes 
     Route::get('users/users/list',[UserListController::class,'index']);
     Route::post('users/users/userlist/list',[UserListController::class,'fetchAll'])->name('userlistList');

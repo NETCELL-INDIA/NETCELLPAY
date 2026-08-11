@@ -232,7 +232,7 @@ class RechargeControllerV2 extends Controller
                 $user = DB::table('users')->where('id',$user->id)->first();
                 //echo "<pre>";print_r($user);die;
                 $post['closing_balance'] = $user->wallet_balance;
-                $report = DB::table('reports')->insertGetId($post->all());
+                $report = DB::table('reports')->insertGetId(\helpers::filterReportColumns($post->all()));
                 DB::commit();
                 
 

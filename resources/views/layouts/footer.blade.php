@@ -122,8 +122,8 @@
     function ajaxCall() {
         $.ajax({
             url: '{{ route('myProfileData') }}',
-            method: 'post',
-            data: {_token: '{{ csrf_token() }}'},
+            method: 'get',
+            dataType: 'json',
             success: function(data) {
                 if(data.type == "success"){
                     localStorage.setItem("profileData", JSON.stringify(data.data));

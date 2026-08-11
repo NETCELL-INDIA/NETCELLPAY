@@ -171,7 +171,7 @@ class ReportsController extends Controller
         )
         ->join('providers','providers.id','=','reports.provider_id')
         ->join('users','users.id','=','reports.user_id')
-        ->where('reports.user_id', $post->user_id)->whereBetween('reports.created_at', [$from_date,$to_date])->whereIn('reports.transaction_type',['Bill Payment']);
+        ->where('reports.user_id', $post->user_id)->whereBetween('reports.created_at', [$from_date,$to_date])->whereIn('reports.transaction_type',['Bill Payment','Bill Pay']);
 
         if($post->page){
             $page = $post->page; 

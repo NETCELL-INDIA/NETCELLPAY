@@ -4,316 +4,226 @@
 
 @section('css')
 <style>
-    .br_ui {
-        border: 4px solid gray;
-        border-radius: 30px;
-    }
-
-    .pointer {
-        cursor: pointer;
-    }
+    .br_ui { border: 3px solid #e9ebec; border-radius: 16px; transition: .2s; }
+    .br_ui:hover, .br_ui.active { border-color: #405189; box-shadow: 0 4px 14px rgba(64,81,137,.15); }
+    .pointer { cursor: pointer; }
 </style>
-
 <link href="{{ URL::asset('/assets/libs/choices.js/choices.js.min.css') }}" rel="stylesheet" />
 @endsection
 
 @section('content')
-
 @component('components.breadcrumb')
-
 @slot('li_1') Services @endslot
-
 @slot('title') Bill Payments @endslot
-
 @endcomponent
+
 <div class="row">
-
     <div class="col-lg-8">
-
         <div class="card">
-
-            <div class="card-header align-items-center d-flex">
-
-                <h4 class="card-title mb-0 flex-grow-1">Bill Payments</h4>
-
-            </div>
-
+            <div class="card-header"><h4 class="card-title mb-0">BBPS Categories</h4></div>
             <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col-lg-3 pointer" onclick="selectService(3,'Electricity')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/10.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Electricity</h5>
+                <div class="row g-3">
+                    @foreach($bbps_categories as $cat)
+                    <div class="col-6 col-md-4 col-lg-3 pointer" onclick="selectService({{ $cat['id'] }}, '{{ $cat['name'] }}')">
+                        <div class="card-body text-center br_ui {{ (int)$service_id === (int)$cat['id'] ? 'active' : '' }}">
+                            <img src="{{ URL::asset($cat['logo']) }}" alt="{{ $cat['name'] }}" style="height:56px" onerror="this.src='{{ URL::asset('service_logo/10.png') }}'">
+                            <h6 class="mt-2 mb-0">{{ $cat['name'] }}</h6>
                         </div>
                     </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(5,'Water')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/9.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Water</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(6,'FasTag')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/5.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">FasTag</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(7,'Cable Tv')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/6.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Cable Tv</h5>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-lg-3 pointer" onclick="selectService(9,'Book Cylinder')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/7.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Book Cylinder</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(10,'Piped Gas')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/8.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Piped Gas</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(15,'Postpaid')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/3.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Postpaid</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(16,'Wifi/Landline')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/11.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Wifi/Landline</h5>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-lg-3 pointer" onclick="selectService(14,'Broadband')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/23.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Broadband</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(17,'Housing Society')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/24.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Housing Society</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(12,'Credit Card')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/15.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Credit Card</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(8,'Insurance Pay')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/16.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Insurance</h5>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-lg-3 pointer" onclick="selectService(4,'Loan Repayment')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/19.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Loan Repayment</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(11,'Subscription Fees')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/20.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Subscription Fees</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(21,'Google Play')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/21.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Google Play</h5>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 pointer" onclick="selectService(13,'Municipal Taxes')">
-                        <div class="card-body text-center br_ui">
-                            <div class="avatar-md mb-2 mx-auto">
-                                <img src="{{ URL::asset('service_logo/22.png')}}" alt="" style="height:70px">
-                            </div>
-                            <h5 id="candidate-name" class="mb-0">Municipal Taxes</h5>
-                        </div>
-                    </div>
+                    @endforeach
                 </div>
             </div>
-
         </div>
-
     </div>
 
     <div class="col-lg-4">
-
         <div class="card">
-
-            <div class="card-header align-items-center d-flex">
-
-                <h4 class="card-title mb-0 flex-grow-1" id="service_name">{{$service ? $service : "Select Service"}}
-                </h4>
-
-            </div>
-
+            <div class="card-header"><h4 class="card-title mb-0" id="service_name">{{ $service ?: 'Select Service' }}</h4></div>
             <div class="card-body">
-                <div class="col-lg-12 col-md-12">
-                    <div class="mb-3">
-                        <label for="provider_id" class="form-label text-muted">Provider : </label>
-                        <select class="form-control" data-choices name="provider_id" id="provider_id">
-                            <option value="">Select Provider</option>
-                            @foreach ($providers as $list)
-                                <option value="{{$list->id}}">{{$list->provider_name}}</option>
-                            @endforeach
-
-                        </select>
-                    </div>
+                <input type="hidden" id="service_id" value="{{ $service_id }}">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Provider</label>
+                    <select class="form-control" id="provider_id">
+                        <option value="">Select Provider</option>
+                        @foreach ($providers as $list)
+                            <option value="{{ $list->id }}">{{ $list->provider_name }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div id="params_div"></div>
-
-                <div class="col-lg-12 col-md-12">
-                    <div class="mb-3">
-                        <button type="button" id="bill_fatch" onclick="billFatch()"
-                            class="form-control btn btn-warning bg-gradient waves-effect waves-light" style="display:none">Bill Fetch Now</button>
-                    </div>
-                </div>
-
+                <div id="bill_info" class="alert alert-info d-none"></div>
+                <button type="button" id="bill_fatch" onclick="billFatch()" class="btn btn-warning w-100 mb-2" style="display:none">Fetch Bill</button>
+                <button type="button" id="bill_pay" onclick="openPayModal()" class="btn btn-success w-100" style="display:none">Pay Bill</button>
             </div>
-
         </div>
-
     </div>
+</div>
 
+<div class="modal fade" id="payModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirm Bill Payment</h5></div>
+            <div class="modal-body">
+                <p>Account: <strong id="pay_number"></strong></p>
+                <p>Amount: <strong id="pay_amount"></strong></p>
+                <label class="form-label">Transaction PIN</label>
+                <input type="password" maxlength="4" class="form-control" id="t_pin">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="pay_now_btn" onclick="payBillNow()">Pay Now</button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
 @section('script')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"
-    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script>
-    function selectService(id, name) {
-        window.location = 'bill-payments?id=' + id + '&name=' + name;
+    var billData = null;
+    var inputCount = 0;
 
+    function selectService(id, name) {
+        window.location = '{{ url('users/services/bill-payments') }}?id=' + id + '&name=' + encodeURIComponent(name);
     }
 
-    ///readonly disabled
-    $("#provider_id").on("change", function (e) {
+    $("#provider_id").on("change", function () {
         $("#params_div").empty();
+        $("#bill_info").addClass('d-none').text('');
         $('#bill_fatch').hide();
+        $('#bill_pay').hide();
+        billData = null;
+
+        if (!this.value) return;
+
         $.ajax({
-
             url: '{{ route('fetchProviderParams') }}',
-
             method: 'post',
-
-            data: {
-
-                id: e.target.value,
-
-                _token: '{{ csrf_token() }}'
-
-            },
-
+            data: { id: this.value, _token: '{{ csrf_token() }}' },
             success: function (data) {
-                if (data.type == "success") {
-                    params = JSON.parse(data.biller.biller_data);
-                    console.log(params);
-                    var param = {}; // my object
-                    var params_data =  []; // my array
-                    param = {param:params.data.label_1,regex:params.data.regex_1,option:params.data.regex_1_autocomplete_values}
-                    params_data.push(param);
-                    param = {param:params.data.label_2,regex:params.data.regex_2,option:params.data.regex_2_autocomplete_values}
-                    params_data.push(param);
-                    param = {param:params.data.label_3,regex:params.data.regex_3,option:params.data.regex_3_autocomplete_values}
-                    params_data.push(param);
-                    param = {param:params.data.label_4,regex:params.data.regex_4,option:params.data.regex_4_autocomplete_values}
-                    params_data.push(param);
-                    param = {param:params.data.label_5,regex:params.data.regex_5,option:params.data.regex_5_autocomplete_values}
-                    params_data.push(param);
-                    console.log(params_data);
-                    /////
-                    
-                    html = '';
-                    count = parseInt(params.input_count);
-                    for (i = 0; i < parseInt(count); ++i) {
-                        if(params_data[i].regex){
-                            regex = '<input type="text" class="form-control" name="' + "filed_"+i + '" value="" id="' + "filed_"+i + '"  pattern="'+params_data[i].regex+'" required placeholder="' + params_data[i].param +'">';
-                        }else{
-                            options = '';
-                            for (i2 = 0; i2 < params_data[i].option.length; ++i2) {
-                                options += '<option value="' + params_data[i].option[i2].value + '">' + params_data[i].option[i2].display_name + '</option>';
-                            }
-                            regex = '<select class="form-control" data-choices name="' + "filed_"+i + '" id="' + "filed_"+i + '">'+
-                            '<option value="">Select ' + params_data[i].param + '</option>'+
-                                options +
-                            '</select>';
-                        }
-                        html += '<div class="col-lg-12 col-md-12">' +
-                            '<div class="mb-3">' +
-                            '<label for="' + "filed_"+i + '" class="form-label text-muted">' + params_data[i].param +'</label>' +
-                             regex +
-                            '</div>' +
-                            '</div>';
-                       //    $("#params_div").append(html); 
+                if (data.type !== 'success') {
+                    return Error_Msg(data.type, data.message, data.type);
+                }
+                var params = JSON.parse(data.biller.biller_data);
+                var paramsData = [];
+                for (var i = 1; i <= 5; i++) {
+                    var label = params.data['label_' + i];
+                    if (!label) continue;
+                    paramsData.push({
+                        param: label,
+                        regex: params.data['regex_' + i] || '',
+                        option: params.data['regex_' + i + '_autocomplete_values'] || []
+                    });
+                }
+                inputCount = parseInt(params.input_count || paramsData.length || 1);
+                var html = '';
+                for (var j = 0; j < inputCount; j++) {
+                    if (!paramsData[j]) continue;
+                    var field = 'filed_' + j;
+                    var inputHtml;
+                    if (paramsData[j].regex) {
+                        inputHtml = '<input type="text" class="form-control bill-field" name="' + field + '" id="' + field + '" pattern="' + paramsData[j].regex + '" required placeholder="' + paramsData[j].param + '">';
+                    } else if (paramsData[j].option && paramsData[j].option.length) {
+                        var opts = '<option value="">Select ' + paramsData[j].param + '</option>';
+                        paramsData[j].option.forEach(function (o) {
+                            opts += '<option value="' + o.value + '">' + o.display_name + '</option>';
+                        });
+                        inputHtml = '<select class="form-control bill-field" name="' + field + '" id="' + field + '">' + opts + '</select>';
+                    } else {
+                        inputHtml = '<input type="text" class="form-control bill-field" name="' + field + '" id="' + field + '" required placeholder="' + paramsData[j].param + '">';
                     }
-                    $("#params_div").append(html); 
-                    $('#bill_fatch').show();
+                    html += '<div class="mb-3"><label class="form-label text-muted">' + paramsData[j].param + '</label>' + inputHtml + '</div>';
+                }
+                $("#params_div").html(html);
+                $('#bill_fatch').show();
+            },
+            error: function () {
+                Error_Msg('Oops...', 'Something went wrong!', 'error');
+            }
+        });
+    });
+
+    function collectFields() {
+        var fields = {};
+        $('.bill-field').each(function () {
+            fields[$(this).attr('name')] = $(this).val();
+        });
+        return fields;
+    }
+
+    function billFatch() {
+        $('#bill_fatch').text('Fetching...').prop('disabled', true);
+        var payload = collectFields();
+        payload.provider_id = $('#provider_id').val();
+        payload.service_id = $('#service_id').val();
+        payload._token = '{{ csrf_token() }}';
+
+        $.ajax({
+            url: '{{ route('fetchBill') }}',
+            method: 'post',
+            data: payload,
+            success: function (data) {
+                $('#bill_fatch').text('Fetch Bill').prop('disabled', false);
+                if (data.type === 'success') {
+                    billData = data.data;
+                    var info = 'Amount: ₹' + billData.amount;
+                    if (billData.customer_name) info += '<br>Customer: ' + billData.customer_name;
+                    if (billData.due_date) info += '<br>Due: ' + billData.due_date;
+                    $('#bill_info').removeClass('d-none').html(info);
+                    $('#bill_pay').show();
                 } else {
-                    Error_Msg(capitalizeFirstLetter(data.type), data.message, data.type);
+                    Error_Msg(data.type || 'error', data.message, 'error');
                 }
             },
-            error: function (err) {
-                Error_Msg("Oops...", "Something went wrong!", "error");
-
-                $("#get_roffer_btn").text('Plans');
-
-                $('#get_roffer_btn').prop('disabled', false);
-
+            error: function () {
+                $('#bill_fatch').text('Fetch Bill').prop('disabled', false);
+                Error_Msg('Oops...', 'Bill fetch failed!', 'error');
             }
-
         });
+    }
 
-    });
+    function openPayModal() {
+        if (!billData) return;
+        $('#pay_number').text(billData.number);
+        $('#pay_amount').text('₹ ' + billData.amount);
+        $('#payModal').modal('show');
+    }
+
+    function payBillNow() {
+        $('#pay_now_btn').text('Processing...').prop('disabled', true);
+        $.ajax({
+            url: '{{ route('payBill') }}',
+            method: 'post',
+            data: {
+                number: billData.number,
+                amount: billData.amount,
+                service_id: $('#service_id').val(),
+                provider_id: $('#provider_id').val(),
+                state_id: 40,
+                pin: $('#t_pin').val(),
+                transaction_type: 'Bill Pay',
+                _token: '{{ csrf_token() }}'
+            },
+            success: function (data) {
+                $('#pay_now_btn').text('Pay Now').prop('disabled', false);
+                $('#payModal').modal('hide');
+                if (data.type === 'success') {
+                    Error_Msg(data.status, data.remark || data.message, data.status === 'Success' ? 'success' : (data.status === 'Pending' ? 'info' : 'error'));
+                    billData = null;
+                    $('#bill_info').addClass('d-none');
+                    $('#bill_pay').hide();
+                    $('#params_div').empty();
+                    $('#provider_id').val('');
+                } else {
+                    Error_Msg(data.type || 'Failed', data.message, 'error');
+                }
+            },
+            error: function () {
+                $('#pay_now_btn').text('Pay Now').prop('disabled', false);
+                Error_Msg('Oops...', 'Payment failed!', 'error');
+            }
+        });
+    }
 </script>
-
-<script src="{{ URL::asset('/assets/libs/prismjs/prismjs.min.js') }}"></script>
 <script src="{{ URL::asset('/assets/libs/choices.js/choices.js.min.js') }}"></script>
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
-
 @endsection

@@ -25,7 +25,7 @@ class PendingReportController extends Controller
             ->leftJoin('providers as p', 'p.id', '=', 'r.provider_id')
             ->leftJoin('apis as a', 'a.id', '=', 'r.api_id')
             ->whereIn('r.transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
-            ->whereIn('r.status', ['Pending', 'Under Proces', 'Under Process']);
+            ->whereIn('r.status', ['Pending', 'Under Proces', 'Under Process', 'Processing']);
 
         $from = $request->from_date ?: Carbon::today()->format('Y-m-d');
         $to = $request->to_date ?: Carbon::today()->format('Y-m-d');

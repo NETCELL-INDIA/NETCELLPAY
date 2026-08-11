@@ -114,8 +114,8 @@ class AdminReportsController extends Controller
             ->selectRaw("
                 SUM(CASE WHEN r.status = 'Success' THEN r.amount ELSE 0 END) as success_amt,
                 SUM(CASE WHEN r.status = 'Success' THEN 1 ELSE 0 END) as success_cnt,
-                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process') THEN r.amount ELSE 0 END) as pending_amt,
-                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process') THEN 1 ELSE 0 END) as pending_cnt,
+                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN r.amount ELSE 0 END) as pending_amt,
+                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN 1 ELSE 0 END) as pending_cnt,
                 SUM(CASE WHEN r.status IN ('Failed','Failure') THEN r.amount ELSE 0 END) as failure_amt,
                 SUM(CASE WHEN r.status IN ('Failed','Failure') THEN 1 ELSE 0 END) as failure_cnt,
                 SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN r.amount ELSE 0 END) as refunded_amt,
