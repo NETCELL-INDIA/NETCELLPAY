@@ -108,6 +108,11 @@
                     <a class="auth-back-link" href="{{ url('/users/login') }}">
                         <i class="ri-arrow-left-line"></i> Back to sign in
                     </a>
+
+                    <div class="login-footer">
+                        &copy; <script>document.write(new Date().getFullYear())</script> {{ $company->company_name ?? 'Netcell Pay' }}. All rights reserved.
+                        <div class="login-build-serial">Update Serial: {{ user_build_serial() }}</div>
+                    </div>
                 </div>
             </div>
         </section>

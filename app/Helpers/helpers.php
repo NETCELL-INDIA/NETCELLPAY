@@ -919,3 +919,13 @@ class helpers
 
 }
 
+if (! function_exists('user_build_serial')) {
+    /**
+     * Visible deploy marker on user auth pages. Bump on each production release.
+     */
+    function user_build_serial(): string
+    {
+        return '20260811-USER-AUTH-001';
+    }
+}
+
