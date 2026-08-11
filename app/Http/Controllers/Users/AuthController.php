@@ -53,7 +53,7 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
-            if(Hash::check($post->password, $user->password)){
+            if(\helpers::verifyUserPassword($post->password, $user)){
 
                 if($user->status==1){
                     if(strtoupper((string) $user->login_type) === 'OTP'){
@@ -70,6 +70,10 @@ class AuthController extends Controller
                             $otpHash = Hash::make($otp);
                             $data['type'] = 'otp_verify';
                             $data['message'] = 'OTP sent to email and mobile number successfully.';
+                            if (app()->environment('local')) {
+                                $data['local_otp'] = $otp;
+                                $data['message'] = 'Local dev OTP generated. Use the code shown on screen.';
+                            }
                             $update = DB::table('users')->where("id",$user->id)->update([
                                 'otp' => $otpHash,
                                 'email_otp' => $otpHash,
@@ -181,7 +185,7 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
-            if(Hash::check($post->password, $user->password)){
+            if(\helpers::verifyUserPassword($post->password, $user)){
 
                 if($user->status==1){
                     if($this->verifyUserLoginOtp($post->otp, $user)){
@@ -549,7 +553,7 @@ class AuthController extends Controller
                 try {
                     $g_pass = Str::random(8);
                     $password = Hash::make($g_pass);
-                    $t_pin = rand(1111,9999);
+                    $t_pin = \helpers::normalizeUserPin(random_int(0, 9999));
                     $update = DB::table('users')->insertGetId([
                         'parent_id'  => 1,
                         'role_id'  => 6,

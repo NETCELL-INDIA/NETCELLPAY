@@ -386,6 +386,11 @@
                             </div>
                         </div>
 
+                        <div id="local_otp_hint" class="alert alert-warning py-2 px-3 mb-3" style="display:none">
+                            <strong>Local OTP:</strong> <span id="local_otp_value"></span>
+                            <div class="small mt-1">Use this code in the verification field below.</div>
+                        </div>
+
                         <div class="mb-4" id="otp_code_div" style="display:none">
                             <label for="otp_code" class="login-label">Verification code</label>
                             <div class="login-input-wrap">
@@ -438,10 +443,26 @@
                 title: title,
                 text: text,
                 icon: icon,
-                confirmButtonClass: 'btn btn-primary w-xs mt-2',
+                customClass: {
+                    confirmButton: 'btn btn-primary w-xs mt-2',
+                },
                 buttonsStyling: false,
                 showCloseButton: true
             });
+        }
+
+        function showOtpStep(localOtp) {
+            $("#mobile_number_div").hide();
+            $("#password-input-div").hide();
+            $("#otp_code_div").show();
+            $("#lg-btn-div").hide();
+            $("#otp-btn-div").show();
+
+            if (localOtp) {
+                $("#local_otp_value").text(localOtp);
+                $("#local_otp_hint").show();
+                $("#otp_code").val(localOtp);
+            }
         }
 
 
@@ -468,12 +489,8 @@
                        if(data.type=="error"){
                             Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
                         }else if(data.type=="otp_verify"){ 
-                            Error_Msg(capitalizeFirstLetter("Otp Verify"),data.message,"warning");
-                            $("#mobile_number_div").hide();
-                            $("#password-input-div").hide();
-                            $("#otp_code_div").show();
-                            $("#lg-btn-div").hide();
-                            $("#otp-btn-div").show();
+                            Error_Msg("Otp Verify",data.message,"warning");
+                            showOtpStep(data.local_otp || "");
                         }else if(data.type=="success"){
                             Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
                             window.location.replace("dashboard")

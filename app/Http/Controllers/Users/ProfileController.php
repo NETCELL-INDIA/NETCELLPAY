@@ -103,7 +103,7 @@ class ProfileController extends Controller
         }
 
         $user = DB::table('users')->where("id",Session::get('user_id'))->whereNotIn("role_id",[1,2])->first();
-        if(Hash::check($post->current_password, $user->password)){
+        if(\helpers::verifyUserPassword($post->current_password, $user)){
             $password = Hash::make($post->confirm_password);
             $user = DB::table('users')->where('id', $user->id)->update(['password' => $password]);
             if($user){
@@ -143,8 +143,8 @@ class ProfileController extends Controller
         }
 
         $user = DB::table('users')->where("id",Session::get('user_id'))->whereNotIn("role_id",[1,2])->first();
-        if($user->t_pin == $post->current_pin){
-            $user = DB::table('users')->where('id', $user->id)->update(['t_pin' => $post->confirm_pin]);
+        if(\helpers::verifyUserPin($user->t_pin, $post->current_pin)){
+            $user = DB::table('users')->where('id', $user->id)->update(['t_pin' => \helpers::normalizeUserPin($post->confirm_pin)]);
             if($user){
                 return response()->json(array(
                     'type' => 'success',  

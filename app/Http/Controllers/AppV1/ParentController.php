@@ -166,7 +166,7 @@ class ParentController extends Controller
             try {
                 $g_pass = Str::random(8);
                 $password = Hash::make($g_pass);
-                $t_pin = rand(1111,9999);
+                $t_pin = \helpers::normalizeUserPin(random_int(0, 9999));
                 $update = DB::table('users')->insert([
                     'parent_id'  => $post->user_id,
                     'role_id'  => $role_id,

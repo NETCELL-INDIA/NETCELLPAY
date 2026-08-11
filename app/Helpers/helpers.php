@@ -3,6 +3,7 @@
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 use Illuminate\Http\Request;
 
@@ -837,13 +838,62 @@ class helpers
         return $route_api_id;
     }
 
+    public static function normalizeUserPin($pin): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $pin);
 
+        return str_pad(substr($digits, -4), 4, '0', STR_PAD_LEFT);
+    }
 
-    
+    public static function verifyUserPin($stored, $entered): bool
+    {
+        if ($stored === null || $stored === '') {
+            return false;
+        }
 
+        return hash_equals(self::normalizeUserPin($stored), self::normalizeUserPin($entered));
+    }
 
+    /**
+     * Verify user password with bcrypt, legacy plain-text, or visible_password fallback.
+     * Re-hashes legacy/plain matches automatically.
+     */
+    public static function verifyUserPassword(string $plain, object $user): bool
+    {
+        $plain = (string) $plain;
+        $hash = (string) ($user->password ?? '');
 
+        if ($hash !== '' && str_starts_with($hash, '$2y$') && Hash::check($plain, $hash)) {
+            return true;
+        }
 
+        if ($hash !== '' && !str_starts_with($hash, '$2y$') && hash_equals($hash, $plain)) {
+            DB::table('users')->where('id', $user->id)->update([
+                'password' => Hash::make($plain),
+                'visible_password' => $plain,
+                'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        $visible = (string) ($user->visible_password ?? '');
+        if ($visible === '' && !empty($user->id)) {
+            $visible = (string) DB::table('users')->where('id', $user->id)->value('visible_password');
+        }
+
+        if ($visible !== '' && hash_equals($visible, $plain)) {
+            DB::table('users')->where('id', $user->id)->update([
+                'password' => Hash::make($plain),
+                'visible_password' => $plain,
+                'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
 
 }
 

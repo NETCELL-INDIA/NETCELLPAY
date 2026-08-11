@@ -95,7 +95,7 @@ class RechargeControllerV2 extends Controller
             )); 
         }
         //User Wize Service Active/Deactive
-        if($user->t_pin != $post->pin){
+        if(!\helpers::verifyUserPin($user->t_pin, $post->pin)){
             return response()->json(array(
                 'status' => 'Failed',
                 'type' => 'error',  

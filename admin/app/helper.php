@@ -806,3 +806,12 @@ if (! function_exists('admin_build_serial')) {
         return '20260810-SMS-API-001';
     }
 }
+
+if (! function_exists('normalize_user_pin')) {
+    function normalize_user_pin($pin): string
+    {
+        $digits = preg_replace('/\D/', '', (string) $pin);
+
+        return str_pad(substr($digits, -4), 4, '0', STR_PAD_LEFT);
+    }
+}

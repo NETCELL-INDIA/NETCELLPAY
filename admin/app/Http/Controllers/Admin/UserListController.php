@@ -507,7 +507,7 @@ class UserListController extends Controller
             try {
                 $g_pass = (string) $post->password;
                 $password = Hash::make($g_pass);
-                $t_pin = rand(1111,9999);
+                $t_pin = normalize_user_pin(random_int(0, 9999));
                 $update = DB::table('users')->insert([
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
@@ -758,7 +758,7 @@ class UserListController extends Controller
             ));
         }
         //$g_pass = Str::random(8);
-        $pin = rand(1111,9999);
+        $pin = normalize_user_pin(random_int(0, 9999));
         $user = DB::table('users')->where('id', $post->id)->update(['t_pin' => $pin]);
         $user = DB::table('users')->where('id', $post->id)->first();
         if($user){
