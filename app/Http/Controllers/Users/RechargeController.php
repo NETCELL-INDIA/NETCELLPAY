@@ -449,7 +449,7 @@ class RechargeController extends Controller
             ->where('number', $post->number)
             ->where('total_amount', $post->amount)
             ->where('provider_id', $post->provider_id)
-            ->whereIn('status', ['Pending', 'Processing'])
+            ->whereIn('status', ['Pending', 'Under Process', 'Under Proces', 'Processing'])
             ->where('created_at', '>=', Carbon::now()->subMinutes(3))
             ->orderByDesc('id')
             ->first();
@@ -459,7 +459,7 @@ class RechargeController extends Controller
 
             // Stuck Pending/Processing (>45s): reset and re-trigger on the same report.
             if ($ageSeconds >= 45 && !empty($inProgress->api_id)) {
-                if (in_array($inProgress->status, ['Pending', 'Processing'], true)) {
+                if (in_array($inProgress->status, ['Pending', 'Under Process', 'Under Proces', 'Processing'], true)) {
                     DB::table('reports')->where('id', $inProgress->id)->update([
                         'status' => 'Pending',
                         'updated_at' => Carbon::now(),

@@ -41,7 +41,7 @@ class ProcessRecharge implements ShouldQueue
                 return;
             }
 
-            if (!in_array($report->status, ['Pending', 'Processing'], true)) {
+            if (!in_array($report->status, ['Pending', 'Under Process', 'Under Proces', 'Processing'], true)) {
                 return;
             }
 
@@ -67,7 +67,7 @@ class ProcessRecharge implements ShouldQueue
 
             if ($report->status === 'Pending') {
                 DB::table('reports')->where('id', $report->id)->update([
-                    'status' => 'Processing',
+                    'status' => 'Under Process',
                     'updated_at' => Carbon::now(),
                 ]);
             }
@@ -79,16 +79,12 @@ class ProcessRecharge implements ShouldQueue
                 return;
             }
 
-            $api_ids_to_try = [$this->api_id];
-            if ($provider->backup_api_id) {
-                $api_ids_to_try[] = $provider->backup_api_id;
-            }
-            if ($provider->backup_api2_id) {
-                $api_ids_to_try[] = $provider->backup_api2_id;
-            }
-            if ($provider->backup_api3_id) {
-                $api_ids_to_try[] = $provider->backup_api3_id;
-            }
+            $api_ids_to_try = array_values(array_unique(array_filter([
+                (int) $this->api_id,
+                (int) ($provider->backup_api_id ?? 0),
+                (int) ($provider->backup_api2_id ?? 0),
+                (int) ($provider->backup_api3_id ?? 0),
+            ], fn ($id) => $id > 0)));
 
             $final_result = null;
             foreach ($api_ids_to_try as $try_api_id) {
@@ -224,38 +220,25 @@ class ProcessRecharge implements ShouldQueue
 
             if ($final_result && $final_result['status'] == 'Failed') {
                 try {
-                    $reportRow = DB::table('reports')->where('id', $this->report_id)->first();
-                    $retryCount = $reportRow->retry_count ?? 0;
-                    $maxRetries = 1;
-                    if ($retryCount < $maxRetries) {
-                        DB::table('reports')->where('id', $this->report_id)->update([
-                            'retry_count' => $retryCount + 1,
-                            'status' => 'Pending',
-                            'updated_at' => Carbon::now(),
-                        ]);
-                        \App\Jobs\ProcessRecharge::dispatch($this->api_id, $this->provider_id, $this->report_id, $this->service)->delay(now()->addMinutes(5));
-                    } else {
-                        \helpers::refund_row($this->report_id);
-                    }
+                    \helpers::refund_row($this->report_id);
                 } catch (\Throwable $e) {
                     DB::table('apilogs')->insert([
-                        'url' => 'retry-schedule-error',
+                        'url' => 'refund-error',
                         'modal' => 'ProcessRecharge',
-                        'txnid' => $this->report_id,
+                        'txnid' => (string) $this->report_id,
                         'header' => json_encode([]),
                         'request' => json_encode(['error' => $e->getMessage()]),
-                        'response' => 'retry scheduling failed',
+                        'response' => 'refund failed',
                         'created_at' => Carbon::now(),
                         'updated_at' => Carbon::now(),
                     ]);
-                    \helpers::refund_row($this->report_id);
                 }
             }
         } catch (\Throwable $th) {
             try {
                 DB::table('reports')
                     ->where('id', $this->report_id)
-                    ->where('status', 'Processing')
+                    ->whereIn('status', ['Under Process', 'Under Proces', 'Processing'])
                     ->update(['status' => 'Pending', 'updated_at' => Carbon::now()]);
             } catch (\Throwable $ignored) {
             }

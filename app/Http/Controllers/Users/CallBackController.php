@@ -77,7 +77,7 @@ class CallBackController extends Controller
             $report = DB::table('reports')
                 ->where('order_id', $data[$order_id] ?? '')
                 ->where('api_id', $api_id)
-                ->whereIn('status', ['Pending', 'Processing'])
+                ->whereIn('status', ['Pending', 'Under Process', 'Under Proces', 'Processing'])
                 ->lockForUpdate()
                 ->first();
 
