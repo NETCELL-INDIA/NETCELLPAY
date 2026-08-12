@@ -88,7 +88,6 @@ class RechargeController extends Controller
 
     {
 
-        $requestStarted = microtime(true);
         @set_time_limit(120);
         @ignore_user_abort(true);
             	
@@ -610,23 +609,7 @@ class RechargeController extends Controller
 
                 if ($report) {
 
-                    $runApiStarted = microtime(true);
-
                     $api_result = \helpers::RunApi($api_id, $post->provider_id, $report, 'Recharge');
-
-                    \helpers::logRechargeTiming([
-                        'phase' => 'controller_after_runapi',
-                        'order_ref' => \helpers::maskOrderId($post['order_id'] ?? null),
-                        'report_id' => $report,
-                        'provider_id' => (int) $post->provider_id,
-                        'service_id' => (int) $post->service_id,
-                        'api_id' => (int) $api_id,
-                        'runapi_ms' => (int) round((microtime(true) - $runApiStarted) * 1000),
-                        'total_ms' => (int) round((microtime(true) - $requestStarted) * 1000),
-                        'result' => [
-                            'status' => $api_result['status'] ?? 'Unknown',
-                        ],
-                    ]);
 
                     if ($api_result) {
 

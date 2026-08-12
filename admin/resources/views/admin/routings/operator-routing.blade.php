@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title') Operator's Routing @endsection
+@section('title') Operator API Switch @endsection
 @section('css')
 <style>
 .op-routing-wrap { overflow-x: auto; }
@@ -14,7 +14,7 @@
 <div class="row">
     <div class="col-12">
         <div class="page-title-box d-flex align-items-center justify-content-between">
-            <h4 class="mb-0">Operator's Routing</h4>
+            <h4 class="mb-0">Operator API Switch</h4>
             <div class="d-flex align-items-center gap-2">
                 <label class="mb-0 fw-semibold">Select Service Type</label>
                 <select class="form-select" id="service_id" style="width:auto;min-width:160px;">
@@ -38,12 +38,12 @@
                     <tr>
                         <th>Operator</th>
                         <th>R-Offer</th>
-                        <th>Primary API 1</th>
-                        <th>Primary API 2</th>
-                        <th>Primary API 3</th>
-                        <th>Primary API 4</th>
-                        <th>Primary API 5</th>
-                        <th>Primary API 6</th>
+                        <th>Primary API</th>
+                        <th>Backup API 1</th>
+                        <th>Backup API 2</th>
+                        <th>Backup API 3</th>
+                        <th>Extra API 5</th>
+                        <th>Extra API 6</th>
                         <th>Rehit / Pending</th>
                     </tr>
                 </thead>
@@ -67,7 +67,7 @@ var apis = @json($apis);
 var currentRows = [];
 
 function apiOptions(selected) {
-    var html = '<option value="0">No Primary API</option>';
+    var html = '<option value="0">NO API</option>';
     apis.forEach(function (a) {
         html += '<option value="' + a.id + '"' + (String(selected) === String(a.id) ? ' selected' : '') + '>' + a.api_name + '</option>';
     });

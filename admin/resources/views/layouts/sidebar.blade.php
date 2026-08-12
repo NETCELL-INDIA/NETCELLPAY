@@ -218,7 +218,7 @@
                     <div class="collapse menu-dropdown" id="sidebarRoutings">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/routings/general') }}" class="nav-link">General Routings</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/routings/operator') }}" class="nav-link">Operator's Routing</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/routings/operator') }}" class="nav-link">Operator API Switch</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/state-wize-switch') }}" class="nav-link">Servicewise / State Switch</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-wize-switch') }}" class="nav-link">Amountwise Switch</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/user-wize-switch') }}" class="nav-link">Userwise Switch</a></li>

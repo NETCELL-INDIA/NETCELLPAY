@@ -669,104 +669,20 @@ class helpers
 
     public static function RunApi($api_id,$provider_id,$report_id,$service)
     {
-        $started = microtime(true);
         @set_time_limit(120);
         @ignore_user_abort(true);
 
         $report_id = (int) $report_id;
-        $report = DB::table('reports')->where('id', $report_id)->first();
-        $orderRef = self::maskOrderId($report->order_id ?? null);
-
-        self::$rechargeShutdownRegistered[$report_id] = true;
-
-        self::logRechargeTiming([
-            'phase' => 'sync_process_start',
-            'order_ref' => $orderRef,
-            'report_id' => $report_id,
-            'provider_id' => $provider_id,
-            'api_id' => $api_id,
-            'service' => $service,
-            'started_at' => date('c'),
-            'result' => ['status' => 'Pending'],
-        ]);
 
         try {
             if (class_exists(\App\Jobs\ProcessRecharge::class)) {
                 (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
             }
         } catch (\Throwable $e) {
-            self::logRechargeTiming([
-                'phase' => 'sync_process_failed',
-                'order_ref' => $orderRef,
-                'report_id' => $report_id,
-                'provider_id' => $provider_id,
-                'api_id' => $api_id,
-                'service' => $service,
-                'started_at' => date('c'),
-                'queue_ms' => (int) round((microtime(true) - $started) * 1000),
-                'result' => ['status' => 'error', 'message' => 'process_failed'],
-            ]);
-
-            self::$rechargeShutdownRegistered[$report_id] = false;
-            self::scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef);
+            // ProcessRecharge logs failures; return latest report row below.
         }
 
         $fresh = DB::table('reports')->where('id', $report_id)->first();
-        $orderId = $fresh->order_id ?? null;
-
-        if ($orderId && class_exists(\App\Jobs\ProcessRecharge::class)) {
-            $hasProviderLog = DB::table('apilogs')
-                ->where('txnid', $orderId)
-                ->where('modal', 'Recharge')
-                ->exists();
-
-            if (!$hasProviderLog && in_array($fresh->status ?? 'Pending', ['Pending', 'Processing'], true)) {
-                if (($fresh->status ?? '') === 'Processing') {
-                    DB::table('reports')->where('id', $report_id)->update([
-                        'status' => 'Pending',
-                        'updated_at' => Carbon::now(),
-                    ]);
-                }
-
-                self::logRechargeTiming([
-                    'phase' => 'sync_process_retry',
-                    'order_ref' => $orderRef,
-                    'report_id' => $report_id,
-                    'provider_id' => $provider_id,
-                    'api_id' => $api_id,
-                    'service' => $service,
-                    'result' => ['status' => 'Pending', 'message' => 'retry_no_provider_log'],
-                ]);
-
-                try {
-                    (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
-                } catch (\Throwable $retryError) {
-                    self::logRechargeTiming([
-                        'phase' => 'sync_process_retry_failed',
-                        'order_ref' => $orderRef,
-                        'report_id' => $report_id,
-                        'provider_id' => $provider_id,
-                        'api_id' => $api_id,
-                        'service' => $service,
-                        'result' => ['status' => 'error', 'message' => 'retry_failed'],
-                    ]);
-                }
-
-                $fresh = DB::table('reports')->where('id', $report_id)->first();
-            }
-        }
-
-        self::logRechargeTiming([
-            'phase' => 'sync_process_complete',
-            'order_ref' => $orderRef,
-            'report_id' => $report_id,
-            'provider_id' => $provider_id,
-            'api_id' => $api_id,
-            'service' => $service,
-            'started_at' => date('c'),
-            'queue_ms' => (int) round((microtime(true) - $started) * 1000),
-            'result' => ['status' => $fresh->status ?? 'Pending'],
-        ]);
 
         return [
             'status' => $fresh->status ?? 'Pending',
@@ -790,66 +706,6 @@ class helpers
             'referer' => substr((string) request()->header('referer', ''), 0, 200),
         ];
     }
-
-    /** @var array<int, bool> */
-    private static $rechargeShutdownRegistered = [];
-
-    /**
-     * Run ProcessRecharge after the HTTP response is sent to the browser.
-     * Uses atomic Pending→Processing claim inside the job to prevent duplicate provider calls.
-     */
-    private static function scheduleProcessRechargeFallback($api_id, $provider_id, $report_id, $service, $orderRef): void
-    {
-        if (!class_exists(\App\Jobs\ProcessRecharge::class)) {
-            return;
-        }
-
-        $report_id = (int) $report_id;
-        if (isset(self::$rechargeShutdownRegistered[$report_id])) {
-            return;
-        }
-        self::$rechargeShutdownRegistered[$report_id] = true;
-
-        register_shutdown_function(function () use ($api_id, $provider_id, $report_id, $service, $orderRef) {
-            try {
-                $row = DB::table('reports')->where('id', $report_id)->first();
-                if (!$row || $row->status !== 'Pending') {
-                    return;
-                }
-
-                if (function_exists('fastcgi_finish_request')) {
-                    @fastcgi_finish_request();
-                }
-
-                @ignore_user_abort(true);
-                @set_time_limit(120);
-
-                self::logRechargeTiming([
-                    'phase' => 'shutdown_fallback_start',
-                    'order_ref' => $orderRef,
-                    'report_id' => $report_id,
-                    'provider_id' => (int) $provider_id,
-                    'api_id' => (int) $api_id,
-                    'service' => $service,
-                    'started_at' => date('c'),
-                    'result' => ['status' => 'Pending'],
-                ]);
-
-                (new \App\Jobs\ProcessRecharge($api_id, $provider_id, $report_id, $service))->handle();
-            } catch (\Throwable $e) {
-                self::logRechargeTiming([
-                    'phase' => 'shutdown_fallback_failed',
-                    'order_ref' => $orderRef,
-                    'report_id' => $report_id,
-                    'provider_id' => (int) $provider_id,
-                    'api_id' => (int) $api_id,
-                    'service' => $service,
-                    'result' => ['status' => 'error', 'message' => 'fallback_failed'],
-                ]);
-            }
-        });
-    }
-
 
 
 

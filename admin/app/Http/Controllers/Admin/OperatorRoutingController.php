@@ -78,7 +78,7 @@ class OperatorRoutingController extends Controller
                 $q->where('status', 1)->orWhereNull('status');
             })
             ->orderBy('provider_name')
-            ->get(['id', 'provider_name']);
+            ->get(['id', 'provider_name', 'api_id', 'backup_api_id', 'backup_api2_id', 'backup_api3_id']);
 
         $saved = DB::table('operator_service_routings')
             ->where('service_id', $serviceId)
@@ -87,6 +87,7 @@ class OperatorRoutingController extends Controller
 
         $data = $providers->map(function ($p) use ($saved, $serviceId) {
             $row = $saved->get($p->id);
+            // Prefer providers table (used by recharge) over routing-only values.
             return [
                 'provider_id' => $p->id,
                 'provider_name' => $p->provider_name,
@@ -97,10 +98,10 @@ class OperatorRoutingController extends Controller
                 'roffer_api_2' => (int) ($row->roffer_api_2 ?? 0),
                 'extra_params_1' => $row->extra_params_1 ?? '',
                 'extra_params_2' => $row->extra_params_2 ?? '',
-                'primary_api_1' => (int) ($row->primary_api_1 ?? 0),
-                'primary_api_2' => (int) ($row->primary_api_2 ?? 0),
-                'primary_api_3' => (int) ($row->primary_api_3 ?? 0),
-                'primary_api_4' => (int) ($row->primary_api_4 ?? 0),
+                'primary_api_1' => (int) (($p->api_id ?? 0) ?: ($row->primary_api_1 ?? 0)),
+                'primary_api_2' => (int) (($p->backup_api_id ?? 0) ?: ($row->primary_api_2 ?? 0)),
+                'primary_api_3' => (int) (($p->backup_api2_id ?? 0) ?: ($row->primary_api_3 ?? 0)),
+                'primary_api_4' => (int) (($p->backup_api3_id ?? 0) ?: ($row->primary_api_4 ?? 0)),
                 'primary_api_5' => (int) ($row->primary_api_5 ?? 0),
                 'primary_api_6' => (int) ($row->primary_api_6 ?? 0),
                 'rehit_api_id' => (int) ($row->rehit_api_id ?? 0),
@@ -158,8 +159,17 @@ class OperatorRoutingController extends Controller
                 $payload['created_at'] = $now;
                 DB::table('operator_service_routings')->insert($payload);
             }
+
+            // Sync into providers so recharge ProcessRecharge uses these APIs.
+            DB::table('providers')->where('id', $providerId)->update([
+                'api_id' => (int) ($row['primary_api_1'] ?? 0),
+                'backup_api_id' => (int) ($row['primary_api_2'] ?? 0),
+                'backup_api2_id' => (int) ($row['primary_api_3'] ?? 0),
+                'backup_api3_id' => (int) ($row['primary_api_4'] ?? 0),
+                'updated_at' => $now,
+            ]);
         }
 
-        return response()->json(['type' => 'success', 'message' => 'Operator routing saved']);
+        return response()->json(['type' => 'success', 'message' => 'Operator API switch saved']);
     }
 }
