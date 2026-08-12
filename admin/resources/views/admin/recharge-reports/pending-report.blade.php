@@ -27,11 +27,11 @@
         <div class="row g-3 align-items-end">
             <div class="col-md-2">
                 <label class="form-label mb-0">From Date</label>
-                <input type="date" class="form-control" id="from_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
+                <input type="date" class="form-control" id="from_date" value="" placeholder="All days">
             </div>
             <div class="col-md-2">
                 <label class="form-label mb-0">To Date</label>
-                <input type="date" class="form-control" id="to_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
+                <input type="date" class="form-control" id="to_date" value="" placeholder="All days">
             </div>
             <div class="col-md-2">
                 <label class="form-label mb-0">API</label>

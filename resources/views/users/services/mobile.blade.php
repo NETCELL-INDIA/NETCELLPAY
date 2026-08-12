@@ -1173,7 +1173,11 @@
 
                     console.log(err);
 
-                    Error_Msg("Oops...", "Something went wrong!", "error");
+                    var msg = (err.responseJSON && err.responseJSON.message)
+                        ? err.responseJSON.message
+                        : "Something went wrong!";
+
+                    Error_Msg("Oops...", msg, "error");
 
                     $("#recharge_now_btn").text('Confirm');
 

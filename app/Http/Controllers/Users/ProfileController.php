@@ -69,6 +69,9 @@ class ProfileController extends Controller
         $announcements = $announcementRow->message ?? '';
 
         if ($user) {
+            // MySQL decimal columns are returned as strings; expose a numeric wallet for frontend.
+            $user->wallet_balance = (float) ($user->wallet_balance ?? 0);
+            $user->minium_balance = (float) ($user->minium_balance ?? 0);
             $data['type'] = 'success';
             $data['message'] = "Fatch Sucessfuly";
             $data['data']['user'] = $user;

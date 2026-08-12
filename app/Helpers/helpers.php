@@ -48,6 +48,21 @@ class helpers
 
         $report = DB::table('reports')->where('id', $report)->first();
 
+        if (!$report) {
+            return 0;
+        }
+
+        // Prevent double wallet credit when ProcessRecharge and rechargeCall both refund.
+        $alreadyRefunded = DB::table('reports')
+            ->where('order_id', $report->order_id)
+            ->where('transaction_type', 'Refund')
+            ->where('status', 'Success')
+            ->exists();
+
+        if ($alreadyRefunded) {
+            return 0;
+        }
+
         $user = DB::table('users')->where('id',$report->user_id)->first();
 
         //\helpers::Ptd($user);
@@ -432,71 +447,84 @@ class helpers
 
     {
 
-        $myscheme = DB::table('schemes')->where('id', $scheme)->first();
+        $commission = 0;
 
-        
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('schemes') || !\Illuminate\Support\Facades\Schema::hasTable('scheme_commissions')) {
+                return 0;
+            }
 
-        if($myscheme && $myscheme->status == "1"){
+            $myscheme = DB::table('schemes')->where('id', $scheme)->first();
 
-            $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
+            
 
-            if ($comdata) {
+            if($myscheme && $myscheme->status == "1"){
 
-                if($role_id== 3 || $role_id== 6){
+                $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
 
-                    if ($comdata->rt_amount_type == "Commission Percent") {
+                if ($comdata) {
 
-                        $commission = $amount * $comdata->rt_amount_value / 100;
+                    if($role_id== 3 || $role_id== 6){
+
+                        if ($comdata->rt_amount_type == "Commission Percent") {
+
+                            $commission = $amount * $comdata->rt_amount_value / 100;
+
+                        }else{
+
+                            $commission = $comdata->rt_amount_value;
+
+                        }
+
+                    }else if($role_id== 5){
+
+                        if ($comdata->dt_amount_type == "Commission Percent") {
+
+                            $commission = $amount * $comdata->dt_amount_value / 100;
+
+                        }else{
+
+                            $commission = $comdata->dt_amount_value;
+
+                        }
+
+                    }else if($role_id== 4){
+
+                        if ($comdata->md_amount_type == "Commission Percent") {
+
+                            $commission = $amount * $comdata->md_amount_value / 100;
+
+                        }else{
+
+                            $commission = $comdata->md_amount_value;
+
+                        }
+
+                    }else if($role_id== 2){
+
+                        if ($comdata->wt_amount_type == "Commission Percent") {
+
+                            $commission = $amount * $comdata->wt_amount_value / 100;
+
+                        }else{
+
+                            $commission = $comdata->wt_amount_value;
+
+                        }
 
                     }else{
 
-                        $commission = $comdata->rt_amount_value;
+                        $commission = 0;
 
                     }
 
-                }else if($role_id== 5){
+                    if($commission == null){
 
-                    if ($comdata->dt_amount_type == "Commission Percent") {
-
-                        $commission = $amount * $comdata->dt_amount_value / 100;
-
-                    }else{
-
-                        $commission = $comdata->dt_amount_value;
-
-                    }
-
-                }else if($role_id== 4){
-
-                    if ($comdata->md_amount_type == "Commission Percent") {
-
-                        $commission = $amount * $comdata->md_amount_value / 100;
-
-                    }else{
-
-                        $commission = $comdata->md_amount_value;
-
-                    }
-
-                }else if($role_id== 2){
-
-                    if ($comdata->wt_amount_type == "Commission Percent") {
-
-                        $commission = $amount * $comdata->wt_amount_value / 100;
-
-                    }else{
-
-                        $commission = $comdata->wt_amount_value;
+                        $commission = 0;
 
                     }
 
                 }else{
-
-                    $commission = 0;
-
-                }
-
-                if($commission == null){
 
                     $commission = 0;
 
@@ -507,11 +535,8 @@ class helpers
                 $commission = 0;
 
             }
-
-        }else{
-
-            $commission = 0;
-
+        } catch (\Throwable $e) {
+            return 0;
         }
 
         
@@ -867,46 +892,59 @@ class helpers
 
     public static function checkApis($route,$post,$user){
         $route_api_id = 0;
-        if($route == 'amount_wize'){
-            $chk_amount_wize = DB::table('amount_wize_switch')->where('provider_id', $post->provider_id)->where('status', 1)->first();
-            if ($chk_amount_wize) {
-                $amounts = explode(",", $chk_amount_wize->amount);
-                foreach ($amounts as $amount) {
-                    if ($post->amount == $amount) {
-                        $route_api_id = $chk_amount_wize->api_id;
+        try {
+            if($route == 'amount_wize'){
+                if (!\Illuminate\Support\Facades\Schema::hasTable('amount_wize_switch')) {
+                    return 0;
+                }
+                $chk_amount_wize = DB::table('amount_wize_switch')->where('provider_id', $post->provider_id)->where('status', 1)->first();
+                if ($chk_amount_wize) {
+                    $amounts = explode(",", $chk_amount_wize->amount);
+                    foreach ($amounts as $amount) {
+                        if ($post->amount == $amount) {
+                            $route_api_id = $chk_amount_wize->api_id;
+                        }
                     }
                 }
-            }
-        }else if($route == 'user_wize'){
-            $chk_user_wize_switch = DB::table('user_wize_switch')->where('provider_id', $post->provider_id)->where('user_id', $user->id)->where('state_id', $post->state_id)->where('status', 1)->first();
-            if ($chk_user_wize_switch) {
-                
-                $amounts = explode(",", $chk_user_wize_switch->amount);
-                foreach ($amounts as $amount) {
-                    if ($post->amount == $amount) {
+            }else if($route == 'user_wize'){
+                if (!\Illuminate\Support\Facades\Schema::hasTable('user_wize_switch')) {
+                    return 0;
+                }
+                $chk_user_wize_switch = DB::table('user_wize_switch')->where('provider_id', $post->provider_id)->where('user_id', $user->id)->where('state_id', $post->state_id)->where('status', 1)->first();
+                if ($chk_user_wize_switch) {
+                    
+                    $amounts = explode(",", $chk_user_wize_switch->amount);
+                    foreach ($amounts as $amount) {
+                        if ($post->amount == $amount) {
+                            $route_api_id = $chk_user_wize_switch->api_id;
+                        }
+                    }
+                    if($chk_user_wize_switch->amount == 0 ||$chk_user_wize_switch->amount == ""){
                         $route_api_id = $chk_user_wize_switch->api_id;
                     }
                 }
-                if($chk_user_wize_switch->amount == 0 ||$chk_user_wize_switch->amount == ""){
-                    $route_api_id = $chk_user_wize_switch->api_id;
+            }else if($route == 'state_wize'){
+                if (!\Illuminate\Support\Facades\Schema::hasTable('state_wize_switch')) {
+                    return 0;
                 }
-            }
-        }else if($route == 'state_wize'){
-            $chk_state_wize_switch = DB::table('state_wize_switch')->where('provider_id', $post->provider_id)->where('state_id', $post->state_id)->where('status', 1)->first();
-            if ($chk_state_wize_switch) {
-                $amounts = explode(",", $chk_state_wize_switch->amount);
-                foreach ($amounts as $amount) {
-                    if ($post->amount == $amount) {
+                $chk_state_wize_switch = DB::table('state_wize_switch')->where('provider_id', $post->provider_id)->where('state_id', $post->state_id)->where('status', 1)->first();
+                if ($chk_state_wize_switch) {
+                    $amounts = explode(",", $chk_state_wize_switch->amount);
+                    foreach ($amounts as $amount) {
+                        if ($post->amount == $amount) {
+                            $route_api_id = $chk_state_wize_switch->api_id;
+                        }
+                    }
+                    if($chk_state_wize_switch->amount == 0 ||$chk_state_wize_switch->amount == ""){
                         $route_api_id = $chk_state_wize_switch->api_id;
                     }
                 }
-                if($chk_state_wize_switch->amount == 0 ||$chk_state_wize_switch->amount == ""){
-                    $route_api_id = $chk_state_wize_switch->api_id;
-                }
+            }else{
+                $provider = DB::table('providers')->where('id', $post->provider_id)->first();
+                $route_api_id = (int) ($provider->api_id ?? 0);
             }
-        }else{
-            $provider = DB::table('providers')->where('id', $post->provider_id)->first();
-            $route_api_id = $provider->api_id;
+        } catch (\Throwable $e) {
+            return 0;
         }
         return $route_api_id;
     }

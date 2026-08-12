@@ -380,27 +380,32 @@ class FundController extends Controller
                 $user = DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance + $report->amount]);      
                 $CURRENT_BALANCE = DB::table('users')->where('id', $user_data->id)->first();
                 //////Send Sms By Cron Job Start
-                $slug = 'fund_receive';
-                $type = 'Credit';
-                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                $content = str_replace('{TYPE}', '' . $type . '', $content);
-                $content = str_replace('{AMOUNT}', '' . $report->amount . '', $content);
-                $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
-                $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                if($sms_tmp->status == 1){
-                    DB::table('messages')->insert([
-                        'user_id' => 1,
-                        'to_user_id' => $user_data->id,
-                        'subject' => $slug,
-                        'msg_source' => "SMS",
-                        'template_id' => $sms_tmp->template_id,
-                        'content' => $content,
-                        'status' => 0,
-                        'created_at' => Carbon::now(),
-                        'updated_at' => Carbon::now()
-                    ]);
+                try {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('messages') && $sms_tmp = DB::table('sms_templates')->where('slug', 'fund_receive')->first(['template_id','content','status'])) {
+                        $slug = 'fund_receive';
+                        $type = 'Credit';
+                        $content = $sms_tmp->content;
+                        $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+                        $content = str_replace('{TYPE}', '' . $type . '', $content);
+                        $content = str_replace('{AMOUNT}', '' . $report->amount . '', $content);
+                        $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
+                        $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
+                        if($sms_tmp->status == 1){
+                            DB::table('messages')->insert([
+                                'user_id' => 1,
+                                'to_user_id' => $user_data->id,
+                                'subject' => $slug,
+                                'msg_source' => "SMS",
+                                'template_id' => $sms_tmp->template_id,
+                                'content' => $content,
+                                'status' => 0,
+                                'created_at' => Carbon::now(),
+                                'updated_at' => Carbon::now()
+                            ]);
+                        }
+                    }
+                } catch (\Throwable $smsError) {
+                    \Log::warning('fund request sms skipped: '.$smsError->getMessage());
                 }
                 //////Send Sms By Cron Job End         
                 ///Status Update in Fund Request Start

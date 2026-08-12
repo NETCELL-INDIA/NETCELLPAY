@@ -198,4 +198,16 @@ return [
 
     'same_site' => 'lax',
 
+    /*
+    |--------------------------------------------------------------------------
+    | XSRF Cookie Name
+    |--------------------------------------------------------------------------
+    |
+    | Unique per app so user + admin local servers on the same host don't
+    | overwrite each other's CSRF cookies (browsers ignore port).
+    |
+    */
+
+    'xsrf_cookie' => env('SESSION_XSRF_COOKIE', 'XSRF-TOKEN-ADMIN'),
+
 ];

@@ -98,6 +98,12 @@ class DashboardController extends Controller
                 ->count();
             $complaint = DB::table('complaints')
                 ->whereIn('status', ['Open', 'Under Review'])
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('reports')
+                        ->whereColumn('reports.id', 'complaints.report_id')
+                        ->whereColumn('reports.complaint_id', 'complaints.id');
+                })
                 ->count();
             return response()->json([
                 'type' => 'success',
@@ -173,8 +179,16 @@ class DashboardController extends Controller
         }
 
         try {
+            // Only real pending complains: still Open/Under Review AND linked on reports.complaint_id.
+            // Orphan Open rows (report already cleared) must not inflate dashboard/topbar counts.
             $pendingComplaints = DB::table('complaints')
                 ->whereIn('status', ['Open', 'Under Review'])
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('reports')
+                        ->whereColumn('reports.id', 'complaints.report_id')
+                        ->whereColumn('reports.complaint_id', 'complaints.id');
+                })
                 ->count();
         } catch (\Throwable $e) {
         }

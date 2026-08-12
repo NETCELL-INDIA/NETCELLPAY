@@ -56,28 +56,32 @@ class RechargeController extends Controller
 
     public function finalApiCheck($post,$user) {
 
-        $routes = DB::table('routes_settings')->orderBy('priority', 'ASC')->where('status', 1)->get('route_code');
-
         $array_routes = [];
 
-        foreach($routes as $route){
-
-            $array_routes[] = $route->route_code;
-
-        }
-
-        foreach($array_routes as $route){
-
-            $route_api_id = \helpers::checkApis($route,$post,$user);
-
-            if($route_api_id != 0){
-
-                return  $route_api_id;
-
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('routes_settings')) {
+                $routes = DB::table('routes_settings')->orderBy('priority', 'ASC')->where('status', 1)->get('route_code');
+                foreach ($routes as $route) {
+                    $array_routes[] = $route->route_code;
+                }
             }
-
+        } catch (\Throwable $e) {
+            $array_routes = [];
         }
 
+        if (empty($array_routes)) {
+            $array_routes = ['amount_wize', 'user_wize', 'state_wize', 'provider'];
+        }
+
+        foreach ($array_routes as $route) {
+            $route_api_id = \helpers::checkApis($route, $post, $user);
+            if ($route_api_id != 0) {
+                return $route_api_id;
+            }
+        }
+
+        $provider = DB::table('providers')->where('id', $post->provider_id)->first();
+        return (int) ($provider->api_id ?? 0);
     }
 
 
@@ -326,7 +330,7 @@ class RechargeController extends Controller
 
 
 
-        if ($provider->provider_down == 1) {
+        if (($provider->provider_down ?? 0) == 1) {
 
             return response()->json(array(
 

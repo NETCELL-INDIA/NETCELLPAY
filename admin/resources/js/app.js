@@ -1127,7 +1127,11 @@ File: Main Js File
 
 	// add listener Sidebar Hover icon on change layout from setting
 	function addEventListenerOnSmHoverMenu() {
-		document.getElementById("vertical-hover").addEventListener("click", function () {
+		var hoverBtn = document.getElementById("vertical-hover");
+		if (!hoverBtn) {
+			return;
+		}
+		hoverBtn.addEventListener("click", function () {
 			if (document.documentElement.getAttribute("data-sidebar-size") === "sm-hover") {
 				document.documentElement.setAttribute("data-sidebar-size", "sm-hover-active");
 			} else if (document.documentElement.getAttribute("data-sidebar-size") === "sm-hover-active") {

@@ -42,7 +42,7 @@
                 </button>
 
                 <button type="button" class="btn rb-icon-btn" title="Complaints"
-                    onclick="location.href='{{ URL::asset('admin/user-reports/recharge-report?complaint=1') }}'">
+                    onclick="location.href='{{ URL::asset('admin/support/complaint') }}'">
                     <i class="ri-customer-service-2-line"></i>
                     <span class="rb-badge" id="TopBarComplaintCount"></span>
                 </button>
@@ -111,7 +111,7 @@
                             <i class="ri-time-line me-2"></i> Pending Recharges
                             <span class="rb-dd-badge rb-dd-badge-warn" id="DropPendingCount"></span>
                         </a>
-                        <a class="dropdown-item" href="{{ URL::asset('admin/user-reports/recharge-report?complaint=1') }}">
+                        <a class="dropdown-item" href="{{ URL::asset('admin/support/complaint') }}">
                             <i class="ri-customer-service-2-line me-2"></i> Complaints
                             <span class="rb-dd-badge" id="DropComplaintCount"></span>
                         </a>

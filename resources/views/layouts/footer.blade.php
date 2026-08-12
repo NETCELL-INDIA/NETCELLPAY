@@ -120,6 +120,16 @@
     setInterval(dateTime, 1000);
     setInterval(ajaxCall, 25000);
     function ajaxCall() {
+        function formatWalletBalance(value) {
+            if (value === null || value === undefined || value === '') {
+                return (0).toFixed(2);
+            }
+            var n = Number(value);
+            if (!Number.isFinite(n)) {
+                n = 0;
+            }
+            return n.toFixed(2);
+        }
         $.ajax({
             url: '{{ route('myProfileData') }}',
             method: 'get',
@@ -128,8 +138,9 @@
                 if(data.type == "success"){
                     localStorage.setItem("profileData", JSON.stringify(data.data));
                     var u = data.data.user;
-                    $(".LoadWallet").html('<span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span><span class="text-start"><span class="d-block wallet-label">Wallet Balance</span><span class="d-block wallet-amount">₹ '+u.wallet_balance.toFixed(2)+'</span></span>');
-                    $("#nav_wallet_balance").text("₹ "+u.wallet_balance.toFixed(2));
+                    var walletText = formatWalletBalance(u && u.wallet_balance);
+                    $(".LoadWallet").html('<span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span><span class="text-start"><span class="d-block wallet-label">Wallet Balance</span><span class="d-block wallet-amount">₹ '+walletText+'</span></span>');
+                    $("#nav_wallet_balance").text("₹ "+walletText);
                     admin_url = '{{env('ADMIN_HOST')}}';
                     var profilePic = admin_url+"/public/profile_pic/"+u.profile_pic;
                     $("#nav_profile_pic").attr("src", profilePic);

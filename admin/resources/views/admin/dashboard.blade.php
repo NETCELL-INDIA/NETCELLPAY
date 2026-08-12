@@ -147,7 +147,7 @@ Dashboard
         </div>
     </div>
     <div class="col-md col-6">
-        <div class="pending-card orange">
+        <div class="pending-card orange" role="button" style="cursor:pointer" onclick="location.href='{{ URL::asset('admin/support/complaint') }}'">
             <div class="label">Pending Complains</div>
             <div class="value" id="pending_complaints">0</div>
         </div>

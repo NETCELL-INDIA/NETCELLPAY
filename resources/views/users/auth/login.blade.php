@@ -487,7 +487,7 @@
                     data: { 
                             mobile_number:mobile_number,
                             password:password,
-                            _token: '{{csrf_token()}}'
+                            _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                         },
                     success: function( data, textStatus, jQxhr ){
                        console.log( data );
@@ -528,7 +528,7 @@
                     data: { 
                             mobile_number:mobile_number,
                             password:password,otp,
-                            _token: '{{csrf_token()}}'
+                            _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                         },
                     success: function( data, textStatus, jQxhr ){
                        console.log( data );

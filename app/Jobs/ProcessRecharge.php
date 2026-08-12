@@ -110,13 +110,11 @@ class ProcessRecharge implements ShouldQueue
                 $url = str_replace('{AMOUNT}', '' . $report->total_amount . '', $url);
                 $url = str_replace('{ORDER_ID}', '' . $report->order_id . '', $url);
 
+                // Use configured method. Netcellin transaction-request rejects GET
+                // ("Invalid request method") and accepts POST with query-string URL.
                 $method = strtoupper(trim($api_details->api_method ?: 'GET'));
                 $header = [];
                 $parameters = '';
-
-                if ($method === 'POST' && $parameters === '' && str_contains($url, '?')) {
-                    $method = 'GET';
-                }
 
                 $result = \helpers::curl($url, $method, $parameters, $header, 'yes', $this->service, $report->order_id);
 
@@ -139,8 +137,14 @@ class ProcessRecharge implements ShouldQueue
                         $status_key = $api_details->status_value;
                         $error_key = $api_details->error_value;
 
-                        if ($status_key && !isset($data[$status_key]) && isset($data['Response']) && $data['Response'] === ($api_details->success_value ?: 'Success')) {
-                            $data[$status_key] = $api_details->success_value ?: 'Success';
+                        // Netcellin often returns Response=Success/Fail without a Status key.
+                        if ($status_key && !isset($data[$status_key]) && isset($data['Response'])) {
+                            if ($data['Response'] === ($api_details->success_value ?: 'Success')) {
+                                $data[$status_key] = $api_details->success_value ?: 'Success';
+                            } elseif ($data['Response'] === ($api_details->error_value_response ?: 'Fail')
+                                || $data['Response'] === ($api_details->failed_value ?: 'Failed')) {
+                                $data[$status_key] = $api_details->failed_value ?: 'Failed';
+                            }
                         }
 
                         if (isset($data[$status_key])) {
@@ -156,12 +160,13 @@ class ProcessRecharge implements ShouldQueue
                                 $update['api_operator_id'] = $data[$api_details->order_id_value] ?? '';
                                 $msg = $data['Message'] ?? $data['message'] ?? '';
                                 $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
-                            } elseif (isset($data[$error_key]) && $data[$error_key] == $api_details->error_value_response) {
-                                $update['status'] = 'Failed';
-                                $update['operator_id'] = '';
-                                $update['api_operator_id'] = '';
-                                $update['remark'] = $this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number;
                             }
+                        } elseif (isset($data[$error_key]) && $data[$error_key] == $api_details->error_value_response) {
+                            $update['status'] = 'Failed';
+                            $update['operator_id'] = '';
+                            $update['api_operator_id'] = '';
+                            $msg = $data['Message'] ?? $data['message'] ?? '';
+                            $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                         }
                     }
                 }

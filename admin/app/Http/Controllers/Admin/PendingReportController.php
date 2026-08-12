@@ -27,12 +27,21 @@ class PendingReportController extends Controller
             ->whereIn('r.transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
             ->whereIn('r.status', ['Pending', 'Under Proces', 'Under Process', 'Processing']);
 
-        $from = $request->from_date ?: Carbon::today()->format('Y-m-d');
-        $to = $request->to_date ?: Carbon::today()->format('Y-m-d');
-        $q->where(function ($w) use ($from, $to) {
-            $w->whereBetween('r.created_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
-                ->orWhereBetween('r.transaction_date', [$from . ' 00:00:00', $to . ' 23:59:59']);
-        });
+        // Default: all pending (any day). Date filter only when user selects dates.
+        $from = trim((string) ($request->from_date ?? ''));
+        $to = trim((string) ($request->to_date ?? ''));
+        if ($from !== '' || $to !== '') {
+            if ($from === '') {
+                $from = '1970-01-01';
+            }
+            if ($to === '') {
+                $to = Carbon::today()->format('Y-m-d');
+            }
+            $q->where(function ($w) use ($from, $to) {
+                $w->whereBetween('r.created_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
+                    ->orWhereBetween('r.transaction_date', [$from . ' 00:00:00', $to . ' 23:59:59']);
+            });
+        }
 
         if ($request->api_id) {
             $q->where('r.api_id', (int) $request->api_id);
