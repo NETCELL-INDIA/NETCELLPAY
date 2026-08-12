@@ -127,6 +127,7 @@ class CallBackController extends Controller
                 \helpers::SetCommission($report->id);
                 return response()->json(array('type' => 'success', 'message' => 'status updated to Success'));
             } else if($update['status'] == 'Failed'){
+                \helpers::closeOpenComplaintsForReport((int) $report->id, 'Recharge failed before completion.');
                 \helpers::refund_row($report->id);
                 return response()->json(array('type' => 'success', 'message' => 'status updated to Failed and refunded'));
             } else {

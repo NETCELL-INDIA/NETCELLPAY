@@ -102,7 +102,8 @@ class DashboardController extends Controller
                     $q->select(DB::raw(1))
                         ->from('reports')
                         ->whereColumn('reports.id', 'complaints.report_id')
-                        ->whereColumn('reports.complaint_id', 'complaints.id');
+                        ->whereColumn('reports.complaint_id', 'complaints.id')
+                        ->where('reports.status', 'Success');
                 })
                 ->count();
             return response()->json([
@@ -187,7 +188,8 @@ class DashboardController extends Controller
                     $q->select(DB::raw(1))
                         ->from('reports')
                         ->whereColumn('reports.id', 'complaints.report_id')
-                        ->whereColumn('reports.complaint_id', 'complaints.id');
+                        ->whereColumn('reports.complaint_id', 'complaints.id')
+                        ->where('reports.status', 'Success');
                 })
                 ->count();
         } catch (\Throwable $e) {

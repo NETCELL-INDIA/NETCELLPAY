@@ -719,6 +719,77 @@ class helpers
         );
     }
 
+    /** @return list<string> */
+    public static function rechargePendingStatuses(): array
+    {
+        return ['Pending', 'Under Process', 'Under Proces', 'Processing'];
+    }
+
+    public static function reportAllowsComplaint(?object $report): bool
+    {
+        if (!$report) {
+            return false;
+        }
+
+        if ((int) ($report->complaint_id ?? 0) !== 0) {
+            return false;
+        }
+
+        return strcasecmp(trim((string) ($report->status ?? '')), 'Success') === 0;
+    }
+
+    public static function complaintBlockMessage(?object $report): string
+    {
+        if (!$report) {
+            return 'Record not found.';
+        }
+
+        $status = trim((string) ($report->status ?? ''));
+
+        if (in_array($status, self::rechargePendingStatuses(), true)) {
+            return 'Recharge is still pending. Complaint can be submitted only after recharge is successful.';
+        }
+
+        if ((int) ($report->complaint_id ?? 0) !== 0) {
+            return 'Complaint already submitted for this recharge.';
+        }
+
+        if (strcasecmp($status, 'Success') !== 0) {
+            return 'Complaint is allowed only for successful recharges.';
+        }
+
+        return 'Unable to submit complaint for this recharge.';
+    }
+
+    public static function closeOpenComplaintsForReport(int $reportId, string $remark, string $status = 'Closed'): void
+    {
+        if ($reportId <= 0) {
+            return;
+        }
+
+        $complaints = DB::table('complaints')
+            ->where('report_id', $reportId)
+            ->whereIn('status', ['Open', 'Under Review'])
+            ->get(['id']);
+
+        if ($complaints->isEmpty()) {
+            return;
+        }
+
+        $now = Carbon::now();
+        foreach ($complaints as $complaint) {
+            DB::table('complaints')->where('id', $complaint->id)->update([
+                'decision_by' => 1,
+                'decision_remark' => $remark,
+                'status' => $status,
+                'decision_date' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        DB::table('reports')->where('id', $reportId)->update(['complaint_id' => 0]);
+    }
+
 
 
     public static function RunApi($api_id,$provider_id,$report_id,$service)
@@ -1065,7 +1136,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260812-PLAN-001';
+        return '20260812-COMPLAINT-001';
     }
 }
 

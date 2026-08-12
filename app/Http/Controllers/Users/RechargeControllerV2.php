@@ -409,7 +409,7 @@ class RechargeControllerV2 extends Controller
                 }else{
                     $bg = "warning";
                 }
-                if($list->status == "Success" && $list->complaint_id == 0){
+                if($list->status == "Success" && $list->complaint_id == 0 && \helpers::reportAllowsComplaint($list)){
                     $action = '<button type="submit" class="btn btn-secondary" id="receipt_btn" onclick="receiptView(`' . $list->id . '`)"><i class="ri-file-list-3-line"></i> Receipt</button>  <button type="submit" class="btn btn-warning" id="complaint_btn" onclick="complaintView(`' . $list->id . '`,`' . $list->order_id . '`)"><i class="ri-questionnaire-fill"></i> Complaint</button>';
                 }else{
                     $action = '<h5>--</h5>';
@@ -588,11 +588,11 @@ class RechargeControllerV2 extends Controller
                     'message' => "user not found"
                 )); 
             }
-            $report_f = DB::table('reports')->where('order_id', $post->order_id)->where('user_id', $user->id)->where('status', "Success")->first();
-            if(!$report_f){
+            $report_f = DB::table('reports')->where('order_id', $post->order_id)->where('user_id', $user->id)->first();
+            if(!$report_f || !\helpers::reportAllowsComplaint($report_f)){
                 return response()->json(array(
                     'type' => 'error',  
-                    'message' => "record not found"
+                    'message' => \helpers::complaintBlockMessage($report_f)
                 )); 
             }
             $post['id'] = $report_f->id;
@@ -651,7 +651,19 @@ class RechargeControllerV2 extends Controller
 
         
 
-        $report = DB::table('reports')->where('user_id', $user->id)->where('id', $post->id)->where('complaint_id', 0)->first();
+        $report = DB::table('reports')
+            ->where('user_id', $user->id)
+            ->where('id', $post->id)
+            ->where('complaint_id', 0)
+            ->first();
+
+        if (!$report || !\helpers::reportAllowsComplaint($report)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => \helpers::complaintBlockMessage($report),
+            ]);
+        }
+
         if($report){
             try {
                 $request_id = "SR".date("YmdHis").rand(11111, 999999);
@@ -737,13 +749,11 @@ class RechargeControllerV2 extends Controller
                     'message' => $th
                 )); 
             }
-            
-            
-        }else{
-            $data['type'] = 'error';
-            $data['message'] = "record not found";
-        }
-        return $data;
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Unable to submit complaint. Please try again.',
+        ]);
     }
 
     public function RechargeCheckRofferFatch(Request $post)

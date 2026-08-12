@@ -220,6 +220,7 @@ class ProcessRecharge implements ShouldQueue
 
             if ($final_result && $final_result['status'] == 'Failed') {
                 try {
+                    \helpers::closeOpenComplaintsForReport($this->report_id, 'Recharge failed before completion.');
                     \helpers::refund_row($this->report_id);
                 } catch (\Throwable $e) {
                     DB::table('apilogs')->insert([

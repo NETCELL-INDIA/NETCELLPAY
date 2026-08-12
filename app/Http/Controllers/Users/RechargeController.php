@@ -1142,7 +1142,7 @@ class RechargeController extends Controller
 
                 }
 
-                if ($list->status == "Success" && $list->complaint_id == 0) {
+                if ($list->status == "Success" && $list->complaint_id == 0 && \helpers::reportAllowsComplaint($list)) {
 
                     $action = '<button type="submit" class="btn btn-secondary" id="receipt_btn" onclick="receiptView(`' . $list->id . '`)"><i class="ri-file-list-3-line"></i> Receipt</button>  <button type="submit" class="btn btn-warning" id="complaint_btn" onclick="complaintView(`' . $list->id . '`,`' . $list->order_id . '`)"><i class="ri-questionnaire-fill"></i> Complaint</button>';
 
@@ -1502,18 +1502,13 @@ class RechargeController extends Controller
 
             }
 
-            $report_f = DB::table('reports')->where('order_id', $post->order_id)->where('user_id', $user->id)->where('status', "Success")->first();
+            $report_f = DB::table('reports')->where('order_id', $post->order_id)->where('user_id', $user->id)->first();
 
-            if (!$report_f) {
-
+            if (!$report_f || !\helpers::reportAllowsComplaint($report_f)) {
                 return response()->json(array(
-
                     'type' => 'error',
-
-                    'message' => "record not found"
-
+                    'message' => \helpers::complaintBlockMessage($report_f)
                 ));
-
             }
 
             $post['id'] = $report_f->id;
@@ -1628,7 +1623,18 @@ class RechargeController extends Controller
 
 
 
-        $report = DB::table('reports')->where('user_id', $user->id)->where('id', $post->id)->where('complaint_id', 0)->where('status', "Success")->first();
+        $report = DB::table('reports')
+            ->where('user_id', $user->id)
+            ->where('id', $post->id)
+            ->where('complaint_id', 0)
+            ->first();
+
+        if (!$report || !\helpers::reportAllowsComplaint($report)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => \helpers::complaintBlockMessage($report),
+            ]);
+        }
 
         if ($report) {
 
@@ -1800,19 +1806,10 @@ class RechargeController extends Controller
 
             }
 
-
-
-
-
-        } else {
-
-            $data['type'] = 'error';
-
-            $data['message'] = "record not found";
-
-        }
-
-        return $data;
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Unable to submit complaint. Please try again.',
+        ]);
 
     }
 
@@ -2282,65 +2279,13 @@ class RechargeController extends Controller
 
         try {
 
-        $serviceKey = PlanInfoFetchService::planServiceKey((int) $post->provider_id);
+        $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, (int) $post->state_id);
 
-        $state = DB::table('states')->where('id', $post->state_id)->first();
-
-        $state_code = trim((string) ($state->mplan_state_code ?? $state->state_name ?? ''));
-        if (!$state || $state_code === '') {
-            return response()->json([
-                'type' => 'error',
-                'message' => 'Invalid state selected. Circle/plan code is not configured.',
-            ]);
-        }
-
-        $state_code = str_replace(' ', '%20', $state_code);
-
-        $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post, $state_code) {
-
-            $provider_code = \helpers::PlanProviderCode($api->id, $post->provider_id);
-
-            if ($provider_code == 0 || $provider_code === '') {
-                return null;
-            }
-
-            $key = $api->resolved_api_key ?: $api->api_key;
-
-            if ($key === null || $key === '') {
-                return null;
-            }
-
-            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
-
-        }, 'Plans', 'ROP');
-
-        if ($result) {
-
-            $records = PlanInfoFetchService::extractRecords($result['response'] ?? null);
-
-            if ($records !== []) {
-                return response()->json([
-                    'type' => 'success',
-                    'message' => 'Fatch Successfully',
-                    'data' => $records,
-                ]);
-            }
-
-            $apiMessage = PlanInfoFetchService::responseErrorMessage($result['response'] ?? null);
-
-            return response()->json([
-                'type' => 'error',
-                'message' => $apiMessage ?: 'No plans found for this operator and circle.',
-            ]);
-        }
-
-        return response()->json(array(
-
-            'type' => 'error',
-
-            'message' => "Unable to fetch plans. Check plan API settings and operator code."
-
-        ));
+        return response()->json([
+            'type' => $result['type'],
+            'message' => $result['message'],
+            'data' => $result['data'] ?? [],
+        ]);
 
         } catch (\Throwable $e) {
             return response()->json([

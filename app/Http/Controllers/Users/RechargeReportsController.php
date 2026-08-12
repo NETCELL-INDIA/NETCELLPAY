@@ -151,7 +151,7 @@ class RechargeReportsController extends Controller
                 }else{
                     $bg = "warning";
                 }
-                if($list->status == "Success" && $list->complaint_id == 0){
+                if($list->status == "Success" && $list->complaint_id == 0 && \helpers::reportAllowsComplaint($list)){
                     $action = '<button type="submit" class="btn btn-secondary" id="receipt_btn" onclick="receiptView(`' . $list->id . '`)"><i class="ri-file-list-3-line"></i> Receipt</button>  <button type="submit" class="btn btn-warning" id="complaint_btn" onclick="complaintView(`' . $list->id . '`,`' . $list->order_id . '`)"><i class="ri-questionnaire-fill"></i> Complaint</button>';
                 }else{
                     $action = '<h5>--</h5>';

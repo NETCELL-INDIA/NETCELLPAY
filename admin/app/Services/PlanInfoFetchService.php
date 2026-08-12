@@ -224,7 +224,7 @@ class PlanInfoFetchService
             ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
         ];
 
-        foreach ($attempts as $attempt) {
+        foreach ($attempts as $index => $attempt) {
             $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
             if (!$api) {
                 continue;
@@ -238,7 +238,7 @@ class PlanInfoFetchService
             $orderId = $orderPrefix . random_int(1111111111, 9999999999);
             $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
 
-            if ($result && !empty($result['response'])) {
+            if ($result && self::isSuccessfulFetchResponse($result)) {
                 $result['api_id'] = (int) $api->id;
 
                 return $result;
@@ -246,6 +246,30 @@ class PlanInfoFetchService
         }
 
         return null;
+    }
+
+    /**
+     * @param  array{response?: mixed, code?: mixed, error?: mixed}  $result
+     */
+    private static function isSuccessfulFetchResponse(array $result): bool
+    {
+        if (empty($result['response'])) {
+            return false;
+        }
+
+        $httpCode = (int) ($result['code'] ?? 0);
+        if (in_array($httpCode, [404, 401, 403, 500, 502, 503], true)) {
+            return false;
+        }
+
+        if (!empty($result['error']) && stripos((string) $result['error'], 'timed out') !== false) {
+            return false;
+        }
+
+        $body = (string) $result['response'];
+        $decoded = json_decode($body, true);
+
+        return is_array($decoded);
     }
 
     /** @return array{response: string, api_id: int}|null */
