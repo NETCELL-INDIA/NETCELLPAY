@@ -1036,7 +1036,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260811-MOBILE-001';
+        return '20260812-RECHARGE-001';
     }
 }
 
