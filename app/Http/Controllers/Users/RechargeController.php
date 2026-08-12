@@ -1876,9 +1876,17 @@ class RechargeController extends Controller
 
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
 
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+            $provider_code = \helpers::PlanProviderCode($api->id, $post->provider_id);
+
+            if ($provider_code == 0 || $provider_code === '') {
+                return null;
+            }
 
             $key = $api->resolved_api_key ?: $api->api_key;
+
+            if ($key === null || $key === '') {
+                return null;
+            }
 
             return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
@@ -1886,26 +1894,29 @@ class RechargeController extends Controller
 
         if ($result) {
 
-            $data = json_decode($result['response'], true);
-            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? []) : [];
+            $records = PlanInfoFetchService::extractRecords($result['response'] ?? null);
+
+            if ($records !== []) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Fatch Successfully',
+                    'data' => $records,
+                ]);
+            }
+
+            $apiMessage = PlanInfoFetchService::responseErrorMessage($result['response'] ?? null);
 
             return response()->json([
-
-                'type' => 'success',
-
-                'message' => 'Fatch Successfully',
-
-                'data' => $records
-
+                'type' => 'error',
+                'message' => $apiMessage ?: 'No offers found for this number.',
             ]);
-
         }
 
         return response()->json(array(
 
             'type' => 'error',
 
-            'message' => "Unable to fetch offers. Please try again."
+            'message' => "Unable to fetch offers. Check plan API settings and operator code."
 
         ));
 
@@ -2275,20 +2286,29 @@ class RechargeController extends Controller
 
         $state = DB::table('states')->where('id', $post->state_id)->first();
 
-        if (!$state || empty($state->mplan_state_code)) {
+        $state_code = trim((string) ($state->mplan_state_code ?? $state->state_name ?? ''));
+        if (!$state || $state_code === '') {
             return response()->json([
                 'type' => 'error',
-                'message' => 'Invalid state selected.',
+                'message' => 'Invalid state selected. Circle/plan code is not configured.',
             ]);
         }
 
-        $state_code = str_replace(" ", "%20", $state->mplan_state_code);
+        $state_code = str_replace(' ', '%20', $state_code);
 
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post, $state_code) {
 
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
+            $provider_code = \helpers::PlanProviderCode($api->id, $post->provider_id);
+
+            if ($provider_code == 0 || $provider_code === '') {
+                return null;
+            }
 
             $key = $api->resolved_api_key ?: $api->api_key;
+
+            if ($key === null || $key === '') {
+                return null;
+            }
 
             return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
 
@@ -2296,26 +2316,29 @@ class RechargeController extends Controller
 
         if ($result) {
 
-            $data = json_decode($result['response'], true);
-            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? []) : [];
+            $records = PlanInfoFetchService::extractRecords($result['response'] ?? null);
+
+            if ($records !== []) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Fatch Successfully',
+                    'data' => $records,
+                ]);
+            }
+
+            $apiMessage = PlanInfoFetchService::responseErrorMessage($result['response'] ?? null);
 
             return response()->json([
-
-                'type' => 'success',
-
-                'message' => 'Fatch Successfully',
-
-                'data' => $records
-
+                'type' => 'error',
+                'message' => $apiMessage ?: 'No plans found for this operator and circle.',
             ]);
-
         }
 
         return response()->json(array(
 
             'type' => 'error',
 
-            'message' => "Unable to fetch plans. Please try again."
+            'message' => "Unable to fetch plans. Check plan API settings and operator code."
 
         ));
 

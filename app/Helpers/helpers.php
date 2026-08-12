@@ -591,6 +591,35 @@ class helpers
 
     }
 
+    /**
+     * Operator code for plan/roffer APIs (MPlan etc.), with fallback across plan API mappings.
+     */
+    public static function PlanProviderCode($api_id, $provider_id)
+    {
+        $code = self::ApiProviderCode($api_id, $provider_id);
+        if ($code !== 0 && $code !== '' && $code !== null) {
+            return $code;
+        }
+
+        $planApiIds = array_values(array_unique(array_filter([
+            (int) $api_id,
+            6, 7, 27, 30,
+        ])));
+
+        foreach ($planApiIds as $tryApiId) {
+            $row = DB::table('api_provider_codes')
+                ->where('provider_id', $provider_id)
+                ->where('api_id', $tryApiId)
+                ->first();
+
+            if ($row && $row->provider_code !== null && $row->provider_code !== '' && $row->provider_code !== '0') {
+                return $row->provider_code;
+            }
+        }
+
+        return 0;
+    }
+
 
     public static function ApiStateCode($api_id, $state_id)
 
@@ -1036,7 +1065,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260812-REDIRECT-001';
+        return '20260812-PLAN-001';
     }
 }
 

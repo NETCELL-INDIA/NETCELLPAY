@@ -238,14 +238,81 @@ class PlanInfoFetchService
             $orderId = $orderPrefix . random_int(1111111111, 9999999999);
             $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
 
-            if ($result && !empty($result['response'])) {
-                $result['api_id'] = (int) $api->id;
+            if (!$result || empty($result['response'])) {
+                continue;
+            }
 
-                return $result;
+            $decoded = json_decode($result['response'], true);
+            if (is_array($decoded) && self::isErrorResponse($decoded)) {
+                continue;
+            }
+
+            $result['api_id'] = (int) $api->id;
+
+            return $result;
+        }
+
+        return null;
+    }
+
+    public static function extractRecords(?string $response): array
+    {
+        if ($response === null || $response === '') {
+            return [];
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            return [];
+        }
+
+        if (self::isErrorResponse($data)) {
+            return [];
+        }
+
+        $records = $data['records'] ?? $data['data'] ?? $data['Roffer'] ?? $data['Plans'] ?? [];
+
+        return is_array($records) ? $records : [];
+    }
+
+    public static function responseErrorMessage(?string $response): ?string
+    {
+        if ($response === null || $response === '') {
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        foreach (['message', 'Message', 'error', 'Error', 'msg'] as $key) {
+            if (!empty($data[$key]) && is_string($data[$key])) {
+                return $data[$key];
             }
         }
 
         return null;
+    }
+
+    private static function isErrorResponse(array $data): bool
+    {
+        if (isset($data['status'])) {
+            $status = strtolower((string) $data['status']);
+            if (in_array($status, ['0', 'false', 'failed', 'fail', 'error'], true)) {
+                return true;
+            }
+        }
+
+        if (isset($data['Response']) && in_array($data['Response'], ['Fail', 'Failed', 'Error'], true)) {
+            return true;
+        }
+
+        if (isset($data['success']) && in_array($data['success'], [false, 0, '0', 'false'], true)) {
+            return true;
+        }
+
+        return false;
     }
 
     /** @return array{response: string, api_id: int}|null */
@@ -264,6 +331,15 @@ class PlanInfoFetchService
 
         $orderId = $orderPrefix . random_int(1111111111, 9999999999);
         $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
+        if (!$result || empty($result['response'])) {
+            return null;
+        }
+
+        $decoded = json_decode($result['response'], true);
+        if (is_array($decoded) && self::isErrorResponse($decoded)) {
+            return null;
+        }
+
         if ($result && !empty($result['response'])) {
             $result['api_id'] = (int) $api->id;
 

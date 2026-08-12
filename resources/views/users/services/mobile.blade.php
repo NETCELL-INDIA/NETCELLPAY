@@ -1355,7 +1355,11 @@
 
                         console.log(err);
 
-                        Error_Msg("Oops...", "Something went wrong!", "error");
+                        var msg = (err.responseJSON && err.responseJSON.message)
+                            ? err.responseJSON.message
+                            : "Something went wrong!";
+
+                        Error_Msg("Oops...", msg, "error");
 
                         $("#get_roffer_btn").text('Best Offer');
 
@@ -1487,11 +1491,15 @@
 
                         console.log(err);
 
-                        Error_Msg("Oops...", "Something went wrong!", "error");
+                        var msg = (err.responseJSON && err.responseJSON.message)
+                            ? err.responseJSON.message
+                            : "Something went wrong!";
 
-                        $("#get_roffer_btn").text('Plans');
+                        Error_Msg("Oops...", msg, "error");
 
-                        $('#get_roffer_btn').prop('disabled', false);
+                        $("#get_plans_btn").text('Plans');
+
+                        $('#get_plans_btn').prop('disabled', false);
 
                     }
 
