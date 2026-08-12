@@ -16,11 +16,18 @@ class UserCheck
      */
     public function handle(Request $request, Closure $next)
     {
-        $user = DB::table('users')->where("id",session('user_id'))->where("login_key",session('login_key'))->whereNotIn("role_id",[1,2])->first();
-        if(!$user){
+        $user = DB::table('users')
+            ->where('id', session('user_id'))
+            ->where('login_key', session('login_key'))
+            ->whereNotIn('role_id', [1, 2])
+            ->first();
+
+        if (!$user) {
+            $request->session()->forget(['user_id', 'login_key', 'role_id']);
+
             return redirect('users/login');
         }
-        //return "shiba";
+
         return $next($request);
     }
 }

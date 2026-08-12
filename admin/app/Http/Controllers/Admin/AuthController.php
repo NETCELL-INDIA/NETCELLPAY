@@ -18,9 +18,23 @@ class AuthController extends Controller
 {
     public function Login(Request $request)
     {
-        if(session('login_key')!=""){
+        $userId = session('user_id');
+        $user = $userId
+            ? DB::table('users')->where('id', $userId)->where('role_id', 1)->first()
+            : null;
+
+        if (
+            $user
+            && (int) ($user->status ?? 0) === 1
+            && (string) session('login_key') === (string) ($user->login_key ?? '')
+        ) {
             return redirect('admin/dashboard');
         }
+
+        if (session()->has('login_key') || session()->has('user_id')) {
+            $request->session()->forget(['user_id', 'login_key', 'role_id']);
+        }
+
         $host = $request->getHost();
         $company = DB::table('companies')->where('status', 1)->where('domain', $host)->first();
         if (!$company) {

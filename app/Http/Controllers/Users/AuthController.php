@@ -23,11 +23,20 @@ class AuthController extends Controller
 
     public function Login()
     {
-        if(session('login_key')!=""){
+        $user = DB::table('users')
+            ->where('id', session('user_id'))
+            ->where('login_key', session('login_key'))
+            ->whereNotIn('role_id', [1, 2])
+            ->first();
+
+        if ($user && (int) $user->status === 1) {
             return redirect('users/dashboard');
         }
-        //return session('login_key');
-        // dd("shiba");
+
+        if (session()->has('login_key') || session()->has('user_id')) {
+            session()->forget(['user_id', 'login_key', 'role_id']);
+        }
+
         $data['name'] = "shiba"; 
         return view('users.auth.login', $data);
     }

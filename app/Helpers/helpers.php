@@ -1036,7 +1036,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260812-RECHARGE-002';
+        return '20260812-REDIRECT-001';
     }
 }
 
