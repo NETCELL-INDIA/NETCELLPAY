@@ -4,9 +4,13 @@
 <head>
     <meta charset="utf-8" />
     @php
-        $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+        $company = DB::table('companies')
+            ->where('status', '1')
+            ->where('domain', request()->getHost())
+            ->first();
+        $company = $company ?: DB::table('companies')->where('status', '1')->first();
     @endphp
-    <title>@yield('title')| {{$company->company_name}}</title>
+    <title>@yield('title') | {{ $company->company_name ?? config('app.name') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     
@@ -23,7 +27,9 @@
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- Bootstrap Css -->
     <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css" />
-    <link rel="shortcut icon" href="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_icon}}">
+    @if($company && !empty($company->company_icon))
+    <link rel="shortcut icon" href="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_icon }}">
+    @endif
     @include('layouts.head-css')
 </head>
 

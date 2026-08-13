@@ -498,7 +498,7 @@
                             showOtpStep(data.local_otp || "");
                         }else if(data.type=="success"){
                             Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
-                            window.location.replace("dashboard")
+                            window.location.replace("{{ url('/users/dashboard') }}")
                        }else{
                             Error_Msg("Oops...","Something went wrong!","error");
                        }
@@ -536,7 +536,7 @@
                             Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
                        }else if(data.type=="success"){
                             Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
-                            window.location.replace("dashboard")
+                            window.location.replace("{{ url('/users/dashboard') }}")
                        }else{
                             Error_Msg("Oops...","Something went wrong!","error");
                        }

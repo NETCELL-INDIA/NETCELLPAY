@@ -129,6 +129,19 @@ Route::get('users/fund/qr-code-add-money-check-status/{order_id}',[allUpiMoneyCo
 Route::post('users/fund/qr-code-add-money-status/{order_id}',[allUpiMoneyController::class,'AddMoneyStatus'])->name('allUpiAddMoneyStatus');
 ///All Callback Url End
 //users Portal Routes 
+Route::get('users', function () {
+    $user = DB::table('users')
+        ->where('id', session('user_id'))
+        ->where('login_key', session('login_key'))
+        ->whereNotIn('role_id', [1, 2])
+        ->first();
+
+    if ($user && (int) $user->status === 1) {
+        return redirect('users/dashboard');
+    }
+
+    return redirect('users/login');
+});
 Route::get('users/login',[AuthController::class,'Login']);
 Route::post('users/login-check',[AuthController::class,'LoginCheck'])->name('LoginCheck');
 Route::post('users/check-otp-login',[AuthController::class,'checkLoginOtp'])->name('checkLoginOtp');

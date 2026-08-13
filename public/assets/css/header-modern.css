@@ -252,6 +252,25 @@
     }
 }
 
+@media (max-width: 767.98px) {
+    .nc-wallet-form {
+        display: block !important;
+    }
+
+    .nc-wallet-btn {
+        height: 34px;
+        padding: 0 10px 0 8px;
+    }
+
+    .nc-wallet-btn .wallet-label {
+        display: none;
+    }
+
+    .nc-wallet-btn .wallet-amount {
+        font-size: 12px;
+    }
+}
+
 @media (max-width: 575.98px) {
     :root {
         --nc-header-height: 60px;
@@ -262,12 +281,22 @@
     }
 
     .nc-brand-text strong {
-        max-width: 120px;
+        max-width: 88px;
         font-size: 12px;
+    }
+
+    .nc-brand-link {
+        max-width: min(160px, 38vw);
+        padding: 4px 8px 4px 4px;
     }
 
     .nc-topbar .user-name-text,
     .nc-topbar .user-name-sub-text {
         display: none !important;
+    }
+
+    .topnav-hamburger {
+        padding-left: .4rem !important;
+        padding-right: .4rem !important;
     }
 }

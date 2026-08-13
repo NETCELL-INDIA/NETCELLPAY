@@ -49,7 +49,7 @@
                 </button>
 
                 <!-- Wallet -->
-                <form class="app-search d-none d-md-block mb-0">
+                <form class="app-search nc-wallet-form mb-0">
                     <div class="position-relative">
                         <button type="button" class="btn nc-wallet-btn LoadWallet">
                             <span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span>

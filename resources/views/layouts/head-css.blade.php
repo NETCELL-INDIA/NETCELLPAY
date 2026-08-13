@@ -8,8 +8,8 @@
 <link href="{{ URL::asset('assets/css/icons.min.css') }}" rel="stylesheet" type="text/css" />
 <!-- App Css-->
 <link href="{{ URL::asset('assets/css/app.min.css') }}" id="app-style" rel="stylesheet" type="text/css" />
-<link href="{{ URL::asset('assets/css/header-modern.css') }}" rel="stylesheet" type="text/css" />
-<link href="{{ URL::asset('assets/css/portal-modern.css') }}" rel="stylesheet" type="text/css" />
+<link href="{{ URL::asset('assets/css/header-modern.css') }}?v={{ user_build_serial() }}" rel="stylesheet" type="text/css" />
+<link href="{{ URL::asset('assets/css/portal-modern.css') }}?v={{ user_build_serial() }}" rel="stylesheet" type="text/css" />
 <!-- custom Css-->
 <link href="{{ URL::asset('assets/css/custom.css') }}" rel="stylesheet" type="text/css" />
 {{-- @yield('css') --}}

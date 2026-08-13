@@ -3,7 +3,7 @@
 Dashboard
 @endsection
 @section('css')
-<link href="{{ URL::asset('assets/css/dashboard-modern.css') }}" rel="stylesheet" type="text/css" />
+<link href="{{ URL::asset('assets/css/dashboard-modern.css') }}?v={{ user_build_serial() }}" rel="stylesheet" type="text/css" />
 <link href="{{ URL::asset('assets/libs/jsvectormap/jsvectormap.min.css') }}" rel="stylesheet" type="text/css" />
 <link href="{{ URL::asset('assets/libs/swiper/swiper.min.css') }}" rel="stylesheet" type="text/css" />
 <link href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap.min.css" rel="stylesheet" type="text/css" />

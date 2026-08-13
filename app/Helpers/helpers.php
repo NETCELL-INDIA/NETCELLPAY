@@ -1136,7 +1136,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260812-COMPLAINT-002';
+        return '20260813-MOBILE-001';
     }
 }
 
