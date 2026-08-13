@@ -603,6 +603,136 @@ class PlanInfoFetchService
             . '&offer=roffer&tel=' . urlencode($number);
     }
 
+    /**
+     * @return array{
+     *   ok: bool,
+     *   type: string,
+     *   message: string,
+     *   data: array,
+     *   http_code: int|null,
+     *   response_type: string,
+     *   api_id: int|null,
+     *   endpoint: string|null
+     * }
+     */
+    public static function fetchDthPlans(int $providerId): array
+    {
+        self::ensureTable();
+
+        $setting = Schema::hasTable('plan_info_fetch_settings')
+            ? DB::table('plan_info_fetch_settings')->where('service_key', 'dth_plan_list')->first()
+            : null;
+
+        $attempts = $setting
+            ? [
+                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
+                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+            ]
+            : [
+                ['api_id' => 6, 'username' => null, 'password' => null],
+                ['api_id' => 7, 'username' => null, 'password' => null],
+            ];
+
+        $lastResult = null;
+
+        foreach ($attempts as $index => $attempt) {
+            $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
+            if (!$api) {
+                continue;
+            }
+
+            $url = self::buildDthPlansUrl($api, $providerId);
+            if ($url === null) {
+                $lastResult = self::planFetchResult(
+                    false,
+                    'error',
+                    'DTH operator code is not mapped for this provider. Contact admin.',
+                    [],
+                    null,
+                    'config',
+                    (int) $api->id,
+                    null
+                );
+                continue;
+            }
+
+            $orderId = 'DPL' . random_int(1111111111, 9999999999);
+            $requestResult = self::executePlanApiRequest($url, 'Plans', $orderId, [
+                'provider_id' => $providerId,
+                'api_id' => (int) $api->id,
+                'attempt' => $index === 0 ? 'primary' : 'backup',
+            ]);
+
+            if ($requestResult['ok'] && self::plansLookGrouped($requestResult['data'] ?? [])) {
+                return $requestResult;
+            }
+
+            if ($requestResult['ok'] && !empty($requestResult['data'])) {
+                $requestResult['data'] = ['Plans' => array_values($requestResult['data'])];
+                return $requestResult;
+            }
+
+            $lastResult = $requestResult;
+
+            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+                continue;
+            }
+
+            break;
+        }
+
+        if ($lastResult !== null) {
+            return $lastResult;
+        }
+
+        return self::planFetchResult(false, 'error', 'Unable to fetch DTH plans. Check plan API settings and operator code.');
+    }
+
+    public static function buildDthPlansUrl(object $api, int $providerId): ?string
+    {
+        $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
+        $host = strtolower((string) (parse_url((string) ($api->api_url ?? ''), PHP_URL_HOST) ?? ''));
+
+        if (str_contains($host, 'planapi.in')) {
+            [$memberId, $password] = self::resolveHlrCredentials($api);
+            $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, true);
+            if ($memberId === '' || $password === '' || $opcode === null) {
+                return null;
+            }
+
+            return 'https://planapi.in/api/Mobile/DthPlans?apimember_id=' . urlencode($memberId)
+                . '&api_password=' . urlencode($password)
+                . '&operatorcode=' . urlencode($opcode);
+        }
+
+        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
+        if ($key === '' || $opcode === null) {
+            return null;
+        }
+
+        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        return $base . '/plans.php?apikey=' . urlencode($key)
+            . '&operator=' . urlencode($opcode)
+            . '&cricle=All';
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private static function plansLookGrouped(array $data): bool
+    {
+        if ($data === [] || array_key_exists(0, $data)) {
+            return false;
+        }
+
+        $first = reset($data);
+
+        return is_array($first);
+    }
+
     public static function resolvePlanApiBaseUrl(object $api, bool $useEnvOverride = true): string
     {
         if ($useEnvOverride) {
@@ -985,9 +1115,95 @@ class PlanInfoFetchService
             return [];
         }
 
+        $dthPlans = self::normalizeDthPlanRecords($data);
+        if ($dthPlans !== []) {
+            return $dthPlans;
+        }
+
         $records = $data['records'] ?? $data['data'] ?? $data['Roffer'] ?? $data['Plans'] ?? [];
 
         return is_array($records) ? $records : [];
+    }
+
+    /**
+     * PlanAPI DthPlans returns RDATA with nested PricingList, not rs/desc/validity.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, array<int, array{rs: string, desc: string, validity: string}>>
+     */
+    private static function normalizeDthPlanRecords(array $data): array
+    {
+        $source = $data['RDATA'] ?? $data['rdata'] ?? null;
+        if (!is_array($source) || $source === []) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($source as $category => $packs) {
+            if (!is_array($packs)) {
+                continue;
+            }
+
+            $rows = [];
+            foreach ($packs as $pack) {
+                if (!is_array($pack)) {
+                    continue;
+                }
+
+                if (isset($pack['rs']) || isset($pack['desc'])) {
+                    $rows[] = [
+                        'rs' => (string) ($pack['rs'] ?? ''),
+                        'desc' => (string) ($pack['desc'] ?? $pack['PlanName'] ?? ''),
+                        'validity' => (string) ($pack['validity'] ?? ''),
+                    ];
+                    continue;
+                }
+
+                $details = $pack['Details'] ?? null;
+                if (!is_array($details) || $details === []) {
+                    $details = [$pack];
+                }
+
+                foreach ($details as $detail) {
+                    if (!is_array($detail)) {
+                        continue;
+                    }
+                    $name = trim((string) ($detail['PlanName'] ?? $detail['desc'] ?? ''));
+                    $channels = trim((string) ($detail['Channels'] ?? ''));
+                    $desc = trim($name . ($channels !== '' ? ' - ' . $channels : ''));
+                    $pricing = $detail['PricingList'] ?? null;
+                    if (is_array($pricing) && $pricing !== []) {
+                        foreach ($pricing as $price) {
+                            if (!is_array($price)) {
+                                continue;
+                            }
+                            $amount = preg_replace('/[^\d.]/', '', (string) ($price['Amount'] ?? $price['rs'] ?? '')) ?? '';
+                            $rows[] = [
+                                'rs' => $amount,
+                                'desc' => $desc,
+                                'validity' => (string) ($price['Month'] ?? $price['validity'] ?? ''),
+                            ];
+                        }
+                        continue;
+                    }
+
+                    if ($desc !== '' || isset($detail['rs'])) {
+                        $rows[] = [
+                            'rs' => (string) ($detail['rs'] ?? ''),
+                            'desc' => $desc !== '' ? $desc : (string) ($detail['desc'] ?? ''),
+                            'validity' => (string) ($detail['validity'] ?? ''),
+                        ];
+                    }
+                }
+            }
+
+            $label = is_string($category) && $category !== '' ? $category : 'Plans';
+            if ($rows !== []) {
+                $out[$label] = $rows;
+            }
+        }
+
+        return $out;
     }
 
     public static function responseErrorMessage(?string $response): ?string
@@ -1001,8 +1217,14 @@ class PlanInfoFetchService
             return null;
         }
 
-        foreach (['message', 'Message', 'error', 'Error', 'msg'] as $key) {
+        foreach (['message', 'Message', 'MESSAGE', 'msg'] as $key) {
             if (!empty($data[$key]) && is_string($data[$key])) {
+                return $data[$key];
+            }
+        }
+
+        foreach (['error', 'Error', 'ERROR'] as $key) {
+            if (!empty($data[$key]) && is_string($data[$key]) && !preg_match('/^\d+$/', $data[$key])) {
                 return $data[$key];
             }
         }
@@ -1020,7 +1242,17 @@ class PlanInfoFetchService
 
     private static function isErrorResponse(array $data): bool
     {
-        if (isset($data['status'])) {
+        $errorCode = $data['ERROR'] ?? $data['error'] ?? null;
+        $hasPayload = !empty($data['DATA']) || !empty($data['RDATA']) || !empty($data['records']) || !empty($data['Plans']);
+        if ($errorCode !== null && in_array((string) $errorCode, ['0', '', 'false'], true) && $hasPayload) {
+            return false;
+        }
+
+        if ($errorCode !== null && !in_array((string) $errorCode, ['0', '', 'false'], true)) {
+            return true;
+        }
+
+        if (isset($data['status']) && !$hasPayload) {
             $status = strtolower((string) $data['status']);
             if (in_array($status, ['0', 'false', 'failed', 'fail', 'error'], true)) {
                 return true;
@@ -1211,6 +1443,9 @@ class PlanInfoFetchService
         }
         if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
             return '29';
+        }
+        if (str_contains($name, 'big tv') || str_contains($name, 'bigtv')) {
+            return '26';
         }
 
         return null;

@@ -188,6 +188,7 @@ Route::group(['middleware' => userCheck::class], function () {
     //DTH Recharge Routes
     Route::get('users/services/dth',[RechargeController::class,'dthIndex']);
     Route::post('users/services/dth-info',[RechargeController::class,'dthInfo'])->name('serviceDthInfo');
+    Route::post('users/services/dth-plans',[RechargeController::class,'dthPlans'])->name('serviceDthPlans');
     Route::post('users/services/dth-heavy-refresh',[RechargeController::class,'dthHeavyRefresh'])->name('serviceDthHeavyRefresh');
     Route::get('users/services/postpaid',[RechargeController::class,'postpaidIndex']);
     //Bill Payments Routes

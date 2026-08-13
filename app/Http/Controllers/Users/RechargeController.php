@@ -1998,6 +1998,50 @@ class RechargeController extends Controller
 
 
 
+    public function dthPlans(Request $post)
+    {
+        $rules = [
+            'provider_id' => 'required|numeric',
+        ];
+
+        $validator = \Validator::make($post->all(), $rules);
+        if ($validator->fails()) {
+            $error = 'Please select DTH provider.';
+            foreach ($validator->errors()->messages() as $value) {
+                $error = $value[0];
+                break;
+            }
+
+            return response()->json([
+                'type' => 'error',
+                'message' => $error,
+            ]);
+        }
+
+        try {
+            $result = PlanInfoFetchService::fetchDthPlans((int) $post->provider_id);
+            if (empty($result['ok'])) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => $result['message'] ?? 'Unable to fetch DTH plans. Please try again.',
+                ]);
+            }
+
+            return response()->json([
+                'type' => 'success',
+                'message' => $result['message'] ?? 'Fatch Successfully',
+                'data' => $result['data'] ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to fetch DTH plans. Please try again.',
+            ]);
+        }
+    }
+
+
+
 
 
     public function dthHeavyRefresh(Request $post)
@@ -2171,7 +2215,7 @@ class RechargeController extends Controller
 
             'provider_id' => 'required|numeric',
 
-            'state_id' => 'required|numeric',
+            'state_id' => 'nullable|numeric',
 
         );
 
@@ -2214,6 +2258,23 @@ class RechargeController extends Controller
         // }
 
         try {
+
+        $serviceId = (int) DB::table('providers')->where('id', (int) $post->provider_id)->value('service_id');
+        if ($serviceId === 2) {
+            $result = PlanInfoFetchService::fetchDthPlans((int) $post->provider_id);
+            return response()->json([
+                'type' => $result['type'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? [],
+            ]);
+        }
+
+        if (!$post->filled('state_id')) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Please select circle/state.',
+            ]);
+        }
 
         $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, (int) $post->state_id);
 

@@ -65,6 +65,7 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/run-recharge-api',[RechargeController::class,'rechargeCall']);
     Route::post('/v1/recharge-reciept',[RechargeController::class,'getRechargeReciept']);
     Route::post('/v1/dth-info',[RechargeController::class,'dthInfo']);
+    Route::post('/v1/dth-plans',[RechargeController::class,'dthPlans']);
     Route::post('/v1/dth-heavy-refresh',[RechargeController::class,'dthHeavyRefresh']);
     Route::post('/v1/services-list',[ServicesController::class,'servicesList']);
     Route::post('/v1/service-providers',[ServicesController::class,'serviceProviders']);

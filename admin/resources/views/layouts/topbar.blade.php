@@ -5,14 +5,8 @@
                 <div class="navbar-brand-box horizontal-logo">
                     @php
                         $tbBrand = $company->company_name ?? 'NETCELL PAY';
-                        $tbIcon = admin_company_logo($company->company_icon ?? null);
                     @endphp
                     <a href="{{ URL::asset('admin/dashboard') }}" class="np-h-brand logo logo-dark logo-light" title="{{ $tbBrand }}">
-                        @if($tbIcon)
-                            <img src="{{ $tbIcon }}" alt="{{ $tbBrand }}" class="np-h-logo">
-                        @else
-                            <span class="np-h-mark">NP</span>
-                        @endif
                         <span class="np-h-text">
                             <strong>{{ $tbBrand }}</strong>
                             <span>Admin Panel</span>
@@ -53,9 +47,138 @@
                     <span class="rb-badge rb-badge-warn" id="TopBarPendingCount"></span>
                 </button>
 
-                <button type="button" class="btn rb-icon-btn" title="Fullscreen" data-toggle="fullscreen">
-                    <i class="ri-fullscreen-line"></i>
+                <button type="button" class="btn rb-icon-btn" id="adminFullscreenBtn" title="Fullscreen"
+                    onclick="return window.ncAdminFs && window.ncAdminFs.toggle(event);">
+                    <i class="ri-fullscreen-line" id="adminFullscreenIcon"></i>
                 </button>
+                <script>
+                (function () {
+                    var ORIGIN = location.origin;
+                    var inFrame = window.self !== window.top;
+
+                    function nativeOn(doc) {
+                        doc = doc || document;
+                        return !!(doc.fullscreenElement || doc.webkitFullscreenElement
+                            || doc.mozFullScreenElement || doc.msFullscreenElement);
+                    }
+                    function requestFs(doc) {
+                        doc = doc || document;
+                        var node = doc.documentElement;
+                        var req = node.requestFullscreen || node.webkitRequestFullscreen
+                            || node.mozRequestFullScreen || node.msRequestFullscreen;
+                        if (!req) return;
+                        try {
+                            var p = req.call(node);
+                            if (p && typeof p.catch === 'function') p.catch(function () {});
+                        } catch (err) {}
+                    }
+                    function exitFs(doc) {
+                        doc = doc || document;
+                        if (!nativeOn(doc)) return;
+                        var fn = doc.exitFullscreen || doc.webkitExitFullscreen
+                            || doc.mozCancelFullScreen || doc.msExitFullscreen;
+                        if (fn) {
+                            try { fn.call(doc); } catch (err) {}
+                        }
+                    }
+                    function setIcon(on) {
+                        var icon = document.getElementById('adminFullscreenIcon');
+                        var btn = document.getElementById('adminFullscreenBtn');
+                        if (icon) icon.className = on ? 'ri-fullscreen-exit-line' : 'ri-fullscreen-line';
+                        if (btn) {
+                            btn.classList.toggle('is-active', on);
+                            btn.title = on ? 'Exit fullscreen' : 'Fullscreen';
+                        }
+                    }
+                    function postParent(action) {
+                        try { window.top.postMessage({ type: 'nc-admin-fs', action: action }, ORIGIN); } catch (err) {}
+                    }
+                    function keepParentFs() {
+                        try {
+                            var d = window.top.document;
+                            if (nativeOn(d)) return;
+                            requestFs(d);
+                        } catch (err) {}
+                    }
+                    function shellEl() { return document.getElementById('nc-fs-shell'); }
+
+                    function enterShell() {
+                        if (inFrame) return;
+                        if (!shellEl()) {
+                            var wrap = document.createElement('div');
+                            wrap.id = 'nc-fs-shell';
+                            var iframe = document.createElement('iframe');
+                            iframe.id = 'nc-fs-frame';
+                            iframe.setAttribute('allow', 'fullscreen');
+                            iframe.src = location.href;
+                            wrap.appendChild(iframe);
+                            document.body.appendChild(wrap);
+                        }
+                        requestFs(document);
+                        setIcon(true);
+                    }
+                    function exitShell() {
+                        if (inFrame) {
+                            postParent('exit');
+                            return;
+                        }
+                        var iframe = document.getElementById('nc-fs-frame');
+                        var next = null;
+                        try {
+                            if (iframe && iframe.contentWindow) next = iframe.contentWindow.location.href;
+                        } catch (err) {}
+                        var wrap = shellEl();
+                        if (wrap) wrap.remove();
+                        exitFs(document);
+                        setIcon(false);
+                        if (next && next.split('#')[0] !== location.href.split('#')[0]) {
+                            location.replace(next);
+                        }
+                    }
+
+                    window.ncAdminFs = {
+                        toggle: function (e) {
+                            if (e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                            }
+                            if (inFrame) {
+                                postParent('toggle');
+                                return false;
+                            }
+                            if (shellEl()) exitShell();
+                            else enterShell();
+                            return false;
+                        }
+                    };
+
+                    if (inFrame) {
+                        setIcon(true);
+                        document.addEventListener('click', function (e) {
+                            if (e.target && e.target.closest && e.target.closest('#adminFullscreenBtn')) return;
+                            var a = e.target.closest && e.target.closest('a[href]');
+                            if (a && (a.target === '_top' || a.target === '_parent')) {
+                                a.target = '_self';
+                            }
+                            keepParentFs();
+                        }, true);
+                    } else {
+                        window.addEventListener('message', function (e) {
+                            if (e.origin !== ORIGIN) return;
+                            if (!e.data || e.data.type !== 'nc-admin-fs') return;
+                            if (e.data.action === 'toggle') {
+                                if (shellEl()) exitShell();
+                                else enterShell();
+                            } else if (e.data.action === 'exit') {
+                                exitShell();
+                            } else if (e.data.action === 'keep') {
+                                if (shellEl()) requestFs(document);
+                            }
+                        });
+                    }
+                })();
+                </script>
 
                 @php
                     $topUser = optional(DB::table('users')->where('id', Session::get('user_id'))->first());

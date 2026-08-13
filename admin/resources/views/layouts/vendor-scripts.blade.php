@@ -44,12 +44,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         items.forEach(function (item) { nav.appendChild(item); });
     }
+    function flattenMoreMenu() {
+        var more = document.getElementById('sidebarMore');
+        var nav = document.getElementById('navbar-nav');
+        if (!more || !nav) return;
+        var list = more.querySelector('ul');
+        var moreItem = more.closest('li.nav-item');
+        if (list) {
+            Array.prototype.slice.call(list.children).forEach(function (item) {
+                nav.appendChild(item);
+            });
+        }
+        if (moreItem) {
+            moreItem.remove();
+        }
+    }
     unwrapNavbarSimpleBar();
-    setTimeout(unwrapNavbarSimpleBar, 50);
-    setTimeout(unwrapNavbarSimpleBar, 400);
+    flattenMoreMenu();
+    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 50);
+    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 400);
     window.addEventListener('load', function () {
         unwrapNavbarSimpleBar();
-        setTimeout(unwrapNavbarSimpleBar, 200);
+        flattenMoreMenu();
+        setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 200);
     });
 })();
 </script>

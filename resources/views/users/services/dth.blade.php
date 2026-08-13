@@ -122,7 +122,21 @@
 
                                     <button type="button" onclick="getDthInfo()" id="get_DthInfo_btn"
 
-                                        class="form-control btn btn-secondary bg-gradient waves-effect waves-light">Customer Info</button>
+                                        class="form-control btn btn-secondary bg-gradient waves-effect waves-light">DTH Info</button>
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-lg-2">
+
+                                <div>
+
+                                    <label class="form-label mb-0"></label>
+
+                                    <button type="button" onclick="getDthPlans()" id="get_DthPlans_btn"
+
+                                        class="form-control btn btn-secondary bg-gradient waves-effect waves-light">Plan Details</button>
 
                                 </div>
 
@@ -343,6 +357,60 @@
     </div>
 
 
+
+    <div id="dthPlansModal" class="modal receipt" tabindex="-1" aria-labelledby="dthPlansModalLabel" data-bs-backdrop="static"
+
+        data-bs-keyboard="false" aria-hidden="true" style="display: none;">
+
+        <div class="modal-dialog modal-dialog-scrollable">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="dthPlansModalLabel">DTH Plan Details</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"> </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <div id="dth_plan_tab" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+
+                    <table class="table table-bordered m-0 mt-2">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Details</th>
+
+                                <th>Validity</th>
+
+                                <th>Amount</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="dth_plan_details"></tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
 
@@ -810,18 +878,83 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(data) {
-                    $("#get_DthInfo_btn").text('Customer Info');
+                    $("#get_DthInfo_btn").text('DTH Info');
                     $('#get_DthInfo_btn').prop('disabled', false);
                     if (data.type == "success") {
                         showDthInfo(data.data);
                     } else {
-                        Error_Msg("Customer Info", data.message || "Unable to fetch DTH info.", "error");
+                        Error_Msg("DTH Info", data.message || "Unable to fetch DTH info.", "error");
                     }
                 },
                 error: function() {
-                    $("#get_DthInfo_btn").text('Customer Info');
+                    $("#get_DthInfo_btn").text('DTH Info');
                     $('#get_DthInfo_btn').prop('disabled', false);
-                    Error_Msg("Customer Info", "Unable to fetch DTH info.", "error");
+                    Error_Msg("DTH Info", "Unable to fetch DTH info.", "error");
+                }
+            });
+        }
+
+        function SelectDthAmount(amount) {
+            $("#amount_i").val(amount);
+            $('#dthPlansModal').modal('hide');
+        }
+
+        function DthPlanShow(id) {
+            $('.dth_list_tr').hide();
+            $('.dth_list_' + id).show();
+        }
+
+        function getDthPlans() {
+            var provider_id = $("#provider_id").val();
+            if (provider_id == "") {
+                Error_Msg("Oops...", "Please Select Provider", "error");
+                return;
+            }
+            $("#get_DthPlans_btn").text('Wait...');
+            $('#get_DthPlans_btn').prop('disabled', true);
+            $.ajax({
+                url: '{{ route('serviceDthPlans') }}',
+                method: 'post',
+                data: {
+                    provider_id: provider_id,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(data) {
+                    $("#get_DthPlans_btn").text('Plan Details');
+                    $('#get_DthPlans_btn').prop('disabled', false);
+                    if (data.type == "success") {
+                        var html_tab = '';
+                        $('#dth_plan_tab').empty();
+                        $('#dth_plan_details').empty();
+                        var firstTab = '';
+                        $.each(data.data || {}, function(key, list) {
+                            var tab_val = String(key).replace(/[^a-zA-Z0-9_-]/g, '_');
+                            if (!firstTab) firstTab = tab_val;
+                            html_tab = '<button type="button" class="btn btn-sm btn-primary" onclick="DthPlanShow(\'' + tab_val + '\')">' + $('<div>').text(key).html() + '</button>';
+                            $('#dth_plan_tab').append(html_tab);
+                            $.each(list || [], function(_, val) {
+                                var row = '<tr class="dth_list_tr dth_list_' + tab_val + '" onclick="SelectDthAmount(\'' + (val.rs || '') + '\')">'
+                                    + '<td>' + $('<div>').text(val.desc || '').html() + '</td>'
+                                    + '<td>' + $('<div>').text(val.validity || '').html() + '</td>'
+                                    + '<td><a style="font-size:18px;font-weight:bold;background:#0c007d;border-radius:5px;padding:6px 10px;color:#fff;">' + $('<div>').text(val.rs || '').html() + '</a></td>'
+                                    + '</tr>';
+                                $('#dth_plan_details').append(row);
+                            });
+                        });
+                        if (!$('#dth_plan_details tr').length) {
+                            Error_Msg("Plan Details", "No DTH plans found for this operator.", "error");
+                            return;
+                        }
+                        if (firstTab) DthPlanShow(firstTab);
+                        $('#dthPlansModal').modal('show');
+                    } else {
+                        Error_Msg("Plan Details", data.message || "Unable to fetch DTH plans.", "error");
+                    }
+                },
+                error: function() {
+                    $("#get_DthPlans_btn").text('Plan Details');
+                    $('#get_DthPlans_btn').prop('disabled', false);
+                    Error_Msg("Plan Details", "Unable to fetch DTH plans.", "error");
                 }
             });
         }
