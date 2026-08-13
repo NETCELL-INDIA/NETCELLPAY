@@ -35,6 +35,14 @@
             vertical-align: middle;
         }
         .live-table td { font-size: 12px; vertical-align: middle; }
+        .rpt-status-wrap { display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+        .rpt-status { font-weight: 800; font-size: 12px; letter-spacing: .03em; text-transform: uppercase; }
+        .rpt-status--success { color: #157347; }
+        .rpt-status--pending { color: #b78103; }
+        .rpt-status--failure { color: #dc3545; }
+        .rpt-status--refunded { color: #0d6efd; }
+        .rpt-status--muted { color: #6c757d; }
+        .rpt-status-id { font-size: 11px; font-weight: 700; color: #495057; }
         .opt-supplier { color: #e6a700; font-weight: 600; }
         .opt-client { color: #0dcaf0; font-weight: 600; }
         .check-row { gap: 18px; }
@@ -81,10 +89,10 @@
             <label class="form-label mb-1 small fw-semibold">Status</label>
             <select class="form-select form-select-sm" id="status">
                 <option value="">Select Status</option>
-                <option value="Success">Success</option>
-                <option value="Pending">Pending</option>
-                <option value="Failure">Failure</option>
-                <option value="Refunded">Refunded</option>
+                <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
+                <option value="Pending" style="color:#b78103;font-weight:700">PENDING</option>
+                <option value="Failure" style="color:#dc3545;font-weight:700">FAILURE</option>
+                <option value="Refunded" style="color:#0d6efd;font-weight:700">REFUNDED</option>
             </select>
         </div>
         <div class="col-lg-1 col-md-3">

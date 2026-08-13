@@ -1136,7 +1136,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260813-WEB-003';
+        return '20260813-WEB-005';
     }
 }
 
@@ -1212,6 +1212,39 @@ if (! function_exists('admin_slider_image_url')) {
         }
 
         return $base.'/slider_image/'.rawurlencode(basename($filename));
+    }
+}
+
+if (! function_exists('report_status_html')) {
+    function report_status_html($status, $id = null): string
+    {
+        $raw = trim((string) $status);
+        $key = strtolower($raw);
+        $label = $raw !== '' ? strtoupper($raw) : '-';
+        $cls = 'muted';
+
+        if ($key === 'success') {
+            $label = 'SUCCESS';
+            $cls = 'success';
+        } elseif (in_array($key, ['pending', 'under proces', 'under process', 'processing'], true)) {
+            $label = 'PENDING';
+            $cls = 'pending';
+        } elseif (in_array($key, ['failed', 'failure'], true)) {
+            $label = 'FAILURE';
+            $cls = 'failure';
+        } elseif (in_array($key, ['refunded', 'refund'], true)) {
+            $label = 'REFUNDED';
+            $cls = 'refunded';
+        }
+
+        $html = '<div class="rpt-status-wrap">';
+        $html .= '<span class="rpt-status rpt-status--' . $cls . '">' . e($label) . '</span>';
+        if ($id !== null && $id !== '') {
+            $html .= '<span class="rpt-status-id">ID: ' . e($id) . '</span>';
+        }
+        $html .= '</div>';
+
+        return $html;
     }
 }
 

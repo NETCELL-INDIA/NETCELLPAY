@@ -1532,6 +1532,34 @@ table thead.table-dark > tr > th {
     padding: 0.18em 0.45em;
 }
 
+.rpt-status-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.15;
+}
+.rpt-status {
+    font-weight: 800;
+    font-size: 0.78rem;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+.rpt-status--success { color: #157347; }
+.rpt-status--pending { color: #b78103; }
+.rpt-status--failure { color: #dc3545; }
+.rpt-status--refunded { color: #0d6efd; }
+.rpt-status--muted { color: #6c757d; }
+.rpt-status-id {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #495057;
+}
+
+.recharge-summary__item--success { background: #e8f6ee; color: #146c43; border-color: #198754; }
+.recharge-summary__item--pending { background: #fff8e1; color: #9a7400; border-color: #ffc107; }
+.recharge-summary__item--failure { background: #fdecee; color: #b02a37; border-color: #dc3545; }
+.recharge-summary__item--refunded { background: #e7f1ff; color: #0a58ca; border-color: #0d6efd; }
+
 .recharge-order-id {
     display: block;
     font-weight: 600;

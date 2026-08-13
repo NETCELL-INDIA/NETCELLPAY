@@ -144,17 +144,6 @@ class AdminReportsController extends Controller
         if ($reports->count() > 0) {
             foreach ($reports as $list) {
                 $status = $list->status ?: '-';
-                $badge = 'secondary';
-                if ($status === 'Success') {
-                    $badge = 'success';
-                } elseif (in_array($status, ['Failed', 'Failure'], true)) {
-                    $badge = 'danger';
-                } elseif (in_array($status, ['Refunded', 'Refund'], true)) {
-                    $badge = 'primary';
-                } elseif (in_array($status, ['Pending', 'Under Proces', 'Under Process'], true)) {
-                    $badge = 'warning';
-                }
-
                 $userDetails = trim(($list->outlet_name ?: $list->first_name ?: 'User') . ' / ' . ($list->mobile_number ?: '-') . ' / ID:' . ($list->user_id ?: '-'));
                 $dt = $list->transaction_date ?: $list->created_at;
                 $mode = $hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB');
@@ -170,7 +159,7 @@ class AdminReportsController extends Controller
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="live-number" style="cursor:pointer;">' . e($list->number ?: '-') . '</td>
                     <td>₹' . number_format((float) $list->amount, 2) . '</td>
-                    <td><span class="badge bg-' . $badge . '">' . e(strtoupper($status)) . '</span></td>
+                    <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td><small>' . $idsLine . '</small></td>
                     <td>' . e(strtoupper((string) $mode)) . '</td>

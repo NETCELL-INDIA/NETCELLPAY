@@ -17,6 +17,14 @@
         .receipt {
             --vz-modal-width: 900px;
         }
+        .rpt-status-wrap { display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+        .rpt-status { font-weight: 800; font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
+        .rpt-status--success { color: #157347; }
+        .rpt-status--pending { color: #b78103; }
+        .rpt-status--failure { color: #dc3545; }
+        .rpt-status--refunded { color: #0d6efd; }
+        .rpt-status--muted { color: #6c757d; }
+        .rpt-status-id { font-size: 12px; font-weight: 700; color: #495057; }
     </style>
 <div class="row">
     <div class="col-lg-12">

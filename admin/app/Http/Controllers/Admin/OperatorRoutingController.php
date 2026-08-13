@@ -5,18 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class OperatorRoutingController extends Controller
 {
-    public function __construct()
-    {
-        $this->ensureTable();
-    }
-
     private function ensureTable(): void
     {
-        if (!Schema::hasTable('operator_service_routings')) {
+        try {
+            if (Schema::hasTable('operator_service_routings')) {
+                return;
+            }
+
             Schema::create('operator_service_routings', function ($table) {
                 $table->id();
                 $table->unsignedBigInteger('service_id');
@@ -39,55 +40,61 @@ class OperatorRoutingController extends Controller
                 $table->timestamps();
                 $table->unique(['service_id', 'provider_id']);
             });
-        }
-
-        // Ensure common mobile operators exist
-        $mobileId = DB::table('services')->where('service_name', 'like', '%Mobile%')->value('id') ?: 1;
-        $needed = ['Airtel', 'BSNL', 'Jio', 'Vi'];
-        foreach ($needed as $name) {
-            $exists = DB::table('providers')->where('provider_name', $name)->where('service_id', $mobileId)->exists();
-            if (!$exists) {
-                DB::table('providers')->insert([
-                    'provider_name' => $name,
-                    'service_id' => $mobileId,
-                    'status' => 1,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
+        } catch (Throwable $e) {
+            Log::warning('operator_service_routings table create failed: '.$e->getMessage());
         }
     }
 
     public function index()
     {
-        $services = DB::table('services')->orderBy('service_name')->get(['id', 'service_name']);
-        $apis = DB::table('apis')->orderBy('api_name')->get(['id', 'api_name']);
-        $defaultService = $services->firstWhere('service_name', 'Mobile')->id
-            ?? $services->first()->id
-            ?? 1;
+        $this->ensureTable();
+
+        $services = Schema::hasTable('services')
+            ? DB::table('services')->orderBy('service_name')->get(['id', 'service_name'])
+            : collect();
+        $apis = Schema::hasTable('apis')
+            ? DB::table('apis')->orderBy('api_name')->get(['id', 'api_name'])
+            : collect();
+
+        $mobile = $services->first(function ($service) {
+            return stripos((string) $service->service_name, 'mobile') !== false;
+        });
+        $defaultService = (int) ($mobile->id ?? optional($services->first())->id ?? 1);
 
         return view('admin.routings.operator-routing', compact('services', 'apis', 'defaultService'));
     }
 
     public function list(Request $request)
     {
+        $this->ensureTable();
+
         $serviceId = (int) ($request->service_id ?: 1);
+        if (!Schema::hasTable('providers')) {
+            return response()->json(['type' => 'success', 'data' => []]);
+        }
+
+        $columns = ['id', 'provider_name', 'api_id'];
+        foreach (['backup_api_id', 'backup_api2_id', 'backup_api3_id'] as $column) {
+            if (Schema::hasColumn('providers', $column)) {
+                $columns[] = $column;
+            }
+        }
+
         $providers = DB::table('providers')
             ->where('service_id', $serviceId)
             ->where(function ($q) {
                 $q->where('status', 1)->orWhereNull('status');
             })
             ->orderBy('provider_name')
-            ->get(['id', 'provider_name', 'api_id', 'backup_api_id', 'backup_api2_id', 'backup_api3_id']);
+            ->get($columns);
 
-        $saved = DB::table('operator_service_routings')
-            ->where('service_id', $serviceId)
-            ->get()
-            ->keyBy('provider_id');
+        $saved = Schema::hasTable('operator_service_routings')
+            ? DB::table('operator_service_routings')->where('service_id', $serviceId)->get()->keyBy('provider_id')
+            : collect();
 
         $data = $providers->map(function ($p) use ($saved, $serviceId) {
             $row = $saved->get($p->id);
-            // Prefer providers table (used by recharge) over routing-only values.
+
             return [
                 'provider_id' => $p->id,
                 'provider_name' => $p->provider_name,
@@ -115,10 +122,15 @@ class OperatorRoutingController extends Controller
 
     public function save(Request $request)
     {
+        $this->ensureTable();
+
         $serviceId = (int) $request->service_id;
         $rows = $request->rows;
         if (!$serviceId || !is_array($rows)) {
             return response()->json(['type' => 'error', 'message' => 'Invalid payload']);
+        }
+        if (!Schema::hasTable('operator_service_routings')) {
+            return response()->json(['type' => 'error', 'message' => 'Routing table is not available. Run migrations on the server.']);
         }
 
         $now = now();
@@ -160,14 +172,20 @@ class OperatorRoutingController extends Controller
                 DB::table('operator_service_routings')->insert($payload);
             }
 
-            // Sync into providers so recharge ProcessRecharge uses these APIs.
-            DB::table('providers')->where('id', $providerId)->update([
+            $providerUpdate = [
                 'api_id' => (int) ($row['primary_api_1'] ?? 0),
+                'updated_at' => $now,
+            ];
+            foreach ([
                 'backup_api_id' => (int) ($row['primary_api_2'] ?? 0),
                 'backup_api2_id' => (int) ($row['primary_api_3'] ?? 0),
                 'backup_api3_id' => (int) ($row['primary_api_4'] ?? 0),
-                'updated_at' => $now,
-            ]);
+            ] as $column => $value) {
+                if (Schema::hasColumn('providers', $column)) {
+                    $providerUpdate[$column] = $value;
+                }
+            }
+            DB::table('providers')->where('id', $providerId)->update($providerUpdate);
         }
 
         return response()->json(['type' => 'success', 'message' => 'Operator API switch saved']);

@@ -166,17 +166,6 @@ class RechargeReportsController extends Controller
         if ($reports->count() > 0) {
             foreach ($reports as $list) {
                 $status = $list->status ?: '-';
-                $badge = 'secondary';
-                if ($status === 'Success') {
-                    $badge = 'success';
-                } elseif (in_array($status, ['Failed', 'Failure'], true)) {
-                    $badge = 'danger';
-                } elseif (in_array($status, ['Refunded', 'Refund'], true)) {
-                    $badge = 'primary';
-                } elseif (in_array($status, ['Pending', 'Under Proces', 'Under Process'], true)) {
-                    $badge = 'warning';
-                }
-
                 $userName = e($list->outlet_name ?: $list->first_name ?: 'User');
                 $userMobile = e($list->mobile_number ?: '-');
                 $userId = e($list->user_id ?: '-');
@@ -208,7 +197,7 @@ class RechargeReportsController extends Controller
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
                     <td class="text-end recharge-amount">₹' . number_format((float) $list->amount, 2) . '</td>
-                    <td><span class="badge bg-' . $badge . '">' . e(strtoupper($status)) . '</span></td>
+                    <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="recharge-ids"><span>' . $opId . '</span><span>' . $reqId . '</span></td>
                     <td>' . $mode . '</td>
@@ -836,7 +825,7 @@ class RechargeReportsController extends Controller
 
                 <td>
 
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->status . '</span>
+                    ' . report_status_html($list->status, $list->id) . '
 
                 </td>
 

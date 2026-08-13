@@ -29,37 +29,50 @@ class WebsiteCmsController extends Controller
 
     public static function ensureTable(): void
     {
-        if (Schema::hasTable('website_media')) {
-            return;
-        }
+        try {
+            if (Schema::hasTable('website_media')) {
+                return;
+            }
 
-        Schema::create('website_media', function ($table) {
-            $table->id();
-            $table->string('kind', 20);
-            $table->string('title')->nullable();
-            $table->string('image')->nullable();
-            $table->string('link_url', 500)->nullable();
-            $table->text('body')->nullable();
-            $table->unsignedTinyInteger('status')->default(1);
-            $table->unsignedInteger('sort_order')->default(0);
-            $table->unsignedTinyInteger('deleted_at')->default(0);
-            $table->timestamps();
-        });
+            Schema::create('website_media', function ($table) {
+                $table->id();
+                $table->string('kind', 20);
+                $table->string('title')->nullable();
+                $table->string('image')->nullable();
+                $table->string('link_url', 500)->nullable();
+                $table->text('body')->nullable();
+                $table->unsignedTinyInteger('status')->default(1);
+                $table->unsignedInteger('sort_order')->default(0);
+                $table->unsignedTinyInteger('deleted_at')->default(0);
+                $table->timestamps();
+            });
+        } catch (\Throwable $e) {
+            \Log::warning('website_media table create failed: '.$e->getMessage());
+        }
     }
 
     public static function ensurePagesTable(): void
     {
+        try {
+            if (!Schema::hasTable('website_pages')) {
+                Schema::create('website_pages', function ($table) {
+                    $table->id();
+                    $table->string('slug', 64)->unique();
+                    $table->string('name');
+                    $table->string('path', 120);
+                    $table->string('title')->nullable();
+                    $table->string('heading')->nullable();
+                    $table->longText('body')->nullable();
+                    $table->timestamps();
+                });
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('website_pages table create failed: '.$e->getMessage());
+            return;
+        }
+
         if (!Schema::hasTable('website_pages')) {
-            Schema::create('website_pages', function ($table) {
-                $table->id();
-                $table->string('slug', 64)->unique();
-                $table->string('name');
-                $table->string('path', 120);
-                $table->string('title')->nullable();
-                $table->string('heading')->nullable();
-                $table->longText('body')->nullable();
-                $table->timestamps();
-            });
+            return;
         }
 
         foreach (self::PAGES as $slug => $meta) {
@@ -110,7 +123,9 @@ class WebsiteCmsController extends Controller
             $siteBase = rtrim((string) config('app.url'), '/');
         }
 
-        $saved = DB::table('website_pages')->get()->keyBy('slug');
+        $saved = Schema::hasTable('website_pages')
+            ? DB::table('website_pages')->get()->keyBy('slug')
+            : collect();
         $pages = [];
         foreach (self::PAGES as $slug => $meta) {
             $row = $saved[$slug] ?? null;
@@ -138,7 +153,9 @@ class WebsiteCmsController extends Controller
             return response()->json(['type' => 'error', 'message' => 'This page cannot be edited.']);
         }
 
-        $row = DB::table('website_pages')->where('slug', $slug)->first();
+        $row = Schema::hasTable('website_pages')
+            ? DB::table('website_pages')->where('slug', $slug)->first()
+            : null;
         if (!$row) {
             return response()->json(['type' => 'error', 'message' => 'Page not found.']);
         }
@@ -149,6 +166,9 @@ class WebsiteCmsController extends Controller
     public function pageSave(Request $post)
     {
         self::ensurePagesTable();
+        if (!Schema::hasTable('website_pages')) {
+            return response()->json(['type' => 'error', 'message' => 'Pages table is not available. Run migrations on the server.']);
+        }
         $slug = (string) $post->slug;
         if (!isset(self::PAGES[$slug]) || empty(self::PAGES[$slug]['editable'])) {
             return response()->json(['type' => 'error', 'message' => 'This page cannot be edited.']);
@@ -242,6 +262,9 @@ class WebsiteCmsController extends Controller
     public function mediaList(Request $post)
     {
         self::ensureTable();
+        if (!Schema::hasTable('website_media')) {
+            return '<h4 class="text-center text-secondary my-3">No record found</h4>';
+        }
         $kind = $this->validKind($post->kind);
         $list = DB::table('website_media')
             ->where('kind', $kind)
@@ -291,6 +314,9 @@ class WebsiteCmsController extends Controller
     public function mediaSave(Request $post)
     {
         self::ensureTable();
+        if (!Schema::hasTable('website_media')) {
+            return response()->json(['type' => 'error', 'message' => 'Media table is not available. Run migrations on the server.']);
+        }
         $kind = $this->validKind($post->kind);
         $rules = [
             'title' => 'required|string|max:190',
@@ -384,6 +410,11 @@ class WebsiteCmsController extends Controller
 
     private function company()
     {
-        return DB::table('companies')->where('deleted_at', '!=', 1)->orderBy('id')->first();
+        $query = DB::table('companies');
+        if (Schema::hasColumn('companies', 'deleted_at')) {
+            $query->where('deleted_at', '!=', 1);
+        }
+
+        return $query->orderBy('id')->first();
     }
 }

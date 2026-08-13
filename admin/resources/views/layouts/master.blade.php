@@ -33,7 +33,7 @@
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- Bootstrap Css -->
     <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" id="bootstrap-style" rel="stylesheet" type="text/css" />
-    @if(!empty($company->company_icon))
+    @if(!empty($company?->company_icon))
         <link rel="shortcut icon" href="{{ admin_company_logo($company->company_icon ?? null) ?? admin_asset('assets/images/favicon.ico') }}">
     @else
         <link rel="shortcut icon" href="{{ URL::asset('assets/images/favicon.ico') }}">

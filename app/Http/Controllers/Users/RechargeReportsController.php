@@ -142,15 +142,6 @@ class RechargeReportsController extends Controller
             <tbody>';
             $i=$start + 1;
 			foreach ($list as $list) {
-                if($list->status == "Success"){
-                    $bg = "success";
-                }elseif ($list->status == "Failed") {
-                    $bg = "danger";
-                }elseif ($list->status == "Refunded") {
-                    $bg = "secondary";
-                }else{
-                    $bg = "warning";
-                }
                 if($list->status == "Success" && $list->complaint_id == 0 && \helpers::reportAllowsComplaint($list)){
                     $action = '<button type="submit" class="btn btn-secondary" id="receipt_btn" onclick="receiptView(`' . $list->id . '`)"><i class="ri-file-list-3-line"></i> Receipt</button>  <button type="submit" class="btn btn-warning" id="complaint_btn" onclick="complaintView(`' . $list->id . '`,`' . $list->order_id . '`)"><i class="ri-questionnaire-fill"></i> Complaint</button>';
                 }else{
@@ -166,7 +157,7 @@ class RechargeReportsController extends Controller
                     $state = "No State";
                 }
 				$output .= '<tr>
-                <td>' . $i . '</td>
+                <td>' . e($list->id) . '</td>
                 <td>
                     ' . $list->transaction_date . ' </br>
                     Number : ' . $list->number . ' </br>
@@ -179,7 +170,7 @@ class RechargeReportsController extends Controller
                 <td>' . $list->order_id . '</td>
                 <td>' . $list->operator_id . '</td>
                 <td>
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->status . '</span>
+                    ' . report_status_html($list->status, $list->id) . '
                 </td>
                 <td style="font-size: 18px;"> ₹ ' . $list->total_amount . '</td> 
                 <td style="font-size: 18px;"> ₹ ' . DB::table($table)->where('order_id',$list->order_id)->whereIn('transaction_type',['Recharge'])->first(['amount'])->amount . '</td> 

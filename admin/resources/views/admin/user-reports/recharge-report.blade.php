@@ -91,10 +91,10 @@
                     <label class="form-label">Status</label>
                     <select class="form-select form-select-sm" id="status">
                         <option value="">All</option>
-                        <option value="Success">Success</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Failure">Failure</option>
-                        <option value="Refunded">Refunded</option>
+                        <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
+                        <option value="Pending" style="color:#b78103;font-weight:700">PENDING</option>
+                        <option value="Failure" style="color:#dc3545;font-weight:700">FAILURE</option>
+                        <option value="Refunded" style="color:#0d6efd;font-weight:700">REFUNDED</option>
                     </select>
                 </div>
                 <div class="recharge-filter-field recharge-filter-field--search">
@@ -145,10 +145,10 @@
     </div>
     <div class="card-body py-2 px-3">
         <div class="recharge-summary" id="summaryPills">
-            <span class="recharge-summary__item recharge-summary__item--success">Success: 0.00 (0)</span>
-            <span class="recharge-summary__item recharge-summary__item--pending">Pending: 0.00 (0)</span>
-            <span class="recharge-summary__item recharge-summary__item--failure">Failure: 0.00 (0)</span>
-            <span class="recharge-summary__item recharge-summary__item--refunded">Refunded: 0.00 (0)</span>
+            <span class="recharge-summary__item recharge-summary__item--success">SUCCESS: 0.00 (0)</span>
+            <span class="recharge-summary__item recharge-summary__item--pending">PENDING: 0.00 (0)</span>
+            <span class="recharge-summary__item recharge-summary__item--failure">FAILURE: 0.00 (0)</span>
+            <span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: 0.00 (0)</span>
         </div>
 
         <div class="table-responsive recharge-list-table-wrap">
@@ -304,11 +304,19 @@ function filterPayload(extra) {
 
 function renderSummary(s) {
     $('#summaryPills').html(
-        '<span class="recharge-summary__item recharge-summary__item--success">Success: ' + s.success_amt + ' (' + s.success_cnt + ')</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--pending">Pending: ' + s.pending_amt + ' (' + s.pending_cnt + ')</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--failure">Failure: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--refunded">Refunded: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
+        '<span class="recharge-summary__item recharge-summary__item--success">SUCCESS: ' + s.success_amt + ' (' + s.success_cnt + ')</span>' +
+        '<span class="recharge-summary__item recharge-summary__item--pending">PENDING: ' + s.pending_amt + ' (' + s.pending_cnt + ')</span>' +
+        '<span class="recharge-summary__item recharge-summary__item--failure">FAILURE: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
+        '<span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
     );
+}
+
+function colorStatusSelect() {
+    var el = document.getElementById('status');
+    if (!el) return;
+    var colors = { Success: '#157347', Pending: '#b78103', Failure: '#dc3545', Refunded: '#0d6efd' };
+    el.style.color = colors[el.value] || '';
+    el.style.fontWeight = el.value ? '700' : '';
 }
 
 function fetchAllSearch() {
@@ -455,6 +463,8 @@ $(function () {
     $('#btnPrev').on('click', function () { if (currentPage > 1) { currentPage--; fetchAllSearch(); } });
     $('#btnNext').on('click', function () { if (currentPage < lastPage) { currentPage++; fetchAllSearch(); } });
     $('#show').on('change', function () { currentPage = 1; fetchAllSearch(); });
+    $('#status').on('change', colorStatusSelect);
+    colorStatusSelect();
 
     $(document).on('click', '.editComplaint', function (e) {
         e.preventDefault();
