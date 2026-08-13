@@ -749,6 +749,7 @@ class RechargeControllerV2 extends Controller
                     'message' => $th
                 )); 
             }
+        }
 
         return response()->json([
             'type' => 'error',

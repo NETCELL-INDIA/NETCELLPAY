@@ -1806,6 +1806,8 @@ class RechargeController extends Controller
 
             }
 
+        }
+
         return response()->json([
             'type' => 'error',
             'message' => 'Unable to submit complaint. Please try again.',
