@@ -35,7 +35,7 @@
 <body class="nc-site">
     <div class="nc-announcement">
         <div class="nc-container nc-announcement-inner">
-            <p><span class="nc-status-dot"></span> Fast, secure and trusted digital payment services</p>
+            <p><span class="nc-status-dot"></span> {{ !empty($company->header_value) ? $company->header_value : 'Fast, secure and trusted digital payment services' }}</p>
             <div class="nc-contact-links">
                 @if(!empty($company->support_email))
                     <a href="mailto:{{ $company->support_email }}">

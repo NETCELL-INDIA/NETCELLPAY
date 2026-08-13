@@ -340,6 +340,269 @@ class PlanInfoFetchService
             . '&cricle=' . $circleCode;
     }
 
+    /**
+     * PlanAPI OperatorFetchNew needs member ID + password, not the UUID API key.
+     * Settings sometimes store the key as username; ignore UUID overrides.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public static function resolveHlrCredentials(object $api): array
+    {
+        $memberId = trim((string) ($api->api_username ?? ''));
+        $password = trim((string) ($api->api_password ?? ''));
+        $overrideUser = trim((string) ($api->resolved_username ?? ''));
+        $overridePass = trim((string) ($api->resolved_password ?? ''));
+
+        if (self::isPlanApiMemberId($overrideUser)) {
+            $memberId = $overrideUser;
+        }
+
+        if ($password === '' && $overridePass !== '' && !self::looksLikeUuid($overridePass)) {
+            $password = $overridePass;
+        }
+
+        return [$memberId, $password];
+    }
+
+    public static function buildHlrUrl(object $api, string $number): ?string
+    {
+        [$memberId, $password] = self::resolveHlrCredentials($api);
+        if ($memberId === '' || $password === '') {
+            return null;
+        }
+
+        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        $host = strtolower((string) (parse_url($base, PHP_URL_HOST) ?? ''));
+        if ($host === 'planapi.in' || $host === 'www.planapi.in') {
+            $base = 'https://planapi.in/api';
+        }
+
+        return $base . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($memberId)
+            . '&ApiPassword=' . urlencode($password)
+            . '&Mobileno=' . urlencode($number);
+    }
+
+    /**
+     * @return array{
+     *   ok: bool,
+     *   message: string,
+     *   data: array,
+     *   api_id: int|null,
+     *   response: string|null
+     * }
+     */
+    public static function fetchOperatorLookup(string $number): array
+    {
+        self::ensureTable();
+
+        $setting = Schema::hasTable('plan_info_fetch_settings')
+            ? DB::table('plan_info_fetch_settings')->where('service_key', 'hlr')->first()
+            : null;
+
+        $attempts = $setting
+            ? [
+                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
+                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+            ]
+            : [
+                ['api_id' => 7, 'username' => null, 'password' => null],
+            ];
+
+        $lastMessage = 'Unable to fetch operator details. Please try again.';
+        $lastApiId = null;
+
+        foreach ($attempts as $index => $attempt) {
+            $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
+            if (!$api) {
+                continue;
+            }
+
+            $url = self::buildHlrUrl($api, $number);
+            if ($url === null) {
+                $lastMessage = 'Operator lookup API credentials are not configured.';
+                $lastApiId = (int) $api->id;
+                continue;
+            }
+
+            $orderId = 'CMN' . random_int(1111111111, 9999999999);
+            $result = \helpers::curl($url, 'GET', '', [], 'yes', 'CHECK_MOBILE', $orderId);
+            $parsed = self::parseHlrResponse(is_array($result) ? $result : [], (int) $api->id);
+            $lastApiId = (int) $api->id;
+            $lastMessage = $parsed['message'];
+
+            if ($parsed['ok']) {
+                return $parsed;
+            }
+
+            Log::info('HLR operator lookup failed', [
+                'api_id' => (int) $api->id,
+                'attempt' => $index === 0 ? 'primary' : 'backup',
+                'http_code' => (int) ($result['code'] ?? 0),
+                'message' => $lastMessage,
+                'endpoint' => \helpers::redactUrlSecrets($url),
+            ]);
+
+            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+                continue;
+            }
+
+            break;
+        }
+
+        return [
+            'ok' => false,
+            'message' => $lastMessage,
+            'data' => [],
+            'api_id' => $lastApiId,
+            'response' => null,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}
+     */
+    public static function fetchDthService(string $serviceKey, int $providerId, string $number): array
+    {
+        self::ensureTable();
+
+        $setting = Schema::hasTable('plan_info_fetch_settings')
+            ? DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first()
+            : null;
+
+        $attempts = $setting
+            ? [
+                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
+                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+            ]
+            : [
+                ['api_id' => $serviceKey === 'dth_heavy_refresh' ? 6 : 7, 'username' => null, 'password' => null],
+            ];
+
+        if (
+            $setting
+            && $serviceKey === 'dth_customer'
+            && !self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)
+            && (int) ($setting->primary_api_id ?? 0) === 6
+        ) {
+            $attempts[1] = ['api_id' => 7, 'username' => null, 'password' => null];
+        }
+
+        $lastMessage = $serviceKey === 'dth_heavy_refresh'
+            ? 'Unable to refresh DTH info. Please try again.'
+            : 'Unable to fetch DTH info. Please try again.';
+        $lastApiId = null;
+
+        foreach ($attempts as $index => $attempt) {
+            $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
+            if (!$api) {
+                continue;
+            }
+
+            $url = $serviceKey === 'dth_heavy_refresh'
+                ? self::buildDthHeavyUrl($api, $providerId, $number)
+                : self::buildDthInfoUrl($api, $providerId, $number);
+
+            if ($url === null) {
+                $lastMessage = 'DTH operator code is not mapped for this provider. Contact admin.';
+                $lastApiId = (int) $api->id;
+                continue;
+            }
+
+            $orderId = 'DTH' . random_int(1111111111, 9999999999);
+            $result = \helpers::curl($url, 'GET', '', [], 'yes', 'DTH INFO', $orderId);
+            $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
+            $lastApiId = (int) $api->id;
+            $lastMessage = $parsed['message'];
+
+            if ($parsed['ok']) {
+                return $parsed;
+            }
+
+            Log::info('DTH info fetch failed', [
+                'service_key' => $serviceKey,
+                'api_id' => (int) $api->id,
+                'provider_id' => $providerId,
+                'http_code' => (int) ($result['code'] ?? 0),
+                'message' => $lastMessage,
+                'endpoint' => \helpers::redactUrlSecrets($url),
+            ]);
+
+            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+                continue;
+            }
+
+            break;
+        }
+
+        return [
+            'ok' => false,
+            'message' => $lastMessage,
+            'data' => [],
+            'api_id' => $lastApiId,
+            'response' => null,
+        ];
+    }
+
+    public static function buildDthInfoUrl(object $api, int $providerId, string $number): ?string
+    {
+        $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
+        $host = strtolower((string) (parse_url((string) ($api->api_url ?? ''), PHP_URL_HOST) ?? ''));
+
+        if (str_contains($host, 'planapi.in')) {
+            [$memberId, $password] = self::resolveHlrCredentials($api);
+            $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, true);
+            if ($memberId === '' || $password === '' || $opcode === null) {
+                return null;
+            }
+
+            return 'https://planapi.in/api/Mobile/DTHINFOCheck?apimember_id=' . urlencode($memberId)
+                . '&api_password=' . urlencode($password)
+                . '&mobile_no=' . urlencode($number)
+                . '&Opcode=' . urlencode($opcode);
+        }
+
+        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
+        if ($key === '' || $opcode === null) {
+            return null;
+        }
+
+        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        return $base . '/Dthinfo.php?apikey=' . urlencode($key)
+            . '&operator=' . urlencode($opcode)
+            . '&offer=roffer&tel=' . urlencode($number);
+    }
+
+    public static function buildDthHeavyUrl(object $api, int $providerId, string $number): ?string
+    {
+        $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
+        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
+        if ($key === '' || $opcode === null) {
+            $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, true);
+        }
+        if ($key === '' || $opcode === null) {
+            return null;
+        }
+
+        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        return $base . '/Dthheavy.php?apikey=' . urlencode($key)
+            . '&operator=' . urlencode($opcode)
+            . '&offer=roffer&tel=' . urlencode($number);
+    }
+
     public static function resolvePlanApiBaseUrl(object $api, bool $useEnvOverride = true): string
     {
         if ($useEnvOverride) {
@@ -577,7 +840,8 @@ class PlanInfoFetchService
             || str_contains($message, 'unauthorized')
             || str_contains($message, 'authentication')
             || str_contains($message, 'invalid api key')
-            || str_contains($message, 'invalid apikey');
+            || str_contains($message, 'invalid apikey')
+            || str_contains($message, 'invalid ip');
     }
 
     /**
@@ -771,7 +1035,396 @@ class PlanInfoFetchService
             return true;
         }
 
+        if (isset($data['ERROR']) && !in_array((string) $data['ERROR'], ['0', '', 'false'], true)) {
+            return true;
+        }
+
         return false;
+    }
+
+    /**
+     * @param  array{response?: mixed, code?: mixed, error?: mixed}  $result
+     * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}
+     */
+    private static function parseHlrResponse(array $result, int $apiId): array
+    {
+        $httpCode = (int) ($result['code'] ?? 0);
+        $curlError = trim((string) ($result['error'] ?? ''));
+        $body = is_string($result['response'] ?? null) ? $result['response'] : '';
+
+        if ($curlError !== '') {
+            $message = stripos($curlError, 'timed out') !== false
+                ? 'Operator lookup timed out. Please try again.'
+                : 'Operator lookup request failed.';
+
+            return self::hlrResult(false, $message, [], $apiId, $body);
+        }
+
+        if (in_array($httpCode, [401, 403], true)) {
+            return self::hlrResult(false, 'Operator lookup authentication failed. Check PlanAPI credentials.', [], $apiId, $body);
+        }
+
+        if ($httpCode === 500) {
+            return self::hlrResult(
+                false,
+                'Operator lookup API rejected the request. Check PlanAPI member ID and password.',
+                [],
+                $apiId,
+                $body
+            );
+        }
+
+        if ($httpCode === 404) {
+            return self::hlrResult(false, 'Operator lookup endpoint was not found.', [], $apiId, $body);
+        }
+
+        if ($body === '') {
+            return self::hlrResult(false, 'Empty response from operator lookup API.', [], $apiId, $body);
+        }
+
+        $data = json_decode($body, true);
+        if (!is_array($data)) {
+            return self::hlrResult(false, 'Invalid response from operator lookup API.', [], $apiId, $body);
+        }
+
+        $apiMessage = self::responseErrorMessage($body);
+        if (self::isAuthorizationFailure($data) || self::isErrorResponse($data)) {
+            return self::hlrResult(false, self::formatHlrErrorMessage($apiMessage, $httpCode), [], $apiId, $body);
+        }
+
+        $opCode = self::hlrNonEmpty($data['OpCode'] ?? $data['opcode'] ?? $data['OperatorCode'] ?? null);
+        $circleCode = self::hlrNonEmpty($data['CircleCode'] ?? $data['circlecode'] ?? null);
+        $operatorName = self::hlrNonEmpty($data['Operator'] ?? $data['operator'] ?? null);
+        $circleName = self::hlrNonEmpty($data['Circle'] ?? $data['circle'] ?? null);
+
+        if ($opCode === null && $operatorName === null) {
+            $message = ($apiMessage !== null && $apiMessage !== '')
+                ? self::formatHlrErrorMessage($apiMessage, $httpCode)
+                : 'Operator or circle not found for this number.';
+
+            return self::hlrResult(false, $message, $data, $apiId, $body);
+        }
+
+        if ($circleCode === null && $circleName === null) {
+            $message = ($apiMessage !== null && $apiMessage !== '')
+                ? self::formatHlrErrorMessage($apiMessage, $httpCode)
+                : 'Operator or circle not found for this number.';
+
+            return self::hlrResult(false, $message, $data, $apiId, $body);
+        }
+
+        if ($opCode !== null) {
+            $data['OpCode'] = $opCode;
+        }
+        if ($circleCode !== null) {
+            $data['CircleCode'] = $circleCode;
+        }
+        if ($operatorName !== null) {
+            $data['Operator'] = $operatorName;
+        }
+        if ($circleName !== null) {
+            $data['Circle'] = $circleName;
+        }
+
+        return self::hlrResult(true, 'Get Successfully', $data, $apiId, $body);
+    }
+
+    /**
+     * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}
+     */
+    private static function hlrResult(bool $ok, string $message, array $data, ?int $apiId, ?string $response): array
+    {
+        return [
+            'ok' => $ok,
+            'message' => $message !== '' ? $message : 'Unable to fetch operator details. Please try again.',
+            'data' => $data,
+            'api_id' => $apiId,
+            'response' => $response,
+        ];
+    }
+
+    private static function formatHlrErrorMessage(?string $message, int $httpCode = 0): string
+    {
+        $message = trim((string) $message);
+        if ($message !== '' && stripos($message, 'invalid ip') !== false) {
+            if (preg_match('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', $message, $match)) {
+                return 'Operator lookup IP is not authorized at PlanAPI. Whitelist this IP: ' . $match[0];
+            }
+
+            return 'Operator lookup IP is not authorized at PlanAPI. Ask admin to whitelist this server.';
+        }
+
+        if ($httpCode === 500) {
+            return 'Operator lookup API rejected the request. Check PlanAPI member ID and password.';
+        }
+
+        return $message !== '' ? $message : 'Unable to fetch operator details. Please try again.';
+    }
+
+    private static function looksLikeUuid(string $value): bool
+    {
+        return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value);
+    }
+
+    private static function isPlanApiMemberId(string $value): bool
+    {
+        return $value !== '' && !self::looksLikeUuid($value) && strlen($value) <= 32;
+    }
+
+    /**
+     * PlanAPI DTH opcodes: 24 Airtel, 25 Dish, 27 Sun, 28 Tata Sky, 29 Videocon.
+     * MPlan Dthinfo.php uses operator names such as Tatasky.
+     */
+    private static function resolveDthOpcode($apiId, int $providerId, string $providerName, bool $planApiNumeric): ?string
+    {
+        $mapped = \helpers::PlanProviderCode($apiId, $providerId);
+        if ($mapped !== 0 && $mapped !== '' && $mapped !== null && (string) $mapped !== '0') {
+            if ($planApiNumeric && !is_numeric((string) $mapped)) {
+                return self::planApiDthOpcode($providerName);
+            }
+            if (!$planApiNumeric && is_numeric((string) $mapped)) {
+                return self::mplanDthOperator($providerName) ?? (string) $mapped;
+            }
+
+            return (string) $mapped;
+        }
+
+        return $planApiNumeric
+            ? self::planApiDthOpcode($providerName)
+            : self::mplanDthOperator($providerName);
+    }
+
+    private static function planApiDthOpcode(string $providerName): ?string
+    {
+        $name = strtolower($providerName);
+        if (str_contains($name, 'tata')) {
+            return '28';
+        }
+        if (str_contains($name, 'airtel')) {
+            return '24';
+        }
+        if (str_contains($name, 'dish')) {
+            return '25';
+        }
+        if (str_contains($name, 'sun')) {
+            return '27';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return '29';
+        }
+
+        return null;
+    }
+
+    private static function mplanDthOperator(string $providerName): ?string
+    {
+        $name = strtolower($providerName);
+        if (str_contains($name, 'tata')) {
+            return 'Tatasky';
+        }
+        if (str_contains($name, 'airtel')) {
+            return 'Airteldth';
+        }
+        if (str_contains($name, 'dish')) {
+            return 'Dishtv';
+        }
+        if (str_contains($name, 'sun')) {
+            return 'Sundirect';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return 'Videocon';
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{response?: mixed, code?: mixed, error?: mixed}  $result
+     * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}
+     */
+    private static function parseDthInfoResponse(array $result, int $apiId): array
+    {
+        $httpCode = (int) ($result['code'] ?? 0);
+        $curlError = trim((string) ($result['error'] ?? ''));
+        $body = is_string($result['response'] ?? null) ? $result['response'] : '';
+
+        if ($curlError !== '') {
+            $message = stripos($curlError, 'timed out') !== false
+                ? 'DTH info request timed out. Please try again.'
+                : 'DTH info request failed.';
+
+            return self::hlrResult(false, $message, [], $apiId, $body);
+        }
+
+        if (in_array($httpCode, [401, 403], true)) {
+            return self::hlrResult(false, 'DTH info authentication failed. Check API credentials.', [], $apiId, $body);
+        }
+
+        if ($httpCode === 404) {
+            return self::hlrResult(false, 'DTH info endpoint was not found.', [], $apiId, $body);
+        }
+
+        if ($httpCode === 500) {
+            return self::hlrResult(false, 'DTH info API rejected the request. Check credentials and operator code.', [], $apiId, $body);
+        }
+
+        if ($body === '') {
+            return self::hlrResult(false, 'Empty response from DTH info API.', [], $apiId, $body);
+        }
+
+        $data = json_decode($body, true);
+        if (!is_array($data)) {
+            return self::hlrResult(false, 'Invalid response from DTH info API.', [], $apiId, $body);
+        }
+
+        $apiMessage = self::responseErrorMessage($body);
+        $errorCode = $data['error'] ?? $data['ERROR'] ?? null;
+        if ($errorCode !== null && !in_array((string) $errorCode, ['0', '', 'false'], true)) {
+            return self::hlrResult(false, self::formatHlrErrorMessage($apiMessage, $httpCode), [], $apiId, $body);
+        }
+
+        if (self::isAuthorizationFailure($data) || self::isErrorResponse($data)) {
+            return self::hlrResult(false, self::formatHlrErrorMessage($apiMessage, $httpCode), [], $apiId, $body);
+        }
+
+        $payload = $data['DATA'] ?? $data['records'] ?? $data['data'] ?? null;
+        if (is_array($payload) && $payload !== []) {
+            $isList = array_key_exists(0, $payload);
+            if ($isList && is_array($payload[0] ?? null)) {
+                return self::hlrResult(true, 'Fatch Successfully', $payload[0], $apiId, $body);
+            }
+            if (!$isList) {
+                return self::hlrResult(true, 'Fatch Successfully', $payload, $apiId, $body);
+            }
+        }
+
+        $flat = [];
+        foreach ($data as $key => $value) {
+            if (is_scalar($value) && !in_array(strtolower((string) $key), ['error', 'status', 'message'], true)) {
+                $flat[$key] = $value;
+            }
+        }
+
+        if ($flat !== []) {
+            return self::hlrResult(true, 'Fatch Successfully', $flat, $apiId, $body);
+        }
+
+        return self::hlrResult(
+            false,
+            ($apiMessage !== null && $apiMessage !== '') ? $apiMessage : 'DTH customer details not found for this number.',
+            [],
+            $apiId,
+            $body
+        );
+    }
+
+    private static function hlrNonEmpty($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '' || strcasecmp($value, 'null') === 0) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Map PlanAPI OperatorFetch payload onto portal provider/state rows.
+     * Prefer numeric codes, then Operator/Circle names from the documented response.
+     *
+     * @return array{provider: object|null, state: object|null}
+     */
+    public static function mapHlrToPortal(?int $apiId, array $data): array
+    {
+        $opCode = self::hlrNonEmpty($data['OpCode'] ?? null);
+        $circleCode = self::hlrNonEmpty($data['CircleCode'] ?? null);
+        $operatorName = self::hlrNonEmpty($data['Operator'] ?? $data['operator'] ?? null);
+        $circleName = self::hlrNonEmpty($data['Circle'] ?? $data['circle'] ?? null);
+
+        $provider = null;
+        if ($apiId && $opCode !== null) {
+            $provider = DB::table('api_provider_codes as c')
+                ->join('providers as p', 'p.id', '=', 'c.provider_id')
+                ->where('c.api_id', $apiId)
+                ->where('c.provider_code', $opCode)
+                ->where('p.service_id', 1)
+                ->where('p.status', 1)
+                ->select('p.*')
+                ->first();
+        }
+
+        if (!$provider) {
+            $provider = self::matchMobileProviderByName($operatorName);
+        }
+
+        $state = null;
+        if ($circleCode !== null) {
+            $state = DB::table('states')->where('plan_api_code', $circleCode)->first();
+        }
+        if (!$state && $circleName !== null) {
+            $state = self::matchStateByCircleName($circleName);
+        }
+
+        return [
+            'provider' => $provider,
+            'state' => $state,
+        ];
+    }
+
+    private static function matchMobileProviderByName(?string $name): ?object
+    {
+        if ($name === null || $name === '') {
+            return null;
+        }
+
+        $needle = self::normalizeLookupName($name);
+        $aliases = [
+            'airtel' => 'airtel',
+            'jio' => 'jio',
+            'reliancejio' => 'jio',
+            'ril' => 'jio',
+            'vi' => 'vi',
+            'vodafone' => 'vi',
+            'idea' => 'vi',
+            'vodafoneidea' => 'vi',
+            'bsnl' => 'bsnl',
+        ];
+        $needle = $aliases[$needle] ?? $needle;
+
+        $providers = DB::table('providers')->where('service_id', 1)->where('status', 1)->get();
+        foreach ($providers as $provider) {
+            $hay = self::normalizeLookupName((string) $provider->provider_name);
+            if ($hay === $needle || str_contains($hay, $needle) || str_contains($needle, $hay)) {
+                return $provider;
+            }
+        }
+
+        return null;
+    }
+
+    private static function matchStateByCircleName(string $name): ?object
+    {
+        $needle = strtolower(trim($name));
+        $states = DB::table('states')->get();
+        foreach ($states as $state) {
+            foreach (['state_name', 'mplan_state_code', 'plan_api_code'] as $field) {
+                $value = strtolower(trim((string) ($state->{$field} ?? '')));
+                if ($value !== '' && ($value === $needle || str_contains($value, $needle) || str_contains($needle, $value))) {
+                    return $state;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function normalizeLookupName(string $name): string
+    {
+        return strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
     }
 
     /** @return array{response: string, api_id: int}|null */

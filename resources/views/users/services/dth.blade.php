@@ -304,6 +304,48 @@
 
 
 
+    <div id="dthInfoModal" class="modal" tabindex="-1" aria-labelledby="dthInfoModalLabel" data-bs-backdrop="static"
+
+        data-bs-keyboard="false" aria-hidden="true" style="display: none;">
+
+        <div class="modal-dialog modal-dialog-scrollable">
+
+            <div class="modal-content">
+
+                <div class="modal-header">
+
+                    <h5 class="modal-title" id="dthInfoModalLabel">DTH Customer Info</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"> </button>
+
+                </div>
+
+                <div class="modal-body">
+
+                    <table class="table table-bordered m-0">
+
+                        <tbody id="dth_info_details"></tbody>
+
+                    </table>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+
+
     <!-- Details Modals -->
 
     <div id="receiptModal" class="modal flip receipt" tabindex="-1" aria-labelledby="receiptModalLabel"
@@ -715,6 +757,112 @@
 
 
 
+
+        function dthInfoLabel(key) {
+            return String(key).replace(/_/g, ' ').replace(/\b\w/g, function(ch) {
+                return ch.toUpperCase();
+            });
+        }
+
+        function showDthInfo(data) {
+            var rows = '';
+            var monthly = '';
+            $.each(data || {}, function(key, val) {
+                if (val === null || val === '' || typeof val === 'object') {
+                    return;
+                }
+                var label = dthInfoLabel(key);
+                rows += '<tr><th style="width:40%">' + $('<div>').text(label).html() + '</th><td>' + $('<div>').text(val).html() + '</td></tr>';
+                if (!monthly && /monthly|amount|rs/i.test(String(key)) && $.isNumeric(val)) {
+                    monthly = val;
+                }
+            });
+            if (!rows) {
+                Error_Msg("Oops...", "DTH customer details not found for this number.", "error");
+                return;
+            }
+            $('#dth_info_details').html(rows);
+            $('#dthInfoModal').modal('show');
+            if (monthly) {
+                $("#amount_i").val(monthly);
+            }
+        }
+
+        function getDthInfo() {
+            var number = $("#number").val();
+            var provider_id = $("#provider_id").val();
+            if (number == "") {
+                Error_Msg("Oops...", "Please Enter DTH Number", "error");
+                return;
+            }
+            if (provider_id == "") {
+                Error_Msg("Oops...", "Please Select Provider", "error");
+                return;
+            }
+            $("#get_DthInfo_btn").text('Wait...');
+            $('#get_DthInfo_btn').prop('disabled', true);
+            $.ajax({
+                url: '{{ route('serviceDthInfo') }}',
+                method: 'post',
+                data: {
+                    provider_id: provider_id,
+                    number: number,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(data) {
+                    $("#get_DthInfo_btn").text('Customer Info');
+                    $('#get_DthInfo_btn').prop('disabled', false);
+                    if (data.type == "success") {
+                        showDthInfo(data.data);
+                    } else {
+                        Error_Msg("Customer Info", data.message || "Unable to fetch DTH info.", "error");
+                    }
+                },
+                error: function() {
+                    $("#get_DthInfo_btn").text('Customer Info');
+                    $('#get_DthInfo_btn').prop('disabled', false);
+                    Error_Msg("Customer Info", "Unable to fetch DTH info.", "error");
+                }
+            });
+        }
+
+        function HeavyRefresh() {
+            var number = $("#number").val();
+            var provider_id = $("#provider_id").val();
+            if (number == "") {
+                Error_Msg("Oops...", "Please Enter DTH Number", "error");
+                return;
+            }
+            if (provider_id == "") {
+                Error_Msg("Oops...", "Please Select Provider", "error");
+                return;
+            }
+            $("#get_HeavyRefresh_btn").text('Wait...');
+            $('#get_HeavyRefresh_btn').prop('disabled', true);
+            $.ajax({
+                url: '{{ route('serviceDthHeavyRefresh') }}',
+                method: 'post',
+                data: {
+                    provider_id: provider_id,
+                    number: number,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(data) {
+                    $("#get_HeavyRefresh_btn").text('Heavy Refresh');
+                    $('#get_HeavyRefresh_btn').prop('disabled', false);
+                    if (data.type == "success") {
+                        showDthInfo(data.data);
+                    } else {
+                        Error_Msg("Heavy Refresh", data.message || "Unable to refresh DTH info.", "error");
+                    }
+                },
+                error: function() {
+                    $("#get_HeavyRefresh_btn").text('Heavy Refresh');
+                    $('#get_HeavyRefresh_btn').prop('disabled', false);
+                    Error_Msg("Heavy Refresh", "Unable to refresh DTH info.", "error");
+                }
+            });
+        }
 
         function rechargeNow() {
 

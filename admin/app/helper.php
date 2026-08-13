@@ -850,13 +850,58 @@ if (! function_exists('admin_slider_image')) {
     }
 }
 
+if (! function_exists('website_media_dir')) {
+    function website_media_dir(): string
+    {
+        $dir = public_path('website_media');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        return $dir;
+    }
+}
+
+if (! function_exists('website_media_disk_path')) {
+    function website_media_disk_path(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        $filename = basename($filename);
+        $candidates = [
+            public_path('website_media/'.$filename),
+            base_path('public/website_media/'.$filename),
+        ];
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('website_media_admin_url')) {
+    function website_media_admin_url(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        return admin_asset('website_media/'.basename($filename));
+    }
+}
+
 if (! function_exists('admin_build_serial')) {
     /**
      * Visible deploy marker on admin auth pages. Bump on each production release.
      */
     function admin_build_serial(): string
     {
-        return '20260813-MOBILE-001';
+        return '20260813-WEB-003';
     }
 }
 

@@ -14,6 +14,12 @@
         </div>
     </div>
 </div>
+@php $cmsPage = website_page('term-and-condition'); $cmsBody = website_page_text($cmsPage) ?: trim((string) ($company->terms_and_conditions ?? '')); @endphp
+@if($cmsBody !== '')
+<div class="about-area default-padding">
+    <div class="container" style="padding:40px 0;white-space:pre-wrap;">{{ $cmsBody }}</div>
+</div>
+@else
 <div class="about-area default-padding">
     <div class="container">
         <div class="outter-section">
@@ -60,5 +66,6 @@
         </div>
     </div>
 </div>
+@endif
 
 @include('users.website.footer')

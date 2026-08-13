@@ -1193,51 +1193,60 @@
 
 
 
+        var lastOperatorLookupNumber = '';
+
         $("#number").on("change paste keyup", function() {
 
             number = $(this).val();
 
-            if(number.length == 10){
+            if (number.length !== 10) {
+                lastOperatorLookupNumber = '';
+                return;
+            }
 
-                $.ajax({
+            if (number === lastOperatorLookupNumber) {
+                return;
+            }
 
-                    url: '{{ route('serviceRechargeCheckMobile') }}',
+            lastOperatorLookupNumber = number;
 
-                    method: 'post',
+            $.ajax({
 
-                    data: {
+                url: '{{ route('serviceRechargeCheckMobile') }}',
 
-                        number,
+                method: 'post',
 
-                        _token: '{{ csrf_token() }}',
+                data: {
 
-                    },
+                    number,
 
-                    success: function(data) {
+                    _token: '{{ csrf_token() }}',
 
-                        if(data.type == "success"){
+                },
 
-                            $(".provider_id").val(data.provider_id).change();
+                success: function(data) {
 
-                            $(".state_id").val(data.state_id).change();
+                    if(data.type == "success"){
 
-                            //console.log(data);
+                        $(".provider_id").val(data.provider_id).change();
 
-                        }
+                        $(".state_id").val(data.state_id).change();
 
-                    },
+                    } else if (data.message) {
 
-                    error: function(err) {
-
-                        console.log(err);
+                        Error_Msg("Operator Lookup", data.message, "error");
 
                     }
 
-                });
+                },
 
-            }
+                error: function() {
 
-            
+                    Error_Msg("Operator Lookup", "Unable to fetch operator details.", "error");
+
+                }
+
+            });
 
         });
 

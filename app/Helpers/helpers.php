@@ -1136,7 +1136,63 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260813-MOBILE-001';
+        return '20260813-WEB-003';
+    }
+}
+
+if (! function_exists('website_page')) {
+    function website_page(string $slug): ?object
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('website_pages')) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('website_pages')->where('slug', $slug)->first();
+    }
+}
+
+if (! function_exists('website_page_text')) {
+    function website_page_text(?object $page, string $field = 'body'): string
+    {
+        if (!$page) {
+            return '';
+        }
+
+        return trim((string) ($page->{$field} ?? ''));
+    }
+}
+
+if (! function_exists('website_media_url')) {
+    function website_media_url(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        $base = rtrim((string) env('ADMIN_HOST', ''), '/');
+        if ($base === '') {
+            $base = rtrim(url('/admin'), '/');
+        }
+
+        return $base.'/website_media/'.rawurlencode(basename($filename));
+    }
+}
+
+if (! function_exists('website_media_items')) {
+    function website_media_items(string $kind): array
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('website_media')) {
+            return [];
+        }
+
+        return \Illuminate\Support\Facades\DB::table('website_media')
+            ->where('kind', $kind)
+            ->where('status', 1)
+            ->where('deleted_at', '!=', 1)
+            ->orderBy('sort_order')
+            ->orderByDesc('id')
+            ->get()
+            ->all();
     }
 }
 

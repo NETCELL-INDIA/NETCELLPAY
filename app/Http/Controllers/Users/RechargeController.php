@@ -1968,40 +1968,24 @@ class RechargeController extends Controller
 
         try {
 
-        $result = PlanInfoFetchService::fetch('dth_customer', function ($api) use ($post) {
+        $result = PlanInfoFetchService::fetchDthService('dth_customer', (int) $post->provider_id, (string) $post->number);
 
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-
-            $key = $api->resolved_api_key ?: $api->api_key;
-
-            return rtrim($api->api_url, '/') . '/Dthinfo.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
-
-        }, 'DTH INFO', 'ROF');
-
-        if ($result) {
-
-            $data = json_decode($result['response'], true);
-            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
-
+        if (empty($result['ok'])) {
             return response()->json([
-
-                'type' => 'success',
-
-                'message' => 'Fatch Successfully',
-
-                'data' => $records
-
+                'type' => 'error',
+                'message' => $result['message'] ?? 'Unable to fetch DTH info. Please try again.',
             ]);
-
         }
 
-        return response()->json(array(
+        return response()->json([
 
-            'type' => 'error',
+            'type' => 'success',
 
-            'message' => "Unable to fetch DTH info. Please try again."
+            'message' => 'Fatch Successfully',
 
-        ));
+            'data' => $result['data'] ?? []
+
+        ]);
 
         } catch (\Throwable $e) {
             return response()->json([
@@ -2054,40 +2038,24 @@ class RechargeController extends Controller
 
         try {
 
-        $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
+        $result = PlanInfoFetchService::fetchDthService('dth_heavy_refresh', (int) $post->provider_id, (string) $post->number);
 
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-
-            $key = $api->resolved_api_key ?: $api->api_key;
-
-            return rtrim($api->api_url, '/') . '/Dthheavy.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
-
-        }, 'DTH INFO', 'ROF');
-
-        if ($result) {
-
-            $data = json_decode($result['response'], true);
-            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
-
+        if (empty($result['ok'])) {
             return response()->json([
-
-                'type' => 'success',
-
-                'message' => 'Fatch Successfully',
-
-                'data' => $records
-
+                'type' => 'error',
+                'message' => $result['message'] ?? 'Unable to refresh DTH info. Please try again.',
             ]);
-
         }
 
-        return response()->json(array(
+        return response()->json([
 
-            'type' => 'error',
+            'type' => 'success',
 
-            'message' => "Unable to refresh DTH info. Please try again."
+            'message' => 'Fatch Successfully',
 
-        ));
+            'data' => $result['data'] ?? []
+
+        ]);
 
         } catch (\Throwable $e) {
             return response()->json([
@@ -2134,79 +2102,45 @@ class RechargeController extends Controller
 
         try {
 
-        $result = PlanInfoFetchService::fetch('hlr', function ($api) use ($post) {
+        $result = PlanInfoFetchService::fetchOperatorLookup((string) $post->number);
 
-            return rtrim($api->api_url, '/') . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($api->resolved_username) . '&ApiPassword=' . urlencode($api->resolved_password) . '&Mobileno=' . urlencode($post->number);
-
-        }, 'CHECK_MOBILE', 'CMN');
-
-        if ($result) {
-
-            $data = json_decode($result['response'], true);
-
-            if (!is_array($data)) {
-                return response()->json([
-                    'type' => 'error',
-                    'message' => 'Invalid response from operator API.',
-                ]);
-            }
-
-            $opCode = $data['OpCode'] ?? $data['opcode'] ?? $data['OperatorCode'] ?? null;
-            $circleCode = $data['CircleCode'] ?? $data['circlecode'] ?? $data['Circle'] ?? null;
-
-            if (!$opCode || !$circleCode) {
-                return response()->json([
-                    'type' => 'error',
-                    'message' => 'Operator or circle not found for this number.',
-                ]);
-            }
-
-            $provider = DB::table('api_provider_codes')->where('api_id', $result['api_id'])->where('provider_code', $opCode)->first();
-
-            if (!$provider) {
-                return response()->json([
-                    'type' => 'error',
-                    'message' => 'Provider mapping not found. Contact admin.',
-                ]);
-            }
-
-            $provider_data = DB::table('providers')->where('id', $provider->provider_id)->first();
-            $state = DB::table('states')->where('plan_api_code', $circleCode)->first();
-
-            if (!$provider_data || !$state) {
-                return response()->json([
-                    'type' => 'error',
-                    'message' => 'Provider or circle mapping not found. Contact admin.',
-                ]);
-            }
-
+        if (empty($result['ok'])) {
             return response()->json([
-
-                'type' => 'success',
-
-                'message' => 'Get Successfully',
-
-                'provider_id' => $provider_data->id,
-
-                'provider_name' => $provider_data->provider_name,
-
-                'provider_logo' => $provider_data->provider_logo,
-
-                'state_id' => $state->id,
-
-                'state_name' => $state->state_name
-
+                'type' => 'error',
+                'message' => $result['message'] ?? 'Unable to fetch operator details. Please try again.',
             ]);
-
         }
 
-        return response()->json(array(
+        $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+        $mapped = PlanInfoFetchService::mapHlrToPortal(isset($result['api_id']) ? (int) $result['api_id'] : null, $data);
 
-            'type' => 'error',
+        if (!$mapped['provider'] || !$mapped['state']) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Provider or circle mapping not found. Contact admin.',
+            ]);
+        }
 
-            'message' => "Unable to fetch operator details. Please try again."
+        $provider_data = $mapped['provider'];
+        $state = $mapped['state'];
 
-        ));
+        return response()->json([
+
+            'type' => 'success',
+
+            'message' => 'Get Successfully',
+
+            'provider_id' => $provider_data->id,
+
+            'provider_name' => $provider_data->provider_name,
+
+            'provider_logo' => $provider_data->provider_logo,
+
+            'state_id' => $state->id,
+
+            'state_name' => $state->state_name
+
+        ]);
 
         } catch (\Throwable $e) {
             return response()->json([

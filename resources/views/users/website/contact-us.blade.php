@@ -14,6 +14,17 @@
         </div>
     </div>
 </div>
+@php $cmsPage = website_page('contact-us'); @endphp
+@if(website_page_text($cmsPage, 'body') !== '')
+<div class="contact-info-area default-padding">
+    <div class="container" style="padding:40px 0;white-space:pre-wrap;">
+        @if(website_page_text($cmsPage, 'heading') !== '')
+            <h2>{{ $cmsPage->heading }}</h2>
+        @endif
+        {{ $cmsPage->body }}
+    </div>
+</div>
+@endif
 <div class="contact-info-area default-padding">
     <div class="container">
         <div class="row">

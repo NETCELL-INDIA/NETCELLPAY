@@ -20,6 +20,36 @@ Dashboard
         <h3 id="dp_outlet_name">—</h3>
     </div>
 
+    @if(!empty($is_retailer))
+    <div class="dash-recharge-panel mb-3">
+        <div class="dash-recharge-head">
+            <h4>Recharge</h4>
+            <p>Retailer account — recharge services only. Tap a service to start.</p>
+        </div>
+        <div class="dash-recharge-grid">
+            @foreach($recharge_services as $svc)
+            <a class="dash-recharge-card" href="{{ url($svc['route']) }}">
+                <span class="dash-recharge-icon">
+                    <img src="{{ URL::asset($svc['icon']) }}" alt="{{ $svc['name'] }}" onerror="this.src='{{ URL::asset('service_icon/mobile_1.png') }}'">
+                </span>
+                <strong>{{ $svc['name'] }}</strong>
+                <span>Tap to recharge</span>
+            </a>
+            @endforeach
+        </div>
+        <div class="dash-recharge-example">
+            <h5>Example — how to recharge</h5>
+            <ol>
+                <li>Tap <b>Mobile Recharge</b>.</li>
+                <li>Enter a 10-digit number. Example: <code>9876543210</code></li>
+                <li>Select operator and circle. Example: <b>Airtel</b> + <b>Karnataka</b>.</li>
+                <li>Choose a plan or type amount. Example: <b>₹199</b>.</li>
+                <li>Tap <b>Recharge</b>. Wallet must have enough balance.</li>
+            </ol>
+        </div>
+    </div>
+    @endif
+
     @if(count($slider_list) > 0)
     <div class="row g-3 mb-3">
         <div class="col-12">

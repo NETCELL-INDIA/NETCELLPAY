@@ -41,10 +41,10 @@
                 </li>
                 @if(in_array((int) Session::get('role_id'), [3, 4, 5, 6], true))
                 <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarServices" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarSupport">
+                    <a class="nav-link menu-link" href="#sidebarServices" data-bs-toggle="collapse" role="button" aria-expanded="{{ (int) Session::get('role_id') === 6 ? 'true' : 'false' }}" aria-controls="sidebarServices">
                         <i class='bx bxs-spreadsheet' ></i> <span>Services</span>
                     </a>
-                    <div class="collapse menu-dropdown" id="sidebarServices">
+                    <div class="collapse menu-dropdown {{ (int) Session::get('role_id') === 6 ? 'show' : '' }}" id="sidebarServices">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/services/mobile') }}" class="nav-link">Mobile Recharge</a>
@@ -55,9 +55,11 @@
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/services/dth') }}" class="nav-link">DTH Recharge</a>
                             </li>
+                            @if((int) Session::get('role_id') !== 6)
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/services/bill-payments') }}" class="nav-link">Bill Payments (BBPS)</a>
                             </li>
+                            @endif
                         </ul>
                     </div>
                 </li>

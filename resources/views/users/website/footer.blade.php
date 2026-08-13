@@ -67,10 +67,30 @@
 
             <div class="nc-footer-bottom">
                 <p>&copy; {{ date('Y') }} {{ $company->company_name }}. All rights reserved.</p>
-                <p>Built for a smarter digital India.</p>
+                <p>{{ !empty($company->footer_value) ? $company->footer_value : 'Built for a smarter digital India.' }}</p>
             </div>
         </div>
     </footer>
+
+    @php $sitePopup = collect(website_media_items('popup'))->first(); @endphp
+    @if($sitePopup && website_media_url($sitePopup->image))
+    <div class="nc-site-popup" id="ncSitePopup">
+        <div class="nc-site-popup-card">
+            <button type="button" class="nc-site-popup-close" id="ncSitePopupClose">&times;</button>
+            @if(!empty($sitePopup->link_url))
+                <a href="{{ $sitePopup->link_url }}"><img src="{{ website_media_url($sitePopup->image) }}" alt="{{ $sitePopup->title }}"></a>
+            @else
+                <img src="{{ website_media_url($sitePopup->image) }}" alt="{{ $sitePopup->title }}">
+            @endif
+            @if(!empty($sitePopup->title) || !empty($sitePopup->body))
+                <div class="nc-site-popup-copy">
+                    @if(!empty($sitePopup->title))<strong>{{ $sitePopup->title }}</strong>@endif
+                    @if(!empty($sitePopup->body))<p>{{ $sitePopup->body }}</p>@endif
+                </div>
+            @endif
+        </div>
+    </div>
+    @endif
 
     <script src="{{ URL::asset('web_template/js/jquery-1.12.4.min.js') }}"></script>
     <script src="{{ URL::asset('web_template/js/bootstrap.min.js') }}"></script>
@@ -96,6 +116,18 @@
                     header.classList.toggle('is-scrolled', window.scrollY > 12);
                 }
             }, { passive: true });
+
+            var popup = document.getElementById('ncSitePopup');
+            var closeBtn = document.getElementById('ncSitePopupClose');
+            if (popup && !sessionStorage.getItem('ncSitePopupClosed')) {
+                popup.classList.add('is-open');
+            }
+            if (popup && closeBtn) {
+                closeBtn.addEventListener('click', function () {
+                    popup.classList.remove('is-open');
+                    sessionStorage.setItem('ncSitePopupClosed', '1');
+                });
+            }
         }());
     </script>
 </body>

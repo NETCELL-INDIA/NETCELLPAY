@@ -115,6 +115,7 @@ use App\Http\Controllers\Admin\ProfileController;
 
 
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\WebsiteCmsController;
 use App\Http\Controllers\Admin\QueueController;
 use App\Http\Controllers\Admin\LogsController;
 
@@ -297,6 +298,12 @@ Route::get('admin/logout',[AuthController::class,'Logout'])->name('adminLogout')
 Route::get('admin/slider_image/{filename}', [SliderController::class, 'showImage'])
     ->where('filename', '[^/]+')
     ->name('adminSliderImage');
+
+Route::get('admin/website_media/{filename}', [WebsiteCmsController::class, 'showImage'])
+    ->where('filename', '[^/]+')
+    ->name('adminWebsiteMedia');
+Route::get('website_media/{filename}', [WebsiteCmsController::class, 'showImage'])
+    ->where('filename', '[^/]+');
 
 
 
@@ -870,6 +877,21 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/company/manage-company/update',[CompanyController::class,'updateData'])->name('manageCompanyUpdate');
+
+    Route::get('admin/website/ads', [WebsiteCmsController::class, 'ads']);
+    Route::get('admin/website/pages', [WebsiteCmsController::class, 'pages']);
+    Route::post('admin/website/pages/get', [WebsiteCmsController::class, 'pageGet'])->name('websitePageGet');
+    Route::post('admin/website/pages/save', [WebsiteCmsController::class, 'pageSave'])->name('websitePageSave');
+    Route::get('admin/website/setting', [WebsiteCmsController::class, 'setting']);
+    Route::post('admin/website/setting/save', [WebsiteCmsController::class, 'saveSetting'])->name('websiteSettingSave');
+    Route::get('admin/website/policy', [WebsiteCmsController::class, 'policy']);
+    Route::post('admin/website/policy/save', [WebsiteCmsController::class, 'savePolicy'])->name('websitePolicySave');
+    Route::get('admin/website/banners', [WebsiteCmsController::class, 'banners']);
+    Route::get('admin/website/popups', [WebsiteCmsController::class, 'popups']);
+    Route::post('admin/website/media/list', [WebsiteCmsController::class, 'mediaList'])->name('websiteMediaList');
+    Route::post('admin/website/media/get', [WebsiteCmsController::class, 'mediaGet'])->name('websiteMediaGet');
+    Route::post('admin/website/media/save', [WebsiteCmsController::class, 'mediaSave'])->name('websiteMediaSave');
+    Route::post('admin/website/media/delete', [WebsiteCmsController::class, 'mediaDelete'])->name('websiteMediaDelete');
 
 
 

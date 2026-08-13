@@ -14,6 +14,12 @@
         </div>
     </div>
 </div>
+@php $cmsPage = website_page('refunds'); $cmsBody = website_page_text($cmsPage) ?: trim((string) ($company->refund_policy ?? '')); @endphp
+@if($cmsBody !== '')
+<div class="about-area default-padding">
+    <div class="container" style="padding:40px 0;white-space:pre-wrap;">{{ $cmsBody }}</div>
+</div>
+@else
 <div class="about-area default-padding">
     <div class="container">
         <div class="outter-section">
@@ -42,4 +48,5 @@
         </div>
     </div>
 </div>
+@endif
 @include('users.website.footer')

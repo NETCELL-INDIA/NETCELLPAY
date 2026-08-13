@@ -2,61 +2,112 @@
 @section('title') Operator API Switch @endsection
 @section('css')
 <style>
-.op-routing-wrap { overflow-x: auto; }
-.op-routing-table { min-width: 1400px; }
-.op-routing-table th, .op-routing-table td { vertical-align: middle; font-size: 12px; }
-.op-routing-table .form-select, .op-routing-table .form-control { font-size: 12px; min-width: 120px; }
-.op-name { font-weight: 700; font-size: 14px; }
-.op-orbit label { font-size: 11px; margin-bottom: 2px; }
+.opsw-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.opsw-toolbar h4 { margin: 0; }
+.opsw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.opsw-actions .form-select { min-width: 180px; }
+.opsw-card {
+    border: 1px solid #e9edf4;
+    border-radius: 10px;
+    background: #fff;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+.opsw-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #eef2f7;
+}
+.opsw-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1b2559;
+    margin: 0;
+}
+.opsw-orbit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
+}
+.opsw-orbit label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+}
+.opsw-body { padding: 16px; }
+.opsw-section { margin-bottom: 14px; }
+.opsw-section:last-child { margin-bottom: 0; }
+.opsw-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+.opsw-card .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 4px;
+}
+.opsw-empty {
+    text-align: center;
+    color: #94a3b8;
+    padding: 48px 16px;
+}
+.opsw-sticky {
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid #e9edf4;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+}
 </style>
 @endsection
 @section('content')
-<div class="row">
-    <div class="col-12">
-        <div class="page-title-box d-flex align-items-center justify-content-between">
-            <h4 class="mb-0">Operator API Switch</h4>
-            <div class="d-flex align-items-center gap-2">
-                <label class="mb-0 fw-semibold">Select Service Type</label>
-                <select class="form-select" id="service_id" style="width:auto;min-width:160px;">
-                    @foreach($services as $s)
-                        <option value="{{ $s->id }}" @selected($s->id == $defaultService)>{{ strtolower($s->service_name) }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
+<div class="opsw-toolbar">
+    <h4>Operator API Switch</h4>
+    <div class="opsw-actions">
+        <select class="form-select" id="service_id">
+            @foreach($services as $s)
+                <option value="{{ $s->id }}" @selected($s->id == $defaultService)>{{ $s->service_name }}</option>
+            @endforeach
+        </select>
+        <input type="search" class="form-control" id="opSearch" placeholder="Search operator" style="max-width:200px;">
+        <button type="button" class="btn btn-light" id="btnReset">Reset</button>
+        <button type="button" class="btn btn-primary" id="btnSave">Save</button>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header bg-primary">
-        <h6 class="mb-0 text-white">List</h6>
-    </div>
-    <div class="card-body">
-        <div class="op-routing-wrap">
-            <table class="table table-bordered op-routing-table mb-0" id="opTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Operator</th>
-                        <th>R-Offer</th>
-                        <th>Primary API</th>
-                        <th>Backup API 1</th>
-                        <th>Backup API 2</th>
-                        <th>Backup API 3</th>
-                        <th>Extra API 5</th>
-                        <th>Extra API 6</th>
-                        <th>Rehit / Pending</th>
-                    </tr>
-                </thead>
-                <tbody id="opBody">
-                    <tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="mt-3 d-flex gap-2">
-            <button type="button" class="btn btn-primary" id="btnSave">Save</button>
-            <button type="button" class="btn btn-danger" id="btnReset">Reset</button>
-        </div>
-    </div>
+<div id="opList">
+    <div class="opsw-empty">Loading...</div>
+</div>
+
+<div class="opsw-sticky" id="opSticky" style="display:none;">
+    <button type="button" class="btn btn-light" id="btnReset2">Reset</button>
+    <button type="button" class="btn btn-primary" id="btnSave2">Save</button>
 </div>
 @endsection
 @section('script')
@@ -66,18 +117,17 @@ var csrf = '{{ csrf_token() }}';
 var apis = @json($apis);
 var currentRows = [];
 
-function apiOptions(selected) {
-    var html = '<option value="0">NO API</option>';
-    apis.forEach(function (a) {
-        html += '<option value="' + a.id + '"' + (String(selected) === String(a.id) ? ' selected' : '') + '>' + a.api_name + '</option>';
-    });
-    return html;
+function esc(v) {
+    return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
 }
 
-function rofferApiOptions(selected) {
-    var html = '<option value="0">Select API</option>';
+function apiOptions(selected, emptyLabel) {
+    var html = '<option value="0">' + (emptyLabel || 'No API') + '</option>';
     apis.forEach(function (a) {
-        html += '<option value="' + a.id + '"' + (String(selected) === String(a.id) ? ' selected' : '') + '>' + a.api_name + '</option>';
+        html += '<option value="' + a.id + '"' + (String(selected) === String(a.id) ? ' selected' : '') + '>' + esc(a.api_name) + '</option>';
     });
     return html;
 }
@@ -90,46 +140,85 @@ function orbitOptions(selected) {
     return html;
 }
 
+function fieldCol(label, inner, col) {
+    return '<div class="' + (col || 'col-md-4 col-lg-2') + '"><label class="form-label">' + label + '</label>' + inner + '</div>';
+}
+
+function selectField(field, selected, emptyLabel) {
+    return '<select class="form-select field" data-field="' + field + '">' + apiOptions(selected, emptyLabel) + '</select>';
+}
+
 function renderRows(rows) {
     currentRows = rows || [];
     if (!currentRows.length) {
-        $('#opBody').html('<tr><td colspan="9" class="text-center text-muted py-4">No operators for this service</td></tr>');
+        $('#opList').html('<div class="card"><div class="opsw-empty">No operators for this service</div></div>');
+        $('#opSticky').hide();
         return;
     }
     var html = '';
     currentRows.forEach(function (row, idx) {
-        html += '<tr data-idx="' + idx + '">' +
-            '<td><div class="op-name">' + (row.provider_name || '-') + '</div>' +
-            '<div class="op-orbit mt-2"><label>Primary Orbit</label>' +
-            '<select class="form-select form-select-sm field" data-field="primary_orbit">' + orbitOptions(row.primary_orbit) + '</select></div></td>' +
-            '<td>' +
-            '<label class="small">Min. R-Offer (%)</label><input type="number" class="form-control form-control-sm field mb-1" data-field="min_roffer_pct" value="' + (row.min_roffer_pct || 0) + '">' +
-            '<label class="small">R-Offer API 1</label><select class="form-select form-select-sm field mb-1" data-field="roffer_api_1">' + rofferApiOptions(row.roffer_api_1) + '</select>' +
-            '<label class="small">Extra Params 1</label><input type="text" class="form-control form-control-sm field mb-1" data-field="extra_params_1" value="' + (row.extra_params_1 || '') + '">' +
-            '<label class="small">R-Offer API 2</label><select class="form-select form-select-sm field mb-1" data-field="roffer_api_2">' + rofferApiOptions(row.roffer_api_2) + '</select>' +
-            '<label class="small">Extra Params 2</label><input type="text" class="form-control form-control-sm field" data-field="extra_params_2" value="' + (row.extra_params_2 || '') + '">' +
-            '</td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_1">' + apiOptions(row.primary_api_1) + '</select></td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_2">' + apiOptions(row.primary_api_2) + '</select></td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_3">' + apiOptions(row.primary_api_3) + '</select></td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_4">' + apiOptions(row.primary_api_4) + '</select></td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_5">' + apiOptions(row.primary_api_5) + '</select></td>' +
-            '<td><select class="form-select form-select-sm field" data-field="primary_api_6">' + apiOptions(row.primary_api_6) + '</select></td>' +
-            '<td>' +
-            '<label class="small">Rehit API</label><select class="form-select form-select-sm field mb-1" data-field="rehit_api_id">' + apiOptions(row.rehit_api_id) + '</select>' +
-            '<label class="small">After Pending API</label><select class="form-select form-select-sm field mb-1" data-field="pending_api_id">' + apiOptions(row.pending_api_id) + '</select>' +
-            '<label class="small">Routing Type</label><select class="form-select form-select-sm field" data-field="routing_type">' +
-            '<option value="PendingCount"' + (row.routing_type === 'PendingCount' ? ' selected' : '') + '>pending count</option>' +
-            '<option value="OneByOne"' + (row.routing_type === 'OneByOne' ? ' selected' : '') + '>one by one</option>' +
-            '<option value="LimitRotation"' + (row.routing_type === 'LimitRotation' ? ' selected' : '') + '>limit rotation</option>' +
-            '</select></td></tr>';
+        html += '<div class="opsw-card" data-idx="' + idx + '" data-name="' + esc((row.provider_name || '').toLowerCase()) + '">' +
+            '<div class="opsw-card-head">' +
+                '<h5 class="opsw-name">' + esc(row.provider_name || '-') + '</h5>' +
+                '<div class="opsw-orbit">' +
+                    '<label>Primary Orbit</label>' +
+                    '<select class="form-select form-select-sm field" data-field="primary_orbit">' + orbitOptions(row.primary_orbit) + '</select>' +
+                '</div>' +
+            '</div>' +
+            '<div class="opsw-body">' +
+                '<div class="opsw-section">' +
+                    '<div class="opsw-section-title">API routing</div>' +
+                    '<div class="row g-3">' +
+                        fieldCol('Primary API', selectField('primary_api_1', row.primary_api_1)) +
+                        fieldCol('Backup API 1', selectField('primary_api_2', row.primary_api_2)) +
+                        fieldCol('Backup API 2', selectField('primary_api_3', row.primary_api_3)) +
+                        fieldCol('Backup API 3', selectField('primary_api_4', row.primary_api_4)) +
+                        fieldCol('Extra API 5', selectField('primary_api_5', row.primary_api_5)) +
+                        fieldCol('Extra API 6', selectField('primary_api_6', row.primary_api_6)) +
+                    '</div>' +
+                '</div>' +
+                '<div class="opsw-section">' +
+                    '<div class="opsw-section-title">R-Offer</div>' +
+                    '<div class="row g-3">' +
+                        fieldCol('Min. R-Offer (%)', '<input type="number" class="form-control field" data-field="min_roffer_pct" value="' + esc(row.min_roffer_pct || 0) + '">', 'col-md-4 col-lg-2') +
+                        fieldCol('R-Offer API 1', selectField('roffer_api_1', row.roffer_api_1, 'Select API'), 'col-md-4 col-lg-2') +
+                        fieldCol('Extra Params 1', '<input type="text" class="form-control field" data-field="extra_params_1" value="' + esc(row.extra_params_1 || '') + '">', 'col-md-4 col-lg-2') +
+                        fieldCol('R-Offer API 2', selectField('roffer_api_2', row.roffer_api_2, 'Select API'), 'col-md-4 col-lg-2') +
+                        fieldCol('Extra Params 2', '<input type="text" class="form-control field" data-field="extra_params_2" value="' + esc(row.extra_params_2 || '') + '">', 'col-md-4 col-lg-4') +
+                    '</div>' +
+                '</div>' +
+                '<div class="opsw-section">' +
+                    '<div class="opsw-section-title">Rehit / Pending</div>' +
+                    '<div class="row g-3">' +
+                        fieldCol('Rehit API', selectField('rehit_api_id', row.rehit_api_id), 'col-md-4') +
+                        fieldCol('After Pending API', selectField('pending_api_id', row.pending_api_id), 'col-md-4') +
+                        fieldCol('Routing Type',
+                            '<select class="form-select field" data-field="routing_type">' +
+                            '<option value="PendingCount"' + (row.routing_type === 'PendingCount' ? ' selected' : '') + '>Pending count</option>' +
+                            '<option value="OneByOne"' + (row.routing_type === 'OneByOne' ? ' selected' : '') + '>One by one</option>' +
+                            '<option value="LimitRotation"' + (row.routing_type === 'LimitRotation' ? ' selected' : '') + '>Limit rotation</option>' +
+                            '</select>', 'col-md-4') +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
     });
-    $('#opBody').html(html);
+    $('#opList').html(html);
+    $('#opSticky').show();
+    filterOperators();
+}
+
+function filterOperators() {
+    var q = ($('#opSearch').val() || '').toLowerCase().trim();
+    $('.opsw-card').each(function () {
+        var name = $(this).data('name') || '';
+        $(this).toggle(!q || name.indexOf(q) !== -1);
+    });
 }
 
 function collectRows() {
     var rows = [];
-    $('#opBody tr').each(function () {
+    $('#opList .opsw-card').each(function () {
         var idx = $(this).data('idx');
         if (idx === undefined) return;
         var base = currentRows[idx] || {};
@@ -146,25 +235,39 @@ function collectRows() {
 }
 
 function loadOperators() {
-    $('#opBody').html('<tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#opList').html('<div class="opsw-empty">Loading...</div>');
+    $('#opSticky').hide();
     $.post('{{ route("operatorRoutingList") }}', { _token: csrf, service_id: $('#service_id').val() }, function (res) {
         if (res && res.type === 'success') renderRows(res.data);
-        else $('#opBody').html('<tr><td colspan="9" class="text-center text-danger">Failed to load</td></tr>');
-    }, 'json');
+        else $('#opList').html('<div class="opsw-empty text-danger">Failed to load</div>');
+    }, 'json').fail(function () {
+        $('#opList').html('<div class="opsw-empty text-danger">Failed to load</div>');
+    });
 }
 
-$('#service_id').on('change', loadOperators);
-$('#btnReset').on('click', loadOperators);
-$('#btnSave').on('click', function () {
+function saveOperators() {
     $.post('{{ route("operatorRoutingSave") }}', {
         _token: csrf,
         service_id: $('#service_id').val(),
         rows: collectRows()
     }, function (res) {
-        alert(res.message || (res.type === 'success' ? 'Saved' : 'Failed'));
-        if (res.type === 'success') loadOperators();
-    }, 'json');
-});
+        var ok = res && res.type === 'success';
+        if (window.Swal) {
+            Swal.fire({ title: ok ? 'Saved' : 'Failed', text: res.message || (ok ? 'Operator API switch saved' : 'Could not save'), icon: ok ? 'success' : 'error' });
+        } else {
+            alert(res.message || (ok ? 'Saved' : 'Failed'));
+        }
+        if (ok) loadOperators();
+    }, 'json').fail(function () {
+        if (window.Swal) Swal.fire({ title: 'Failed', text: 'Could not save', icon: 'error' });
+        else alert('Failed');
+    });
+}
+
+$('#service_id').on('change', loadOperators);
+$('#opSearch').on('input', filterOperators);
+$('#btnReset, #btnReset2').on('click', loadOperators);
+$('#btnSave, #btnSave2').on('click', saveOperators);
 
 loadOperators();
 </script>

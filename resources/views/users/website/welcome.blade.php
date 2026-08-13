@@ -1,14 +1,43 @@
 @include('users.website.header')
 
+@php
+    $siteBanners = website_media_items('banner');
+    $siteAds = website_media_items('ad');
+    $homePage = website_page('home');
+    $homeHeading = website_page_text($homePage, 'heading');
+    $homeBody = website_page_text($homePage, 'body');
+@endphp
+
 <main class="nc-home">
+    @if(count($siteBanners))
+    <section class="nc-site-banners">
+        <div class="nc-container">
+            @foreach($siteBanners as $banner)
+                @php $src = website_media_url($banner->image); @endphp
+                @if($src)
+                    @if(!empty($banner->link_url))
+                        <a href="{{ $banner->link_url }}" class="nc-site-banner-item">
+                            <img src="{{ $src }}" alt="{{ $banner->title }}">
+                        </a>
+                    @else
+                        <div class="nc-site-banner-item">
+                            <img src="{{ $src }}" alt="{{ $banner->title }}">
+                        </div>
+                    @endif
+                @endif
+            @endforeach
+        </div>
+    </section>
+    @endif
+
     <section class="nc-hero">
         <div class="nc-hero-glow nc-hero-glow-one"></div>
         <div class="nc-hero-glow nc-hero-glow-two"></div>
         <div class="nc-container nc-hero-grid">
             <div class="nc-hero-content">
                 <span class="nc-eyebrow"><i class="fas fa-bolt"></i> One platform. Endless possibilities.</span>
-                <h1>Powering every payment, <span>every business.</span></h1>
-                <p>{{ $company->company_name }} brings recharges, bill payments, money transfers and assisted banking together in one fast, secure platform.</p>
+                <h1>{!! $homeHeading !== '' ? e($homeHeading) : 'Powering every payment, <span>every business.</span>' !!}</h1>
+                <p>{{ $homeBody !== '' ? $homeBody : ($company->company_name.' brings recharges, bill payments, money transfers and assisted banking together in one fast, secure platform.') }}</p>
                 <div class="nc-hero-actions">
                     <a class="nc-button nc-button-primary" href="{{ url('/users/login') }}">
                         Get started <i class="fas fa-arrow-right"></i>
@@ -227,6 +256,37 @@
             </div>
         </div>
     </section>
+
+    @if(count($siteAds))
+    <section class="nc-section nc-site-ads">
+        <div class="nc-container">
+            <div class="nc-section-heading">
+                <div>
+                    <span class="nc-kicker">Offers</span>
+                    <h2>Latest ads &amp; photos</h2>
+                </div>
+            </div>
+            <div class="nc-site-ads-grid">
+                @foreach($siteAds as $ad)
+                    @php $src = website_media_url($ad->image); @endphp
+                    @if($src)
+                        @if(!empty($ad->link_url))
+                            <a class="nc-site-ad-card" href="{{ $ad->link_url }}">
+                                <img src="{{ $src }}" alt="{{ $ad->title }}">
+                                <strong>{{ $ad->title }}</strong>
+                            </a>
+                        @else
+                            <div class="nc-site-ad-card">
+                                <img src="{{ $src }}" alt="{{ $ad->title }}">
+                                <strong>{{ $ad->title }}</strong>
+                            </div>
+                        @endif
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    </section>
+    @endif
 
     <section class="nc-section nc-security-section">
         <div class="nc-container nc-security-card">

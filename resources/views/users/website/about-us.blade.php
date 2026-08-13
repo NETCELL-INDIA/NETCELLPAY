@@ -13,6 +13,17 @@
         </div>
     </div>
 </div>
+@php $cmsPage = website_page('about-us'); @endphp
+@if(website_page_text($cmsPage, 'body') !== '')
+<div class="about-area default-padding">
+    <div class="container" style="padding:40px 0;white-space:pre-wrap;">
+        @if(website_page_text($cmsPage, 'heading') !== '')
+            <h2>{{ $cmsPage->heading }}</h2>
+        @endif
+        {{ $cmsPage->body }}
+    </div>
+</div>
+@else
 <div class="about-area about-area-back default-padding">
     <div class="container">
         <div class="row">
@@ -59,5 +70,6 @@
         </div>
     </div>
 </div>
+@endif
 
 @include('users.website.footer')

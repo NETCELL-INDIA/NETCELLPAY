@@ -17,6 +17,9 @@ class DashboardController extends Controller
         ->where('user_id',1)
         ->get();
         $data['slider_list'] = $slider_list;
+        $data['role_id'] = (int) Session::get('role_id');
+        $data['is_retailer'] = $data['role_id'] === 6;
+        $data['recharge_services'] = config('recharge_services.recharge', []);
         return view('users.dashboard', $data);
     }
 

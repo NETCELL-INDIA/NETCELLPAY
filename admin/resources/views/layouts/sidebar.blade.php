@@ -219,10 +219,6 @@
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/routings/general') }}" class="nav-link">General Routings</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/routings/operator') }}" class="nav-link">Operator API Switch</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/state-wize-switch') }}" class="nav-link">Servicewise / State Switch</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-wize-switch') }}" class="nav-link">Amountwise Switch</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/user-wize-switch') }}" class="nav-link">Userwise Switch</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-block') }}" class="nav-link">Pending / Amount Block</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/routes-settings') }}" class="nav-link">Routes Priority</a></li>
                         </ul>
                     </div>
@@ -236,11 +232,7 @@
                     <div class="collapse menu-dropdown" id="sidebarUsers">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Users</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Default Margins / Scheme</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Default Cashback</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Special Margins</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Manage KYC</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/role') }}" class="nav-link">Roles</a></li>
                         </ul>
                     </div>
                 </li>
@@ -255,7 +247,6 @@
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Fund Transfer / Credit Debit</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-request') }}" class="nav-link">Pending Fund Requests</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-report') }}" class="nav-link">Fund Transfer History</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/banks') }}" class="nav-link">Manage Banks</a></li>
                         </ul>
                     </div>
                 </li>
@@ -291,7 +282,6 @@
                             <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/plan-logs-report') }}" class="nav-link">Plan / Roffer / HLR Logs</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Balance &amp; Status Check</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Plan / Circle / Provider Codes</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Inward Margins (Scheme)</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/api-log-report') }}" class="nav-link">API Log Report</a></li>
                         </ul>
                     </div>
@@ -310,15 +300,42 @@
                     </div>
                 </li>
 
-                {{-- Operators --}}
+                {{-- System --}}
                 <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarOperators" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarOperators">
-                        <i class="bx bx-list-ul"></i> <span>Operators</span>
+                    <a class="nav-link menu-link" href="#sidebarSystem" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarSystem">
+                        <i class="bx bx-cog"></i> <span>System</span>
                     </a>
-                    <div class="collapse menu-dropdown" id="sidebarOperators">
+                    <div class="collapse menu-dropdown" id="sidebarSystem">
                         <ul class="nav nav-sm flex-column">
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/providers') }}" class="nav-link">Create / List Operators</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Scheme</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/banks') }}" class="nav-link">Banks</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-block') }}" class="nav-link">Amount Block</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-wize-switch') }}" class="nav-link">Amount Wise Switch</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/state-wize-switch') }}" class="nav-link">State Wise Switch</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/user-wize-switch') }}" class="nav-link">User Wise Switch</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/role') }}" class="nav-link">Role</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/services') }}" class="nav-link">Services</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/providers') }}" class="nav-link">Providers</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/announcement') }}" class="nav-link">Announcement</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/slider') }}" class="nav-link">Slider</a></li>
+                        </ul>
+                    </div>
+                </li>
+
+                {{-- Website --}}
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#sidebarWebsite" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarWebsite">
+                        <i class="bx bx-globe"></i> <span>Website</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="sidebarWebsite">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/ads') }}" class="nav-link">Create Ads</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/pages') }}" class="nav-link">User Website List</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/setting') }}" class="nav-link">Website Setting</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/company/manage-company') }}" class="nav-link">Company Profile</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/banners') }}" class="nav-link">Banner Setting</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/popups') }}" class="nav-link">Popup Master</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/website/policy') }}" class="nav-link">Web Policy</a></li>
                         </ul>
                     </div>
                 </li>
@@ -331,7 +348,6 @@
                     <div class="collapse menu-dropdown" id="sidebarEmployees">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">List Employees / Users</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/role') }}" class="nav-link">Permissions / Roles</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/user-sale-report') }}" class="nav-link">Performance (Sale Report)</a></li>
                         </ul>
                     </div>
@@ -344,15 +360,11 @@
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarExtras">
                         <ul class="nav nav-sm flex-column">
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/announcement') }}" class="nav-link">Manage News</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/slider') }}" class="nav-link">Sliders</a></li>
                             <li class="nav-item"><a href="{{ route('smsApiListPage') }}" class="nav-link">SMS API List</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>
                             <li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/email-template') }}" class="nav-link">Email Templates</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/company/manage-company') }}" class="nav-link">Company Settings</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Slab / Scheme Settings</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/profile/my-profile') }}" class="nav-link">My Profile</a></li>
                         </ul>
                     </div>

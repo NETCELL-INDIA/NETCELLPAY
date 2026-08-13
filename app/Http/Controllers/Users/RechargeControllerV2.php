@@ -912,30 +912,35 @@ class RechargeControllerV2 extends Controller
                 'message' => $error
             ));
         }
-        $result = PlanInfoFetchService::fetch('hlr', function ($api) use ($post) {
-            return rtrim($api->api_url, '/') . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($api->resolved_username) . '&ApiPassword=' . urlencode($api->resolved_password) . '&Mobileno=' . urlencode($post->number);
-        }, 'CHECK_MOBILE', 'CMN');
-        if($result){
-            $data= json_decode($result['response'],true);
-           // return $data;
-            $provider  =  DB::table('api_provider_codes')->where('api_id', $result['api_id'])->where('provider_code', $data['OpCode'])->first();
-            $provider_data  =  DB::table('providers')->where('id', $provider->provider_id)->first();
-            $state = DB::table('states')->where('plan_api_code', $data['CircleCode'])->first();
+        $result = PlanInfoFetchService::fetchOperatorLookup((string) $post->number);
+        if (empty($result['ok'])) {
             return response()->json([
-                'type' => 'success',  
-                'message'=>'Get Successfully',
-                'provider_id' => $provider_data->id,
-                'provider_name' => $provider_data->provider_name,
-                'provider_logo' => $provider_data->provider_logo,
-                'state_id' => $state->id,
-                'state_name' => $state->state_name
-            ]); 
-        }else{
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something Went Wrong S"
-            ));
+                'type' => 'error',
+                'message' => $result['message'] ?? 'Unable to fetch operator details. Please try again.',
+            ]);
         }
+
+        $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+        $mapped = PlanInfoFetchService::mapHlrToPortal(isset($result['api_id']) ? (int) $result['api_id'] : null, $data);
+        if (!$mapped['provider'] || !$mapped['state']) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Provider or circle mapping not found. Contact admin.',
+            ]);
+        }
+
+        $provider_data = $mapped['provider'];
+        $state = $mapped['state'];
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Get Successfully',
+            'provider_id' => $provider_data->id,
+            'provider_name' => $provider_data->provider_name,
+            'provider_logo' => $provider_data->provider_logo,
+            'state_id' => $state->id,
+            'state_name' => $state->state_name
+        ]);
    }
 
 

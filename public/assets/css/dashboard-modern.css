@@ -320,6 +320,118 @@
     border-bottom-color: #f1f5f9;
 }
 
+.dash-recharge-panel {
+    margin-bottom: 18px;
+    padding: 18px 20px 16px;
+    background: #fff;
+    border: 1px solid var(--dash-border);
+    border-radius: var(--dash-radius);
+    box-shadow: var(--dash-shadow);
+}
+
+.dash-recharge-head h4 {
+    margin: 0 0 4px;
+    color: var(--dash-ink);
+    font-size: 18px;
+    font-weight: 750;
+}
+
+.dash-recharge-head p {
+    margin: 0 0 14px;
+    color: var(--dash-muted);
+    font-size: 13px;
+}
+
+.dash-recharge-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.dash-recharge-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    padding: 16px 12px;
+    text-decoration: none;
+    color: var(--dash-ink);
+    background: linear-gradient(180deg, rgba(99, 91, 255, .06), #fff);
+    border: 1px solid #eef2f7;
+    border-radius: 14px;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.dash-recharge-card:hover {
+    color: var(--dash-ink);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(99, 91, 255, .12);
+}
+
+.dash-recharge-icon {
+    display: grid;
+    width: 56px;
+    height: 56px;
+    place-items: center;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(23, 32, 51, .06);
+}
+
+.dash-recharge-icon img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.dash-recharge-card strong {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.dash-recharge-card span {
+    color: var(--dash-muted);
+    font-size: 12px;
+}
+
+.dash-recharge-example {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px dashed #dbe3ee;
+    border-radius: 12px;
+}
+
+.dash-recharge-example h5 {
+    margin: 0 0 8px;
+    color: var(--dash-primary);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+}
+
+.dash-recharge-example ol {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--dash-ink);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.dash-recharge-example code {
+    padding: 1px 6px;
+    color: #0f172a;
+    background: #fff;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .dash-recharge-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 1200px) {
     .dash-stat-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
