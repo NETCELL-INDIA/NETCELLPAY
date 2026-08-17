@@ -39,7 +39,6 @@
 </div></div></div>
 @endsection
 @section('script')
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 <script>
 var csrf='{{ csrf_token() }}', page=1, last=1;
 function payload(){return{_token:csrf,show:$('#show').val(),page:page,from_date:$('#from_date').val(),type:$('#type').val(),number:$('#number').val()};}

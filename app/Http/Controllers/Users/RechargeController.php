@@ -108,9 +108,11 @@ class RechargeController extends Controller
 
             'amount' => 'required|numeric|min:1',
 
-            'pin' => 'required|digits:4'
-
         );
+
+        if (!$post->filled('api_key')) {
+            $rules['pin'] = 'required|digits:4';
+        }
 
 
 
@@ -172,6 +174,14 @@ class RechargeController extends Controller
 
             $user = DB::table('users')->where('api_key', $post->api_key)->first();
 
+            if (!$user) {
+                return response()->json(array(
+                    'status' => 'Failed',
+                    'type' => 'error',
+                    'message' => 'user not found'
+                ));
+            }
+
             $request_order_id = DB::table('reports')->where('user_id', $user->id)->where('request_order_id', $post->request_order_id)->first();
 
             if ($request_order_id) {
@@ -204,7 +214,14 @@ class RechargeController extends Controller
 
         }
 
-
+        $stopped = \App\Services\SystemSettingService::blockedMessage();
+        if ($stopped) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $stopped
+            ));
+        }
 
         //return $user;
 
@@ -242,7 +259,7 @@ class RechargeController extends Controller
 
         //User Wize Service Active/Deactive
 
-        if (!\helpers::verifyUserPin($user->t_pin, $post->pin)) {
+        if (($post['path'] ?? '') !== 'Api' && !\helpers::verifyUserPin($user->t_pin, $post->pin)) {
 
             return response()->json(array(
 
@@ -326,6 +343,15 @@ class RechargeController extends Controller
 
             ));
 
+        }
+
+        $serviceOff = \App\Services\SystemSettingService::serviceDisabledMessage($provider);
+        if ($serviceOff) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $serviceOff
+            ));
         }
 
 
@@ -426,22 +452,13 @@ class RechargeController extends Controller
 
 
 
-        $previouspayment = DB::table('reports')->where('user_id', $user->id)->where('number', $post->number)->where('total_amount', $post->amount)->where('provider_id', $post->provider_id)->whereBetween('created_at', [Carbon::now()->subMinutes(1)->format('Y-m-d H:i:s'), Carbon::now()->format('Y-m-d H:i:s')])->count();
-
-        //$previouspayment = 0;
-
-        if ($previouspayment != 0) {
-
+        $repeat = \App\Services\SystemSettingService::rechargeRepeatMessage($user->id, $post->number, $post->amount, $post->provider_id);
+        if ($repeat) {
             return response()->json(array(
-
                 'status' => 'Failed',
-
                 'type' => 'error',
-
-                'message' => "Same Transaction Repeat"
-
+                'message' => $repeat
             ));
-
         }
 
         $inProgress = DB::table('reports')

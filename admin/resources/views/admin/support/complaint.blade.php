@@ -29,13 +29,13 @@
                         <div class="col-lg-3">
                             <div>
                                 <label class="form-label mb-0">From Date</label>
-                                <input type="date" class="form-control" name="from_date" value="{{\Carbon\Carbon::today()->format('Y-m-d')}}" id="from_date">
+                                <input type="date" class="form-control" name="from_date" value="" id="from_date" placeholder="All days">
                             </div>
                         </div>
                         <div class="col-lg-3">
                             <div>
                                 <label class="form-label mb-0">To Date </label>
-                                <input type="date" class="form-control" name="to_date" value="{{\Carbon\Carbon::today()->format('Y-m-d')}}"id="to_date">
+                                <input type="date" class="form-control" name="to_date" value="" id="to_date" placeholder="All days">
                             </div>  
                         </div>
                         <div class="col-lg-2">
@@ -47,7 +47,8 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Status </label>
                             <select class="form-select mb-3" name="status_type" id="status_type">
-                                <option selected value="All">All</option>
+                                <option selected value="Pending">Pending</option>
+                                <option value="All">All</option>
                                 <option value="Open">Open</option>
                                 <option value="Closed">Closed</option>
                                 <option value="Sloved">Sloved</option>
@@ -75,8 +76,11 @@
                 <div class="flex-shrink-0">
                 </div>
             </div>
-            <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+            <div class="card-body">
+                <div class="text-muted mb-2" style="font-size:.8rem">Pending complaints (Open / Under Review) load for all days. Use dates only if you want to search history.</div>
+                <div id="list_result">
+                    <h4 class="text-center text-secondary my-3">No record found</h4>
+                </div>
             </div>
         </div>
     </div>
@@ -107,39 +111,33 @@
 @section('script')
 <script>
     fetchAll(1,10);
+    function complaintPayload(page, limit) {
+        return {
+            from_date: $("#from_date").val() || '',
+            to_date: $("#to_date").val() || '',
+            request_id: $("#request_id").val() || '',
+            status: $("#status_type").val() || 'Pending',
+            page: page || 1,
+            limit: limit || 10,
+            tbl_type: 0,
+            _token: '{{csrf_token()}}'
+        };
+    }
     function fetchAllSearch() {
-        var from_date = $("#from_date").val();
-        var to_date = $("#to_date").val();
-        var request_id = $("#request_id").val();
-        var status = $("#status_type").val();
-        var tbl_type = 0;
         $("#search_btn").text('Please wait...');
         $('#search_btn').prop('disabled', true);
         $.ajax({
             url: '{{ route('ComplaintsList') }}',
             method: 'post',
-            data: {
-                from_date : from_date,
-                to_date : to_date,
-                status,
-                request_id : request_id,
-                page : 1,
-                limit : 10,
-                tbl_type : tbl_type,
-                _token: '{{csrf_token()}}',
-            },
+            data: complaintPayload(1, 10),
             success: function(res) {
                 $("#search_btn").text('Search Records');
                 $('#search_btn').prop('disabled', false);
                 $("#list_result").html(res);
-                // var table = new DataTable('#scroll-vertical', {
-                //     "scrollY": "250px",
-                //     "scrollCollapse": true,
-                //     "paging": false
-                // });
-                // $('#example').DataTable({
-                //     order: [0, 'desc']
-                // });
+            },
+            error: function() {
+                $("#search_btn").text('Search Records');
+                $('#search_btn').prop('disabled', false);
             }
         });
     }
@@ -181,28 +179,13 @@
     }
 
     function fetchAll(page,limit) {
-        var from_date = $("#from_date").val();
-        var to_date = $("#to_date").val();
-        var status = $("#status_type").val();
-        // var order_id = $("#order_id").val();
-        // var fund_type = $("#fund_type").val();
-        // var tr_type = $("#tr_type").val();
-        var tbl_type = 0;
         $("#list_result").html('<h4 class="text-center text-secondary my-3">Loading...</h4>');
         $.ajax({
             url: '{{ route('ComplaintsList') }}',
             method: 'post',
-            data: {_token: '{{csrf_token()}}',from_date,tbl_type,to_date,page,limit,status},
+            data: complaintPayload(page, limit),
             success: function(res) {
                 $("#list_result").html(res);
-                // var table = new DataTable('#scroll-vertical', {
-                //     "scrollY": "250px",
-                //     "scrollCollapse": true,
-                //     "paging": false
-                // });
-                // $('#example').DataTable({
-                //     order: [0, 'desc']
-                // });
             }
         });
     }
@@ -222,7 +205,6 @@
 {{-- <script src="{{ URL::asset('assets/js/pages/datatables.init.js') }}"></script> --}}
 
 
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 
 <!--jquery cdn-->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>

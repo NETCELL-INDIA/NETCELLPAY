@@ -396,6 +396,10 @@ class UserListController extends Controller
                     Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
                 }
                 ////Send Email End
+                try {
+                    \App\Services\SystemSettingService::creditReferral((int) Session::get('user_id'), (int) $user_data->id);
+                } catch (\Throwable $e) {
+                }
                 return response()->json(array(
                     'type' => "success",  
                     'message' => "Register sucessfuly.Login Details send email,whatsapp & sms"
@@ -440,7 +444,13 @@ class UserListController extends Controller
             ));
         }
         $user = DB::table('users')->where('id', Session::get('user_id'))->first();
-        
+        $fundBlock = \App\Services\SystemSettingService::fundTransferMessage($user, $post->amount);
+        if ($fundBlock) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $fundBlock
+            ));
+        }
 
         if($post->type == "Transfer"){
             if($user->wallet_balance < $post->amount){

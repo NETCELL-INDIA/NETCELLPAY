@@ -114,5 +114,4 @@
 @endsection
 
 @section('script')
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 @endsection

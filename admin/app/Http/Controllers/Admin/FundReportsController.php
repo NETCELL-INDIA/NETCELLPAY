@@ -549,14 +549,20 @@ class FundReportsController extends Controller
 
     public function searchUuser(Request $post)
     {
-        if($post->keyword != ''){
+        $keyword = trim((string) $post->keyword);
+        $user = collect();
+        if ($keyword !== '') {
             $user = DB::table('users')
-            ->where('mobile_number','LIKE','%'.$post->keyword.'%')
-            ->orWhere('email_address','LIKE','%'.$post->keyword.'%')
-            ->orWhere('outlet_name','LIKE','%'.$post->keyword.'%')
-            ->orWhere('first_name','LIKE','%'.$post->keyword.'%')
-            ->orWhere('last_name','LIKE','%'.$post->keyword.'%')
-            ->get(['id','first_name','middle_name','last_name','outlet_name','mobile_number']);
+                ->where('deleted_at', 0)
+                ->where(function ($q) use ($keyword) {
+                    $q->where('mobile_number', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('email_address', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('outlet_name', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('first_name', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('last_name', 'LIKE', '%' . $keyword . '%');
+                })
+                ->limit(25)
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'mobile_number']);
         }
         return response()->json([
             'users' => $user

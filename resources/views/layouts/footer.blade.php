@@ -141,6 +141,8 @@
                     var walletText = formatWalletBalance(u && u.wallet_balance);
                     $(".LoadWallet").html('<span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span><span class="text-start"><span class="d-block wallet-label">Wallet Balance</span><span class="d-block wallet-amount">₹ '+walletText+'</span></span>');
                     $("#nav_wallet_balance").text("₹ "+walletText);
+                    var alertBelow = Number((data.data && data.data.balance_alert_below) || 0);
+                    $(".nc-wallet-btn").toggleClass("is-low-balance", alertBelow > 0 && Number(u.wallet_balance) < alertBelow);
                     admin_url = '{{env('ADMIN_HOST')}}';
                     var profilePic = admin_url+"/public/profile_pic/"+u.profile_pic;
                     $("#nav_profile_pic").attr("src", profilePic);
@@ -154,12 +156,12 @@
                     }
 
                     ////Help & Support Modal Start
-                    $("#sh_comapany_logo").attr("src", admin_url+"/public/company_logo/"+data.data.company.company_logo);
-                    $("#sh_support_number").text(data.data.company.support_number);
-                    $("#sh_support_number_2").text(data.data.company.support_number_2);
-                    $("#sh_support_email").text(data.data.company.support_email);
-                    $("#sh_company_address").text(data.data.company.company_address);
-                    $("#copyrightName").text(data.data.company.company_name);
+                    $("#sh_comapany_logo").attr("src", admin_url+"/public/company_logo/"+(data.data.company && data.data.company.company_logo ? data.data.company.company_logo : ''));
+                    $("#sh_support_number").text((data.data.company && data.data.company.support_number) || '');
+                    $("#sh_support_number_2").text((data.data.company && data.data.company.support_number_2) || '');
+                    $("#sh_support_email").text((data.data.company && data.data.company.support_email) || '');
+                    $("#sh_company_address").text((data.data.company && data.data.company.company_address) || '');
+                    $("#copyrightName").text((data.data.company && data.data.company.company_name) || '');
                     ////Help & Support Modal End
                 }else{
                     Error_Msg(capitalizeFirstLetter(data.type), data.message, data.type);
@@ -167,7 +169,6 @@
             },
             error: function(err) {
                 console.log(err);
-                Error_Msg("Oops...", "Something went wrong!", "error");
             }
         });
     }

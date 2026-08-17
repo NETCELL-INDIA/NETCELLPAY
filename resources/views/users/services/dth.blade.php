@@ -448,19 +448,19 @@
 
                                             @php
 
-                                            $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+                                            $company = user_company();
 
                                             @endphp
 
                                             <tr>
 
-                                                <td style="width:50%"><img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" style="height: 60px;"></td>
+                                                <td style="width:50%"><img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" style="height: 60px;"></td>
 
                                                 <td style="width:50%;"> <strong
 
-                                                        style="display: inline-block;overflow: hidden;white-space: nowrap;float: right;padding-right: 10px;">{{$company->company_name}}</strong><br> <strong
+                                                        style="display: inline-block;overflow: hidden;white-space: nowrap;float: right;padding-right: 10px;">{{ $company->company_name ?? '' }}</strong><br> <strong
 
-                                                        style="float: right;padding-right: 10px;">Email: {{$company->support_email}}</strong>
+                                                        style="float: right;padding-right: 10px;">Email: {{ $company->support_email ?? '' }}</strong>
 
                                                 </td>
 

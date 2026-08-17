@@ -3,20 +3,16 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>@yield('title') | {{ $company->company_name ?? 'Admin' }}</title>
+    <title>@yield('title') | {{ $company?->company_name ?? 'Admin' }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    {{-- Force top (horizontal) menu — clear any saved vertical layout --}}
+    {{-- Lock horizontal top menu. Clear saved layout so Velzon layout.js does not reload-loop. --}}
     <script>
         (function () {
             try {
+                document.documentElement.setAttribute('data-layout', 'horizontal');
                 sessionStorage.setItem('data-layout', 'horizontal');
-                var def = sessionStorage.getItem('defaultAttribute');
-                if (def) {
-                    var o = JSON.parse(def);
-                    o['data-layout'] = 'horizontal';
-                    sessionStorage.setItem('defaultAttribute', JSON.stringify(o));
-                }
+                sessionStorage.removeItem('defaultAttribute');
             } catch (e) {}
         })();
     </script>
@@ -31,8 +27,6 @@
     </script>
     <!-- Sweet Alert css-->
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
-    <!-- Bootstrap Css -->
-    <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" id="bootstrap-style" rel="stylesheet" type="text/css" />
     @if(!empty($company?->company_icon))
         <link rel="shortcut icon" href="{{ admin_company_logo($company->company_icon ?? null) ?? admin_asset('assets/images/favicon.ico') }}">
     @else

@@ -35,10 +35,9 @@ class AuthController extends Controller
             $request->session()->forget(['user_id', 'login_key', 'role_id']);
         }
 
-        $host = $request->getHost();
-        $company = DB::table('companies')->where('status', 1)->where('domain', $host)->first();
+        $company = Common::getCompanyByHost();
         if (!$company) {
-            \Log::warning("Admin login: companies row not found for host: {$host}");
+            \Log::warning("Admin login: companies row not found for host: {$request->getHost()}");
         }
 
         $data['name'] = "shiba";
@@ -116,8 +115,7 @@ class AuthController extends Controller
                                         }
                                     }
 
-                                    $company = DB::table('companies')->where('status', "1")->where('domain', request()->getHost())->first();
-                                    $company = $company ?: DB::table('companies')->where('status', "1")->first();
+                                    $company = Common::getCompanyByHost();
                                     if($company && $company->email_message == 1){
                                         $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
                                         if ($email_tmp && !empty($user->email_address)) {
@@ -228,13 +226,7 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        $host = $request->getHost();
-        $company = DB::table('companies')->where('status', 1)->where('domain', $host)->first();
-        if (!$company) {
-            $company = DB::table('companies')->where('status', 1)->first();
-        }
-
-        return view('admin.auth.forgot-password', ['company' => $company]);
+        return view('admin.auth.forgot-password', ['company' => Common::getCompanyByHost()]);
     }
 
 
@@ -300,7 +292,7 @@ class AuthController extends Controller
                     }
                     ////Send Whatsapp Message End
                     ////Send Email Start
-                    $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+                    $company = Common::getCompanyByHost();
                     if($company && $company->email_message == 1){
                         $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
                         if ($email_tmp) {

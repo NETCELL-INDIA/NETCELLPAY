@@ -30,8 +30,10 @@ class RechargeControllerV2 extends Controller
             'state_id' => 'numeric',
             'number'  => 'required|min:8|max:12',
             'amount' => 'required|numeric|min:1',
-            'pin' => 'required|digits:4'
         );
+        if (!$post->filled('api_key')) {
+            $rules['pin'] = 'required|digits:4';
+        }
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
         if ($validator->fails()) {
@@ -60,6 +62,13 @@ class RechargeControllerV2 extends Controller
                 ));
             }
             $user = DB::table('users')->where('api_key',$post->api_key)->first();
+            if(!$user){
+                return response()->json(array(
+                    'status' => 'Failed',
+                    'type' => 'error',
+                    'message' => "user not found"
+                ));
+            }
             $request_order_id = DB::table('reports')->where('user_id', $user->id)->where('request_order_id', $post->request_order_id)->first();
             if($request_order_id){
                 return response()->json(array(
@@ -75,6 +84,15 @@ class RechargeControllerV2 extends Controller
         }else{
             $user = DB::table('users')->where('id',Session::get('user_id'))->where('login_key',Session::get('login_key'))->first();
             $post['path'] = "Web";
+        }
+
+        $stopped = \App\Services\SystemSettingService::blockedMessage();
+        if ($stopped) {
+            return response()->json([
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $stopped,
+            ]);
         }
 
         //return $user;
@@ -95,7 +113,7 @@ class RechargeControllerV2 extends Controller
             )); 
         }
         //User Wize Service Active/Deactive
-        if(!\helpers::verifyUserPin($user->t_pin, $post->pin)){
+        if(($post['path'] ?? '') !== 'Api' && !\helpers::verifyUserPin($user->t_pin, $post->pin)){
             return response()->json(array(
                 'status' => 'Failed',
                 'type' => 'error',  
@@ -139,6 +157,15 @@ class RechargeControllerV2 extends Controller
             ));
         }
 
+        $serviceOff = \App\Services\SystemSettingService::serviceDisabledMessage($provider);
+        if ($serviceOff) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $serviceOff
+            ));
+        }
+
         $chk_block_amount = DB::table('amount_blocks')->where('provider_id',$post->provider_id)->first();
 
        // return $chk_block_amount;
@@ -152,14 +179,13 @@ class RechargeControllerV2 extends Controller
             } 
         }
 
-        $previouspayment = DB::table('reports')->where('user_id', $user->id)->where('number', $post->number)->where('total_amount', $post->amount)->where('provider_id', $post->provider_id)->whereBetween('created_at', [Carbon::now()->subMinutes(1)->format('Y-m-d H:i:s'), Carbon::now()->format('Y-m-d H:i:s')])->count();
-        $previouspayment = 0;
-        if($previouspayment != 0){
+        $repeat = \App\Services\SystemSettingService::rechargeRepeatMessage($user->id, $post->number, $post->amount, $post->provider_id);
+        if ($repeat) {
             return response()->json(array(
                 'status' => 'Failed',
-                'type' => 'error',  
-                'message' => "Same Transaction Repeat"
-            ));            
+                'type' => 'error',
+                'message' => $repeat
+            ));
         }
 
 

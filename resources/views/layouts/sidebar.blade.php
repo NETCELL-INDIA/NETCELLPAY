@@ -5,19 +5,19 @@
         <!-- Dark Logo-->
         <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-dark">
             <span class="logo-sm">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" height="22">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="22">
             </span>
             <span class="logo-lg">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" height="17">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="17">
             </span>
         </a>
         <!-- Light Logo-->
         <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-light">
             <span class="logo-sm">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" height="22">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="22">
             </span>
             <span class="logo-lg">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{$company->company_logo}}" alt="" height="17">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="17">
             </span>
         </a>
         <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover" id="vertical-hover">

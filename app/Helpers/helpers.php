@@ -1130,6 +1130,50 @@ class helpers
 
 }
 
+if (! function_exists('user_company')) {
+    function user_company(): ?object
+    {
+        static $company = false;
+        if ($company !== false) {
+            return $company;
+        }
+
+        $hosts = [];
+        try {
+            $hosts[] = request()->getHttpHost();
+            $hosts[] = request()->getHost();
+        } catch (\Throwable $e) {
+        }
+        $hosts[] = $_SERVER['HTTP_HOST'] ?? null;
+        $hosts[] = $_SERVER['SERVER_NAME'] ?? null;
+        $hosts = array_values(array_unique(array_filter($hosts)));
+
+        foreach ($hosts as $host) {
+            $row = \Illuminate\Support\Facades\DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+            if ($row) {
+                $company = $row;
+                return $company;
+            }
+            $bare = explode(':', (string) $host)[0];
+            if ($bare !== $host) {
+                $row = \Illuminate\Support\Facades\DB::table('companies')->where('status', '1')->where('domain', $bare)->first();
+                if ($row) {
+                    $company = $row;
+                    return $company;
+                }
+            }
+            $row = \Illuminate\Support\Facades\DB::table('companies')->where('status', '1')->where('domain', 'like', $bare . '%')->first();
+            if ($row) {
+                $company = $row;
+                return $company;
+            }
+        }
+
+        $company = \Illuminate\Support\Facades\DB::table('companies')->where('status', '1')->first();
+        return $company;
+    }
+}
+
 if (! function_exists('user_build_serial')) {
     /**
      * Visible deploy marker on user auth pages. Bump on each production release.

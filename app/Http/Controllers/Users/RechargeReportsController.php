@@ -150,7 +150,10 @@ class RechargeReportsController extends Controller
 
                 $provider = DB::table('providers')->where('id', $list->provider_id)->first();
                 $service = DB::table('services')->where('id', $list->service_id)->first();
-                $state = DB::table('states')->where('id', DB::table($table)->where('order_id',$list->order_id)->whereIn('transaction_type',['Recharge'])->first(['state_id'])->state_id)->first(['state_name']);
+                $reportRow = DB::table($table)->where('order_id', $list->order_id)->whereIn('transaction_type', ['Recharge'])->first(['state_id', 'amount']);
+                $state = $reportRow && $reportRow->state_id
+                    ? DB::table('states')->where('id', $reportRow->state_id)->first(['state_name'])
+                    : null;
                 if($state){
                     $state = $state->state_name;
                 }else{
@@ -161,9 +164,9 @@ class RechargeReportsController extends Controller
                 <td>
                     ' . $list->transaction_date . ' </br>
                     Number : ' . $list->number . ' </br>
-                    ' . Str::of($provider->provider_name)->upper() . 
+                    ' . Str::of($provider->provider_name ?? '-')->upper() . 
                     ' - ' . Str::of($state)->upper() . 
-                    ' - ' . Str::of($service->service_name)->upper() . 
+                    ' - ' . Str::of($service->service_name ?? '-')->upper() . 
                     ' - ' . Str::of($list->path)->upper() . '</br>
                 </td>
                 <td>' . $list->request_order_id . '</td>
@@ -173,7 +176,7 @@ class RechargeReportsController extends Controller
                     ' . report_status_html($list->status, $list->id) . '
                 </td>
                 <td style="font-size: 18px;"> ₹ ' . $list->total_amount . '</td> 
-                <td style="font-size: 18px;"> ₹ ' . DB::table($table)->where('order_id',$list->order_id)->whereIn('transaction_type',['Recharge'])->first(['amount'])->amount . '</td> 
+                <td style="font-size: 18px;"> ₹ ' . ($reportRow->amount ?? $list->amount) . '</td> 
                 <td style="font-size: 18px;"> ₹ ' . $list->commission . '</td> 
                 <td>
                 ' . $action .'

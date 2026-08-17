@@ -20,6 +20,13 @@ Dashboard
         <h3 id="dp_outlet_name">—</h3>
     </div>
 
+    @if(!empty($show_balance_alert))
+    <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+        <i class="ri-error-warning-line me-2 fs-16"></i>
+        <span>Wallet balance is below ₹ {{ number_format((float) $balance_alert, 2) }}. Please add money.</span>
+    </div>
+    @endif
+
     @if(!empty($is_retailer))
     <div class="dash-recharge-panel mb-3">
         <div class="dash-recharge-head">
@@ -227,19 +234,24 @@ Dashboard
                 _token: '{{ csrf_token() }}',
             },
             success: function (res) {
+                function money(v) {
+                    var n = Number(v);
+                    if (!Number.isFinite(n)) n = 0;
+                    return n.toFixed(2);
+                }
                 if (res.rc_reports) {
-                    $("#rc_success_hit").text(res.rc_reports.rc_success_hit);
-                    $("#rc_success_amount").text(res.rc_reports.rc_success_amount.toFixed(2));
-                    $("#rc_pending_hit").text(res.rc_reports.rc_pending_hit);
-                    $("#rc_pending_amount").text(res.rc_reports.rc_pending_amount.toFixed(2));
-                    $("#rc_failed_hit").text(res.rc_reports.rc_failed_hit);
-                    $("#rc_failed_amount").text(res.rc_reports.rc_failed_amount.toFixed(2));
-                    $("#rc_refund_hit").text(res.rc_reports.rc_refund_hit);
-                    $("#rc_refund_amount").text(res.rc_reports.rc_refund_amount.toFixed(2));
-                    $("#rc_turnover_amount").text(res.rc_reports.rc_success_amount.toFixed(2));
-                    $("#rc_commission_amount").text(res.rc_reports.rc_commission.toFixed(2));
-                    $("#rc_receive_amount").text(res.rc_reports.rc_receive_money.toFixed(2));
-                    $("#rc_complaint_hit").text(res.rc_reports.rc_complaint_hit);
+                    $("#rc_success_hit").text(res.rc_reports.rc_success_hit || 0);
+                    $("#rc_success_amount").text(money(res.rc_reports.rc_success_amount));
+                    $("#rc_pending_hit").text(res.rc_reports.rc_pending_hit || 0);
+                    $("#rc_pending_amount").text(money(res.rc_reports.rc_pending_amount));
+                    $("#rc_failed_hit").text(res.rc_reports.rc_failed_hit || 0);
+                    $("#rc_failed_amount").text(money(res.rc_reports.rc_failed_amount));
+                    $("#rc_refund_hit").text(res.rc_reports.rc_refund_hit || 0);
+                    $("#rc_refund_amount").text(money(res.rc_reports.rc_refund_amount));
+                    $("#rc_turnover_amount").text(money(res.rc_reports.rc_success_amount));
+                    $("#rc_commission_amount").text(money(res.rc_reports.rc_commission));
+                    $("#rc_receive_amount").text(money(res.rc_reports.rc_receive_money));
+                    $("#rc_complaint_hit").text(res.rc_reports.rc_complaint_hit || 0);
                 }
                 $("#provider_list_result").html(res.provider_list || '<h4 class="text-center text-secondary my-3">No records found</h4>');
                 if ($('#scroll-vertical').length && $.fn.DataTable) {

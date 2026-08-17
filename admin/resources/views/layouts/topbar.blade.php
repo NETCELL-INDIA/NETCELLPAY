@@ -4,7 +4,7 @@
             <div class="d-flex align-items-center">
                 <div class="navbar-brand-box horizontal-logo">
                     @php
-                        $tbBrand = $company->company_name ?? 'NETCELL PAY';
+                        $tbBrand = $company?->company_name ?? 'NETCELL PAY';
                     @endphp
                     <a href="{{ URL::asset('admin/dashboard') }}" class="np-h-brand logo logo-dark logo-light" title="{{ $tbBrand }}">
                         <span class="np-h-text">
@@ -188,7 +188,7 @@
                     }
                     $topUserMobile = $topUser->mobile_number ?? '';
                     $topUserWallet = round($topUser->wallet_balance ?? 0, 2);
-                    $topUserAvatar = admin_company_logo($company->company_icon ?? null)
+                    $topUserAvatar = admin_company_logo($company?->company_icon ?? null)
                         ?? admin_asset('assets/images/users/avatar-1.jpg');
                 @endphp
                 <div class="dropdown ms-1">

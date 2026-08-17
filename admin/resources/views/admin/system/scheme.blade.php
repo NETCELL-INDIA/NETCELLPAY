@@ -517,6 +517,5 @@
 {{-- <script src="{{ URL::asset('assets/js/pages/datatables.init.js') }}"></script> --}}
 
 
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 
 @endsection

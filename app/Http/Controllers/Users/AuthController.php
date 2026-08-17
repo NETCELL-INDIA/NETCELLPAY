@@ -62,7 +62,15 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
+            $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
+            if ($locked) {
+                return response()->json(array(
+                    'type' => 'error',
+                    'message' => $locked
+                ));
+            }
             if(\helpers::verifyUserPassword($post->password, $user)){
+                \App\Services\SystemSettingService::clearFailedLogin($user);
 
                 if($user->status==1){
                     if(strtoupper((string) $user->login_type) === 'OTP'){
@@ -145,13 +153,16 @@ class AuthController extends Controller
                         $post->session()->put('user_id', $user->id);
                         $post->session()->put('login_key', $user->login_key);
                         $post->session()->put('role_id', $user->role_id);
-                        DB::table('login_histories')->insert([
-                            'user_id' => $user->id,
-                            'ip_address' => request()->ip(),
-                            'login_path' => "Web",
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now()
-                        ]);
+                        try {
+                            DB::table('login_histories')->insert([
+                                'user_id' => $user->id,
+                                'ip_address' => request()->ip(),
+                                'login_path' => "Web",
+                                'created_at' => Carbon::now(),
+                                'updated_at' => Carbon::now()
+                            ]);
+                        } catch (\Throwable $e) {
+                        }
                     }
                     //$post->session()->flush();
                     //return  session('login_key');
@@ -162,7 +173,7 @@ class AuthController extends Controller
                 
             }else{
                 $data['type'] = 'error';
-                $data['message'] = "password do not match";
+                $data['message'] = \App\Services\SystemSettingService::recordFailedLogin($user);
             }
         }else{
             $data['type'] = 'error';
@@ -194,7 +205,15 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
+            $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
+            if ($locked) {
+                return response()->json(array(
+                    'type' => 'error',
+                    'message' => $locked
+                ));
+            }
             if(\helpers::verifyUserPassword($post->password, $user)){
+                \App\Services\SystemSettingService::clearFailedLogin($user);
 
                 if($user->status==1){
                     if($this->verifyUserLoginOtp($post->otp, $user)){
@@ -213,13 +232,16 @@ class AuthController extends Controller
                         $post->session()->put('user_id', $user->id);
                         $post->session()->put('login_key', $user->login_key);
                         $post->session()->put('role_id', $user->role_id);
-                        DB::table('login_histories')->insert([
-                            'user_id' => $user->id,
-                            'ip_address' => request()->ip(),
-                            'login_path' => "Web",
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now()
-                        ]);
+                        try {
+                            DB::table('login_histories')->insert([
+                                'user_id' => $user->id,
+                                'ip_address' => request()->ip(),
+                                'login_path' => "Web",
+                                'created_at' => Carbon::now(),
+                                'updated_at' => Carbon::now()
+                            ]);
+                        } catch (\Throwable $e) {
+                        }
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "Wrong otp.";
@@ -234,7 +256,7 @@ class AuthController extends Controller
                 
             }else{
                 $data['type'] = 'error';
-                $data['message'] = "password do not match";
+                $data['message'] = \App\Services\SystemSettingService::recordFailedLogin($user);
             }
         }else{
             $data['type'] = 'error';
@@ -520,8 +542,8 @@ class AuthController extends Controller
             }
             ////Send Whatsapp Message End
             ////Send Email Start
-            $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-            if($company->email_message == 1){
+            $company = user_company();
+            if($company && $company->email_message == 1){
                 $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
                 $content_email = $email_tmp->content;
                 $content_email = str_replace('{NAME}', '' . $post->first_name . '', $content_email);
@@ -624,8 +646,8 @@ class AuthController extends Controller
                     }
                     ////Send Whatsapp Message End
                     ////Send Email Start
-                    $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                    if($company->email_message == 1){
+                    $company = user_company();
+                    if($company && $company->email_message == 1){
                         $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
                         $content_email = $email_tmp->content;
                         $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);

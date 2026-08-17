@@ -56,11 +56,7 @@ class ProfileController extends Controller
         ->orderBy('id', 'DESC')
         ->get(['ip_address','login_path','created_at']);
 
-        $company =  DB::table('companies')
-        ->select('company_logo','company_icon','invoice_logo','company_name','support_number','support_number_2','support_email','company_address')
-        ->where('status', "1")
-        ->where('domain', $_SERVER['HTTP_HOST'])
-        ->first();
+        $company = user_company();
 
         $announcementRow = DB::table('announcements')
         ->select('message')
@@ -78,6 +74,7 @@ class ProfileController extends Controller
             $data['data']['login_history'] = $login_history;
             $data['data']['company'] = $company;
             $data['data']['announcements'] = $announcements;
+            $data['data']['balance_alert_below'] = (float) \App\Services\SystemSettingService::get('balance_alert_below', 500);
         } else {
             $data['type'] = 'error';
             $data['message'] = "Something went wrong!";
@@ -281,22 +278,26 @@ class ProfileController extends Controller
             $i=$start + 1;
             foreach ($list as $list) {
                 if($user->role_id == 6 ||$user->role_id == 3){
-                    $amount_type = $list->rt_amount_type;
-                    $amount_value = $list->rt_amount_value;
+                    $amount_type = $list->rt_amount_type ?? '';
+                    $amount_value = $list->rt_amount_value ?? '';
                 }else if($user->role_id == 5){
-                    $amount_type = $list->dt_amount_type;
-                    $amount_value = $list->dt_amount_value;
+                    $amount_type = $list->dt_amount_type ?? '';
+                    $amount_value = $list->dt_amount_value ?? '';
                 }else if($user->role_id == 4){
-                    $amount_type = $list->md_amount_type;
-                    $amount_value = $list->md_amount_value;
+                    $amount_type = $list->md_amount_type ?? '';
+                    $amount_value = $list->md_amount_value ?? '';
                 }else if($user->role_id == 2){
-                    $amount_type = $list->wt_amount_type;
-                    $amount_value = $list->wt_amount_value;
+                    $amount_type = $list->wt_amount_type ?? '';
+                    $amount_value = $list->wt_amount_value ?? '';
+                } else {
+                    $amount_type = '';
+                    $amount_value = '';
                 }
-                if($list->provider_down == 0){
+                $down = (int) ($list->provider_down ?? 0);
+                if($down == 0){
                     $bg = "success";
                     $st = "ONLINE";
-                }else if($list->provider_down == 1){
+                }else if($down == 1){
                     $bg = "danger";
                     $st = "OFLINE";
                 }else{

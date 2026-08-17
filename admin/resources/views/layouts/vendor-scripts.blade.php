@@ -16,8 +16,9 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 @yield('script')
 @yield('script-bottom')
+<script src="{{ admin_asset('assets/js/app.min.js') }}"></script>
 <script>
-/* After page app.min.js: only #scrollbar scrolls — unwrap nested SimpleBar on #navbar-nav */
+/* After page app.min.js: keep horizontal top menu intact */
 (function () {
     function unwrapNavbarSimpleBar() {
         var nav = document.getElementById('navbar-nav');
@@ -59,14 +60,65 @@ document.addEventListener('DOMContentLoaded', function () {
             moreItem.remove();
         }
     }
+    function unmountSimpleBar(el) {
+        if (!el) return;
+        el.removeAttribute('data-simplebar');
+        var inst = window.SimpleBar && SimpleBar.instances && SimpleBar.instances.get(el);
+        if (inst && typeof inst.unMount === 'function') {
+            try { inst.unMount(); } catch (e) {}
+        }
+    }
+    function syncHMenuOffset() {
+        var menu = document.querySelector('.app-menu.navbar-menu');
+        if (!menu) return;
+        document.documentElement.style.setProperty('--np-hmenu-h', menu.offsetHeight + 'px');
+    }
+    function markActiveMenu() {
+        var path = (location.pathname || '').replace(/\/+$/, '');
+        document.querySelectorAll('#navbar-nav a.nav-link[href]').forEach(function (a) {
+            var href = a.getAttribute('href') || '';
+            if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
+            try {
+                var p = new URL(href, location.origin).pathname.replace(/\/+$/, '');
+                if (!p || p === '/admin') return;
+                if (path === p || path.indexOf(p + '/') === 0) {
+                    a.classList.add('active');
+                    var item = a.closest('#navbar-nav > .nav-item');
+                    if (item) {
+                        var top = item.querySelector(':scope > a.menu-link');
+                        if (top) top.classList.add('active');
+                    }
+                }
+            } catch (e) {}
+        });
+    }
+    function setupHorizontalMenus() {
+        if (document.documentElement.getAttribute('data-layout') !== 'horizontal') return;
+        unmountSimpleBar(document.getElementById('scrollbar'));
+        unmountSimpleBar(document.getElementById('navbar-nav'));
+        syncHMenuOffset();
+        markActiveMenu();
+        if (window.innerWidth < 1025) return;
+        document.querySelectorAll('#navbar-nav > .nav-item > a.menu-link[data-bs-toggle="collapse"]').forEach(function (link) {
+            if (link.dataset.hmenuBound) return;
+            link.dataset.hmenuBound = '1';
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+    }
     unwrapNavbarSimpleBar();
     flattenMoreMenu();
-    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 50);
-    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 400);
+    setupHorizontalMenus();
+    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); setupHorizontalMenus(); }, 50);
+    setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); setupHorizontalMenus(); }, 400);
+    window.addEventListener('resize', syncHMenuOffset);
     window.addEventListener('load', function () {
         unwrapNavbarSimpleBar();
         flattenMoreMenu();
-        setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); }, 200);
+        setupHorizontalMenus();
+        setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); setupHorizontalMenus(); }, 200);
     });
 })();
 </script>

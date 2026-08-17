@@ -40,6 +40,7 @@ use App\Http\Controllers\Admin\ProviderController;
 
 
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\SystemSettingController;
 
 
 
@@ -99,6 +100,7 @@ use App\Http\Controllers\Admin\EmailTemplateController;
 use App\Http\Controllers\Admin\SmsTemplateController;
 
 use App\Http\Controllers\Admin\SmsApiController;
+use App\Http\Controllers\Admin\WhatsappApiController;
 
 
 
@@ -326,6 +328,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/dashboard/report-data',[DashboardController::class,'dashboardReportsList'])->name('dashboardReportsList');
 
     Route::post('admin/dashboard/top-bar-data',[DashboardController::class,'topbarCount'])->name('topbarCount');
+
+    // Manual Recharge Report (admin-changed status)
+    Route::get('admin/recharge-reports/manual-report', [RechargeReportsController::class, 'manualIndex'])->name('manualRechargeReport');
 
     // Pending Report (full page)
     Route::get('admin/recharge-reports/pending-report', [PendingReportController::class, 'index'])->name('pendingReport');
@@ -621,6 +626,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/system/announcement/get',[AnnouncementController::class,'getData'])->name('announcementGet');
+
+    Route::post('admin/system-settings/save', [SystemSettingController::class, 'save'])->name('systemSettingSave');
+    Route::get('admin/system-settings/{page?}', [SystemSettingController::class, 'show'])->name('systemSettingPage');
 
 
 
@@ -949,6 +957,10 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/extras/sms-api-list/update', [SmsApiController::class, 'updateData'])->name('smsApiUpdate');
     Route::post('admin/extras/sms-api-list/delete', [SmsApiController::class, 'deleteData'])->name('smsApiDelete');
     Route::post('admin/extras/sms-api-list/set-primary', [SmsApiController::class, 'setPrimary'])->name('smsApiSetPrimary');
+
+    Route::get('admin/extras/whatsapp-api', [WhatsappApiController::class, 'index'])->name('whatsappApiPage');
+    Route::post('admin/extras/whatsapp-api/save', [WhatsappApiController::class, 'save'])->name('whatsappApiSave');
+    Route::post('admin/extras/whatsapp-api/test', [WhatsappApiController::class, 'test'])->name('whatsappApiTest');
 
     ///Routes Settings
 

@@ -28,10 +28,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configurePublicUrls();
 
-        if (!app()->runningInConsole()) {
-            View::share('company', Common::getCompanyByHost());
-        } else {
+        try {
+            View::share('company', app()->runningInConsole() ? null : Common::getCompanyByHost());
+        } catch (\Throwable $e) {
             View::share('company', null);
+            \Log::warning('Admin company share failed: ' . $e->getMessage());
         }
     }
 

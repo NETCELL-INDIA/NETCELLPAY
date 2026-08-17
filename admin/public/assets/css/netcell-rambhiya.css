@@ -51,9 +51,11 @@
 
 @media (min-width: 1024.1px) {
     [data-layout=horizontal] .main-content .page-content {
-        /* navbar (~56) + horizontal menu (~46) */
-        padding-top: calc(102px + 1rem) !important;
+        padding-top: calc(56px + var(--np-hmenu-h, 46px) + 1rem) !important;
         margin-top: 0 !important;
+    }
+    [data-layout=horizontal] #topnav-hamburger-icon {
+        display: none !important;
     }
 }
 
@@ -77,6 +79,8 @@
     padding: 0 0.75rem !important;
     bottom: auto !important;
     z-index: 1003 !important;
+    overflow: visible !important;
+    position: fixed !important;
 }
 
 [data-layout=horizontal] .navbar-menu .navbar-brand-box {
@@ -138,13 +142,55 @@
     display: none !important;
 }
 
+[data-layout=horizontal] .vertical-overlay,
+[data-layout=horizontal] .sidebar-background {
+    display: none !important;
+}
+
+[data-layout=horizontal] #scrollbar,
+[data-layout=horizontal] #scrollbar .simplebar-wrapper,
+[data-layout=horizontal] #scrollbar .simplebar-mask,
+[data-layout=horizontal] #scrollbar .simplebar-offset,
+[data-layout=horizontal] #scrollbar .simplebar-content-wrapper,
+[data-layout=horizontal] #scrollbar .simplebar-content {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
 [data-layout=horizontal] .navbar-nav .menu-dropdown {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    z-index: 1050 !important;
     background: #fff !important;
     border: 1px solid #e9ebec !important;
     border-radius: 0.4rem !important;
     box-shadow: 0 8px 24px rgba(15, 34, 58, 0.12) !important;
     min-width: 220px;
     padding: 0.35rem 0 !important;
+    display: none;
+}
+
+[data-layout=horizontal] .navbar-nav > .nav-item:nth-last-child(-n+3) > .menu-dropdown {
+    left: auto !important;
+    right: 0 !important;
+}
+
+[data-layout=horizontal] .navbar-nav .menu-dropdown.collapsing {
+    height: auto !important;
+    transition: none !important;
+}
+
+@media (min-width: 1024.1px) {
+    [data-layout=horizontal] .navbar-nav > .nav-item:hover > .menu-dropdown,
+    [data-layout=horizontal] .navbar-nav > .nav-item:hover > .menu-dropdown.collapse,
+    [data-layout=horizontal] .navbar-nav > .nav-item:hover > .menu-dropdown.collapsing,
+    [data-layout=horizontal] .navbar-nav > .nav-item > .menu-dropdown.show {
+        display: block !important;
+        height: auto !important;
+        visibility: visible !important;
+    }
 }
 
 [data-layout=horizontal] .navbar-nav .menu-dropdown .nav-link {
@@ -157,6 +203,17 @@
 [data-layout=horizontal] .navbar-nav .menu-dropdown .nav-link.active {
     color: #3b2a6e !important;
     background: #f3f6f9 !important;
+}
+
+@media (max-width: 1500px) {
+    [data-layout=horizontal] .navbar-nav > .nav-item > .nav-link.menu-link i {
+        display: none !important;
+    }
+}
+
+[data-layout=horizontal] .navbar-nav > .nav-item > .nav-link.menu-link.active {
+    background: #4a3785 !important;
+    color: #fff !important;
 }
 
 /* Topbar brand for horizontal */
@@ -1152,7 +1209,7 @@ table thead.table-dark > tr > th {
 
 .users-filter-grid {
     display: grid;
-    grid-template-columns: minmax(140px, 1.6fr) minmax(120px, 1.4fr) minmax(120px, 1.4fr) 72px 72px 118px 96px 108px 88px;
+    grid-template-columns: minmax(140px, 1.6fr) minmax(120px, 1.4fr) minmax(120px, 1.4fr) 118px 96px 108px 88px;
     gap: 0.4rem 0.5rem;
     align-items: end;
 }
@@ -1394,76 +1451,154 @@ table thead.table-dark > tr > th {
 
 /* Recharge report page */
 .recharge-report-page .card {
-    border: 1px solid #e9ebec;
-    box-shadow: 0 1px 2px rgba(56, 65, 74, 0.08);
-    margin-bottom: 0.75rem;
+    border: 1px solid #dce3ee !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 18px rgba(64, 81, 137, 0.08) !important;
+    margin-bottom: 1rem !important;
+    overflow: hidden;
 }
 
 .recharge-report-page .recharge-filter-card .card-header,
 .recharge-report-page .recharge-list-card .card-header {
-    padding: 0.45rem 0.85rem !important;
+    padding: 0.7rem 1.1rem !important;
+    background: linear-gradient(90deg, #405189 0%, #4f63a8 100%) !important;
 }
 
 .recharge-report-page .recharge-filter-card .card-title,
 .recharge-report-page .recharge-list-card .card-title {
-    font-size: 0.85rem !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em;
 }
 
-.recharge-report-page .recharge-filter-card .card-body,
+.recharge-filter-hint {
+    color: rgba(255, 255, 255, 0.82) !important;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.recharge-report-page .recharge-filter-card .card-body {
+    padding: 1rem 1.1rem 1.05rem !important;
+    background: #f7f9fc !important;
+}
+
 .recharge-report-page .recharge-list-card .card-body {
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.85rem 1.1rem 1rem !important;
 }
 
 .recharge-filter-grid {
     display: grid;
-    gap: 0.4rem 0.5rem;
+    gap: 0.85rem 0.9rem;
     align-items: end;
 }
 
 .recharge-filter-grid--row1 {
-    grid-template-columns: 62px 130px 130px minmax(110px, 1fr) minmax(180px, 1.6fr) minmax(100px, 1fr) minmax(110px, 1fr) minmax(100px, 1fr);
-    margin-bottom: 0.4rem;
+    grid-template-columns: 78px 148px 148px minmax(140px, 1.1fr) minmax(230px, 1.7fr) minmax(120px, 1fr) minmax(140px, 1.1fr) minmax(120px, 1fr);
+    margin-bottom: 0.9rem;
 }
 
 .recharge-filter-grid--row2 {
-    grid-template-columns: 110px minmax(160px, 1.8fr) 80px 100px 90px 88px 88px;
+    grid-template-columns: minmax(260px, 2.4fr) 110px 130px 120px minmax(210px, auto);
+}
+
+.recharge-filter-field {
+    min-width: 0;
 }
 
 .recharge-filter-field .form-label {
-    font-size: 0.72rem !important;
-    margin-bottom: 0.1rem !important;
-    line-height: 1.1;
+    display: block;
+    font-size: 0.7rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #5b6b8c !important;
+    margin-bottom: 0.32rem !important;
+    line-height: 1.2;
     white-space: nowrap;
+}
+
+.recharge-filter-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.32rem;
+    min-height: 16px;
+}
+
+.recharge-filter-label-row .form-label {
+    margin-bottom: 0 !important;
 }
 
 .recharge-filter-field .form-control-sm,
 .recharge-filter-field .form-select-sm {
-    min-height: 30px;
-    padding: 0.2rem 0.45rem;
-    font-size: 0.78rem;
+    width: 100%;
+    min-height: 38px !important;
+    height: 38px;
+    padding: 0.35rem 0.7rem !important;
+    font-size: 0.82rem !important;
+    border-radius: 8px !important;
+    border: 1px solid #d5deea !important;
+    background: #fff !important;
+    box-shadow: 0 1px 2px rgba(64, 81, 137, 0.04);
 }
 
-.recharge-filter-field--btn .btn-sm {
-    min-height: 30px;
-    padding: 0.2rem 0.5rem;
-    font-size: 0.78rem;
+.recharge-filter-field .form-control-sm:focus,
+.recharge-filter-field .form-select-sm:focus {
+    border-color: #405189 !important;
+    box-shadow: 0 0 0 3px rgba(64, 81, 137, 0.14) !important;
 }
 
 .recharge-child-check {
-    margin: 0.15rem 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    margin: 0;
     padding: 0;
-}
-
-.recharge-child-check .form-check-label {
     font-size: 0.68rem;
-    color: #6c757d;
-}
-
-.recharge-date-note {
-    margin-top: 0.35rem;
-    font-size: 0.68rem;
-    color: #dc3545;
     font-weight: 600;
+    color: #6b7790;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.recharge-child-check .form-check-input {
+    margin: 0;
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
+}
+
+.recharge-filter-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+.recharge-filter-actions .btn {
+    min-height: 38px;
+    height: 38px;
+    padding: 0 1.05rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(64, 81, 137, 0.16);
+}
+
+.recharge-filter-actions .btn-primary {
+    min-width: 96px;
+}
+
+.recharge-filter-actions .btn-success {
+    min-width: 82px;
+    background: var(--rb-success) !important;
+    border-color: var(--rb-success) !important;
 }
 
 .recharge-report-page .select2-container {
@@ -1471,19 +1606,33 @@ table thead.table-dark > tr > th {
 }
 
 .recharge-report-page .select2-container .select2-selection--single {
-    height: 30px !important;
-    min-height: 30px !important;
-    border-color: #ced4da !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    border: 1px solid #d5deea !important;
+    border-radius: 8px !important;
+    background: #fff !important;
 }
 
 .recharge-report-page .select2-container .select2-selection__rendered {
-    line-height: 28px !important;
-    font-size: 0.78rem !important;
-    padding-left: 0.45rem !important;
+    line-height: 36px !important;
+    font-size: 0.82rem !important;
+    padding-left: 0.7rem !important;
+    color: #495057 !important;
+}
+
+.recharge-report-page .select2-container .select2-selection__placeholder {
+    color: #8a93a6 !important;
 }
 
 .recharge-report-page .select2-container .select2-selection__arrow {
-    height: 28px !important;
+    height: 36px !important;
+    right: 6px !important;
+}
+
+.recharge-report-page .select2-container--default .select2-selection--single .select2-selection__clear {
+    margin-right: 18px;
+    font-size: 0.95rem;
+    color: #878a99;
 }
 
 .recharge-summary {
@@ -1569,6 +1718,26 @@ table thead.table-dark > tr > th {
 .recharge-summary__item--pending { background: #fff8e1; color: #9a7400; border-color: #ffc107; }
 .recharge-summary__item--failure { background: #fdecee; color: #b02a37; border-color: #dc3545; }
 .recharge-summary__item--refunded { background: #e7f1ff; color: #0a58ca; border-color: #0d6efd; }
+
+.recharge-mode {
+    display: block;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: .02em;
+    color: #495057;
+}
+.recharge-mode-manual {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    color: #6f42c1;
+    background: #f3e8ff;
+    border: 1px solid #c9a7f5;
+}
 
 .recharge-order-id {
     display: block;
@@ -1665,12 +1834,27 @@ table thead.table-dark > tr > th {
     .recharge-filter-grid--row2 {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+    .recharge-filter-field--actions {
+        grid-column: span 2;
+    }
 }
 
 @media (max-width: 768px) {
     .recharge-filter-grid--row1,
     .recharge-filter-grid--row2 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+    .recharge-filter-field--search,
+    .recharge-filter-field--actions,
+    .recharge-filter-field--user {
+        grid-column: span 2;
+    }
+    .recharge-filter-actions {
+        width: 100%;
+    }
+    .recharge-filter-actions .btn {
+        flex: 1;
     }
 }
 

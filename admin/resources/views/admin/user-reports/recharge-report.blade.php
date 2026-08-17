@@ -1,6 +1,7 @@
 @extends('layouts.master')
 
-@section('title') Recharge Report @endsection
+@php $manualOnly = !empty($manualOnly); @endphp
+@section('title') {{ $manualOnly ? 'Manual Recharge Report' : 'Recharge Report' }} @endsection
 
 @section('css')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -11,18 +12,19 @@
 
 @component('components.breadcrumb')
 @slot('li_1') Reports @endslot
-@slot('title') Recharge Report @endslot
+@slot('title') {{ $manualOnly ? 'Manual Recharge Report' : 'Recharge Report' }} @endslot
 @endcomponent
 
 <div class="card recharge-filter-card">
-    <div class="card-header align-items-center d-flex py-2">
+    <div class="card-header align-items-center d-flex">
         <h4 class="card-title mb-0 flex-grow-1">Filters</h4>
+        <span class="recharge-filter-hint">Confirm dates, then Search</span>
     </div>
-    <div class="card-body py-2 px-3">
+    <div class="card-body">
         <form id="rechargeFilterForm" onsubmit="return false;">
             <div class="recharge-filter-grid recharge-filter-grid--row1">
                 <div class="recharge-filter-field recharge-filter-field--xs">
-                    <label class="form-label">Show</label>
+                    <label class="form-label" for="show">Show</label>
                     <select class="form-select form-select-sm" id="show">
                         <option value="10" selected>10</option>
                         <option value="25">25</option>
@@ -31,15 +33,15 @@
                     </select>
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">From</label>
+                    <label class="form-label" for="from_date">From</label>
                     <input type="date" class="form-control form-control-sm" id="from_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">To</label>
+                    <label class="form-label" for="to_date">To</label>
                     <input type="date" class="form-control form-control-sm" id="to_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">API</label>
+                    <label class="form-label" for="api_id">API</label>
                     <select class="form-select form-select-sm" id="api_id">
                         <option value="">All APIs</option>
                         @foreach($apis as $a)
@@ -48,17 +50,19 @@
                     </select>
                 </div>
                 <div class="recharge-filter-field recharge-filter-field--user">
-                    <label class="form-label">User / Client</label>
+                    <div class="recharge-filter-label-row">
+                        <label class="form-label" for="user_id">User / Client</label>
+                        <label class="recharge-child-check" for="include_child">
+                            <input class="form-check-input" type="checkbox" id="include_child" value="1">
+                            <span>Include child</span>
+                        </label>
+                    </div>
                     <select class="form-select form-select-sm" id="user_id">
                         <option value="">Search user...</option>
                     </select>
-                    <div class="form-check recharge-child-check">
-                        <input class="form-check-input" type="checkbox" id="include_child" value="1">
-                        <label class="form-check-label" for="include_child">Include child</label>
-                    </div>
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">Service</label>
+                    <label class="form-label" for="service_id">Service</label>
                     <select class="form-select form-select-sm" id="service_id">
                         <option value="">All</option>
                         @foreach($services as $s)
@@ -67,7 +71,7 @@
                     </select>
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">Operator</label>
+                    <label class="form-label" for="provider_id">Operator</label>
                     <select class="form-select form-select-sm" id="provider_id">
                         <option value="">All</option>
                         @foreach($providers as $p)
@@ -76,7 +80,7 @@
                     </select>
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">Circle</label>
+                    <label class="form-label" for="circle_id">Circle</label>
                     <select class="form-select form-select-sm" id="circle_id">
                         <option value="">All</option>
                         @foreach($circles as $c)
@@ -87,61 +91,57 @@
             </div>
 
             <div class="recharge-filter-grid recharge-filter-grid--row2">
-                <div class="recharge-filter-field">
-                    <label class="form-label">Status</label>
-                    <select class="form-select form-select-sm" id="status">
-                        <option value="">All</option>
-                        <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
-                        <option value="Pending" style="color:#b78103;font-weight:700">PENDING</option>
-                        <option value="Failure" style="color:#dc3545;font-weight:700">FAILURE</option>
-                        <option value="Refunded" style="color:#0d6efd;font-weight:700">REFUNDED</option>
-                    </select>
-                </div>
+                <input type="hidden" id="status" value="">
                 <div class="recharge-filter-field recharge-filter-field--search">
-                    <label class="form-label">Search</label>
+                    <label class="form-label" for="search_text">Search</label>
                     <input type="text" class="form-control form-control-sm" id="search_text" placeholder="Number / Ref / Operator ID / Client ID">
                 </div>
                 <div class="recharge-filter-field recharge-filter-field--xs">
-                    <label class="form-label">Amount</label>
+                    <label class="form-label" for="amount">Amount</label>
                     <input type="text" class="form-control form-control-sm" id="amount" placeholder="Amt">
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label">Mode</label>
-                    <select class="form-select form-select-sm" id="mode">
-                        <option value="">All</option>
-                        <option value="WEB">WEB</option>
-                        <option value="APP">APP</option>
-                        <option value="API">API</option>
-                        <option value="Credit">Credit</option>
-                        <option value="Debit">Debit</option>
+                    <label class="form-label" for="mode">Mode</label>
+                    <select class="form-select form-select-sm" id="mode" @if($manualOnly) disabled @endif>
+                        @if($manualOnly)
+                            <option value="Manual" selected>MANUAL</option>
+                        @else
+                            <option value="">All</option>
+                            <option value="WEB">WEB</option>
+                            <option value="APP">APP</option>
+                            <option value="API">API</option>
+                            <option value="Manual">MANUAL</option>
+                            <option value="Credit">Credit</option>
+                            <option value="Debit">Debit</option>
+                        @endif
                     </select>
                 </div>
                 <div class="recharge-filter-field recharge-filter-field--xs">
-                    <label class="form-label">Type</label>
+                    <label class="form-label" for="tbl_type">Type</label>
                     <select class="form-select form-select-sm" id="tbl_type">
                         <option value="0" selected>Current</option>
                         <option value="1">Backup</option>
                     </select>
                 </div>
-                <div class="recharge-filter-field recharge-filter-field--btn">
-                    <button type="button" class="btn btn-primary btn-sm w-100" id="btnSearch">
-                        <i class="ri-search-line"></i> Search
-                    </button>
-                </div>
-                <div class="recharge-filter-field recharge-filter-field--btn">
-                    <button type="button" class="btn btn-success btn-sm w-100" id="btnDownload">
-                        <i class="ri-download-line"></i> CSV
-                    </button>
+                <div class="recharge-filter-field recharge-filter-field--actions">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="recharge-filter-actions">
+                        <button type="button" class="btn btn-primary" id="btnSearch">
+                            <i class="ri-search-line"></i> Search
+                        </button>
+                        <button type="button" class="btn btn-success" id="btnDownload">
+                            <i class="ri-download-line"></i> CSV
+                        </button>
+                    </div>
                 </div>
             </div>
-            <div class="recharge-date-note">Confirm dates before searching</div>
         </form>
     </div>
 </div>
 
 <div class="card recharge-list-card">
     <div class="card-header align-items-center d-flex py-2">
-        <h4 class="card-title mb-0 flex-grow-1">Transactions</h4>
+        <h4 class="card-title mb-0 flex-grow-1">{{ $manualOnly ? 'Manual Transactions' : 'Transactions' }}</h4>
     </div>
     <div class="card-body py-2 px-3">
         <div class="recharge-summary" id="summaryPills">
@@ -274,7 +274,6 @@
 @endsection
 
 @section('script')
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 var csrf = '{{ csrf_token() }}';
@@ -298,6 +297,7 @@ function filterPayload(extra) {
         search_text: $('#search_text').val(),
         amount: $('#amount').val(),
         mode: $('#mode').val(),
+        manual_only: {{ $manualOnly ? '1' : '0' }},
         tbl_type: $('#tbl_type').val()
     }, extra || {});
 }
@@ -309,14 +309,6 @@ function renderSummary(s) {
         '<span class="recharge-summary__item recharge-summary__item--failure">FAILURE: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
         '<span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
     );
-}
-
-function colorStatusSelect() {
-    var el = document.getElementById('status');
-    if (!el) return;
-    var colors = { Success: '#157347', Pending: '#b78103', Failure: '#dc3545', Refunded: '#0d6efd' };
-    el.style.color = colors[el.value] || '';
-    el.style.fontWeight = el.value ? '700' : '';
 }
 
 function fetchAllSearch() {
@@ -358,18 +350,21 @@ function downloadCsv() {
 }
 
 function editStatus(id, status, operator_id) {
-    $('#es_status').empty();
     $('#es_id').val(id);
-    $('#es_operator_id').val(operator_id);
-    if (status == 'Pending' || status == 'Under Process' || status == 'Under Proces') {
-        $('#es_status').append('<option value="">Select Status</option><option value="Success">Success</option><option value="Failed">Failed</option>');
-    } else if (status == 'Success') {
-        $('#es_status').append('<option value="">Select Status</option><option value="Refunded">Refunded</option>');
-    } else if (status == 'Failed' || status == 'Failure') {
-        $('#es_status').append('<option value="">Select Status</option><option value="Force Success">Force Success</option>');
-    } else {
-        $('#es_status').append('<option value="">Select Status</option>');
-    }
+    $('#es_operator_id').val(operator_id || '');
+    var current = status || '';
+    if (current === 'Failure') current = 'Failed';
+    if (current === 'Under Process' || current === 'Under Proces') current = 'Pending';
+    var opts = [
+        { v: 'Pending', t: 'PENDING' },
+        { v: 'Success', t: 'SUCCESS' },
+        { v: 'Failed', t: 'FAILURE' }
+    ];
+    var html = '';
+    opts.forEach(function (o) {
+        html += '<option value="' + o.v + '"' + (current === o.v ? ' selected' : '') + '>' + o.t + '</option>';
+    });
+    $('#es_status').html(html);
     $('#editStatusModalLabel').text('Edit Status');
     $('#editStatusModal').modal('show');
 }
@@ -378,6 +373,10 @@ function editStatusSubmit() {
     var id = $('#es_id').val();
     var operator_id = $('#es_operator_id').val();
     var status = $('#es_status').val();
+    if (!status) {
+        if (typeof Error_Msg === 'function') Error_Msg('Error', 'Please select status.', 'error');
+        return;
+    }
     $('#editStatus_now_btn').text('Please wait...').prop('disabled', true);
     $.ajax({
         url: '{{ route("updateStatus") }}',
@@ -463,8 +462,6 @@ $(function () {
     $('#btnPrev').on('click', function () { if (currentPage > 1) { currentPage--; fetchAllSearch(); } });
     $('#btnNext').on('click', function () { if (currentPage < lastPage) { currentPage++; fetchAllSearch(); } });
     $('#show').on('change', function () { currentPage = 1; fetchAllSearch(); });
-    $('#status').on('change', colorStatusSelect);
-    colorStatusSelect();
 
     $(document).on('click', '.editComplaint', function (e) {
         e.preventDefault();

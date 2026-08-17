@@ -20,6 +20,10 @@ class DashboardController extends Controller
         $data['role_id'] = (int) Session::get('role_id');
         $data['is_retailer'] = $data['role_id'] === 6;
         $data['recharge_services'] = config('recharge_services.recharge', []);
+        $walletUser = DB::table('users')->where('id', Session::get('user_id'))->first();
+        $data['balance_alert'] = (float) \App\Services\SystemSettingService::get('balance_alert_below', 500);
+        $data['show_balance_alert'] = $walletUser && $data['balance_alert'] > 0
+            && (float) $walletUser->wallet_balance < $data['balance_alert'];
         return view('users.dashboard', $data);
     }
 
@@ -80,7 +84,10 @@ class DashboardController extends Controller
             ->whereIn('transaction_type',['Transfer Money','Receive Money','Self Money','Money Reverse','Reverse Money'])
             ->orderBy('created_at', 'DESC')->take(5)
             ->get();
-    $user = DB::table('users')->where('id',Session('user_id'))->first(); 
+    $user = DB::table('users')->where('id',Session('user_id'))->first();
+    if (!$user) {
+        return response()->json(['type' => 'error', 'message' => 'user not found']);
+    } 
  //   if($user->role_id==3||$user->role_id==6){
 
         $Report_Success_Commission = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
@@ -113,17 +120,17 @@ class DashboardController extends Controller
 
    // }       
        // echo "<pre>";print_r($user);die; 
-        $data_n['rc_success_amount'] = $report_s->sum('total_amount');
+        $data_n['rc_success_amount'] = (float) $report_s->sum('total_amount');
         $data_n['rc_success_hit'] = $report_s->count();
-        $data_n['rc_pending_amount'] = $report_p->sum('total_amount');
+        $data_n['rc_pending_amount'] = (float) $report_p->sum('total_amount');
         $data_n['rc_pending_hit'] = $report_p->count();
-        $data_n['rc_failed_amount'] = $report_f->sum('total_amount');
+        $data_n['rc_failed_amount'] = (float) $report_f->sum('total_amount');
         $data_n['rc_failed_hit'] = $report_f->count();
-        $data_n['rc_refund_amount'] = $report_r->sum('total_amount');
+        $data_n['rc_refund_amount'] = (float) $report_r->sum('total_amount');
         $data_n['rc_refund_hit'] = $report_r->count();
-        $data_n['rc_receive_money'] = $report_receive_money->sum('total_amount');
-        $data_n['rc_upi_add_money'] = $report_upi_add_money->sum('total_amount');
-        $data_n['rc_commission'] = $Report_Success_Commission->sum('commission') + $Report_Pending_Commission->sum('commission') + $Report_Parent_Commission->sum('amount') - $Report_Parent_Reverse_Commission->sum('amount');
+        $data_n['rc_receive_money'] = (float) $report_receive_money->sum('total_amount');
+        $data_n['rc_upi_add_money'] = (float) $report_upi_add_money->sum('total_amount');
+        $data_n['rc_commission'] = (float) ($Report_Success_Commission->sum('commission') + $Report_Pending_Commission->sum('commission') + $Report_Parent_Commission->sum('amount') - $Report_Parent_Reverse_Commission->sum('amount'));
         
         $data_n['rc_complaint_hit'] = $Total_Complaints_Count->count();
         //$data['tranaction_reports'] = $tranaction_reports;
@@ -140,11 +147,11 @@ class DashboardController extends Controller
             COUNT(IF(r.status = 'Failed', 1, NULL)) 'FailedHit',
             COUNT(IF(r.status = 'Success', 1, NULL)) 'SuccessHit',
             COUNT(r.id) 'TotalHit' ,
-            SUM(CASE WHEN r.status = 'Pending' THEN total_amount ELSE 0 END) PendingAmt,
-            SUM(CASE WHEN r.status = 'Failed' THEN total_amount ELSE 0 END) FailedAmt,
-            SUM(CASE WHEN r.status = 'Success' THEN total_amount ELSE 0 END) SuccessAmt,
+            SUM(CASE WHEN r.status = 'Pending' THEN r.total_amount ELSE 0 END) PendingAmt,
+            SUM(CASE WHEN r.status = 'Failed' THEN r.total_amount ELSE 0 END) FailedAmt,
+            SUM(CASE WHEN r.status = 'Success' THEN r.total_amount ELSE 0 END) SuccessAmt,
             SUM(r.total_amount) 'TotalAmt',
-            SUM(CASE WHEN r.status = 'Success' THEN commission ELSE 0 END) Comm
+            SUM(CASE WHEN r.status = 'Success' THEN r.commission ELSE 0 END) Comm
             FROM `reports` as r JOIN users as u ON u.id=r.user_id
             JOIN providers as p ON p.id=r.provider_id 
             JOIN services as s ON s.id=p.service_id 

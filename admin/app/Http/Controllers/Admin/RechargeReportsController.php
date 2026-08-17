@@ -36,7 +36,22 @@ class RechargeReportsController extends Controller
         $providers = DB::table('providers')->orderBy('provider_name')->get(['id', 'provider_name', 'service_id']);
         $circles = DB::table('states')->orderBy('state_name')->get(['id', 'state_name']);
 
-        return view('admin.user-reports.recharge-report', compact('apis', 'services', 'providers', 'circles'));
+        $manualOnly = false;
+
+        return view('admin.user-reports.recharge-report', compact('apis', 'services', 'providers', 'circles', 'manualOnly'));
+    }
+
+    public function manualIndex()
+    {
+        $this->ensureManualColumn();
+
+        $apis = DB::table('apis')->orderBy('api_name')->get(['id', 'api_name']);
+        $services = DB::table('services')->orderBy('service_name')->get(['id', 'service_name']);
+        $providers = DB::table('providers')->orderBy('provider_name')->get(['id', 'provider_name', 'service_id']);
+        $circles = DB::table('states')->orderBy('state_name')->get(['id', 'state_name']);
+        $manualOnly = true;
+
+        return view('admin.user-reports.recharge-report', compact('apis', 'services', 'providers', 'circles', 'manualOnly'));
     }
 
     private function rechargeReportBaseQuery(Request $post)
@@ -83,7 +98,14 @@ class RechargeReportsController extends Controller
         if ($post->amount !== null && $post->amount !== '') {
             $q->where('r.amount', $post->amount);
         }
-        if ($post->mode && $post->mode !== 'All') {
+        $manualOnly = (int) ($post->manual_only ?? 0) === 1 || strcasecmp((string) $post->mode, 'Manual') === 0;
+        if ($manualOnly) {
+            if (Schema::hasColumn($table, 'is_manual')) {
+                $q->where('r.is_manual', 1);
+            } else {
+                $q->whereRaw('1 = 0');
+            }
+        } elseif ($post->mode && $post->mode !== 'All') {
             if (Schema::hasColumn($table, 'path')) {
                 $q->where('r.path', 'like', '%' . $post->mode . '%');
             } elseif ($post->mode !== '') {
@@ -119,6 +141,8 @@ class RechargeReportsController extends Controller
 
     public function fetchAllModern(Request $post)
     {
+        $this->ensureManualColumn();
+
         $limit = (int) ($post->show ?: 10);
         if (!in_array($limit, [10, 25, 50, 100], true)) {
             $limit = 10;
@@ -170,7 +194,7 @@ class RechargeReportsController extends Controller
                 $userMobile = e($list->mobile_number ?: '-');
                 $userId = e($list->user_id ?: '-');
                 $dt = e($list->transaction_date ?: $list->created_at);
-                $mode = e(strtoupper((string) ($hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB'))));
+                $mode = $this->modeCellHtml($list, $hasPath);
                 $opId = e($list->operator_id ?: '-');
                 $reqId = e($list->request_order_id ?: '-');
                 $st = e($status);
@@ -272,7 +296,7 @@ class RechargeReportsController extends Controller
                     $list->status,
                     $list->api_name,
                     $list->operator_id,
-                    $list->fund_type ?: 'WEB',
+                    $this->modeLabel($list),
                 ]);
             }
             fclose($out);
@@ -1103,17 +1127,21 @@ class RechargeReportsController extends Controller
 
     {
 
-        if($post->keyword != ''){
+        $keyword = trim((string) $post->keyword);
+        $user = collect();
+
+        if ($keyword !== '') {
 
             $user = DB::table('users')
-            ->where('deleted_at', '!=' , 1)
-            ->where(function ($q) use ($post) {
-                $q->where('mobile_number','LIKE','%'.$post->keyword.'%')
-                ->orWhere('email_address','LIKE','%'.$post->keyword.'%')
-                ->orWhere('outlet_name','LIKE','%'.$post->keyword.'%')
-                ->orWhere('first_name','LIKE','%'.$post->keyword.'%')
-                ->orWhere('last_name','LIKE','%'.$post->keyword.'%');
+            ->where('deleted_at', 0)
+            ->where(function ($q) use ($keyword) {
+                $q->where('mobile_number','LIKE','%'.$keyword.'%')
+                ->orWhere('email_address','LIKE','%'.$keyword.'%')
+                ->orWhere('outlet_name','LIKE','%'.$keyword.'%')
+                ->orWhere('first_name','LIKE','%'.$keyword.'%')
+                ->orWhere('last_name','LIKE','%'.$keyword.'%');
             })
+            ->limit(25)
             ->get(['id','first_name','middle_name','last_name','outlet_name','mobile_number']);
 
         }
@@ -1592,202 +1620,205 @@ class RechargeReportsController extends Controller
 
      public function updateStatus(Request $post) {
 
+        $requested = (string) $post->status;
+        if ($requested === 'Failure') {
+            $requested = 'Failed';
+        }
+        if ($requested === 'Force Success') {
+            $requested = 'Success';
+        }
+
         $rules = array(
-
             'id' => 'required|numeric',
-
             'operator_id' => 'max:255',
-
-            'status' => 'required|in:Success,Failed,Refunded,Force Success',
-
+            'status' => 'required',
         );
 
-
-
         $validator = \Validator::make($post->all(), array_reverse($rules));
-
         if ($validator->fails()) {
-
             foreach ($validator->errors()->messages() as $key => $value) {
-
                 $error = $value[0];
-
             }
-
             return response()->json([
-
                 'message' => $error,
-
                 'type' => 'error',
-
             ]);
+        }
 
+        if (!in_array($requested, ['Pending', 'Success', 'Failed', 'Refunded'], true)) {
+            return response()->json([
+                'message' => 'Please select Pending, Success or Failure.',
+                'type' => 'error',
+            ]);
         }
 
         $report = DB::table('reports')->where('id', $post->id)->first();
+        if (!$report) {
+            return response()->json([
+                'message' => 'reports record not found',
+                'type' => 'error',
+            ]);
+        }
 
-        if($report){
+        try {
+            $current = (string) $report->status;
+            if ($current === 'Failure') {
+                $current = 'Failed';
+            }
+            if (in_array($current, ['Under Process', 'Under Proces'], true)) {
+                $current = 'Pending';
+            }
 
-            if($post->status == "Success" || $post->status == "Under Process"){
+            $wasSuccess = $current === 'Success';
+            $wasFailed = in_array($current, ['Failed', 'Refunded'], true);
+            $wasPending = $current === 'Pending';
 
-                $api_result['status'] = "Success";
-
-                $api_result['operator_id'] = $post->operator_id;
-
-                $api_result['api_operator_id'] = $report->api_operator_id;;
-
-                $api_result['remark'] = "Recharge Successful For Rs. ".$report->total_amount." Number ".$report->number;
-
-                $api_result['api_partner_order_id'] = $report->api_partner_order_id;
-
-                $api_result['order_id'] = $report->order_id;
-
-                DB::table('reports')->where('id', $report->id)->update($api_result);
-
-                $this->SetCommission($report->id);
-
-            }else if($post->status == "Failed"){
-
-                $api_result['status'] = "Failed";
-
-                $api_result['operator_id'] = "";
-
-                ////$update['api_operator_id'] = "";
-
-                $api_result['remark'] = "Recharge Failed For Rs. ".$report->total_amount." Number ".$report->number;
-
-                $api_result['api_partner_order_id'] = $report->api_partner_order_id;
-
-                $api_result['order_id'] = $report->order_id;
-
-                DB::table('reports')->where('id', $report->id)->update($api_result);
-
-                $this->refund_row($report->id);
-
-            }else if($post->status == "Refunded"){
-
-                $api_result['status'] = "Refunded";
-
-                $api_result['operator_id'] = "";
-
-                ////$update['api_operator_id'] = "";
-
-                $api_result['remark'] = "Recharge Refunded For Rs. ".$report->total_amount." Number ".$report->number;
-
-                $api_result['api_partner_order_id'] = $report->api_partner_order_id;
-
-                $api_result['order_id'] = $report->order_id;
-
-                DB::table('reports')->where('id', $report->id)->update($api_result);
-
-                $this->refund_row($report->id);
-
-                $this->ReverseCommission($report->id);
-
-
-
-                //////Send Sms By Cron Job Start
-
-                //Recharge Refund {NUMBER} Amt {AMOUNT}.00 Oprater {OPERATOR} OPID   Txid {ORDER_ID}.Your current balance is {CURRENT_BALNCE}.00 Thanks! 
-
-                $user_data = DB::table('users')->where('id', $report->user_id)->first(['id','first_name','mobile_number','wallet_balance']);
-
-                $slug = 'recharge_refund';
-
-                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-
-                $content = $sms_tmp->content;
-
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-
-                $content = str_replace('{NUMBER}', '' . $report->number . '', $content);
-
-                $content = str_replace('{AMOUNT}', '' . $report->total_amount . '', $content);
-
-                $content = str_replace('{ORDER_ID}', '' . $report->order_id . '', $content);
-
-                $content = str_replace('{OPERATOR}', '' . Str::upper(DB::table('providers')->where('id', $report->provider_id)->first(['provider_name'])->provider_name) . '', $content);
-
-                $content = str_replace('{CURRENT_BALANCE}', '' . $user_data->wallet_balance . '', $content);
-
-                if($sms_tmp->status == 1){
-
-                    DB::table('messages')->insert([
-
-                        'user_id' => 1,
-
-                        'to_user_id' => $user_data->id,
-
-                        'subject' => $slug,
-
-                        'msg_source' => "SMS",
-
-                        'template_id' => $sms_tmp->template_id,
-
-                        'content' => $content,
-
-                        'status' => 0,
-
-                        'created_at' => Carbon::now(),
-
-                        'updated_at' => Carbon::now()
-
-                    ]);
-
+            if ($requested === 'Success') {
+                DB::table('reports')->where('id', $report->id)->update($this->manualStatusPayload([
+                    'status' => 'Success',
+                    'operator_id' => $post->operator_id,
+                    'api_operator_id' => $report->api_operator_id,
+                    'remark' => 'Recharge Successful For Rs. '.$report->total_amount.' Number '.$report->number,
+                    'updated_at' => Carbon::now(),
+                ]));
+                if ($wasFailed && $this->relatedTxnExists($report->id, 'Refund')) {
+                    $this->debitRefundBack($report);
                 }
-
-                //////Send Sms By Cron Job End
-
-                
-
-            }else if($post->status == "Force Success"){
-
-                //$user = DB::table('users')->where('id',$report->user_id)->first();
-
-                //return $user;
-
-                return response()->json([
-
-                    'message' => 'Force Success Not Work',
-
-                    'type' => 'error',
-
-                ]);
-
-            }else{
-
-                return response()->json([
-
-                    'message' => 'please pass valid status',
-
-                    'type' => 'error',
-
-                ]);
-
+                if (!$wasSuccess && !$this->relatedTxnExists($report->id, 'Commission')) {
+                    $this->SetCommission($report->id);
+                }
+            } elseif ($requested === 'Failed') {
+                DB::table('reports')->where('id', $report->id)->update($this->manualStatusPayload([
+                    'status' => 'Failed',
+                    'operator_id' => $post->operator_id ?: '',
+                    'remark' => 'Recharge Failed For Rs. '.$report->total_amount.' Number '.$report->number,
+                    'updated_at' => Carbon::now(),
+                ]));
+                if ($wasSuccess) {
+                    $this->ReverseCommission($report->id);
+                }
+                if (($wasPending || $wasSuccess) && !$this->relatedTxnExists($report->id, 'Refund')) {
+                    $this->refund_row($report->id);
+                }
+            } elseif ($requested === 'Pending') {
+                DB::table('reports')->where('id', $report->id)->update($this->manualStatusPayload([
+                    'status' => 'Pending',
+                    'operator_id' => $post->operator_id ?: $report->operator_id,
+                    'remark' => 'Recharge Pending For Rs. '.$report->total_amount.' Number '.$report->number,
+                    'updated_at' => Carbon::now(),
+                ]));
+                if ($wasSuccess) {
+                    $this->ReverseCommission($report->id);
+                }
+                if ($wasFailed && $this->relatedTxnExists($report->id, 'Refund')) {
+                    $this->debitRefundBack($report);
+                }
+            } elseif ($requested === 'Refunded') {
+                DB::table('reports')->where('id', $report->id)->update($this->manualStatusPayload([
+                    'status' => 'Refunded',
+                    'operator_id' => '',
+                    'remark' => 'Recharge Refunded For Rs. '.$report->total_amount.' Number '.$report->number,
+                    'updated_at' => Carbon::now(),
+                ]));
+                if ($wasSuccess) {
+                    $this->ReverseCommission($report->id);
+                }
+                if (!$this->relatedTxnExists($report->id, 'Refund')) {
+                    $this->refund_row($report->id);
+                }
             }
 
             return response()->json([
-
-                'message' => 'Update Successfuly.',
-
+                'message' => 'Status updated to '.$requested.'.',
                 'type' => 'success',
-
             ]);
-
-            //return $report;
-
-        }else{
-
+        } catch (\Throwable $e) {
             return response()->json([
-
-                'message' => 'reports record not found',
-
+                'message' => 'Unable to update status. Please try again.',
                 'type' => 'error',
-
             ]);
+        }
+    }
 
+    private function ensureManualColumn(): void
+    {
+        if (!Schema::hasColumn('reports', 'is_manual')) {
+            Schema::table('reports', function ($table) {
+                $table->unsignedTinyInteger('is_manual')->default(0)->index();
+            });
+        }
+    }
+
+    private function manualStatusPayload(array $data): array
+    {
+        $this->ensureManualColumn();
+        $data['is_manual'] = 1;
+
+        return $data;
+    }
+
+    private function modeLabel($list): string
+    {
+        $mode = strtoupper((string) (($list->path ?? '') ?: ($list->fund_type ?? 'WEB') ?: 'WEB'));
+        if (!empty($list->is_manual)) {
+            return trim($mode . ' / MANUAL');
         }
 
+        return $mode;
+    }
+
+    private function modeCellHtml($list, bool $hasPath): string
+    {
+        $raw = strtoupper((string) ($hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB')));
+        $html = '<span class="recharge-mode">' . e($raw) . '</span>';
+        if (!empty($list->is_manual)) {
+            $html .= '<span class="recharge-mode-manual">MANUAL</span>';
+        }
+
+        return $html;
+    }
+
+    private function relatedTxnExists($reportId, $type): bool
+    {
+        return DB::table('reports')
+            ->where('parent__Id', $reportId)
+            ->where('transaction_type', $type)
+            ->exists();
+    }
+
+    private function debitRefundBack($report): void
+    {
+        $user = DB::table('users')->where('id', $report->user_id)->first();
+        if (!$user) {
+            return;
+        }
+        $amount = (float) $report->amount;
+        $opening = (float) $user->wallet_balance;
+        DB::table('users')->where('id', $user->id)->decrement('wallet_balance', $amount);
+        $user = DB::table('users')->where('id', $user->id)->first();
+        DB::table('reports')->insert([
+            'user_id' => $user->id,
+            'parent__Id' => $report->id,
+            'order_id' => $report->order_id,
+            'number' => $report->number,
+            'amount' => $amount,
+            'total_amount' => $report->total_amount,
+            'commission' => $report->commission,
+            'fund_type' => 'Debit',
+            'transaction_type' => 'Refund Reverse',
+            'provider_id' => $report->provider_id,
+            'service_id' => $report->service_id,
+            'api_id' => $report->api_id,
+            'remark' => 'Refund reversed for Rs. '.$report->total_amount.' Number '.$report->number,
+            'status' => 'Success',
+            'path' => $report->path,
+            'ip_address' => $report->ip_address,
+            'opening_balance' => $opening,
+            'closing_balance' => $user->wallet_balance,
+            'transaction_date' => Carbon::now().':'.rand(111, 999),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
     }
 
 

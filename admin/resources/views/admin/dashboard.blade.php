@@ -348,7 +348,6 @@ Dashboard
 
 @section('script')
 <script src="{{ URL::asset('/assets/libs/apexcharts/apexcharts.min.js') }}"></script>
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 <script>
     var contributionChart = null;
     var chartColors = ['#3b82f6', '#14b8a6', '#f97316', '#ef4444', '#8b5cf6', '#0ea5e9', '#06b6d4'];
@@ -395,8 +394,8 @@ Dashboard
                     console.error('dashboard chart error', e);
                 }
             },
-            error: function () {
-                Error_Msg && Error_Msg("Oops...", "Failed to load dashboard", "error");
+            error: function (err) {
+                console.log(err);
             }
         });
     }

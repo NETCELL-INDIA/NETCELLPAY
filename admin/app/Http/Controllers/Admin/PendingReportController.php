@@ -197,13 +197,21 @@ class PendingReportController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Invalid status']);
         }
 
+        $payload = [
+            'status' => $status,
+            'updated_at' => Carbon::now(),
+        ];
+        if (!Schema::hasColumn('reports', 'is_manual')) {
+            Schema::table('reports', function ($table) {
+                $table->unsignedTinyInteger('is_manual')->default(0)->index();
+            });
+        }
+        $payload['is_manual'] = 1;
+
         $updated = DB::table('reports')
             ->whereIn('id', array_map('intval', $ids))
             ->whereIn('status', ['Pending', 'Under Proces', 'Under Process'])
-            ->update([
-                'status' => $status,
-                'updated_at' => Carbon::now(),
-            ]);
+            ->update($payload);
 
         return response()->json([
             'type' => 'success',

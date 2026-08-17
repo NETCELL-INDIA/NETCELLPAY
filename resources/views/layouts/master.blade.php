@@ -4,11 +4,7 @@
 <head>
     <meta charset="utf-8" />
     @php
-        $company = DB::table('companies')
-            ->where('status', '1')
-            ->where('domain', request()->getHost())
-            ->first();
-        $company = $company ?: DB::table('companies')->where('status', '1')->first();
+        $company = user_company();
     @endphp
     <title>@yield('title') | {{ $company->company_name ?? config('app.name') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

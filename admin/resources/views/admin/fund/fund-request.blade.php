@@ -649,11 +649,12 @@ var urlParams = new URLSearchParams(window.location.search);
 
               $('#user_list').empty();
 
-              for (let i = 0; i < res.users.length; i++) {
+              var users = (typeof adminUsersFromRes === 'function') ? adminUsersFromRes(res) : ((res && res.users) ? res.users : []);
+              for (let i = 0; i < users.length; i++) {
 
                 
 
-                htmlView += '<a onclick="selectValue(`' + res.users[i].id + '`,`' + res.users[i].outlet_name + ' | ' + res.users[i].first_name + ' ' + res.users[i].middle_name + ' ' + res.users[i].last_name + ' | ' + res.users[i].mobile_number + '`)">' + res.users[i].outlet_name + ' | ' + res.users[i].first_name + ' ' + res.users[i].middle_name + ' ' + res.users[i].last_name + ' | ' + res.users[i].mobile_number + '</a></br></hr>';
+                htmlView += '<a onclick="selectValue(`' + users[i].id + '`,`' + users[i].outlet_name + ' | ' + users[i].first_name + ' ' + users[i].middle_name + ' ' + users[i].last_name + ' | ' + users[i].mobile_number + '`)">' + users[i].outlet_name + ' | ' + users[i].first_name + ' ' + users[i].middle_name + ' ' + users[i].last_name + ' | ' + users[i].mobile_number + '</a></br></hr>';
 
               }
 
@@ -727,7 +728,6 @@ var urlParams = new URLSearchParams(window.location.search);
 
 
 
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 
 
 

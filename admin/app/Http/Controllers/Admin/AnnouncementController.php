@@ -8,16 +8,19 @@ use Redirect;
 use Validator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 class AnnouncementController extends Controller
 {
     public function index(Request $post)
     {
-        $data['result'] = DB::table('announcements')->where('id', 1)->first()->message;
+        $this->ensureAnnouncement();
+        $data['result'] = optional(DB::table('announcements')->where('id', 1)->first())->message ?? '';
         return view('admin.system.announcement',$data);
     }
 
     public function getData(Request $post)
     {
+        $this->ensureAnnouncement();
         $get = DB::table('announcements')->where('id', 1)->first();
         // echo "<pre>";
         // print_r($get);
@@ -50,19 +53,39 @@ class AnnouncementController extends Controller
             ));
         }
 
-        $update = DB::table('announcements')->where('id', 1)->update([
-            'message' => $post->announcement,
-            'updated_at' => Carbon::now()
-        ]);
-        $message = "Update sucessfuly";
-        if($update){
-            $data['type'] = 'success';
-            $data['message'] =  $message;
-        } else {
-            $data['type'] = 'error';
-            $data['message'] = "Something went wrong!";
+        $this->ensureAnnouncement();
+        DB::table('announcements')->updateOrInsert(
+            ['id' => 1],
+            [
+                'message' => $post->announcement,
+                'updated_at' => Carbon::now(),
+            ]
+        );
+
+        return [
+            'type' => 'success',
+            'message' => 'Update sucessfuly',
+        ];
+    }
+
+    private function ensureAnnouncement(): void
+    {
+        if (!Schema::hasTable('announcements')) {
+            Schema::create('announcements', function ($table) {
+                $table->id();
+                $table->longText('message')->nullable();
+                $table->timestamps();
+            });
         }
-        return $data;
+
+        if (!DB::table('announcements')->where('id', 1)->exists()) {
+            DB::table('announcements')->insert([
+                'id' => 1,
+                'message' => '',
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+        }
     }
 
 }

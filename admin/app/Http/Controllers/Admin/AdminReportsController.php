@@ -144,21 +144,22 @@ class AdminReportsController extends Controller
         if ($reports->count() > 0) {
             foreach ($reports as $list) {
                 $status = $list->status ?: '-';
-                $userDetails = trim(($list->outlet_name ?: $list->first_name ?: 'User') . ' / ' . ($list->mobile_number ?: '-') . ' / ID:' . ($list->user_id ?: '-'));
+                $userName = e($list->outlet_name ?: $list->first_name ?: 'User');
+                $userMeta = e(($list->mobile_number ?: '-') . ' · ID:' . ($list->user_id ?: '-'));
                 $dt = $list->transaction_date ?: $list->created_at;
                 $mode = $hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB');
                 $idsLine = '<span>' . e($list->operator_id ?: '-') . '</span> / '
-                    . '<span style="color:#e6a700;">' . e($list->operator_id ?: '-') . '</span> / '
-                    . '<span style="color:#0dcaf0;">' . e($list->request_order_id ?: '-') . '</span>';
+                    . '<span class="opt-supplier">' . e($list->operator_id ?: '-') . '</span> / '
+                    . '<span class="opt-client">' . e($list->request_order_id ?: '-') . '</span>';
 
                 $rows .= '<tr data-number="' . e($list->number ?: '') . '">
-                    <td><strong>' . e($list->order_id ?: ('R' . $list->id)) . '</strong><br><small class="text-muted">#' . e($list->id) . '</small></td>
+                    <td><span class="live-id">' . e($list->order_id ?: ('R' . $list->id)) . '</span><span class="live-id-sub">#' . e($list->id) . '</span></td>
                     <td>' . e($dt) . '</td>
-                    <td>' . e($userDetails) . '</td>
+                    <td><span class="live-user">' . $userName . '</span><span class="live-user-meta">' . $userMeta . '</span></td>
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->circle_name ?: '-') . '</td>
-                    <td class="live-number" style="cursor:pointer;">' . e($list->number ?: '-') . '</td>
-                    <td>₹' . number_format((float) $list->amount, 2) . '</td>
+                    <td class="live-number">' . e($list->number ?: '-') . '</td>
+                    <td class="live-amt">₹' . number_format((float) $list->amount, 2) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td><small>' . $idsLine . '</small></td>

@@ -277,6 +277,13 @@ class UserFundRequstController extends Controller
             ));
         }
         $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        $stopped = \App\Services\SystemSettingService::blockedMessage();
+        if ($stopped) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $stopped
+            ));
+        }
         $report = DB::table('fund_requests')->where('id', $post->edit_id)->where('request_to', Session::get('user_id'))->first();
         if(!$report){
             return response()->json(array(

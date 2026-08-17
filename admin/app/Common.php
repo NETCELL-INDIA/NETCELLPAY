@@ -36,20 +36,36 @@ use Illuminate\Http\Request;
 
     public static function getCompanyByHost($host = null)
     {
-        $host = self::getHost($host);
+        try {
+            $host = self::getHost($host);
+            $hosts = array_values(array_unique(array_filter([
+                $host,
+                explode(':', (string) $host)[0],
+                request()->getHttpHost(),
+                request()->getHost(),
+            ])));
 
-        $company = DB::table('companies')
-            ->where('status', 1)
-            ->where('domain', $host)
-            ->first();
+            foreach ($hosts as $candidate) {
+                $company = DB::table('companies')
+                    ->where('status', 1)
+                    ->where('domain', $candidate)
+                    ->first();
+                if ($company) {
+                    return $company;
+                }
+            }
 
-        if (!$company) {
+            $bare = explode(':', (string) $host)[0];
             $company = DB::table('companies')
                 ->where('status', 1)
+                ->where('domain', 'like', $bare . '%')
                 ->first();
-        }
 
-        return $company;
+            return $company ?: DB::table('companies')->where('status', 1)->first();
+        } catch (\Throwable $e) {
+            \Log::warning('Company lookup failed: ' . $e->getMessage());
+            return null;
+        }
     }
 
      public static function getCommission($amount, $scheme, $provider_id, $role_id)

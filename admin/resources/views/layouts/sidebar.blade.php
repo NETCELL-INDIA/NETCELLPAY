@@ -4,8 +4,7 @@
         --np-sidebar-hover: #4a3785;
         --np-accent: #22c55e;
     }
-    [data-layout=vertical] .app-menu.navbar-menu,
-    [data-sidebar=dark] .navbar-menu {
+    [data-layout=vertical] .app-menu.navbar-menu {
         background: var(--np-sidebar) !important;
         border-right: 0 !important;
         box-shadow: none !important;
@@ -156,8 +155,8 @@
 </style>
 
 @php
-    $brandName = $company->company_name ?? 'NETCELL PAY';
-    $brandIcon = admin_company_logo($company->company_icon ?? null);
+    $brandName = $company?->company_name ?? 'NETCELL PAY';
+    $brandIcon = admin_company_logo($company?->company_icon ?? null);
 @endphp
 <div class="app-menu navbar-menu">
     <div class="navbar-brand-box">
@@ -193,6 +192,7 @@
                     <div class="collapse menu-dropdown" id="sidebarRechargeReports">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/user-reports/recharge-report') }}" class="nav-link">Recharge Report</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/manual-report') }}" class="nav-link">Manual Recharge Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/pending-report') }}" class="nav-link">Pending Report</a></li>
                             <li class="nav-item"><a href="javascript:void(0)" class="nav-link" onclick="window.open('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}','liveRechargeReport','width='+(screen.width-80)+',height='+(screen.height-120)+',left=40,top=40,resizable=yes,scrollbars=yes'); return false;">Live Recharge Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/margin-report') }}" class="nav-link">Margin Report</a></li>
@@ -307,6 +307,7 @@
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarSystem">
                         <ul class="nav nav-sm flex-column">
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system-settings/system') }}" class="nav-link">System Setting</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Scheme</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/banks') }}" class="nav-link">Banks</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/amount-block') }}" class="nav-link">Amount Block</a></li>
@@ -361,6 +362,7 @@
                     <div class="collapse menu-dropdown" id="sidebarExtras">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ route('smsApiListPage') }}" class="nav-link">SMS API List</a></li>
+                            <li class="nav-item"><a href="{{ route('whatsappApiPage') }}" class="nav-link">WhatsApp API</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>
                             <li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>

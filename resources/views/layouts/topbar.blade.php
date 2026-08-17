@@ -12,6 +12,8 @@
 .header-profile-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .header-profile-row span { color: #718096; font-weight: 600; }
 .header-profile-row strong { color: #172033; font-weight: 600; text-align: right; word-break: break-word; }
+.nc-wallet-btn.is-low-balance .wallet-amount { color: #dc2626 !important; }
+.nc-wallet-btn.is-low-balance { border-color: #fecaca; }
 </style>
 <header id="page-topbar" class="nc-topbar">
     <div class="layout-width">
@@ -48,14 +50,18 @@
                     </span>
                 </button>
 
-                <!-- Wallet -->
+                @php
+                    $headerWallet = (float) DB::table('users')->where('id', Session::get('user_id'))->value('wallet_balance');
+                    $headerAlert = (float) \App\Services\SystemSettingService::get('balance_alert_below', 500);
+                    $headerLowBalance = $headerAlert > 0 && $headerWallet < $headerAlert;
+                @endphp
                 <form class="app-search nc-wallet-form mb-0">
                     <div class="position-relative">
-                        <button type="button" class="btn nc-wallet-btn LoadWallet">
+                        <button type="button" class="btn nc-wallet-btn LoadWallet {{ $headerLowBalance ? 'is-low-balance' : '' }}">
                             <span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span>
                             <span class="text-start">
                                 <span class="d-block wallet-label">Wallet Balance</span>
-                                <span class="d-block wallet-amount">₹ {{ number_format((float) DB::table('users')->where('id', Session::get('user_id'))->value('wallet_balance'), 2) }}</span>
+                                <span class="d-block wallet-amount">₹ {{ number_format($headerWallet, 2) }}</span>
                             </span>
                         </button>
                     </div>

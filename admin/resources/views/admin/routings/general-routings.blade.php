@@ -224,7 +224,6 @@ General Routings
 @endsection
 
 @section('script')
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 <script>
 var routingRows = {};
 var csrf = '{{ csrf_token() }}';

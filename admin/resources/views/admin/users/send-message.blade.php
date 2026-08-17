@@ -117,11 +117,10 @@
             data: {_token: '{{csrf_token()}}',keyword:keyword},
             success: function(res) {
                 $('#user_list').show();
-                console.log(res);
+                var users = (typeof adminUsersFromRes === 'function') ? adminUsersFromRes(res) : ((res && res.users) ? res.users : []);
                 htmlView = "";
-                //$('#user_list').empty();d
-                for(let i = 0; i < res.users.length; i++){
-                    htmlView += '<a onclick="selectValue(`'+res.users[i].id+'`,`'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'`)">'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'</a></br></hr>';
+                for(let i = 0; i < users.length; i++){
+                    htmlView += '<a onclick="selectValue(`'+users[i].id+'`,`'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'`)">'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'</a></br></hr>';
                 }
                 $('#user_list').html(htmlView);
             }
@@ -175,5 +174,4 @@
     <script src="{{ URL::asset('assets/libs/@ckeditor/@ckeditor.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/quill/quill.min.js') }}"></script>
     <script src="{{ URL::asset('assets/js/pages/form-editor.init.js') }}"></script>
-    <script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 @endsection

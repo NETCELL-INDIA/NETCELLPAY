@@ -23,7 +23,7 @@ class ComplaintController extends Controller
         $rules = array(
             'page' => 'required|numeric',
             'limit' => 'required|numeric',
-            'status' => 'required|in:All,Open,Closed,Sloved,Under Review',
+            'status' => 'nullable|in:All,Pending,Open,Closed,Sloved,Under Review',
         );
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
@@ -34,47 +34,46 @@ class ComplaintController extends Controller
             return '<h4 class="text-center text-secondary my-3">'.$error.'</h4>';
         }
 
-        if($post->from_date){
-            $from_date = $post->from_date." 00:00:00";
-            $to_date = $post->to_date." 23:59:59";
-            if($post->tbl_type == 0){
-                $table = "complaints";
-            }else{
-                $table = "backup_complaints";
+        $table = ((int) ($post->tbl_type ?? 0) === 1) ? 'backup_complaints' : 'complaints';
+        if ($table === 'backup_complaints' && !\Illuminate\Support\Facades\Schema::hasTable('backup_complaints')) {
+            $table = 'complaints';
+        }
+
+        $page = max(1, (int) ($post->page ?: 1));
+        $limit = (int) ($post->limit ?: 10);
+        if (!in_array($limit, [5, 10, 15, 25, 50], true)) {
+            $limit = 10;
+        }
+        $start = ($page - 1) * $limit;
+
+        $query = DB::table($table);
+
+        $from = trim((string) ($post->from_date ?? ''));
+        $to = trim((string) ($post->to_date ?? ''));
+        if ($from !== '' || $to !== '') {
+            if ($from === '') {
+                $from = '1970-01-01';
             }
-        }else{
-            $from_date = Carbon::today()->format('Y-m-d')." 00:00:00";
-            $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
-            $table = "complaints";
-        }  
-
-        if($post->page){
-            $page = $post->page; 
-        }else{
-            $page = 1; 
-        }
-
-        if($post->status =="All"){
-            $post->status = '';
-        }
-
-        if($post->limit){
-            if($post->limit <= 50){
-                $limit = $post->limit; 
-            }else{
-                $limit = 10;  
+            if ($to === '') {
+                $to = Carbon::today()->format('Y-m-d');
             }
-        }else{
-            $limit = 10; 
+            $query->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59']);
         }
-        $start= ($page-1) * $limit;
-        $total_row = DB::table($table)
-        ->whereBetween('created_at', [$from_date,$to_date])
-        ->where('request_id', 'like', '%' . $post->request_id . '%')
-        ->where('status', 'like', '%' . $post->status . '%')
-        ->orderBy('id', 'DESC')->get();
-        $total_row_count = $total_row->count();
-        $total_pages = ceil($total_row_count / $limit);
+
+        $requestId = trim((string) ($post->request_id ?? ''));
+        if ($requestId !== '') {
+            $query->where('request_id', 'like', '%'.$requestId.'%');
+        }
+
+        $status = trim((string) ($post->status ?? 'Pending'));
+        if ($status === '' || $status === 'Pending') {
+            $query->whereIn('status', ['Open', 'Under Review', 'Pending']);
+        } elseif ($status !== 'All') {
+            $query->where('status', $status);
+        }
+
+        $total_row_count = (clone $query)->count();
+        $total_pages = max(1, (int) ceil($total_row_count / $limit));
         $page_link = '';
         for ($i1=1; $i1<=$total_pages; $i1++) {
             if($page == $i1){
@@ -87,11 +86,7 @@ class ComplaintController extends Controller
             $page_link .= '<li class="page-item "><a href="javascript:void(0)" class="page-link '.$act.'" '.$d.'>'.$i1.'</a></li>';
         };
         
-        $list = DB::table($table)->whereBetween('created_at', [$from_date,$to_date])
-        ->where('request_id', 'like', '%' . $post->request_id . '%')
-        ->where('status', 'like', '%' . $post->status . '%')
-        //->where('complaint_id',"!=",0)
-        ->offset($start)->limit($limit)->get();
+        $list = (clone $query)->orderByDesc('id')->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
         $output = '';
@@ -159,7 +154,7 @@ class ComplaintController extends Controller
                     <td>' . $i . '</td>
                     <td>' . $list->request_id . '</td>
                     <td>' . $list->created_at . '</td>
-                    <td>' . Str::of($service->service_name)->upper() . '</td>
+                    <td>' . Str::of(optional($service)->service_name ?: '-')->upper() . '</td>
                     <td><button type="submit" class="btn btn-secondary" id="report_view_btn" onclick="reportsView(`' . $list->report_id . '`)"><i class="ri-file-list-3-line"></i> Check Transaction</button></td>
                     <td>' . $list->subject . '</td>
                     <td>

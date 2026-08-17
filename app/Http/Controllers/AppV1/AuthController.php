@@ -138,6 +138,8 @@ class AuthController extends Controller
             'type' => 'success',
             'message' => 'Fatch Sucessfuly',
             'wallet_balance' =>  round($user->wallet_balance,2),
+            'balance_alert_below' => (float) \App\Services\SystemSettingService::get('balance_alert_below', 500),
+            'app_without_login' => \App\Services\SystemSettingService::isOn('app_without_login') ? 1 : 0,
             'shop_name' =>  $user->outlet_name,
             'mobile' =>  $user->mobile_number,
             'email' =>  $user->email_address,
@@ -184,7 +186,15 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
+            $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
+            if ($locked) {
+                return response()->json(array(
+                    'type' => 'error',
+                    'message' => $locked
+                ));
+            }
             if(\helpers::verifyUserPassword($post->password, $user)){
+                \App\Services\SystemSettingService::clearFailedLogin($user);
 
                 if($user->status==1){
                     if(strtoupper((string) $user->login_type) === 'OTP'){
@@ -297,7 +307,7 @@ class AuthController extends Controller
                 
             }else{
                 $data['type'] = 'error';
-                $data['message'] = "password do not match";
+                $data['message'] = \App\Services\SystemSettingService::recordFailedLogin($user);
             }
         }else{
             $data['type'] = 'error';
@@ -532,7 +542,15 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
         if($user){
+            $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
+            if ($locked) {
+                return response()->json(array(
+                    'type' => 'error',
+                    'message' => $locked
+                ));
+            }
             if(\helpers::verifyUserPassword($post->password, $user)){
+                \App\Services\SystemSettingService::clearFailedLogin($user);
 
                 if($user->status==1){
                     if($this->verifyMobileLoginOtp($post->otp, $user)){
@@ -582,7 +600,7 @@ class AuthController extends Controller
                 
             }else{
                 $data['type'] = 'error';
-                $data['message'] = "password do not match";
+                $data['message'] = \App\Services\SystemSettingService::recordFailedLogin($user);
             }
         }else{
             $data['type'] = 'error';

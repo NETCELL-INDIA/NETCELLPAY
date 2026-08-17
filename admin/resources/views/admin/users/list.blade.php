@@ -82,22 +82,6 @@
 
                         </div>
 
-                        <div class="users-filter-field users-filter-field--xs">
-
-                            <label class="form-label">From</label>
-
-                            <input type="number" class="form-control form-control-sm" placeholder="Min" name="min_wallet" value="0" id="min_wallet">
-
-                        </div>
-
-                        <div class="users-filter-field users-filter-field--xs">
-
-                            <label class="form-label">To</label>
-
-                            <input type="number" class="form-control form-control-sm" placeholder="Max" name="max_wallet" value="0" id="max_wallet">
-
-                        </div>
-
                         <div class="users-filter-field users-filter-field--sm">
 
                             <label class="form-label">Role</label>
@@ -440,20 +424,16 @@
                                     <input type="number" class="form-control" name="parent_id" id="parent_id" required="required"> -->
 
                                     <label class="form-label">Parent:</label>
-
-                                    <input type="hidden" name="parent_id" id="parent_id" value="0" name="parent_id">
-
-                                    <input type="text" class="form-control" name="parent_id_value" value="" id="parent_id_value">
-
-                                    
-
-                                    <!-- <select class="form-select mb-3 parent_id" aria-label="Default select example" name="parent_id">
-
-                                        <option selected="">Select Parent</option>
-
-
-
-                                    </select> -->
+                                    <select class="form-select mb-1" name="parent_id" id="parent_id">
+                                        <option value="0">Select Parent</option>
+                                        @foreach (($parents ?? []) as $parentUser)
+                                            @php
+                                                $parentLabel = trim(($parentUser->role_name ?? '') . ' — ' . ($parentUser->outlet_name ?? '') . ' | ' . trim(($parentUser->first_name ?? '') . ' ' . ($parentUser->last_name ?? '')) . ' | ' . ($parentUser->mobile_number ?? ''));
+                                            @endphp
+                                            <option value="{{ $parentUser->id }}">{{ $parentLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Admin, Master Distributor, Distributor only</small>
 
                                 </div>
 
@@ -519,12 +499,6 @@
 
                             </div>
 
-                            <div id="user_list_p" style="display:none">
-
-                                        
-
-                                </div>
-
                             <!--end col-->
 
                             <div class="col-xxl-3 col-md-6">
@@ -534,34 +508,6 @@
                                     <label for="first_name" class="form-label">First Name: <a style="color: red">*</a></label>
 
                                     <input type="text" class="form-control" name="first_name" id="first_name" required="required">
-
-                                </div>
-
-                            </div>
-
-                            <!--end col-->
-
-                            <div class="col-xxl-3 col-md-6">
-
-                                <div>
-
-                                    <label for="middle_name" class="form-label">Middle Name: </label>
-
-                                    <input type="text" class="form-control" name="middle_name" id="middle_name" >
-
-                                </div>
-
-                            </div>
-
-                            <!--end col-->
-
-                            <div class="col-xxl-3 col-md-6">
-
-                                <div>
-
-                                    <label for="last_name" class="form-label">Last Name: </label>
-
-                                    <input type="text" class="form-control" name="last_name" id="last_name">
 
                                 </div>
 
@@ -1195,14 +1141,11 @@
                     return;
                 }
 
-                $("#parent_id").val(data.data.parent_id);
-                $('#parent_id_value').val(data.data.outlet_name + " | " + data.data.first_name + " | " + data.data.middle_name + " | " + data.data.last_name + " | " + data.data.mobile_number + " | ");
+                setParentSelect(data.data.parent_id, data.parent);
                 $(".role_id").val(data.data.role_id).change();
                 $(".scheme_id").val(data.data.scheme_id).change();
                 $("#outlet_name").val(data.data.outlet_name);
                 $("#first_name").val(data.data.first_name);
-                $("#middle_name").val(data.data.middle_name);
-                $("#last_name").val(data.data.last_name);
                 $("#date_of_birth").val(data.data.date_of_birth);
                 $("#email_address").val(data.data.email_address);
                 $("#mobile_number").val(data.data.mobile_number);
@@ -1296,9 +1239,9 @@
 
         var parent_id = $("#parent_id_f").val();
 
-        var min_wallet = $("#min_wallet").val();
+        var min_wallet = 0;
 
-        var max_wallet = $("#max_wallet").val();
+        var max_wallet = 0;
 
         var role_id = $("#role_name").val();
 
@@ -1400,15 +1343,13 @@
 
                 $('#user_list').show();
 
-                console.log(res);
+                var users = (typeof adminUsersFromRes === 'function') ? adminUsersFromRes(res) : ((res && res.users) ? res.users : []);
 
                 htmlView = "";
 
-                //$('#user_list').empty();d
+                for(let i = 0; i < users.length; i++){
 
-                for(let i = 0; i < res.users.length; i++){
-
-                    htmlView += '<a onclick="selectValue(`'+res.users[i].id+'`,`'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'`)">'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'</a></br></hr>';
+                    htmlView += '<a onclick="selectValue(`'+users[i].id+'`,`'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'`)">'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'</a></br></hr>';
 
                 }
 
@@ -1422,53 +1363,22 @@
 
 
 
-    $('#parent_id_value').on('keyup', function(){
-
-        $('#parent_id').val("0");
-
-        searchP();
-
-    });
-
-
-
-    function searchP(){
-
-        var keyword = $('#parent_id_value').val();
-
-        $.ajax({
-
-            url: '{{ route('parentListSearchUuser') }}',
-
-            method: 'post',
-
-            data: {_token: '{{csrf_token()}}',keyword:keyword},
-
-            success: function(res) {
-
-                $('#user_list_p').show();
-
-                console.log(res);
-
-                htmlView = "";
-
-                //$('#user_list').empty();d
-
-                for(let i = 0; i < res.users.length; i++){
-
-                    htmlView += '<a onclick="selectValueP(`'+res.users[i].id+'`,`'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'`)">'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'</a></br></hr>';
-
-                }
-
-                $('#user_list_p').html(htmlView);
-
+    function setParentSelect(parentId, parent) {
+        var $sel = $('#parent_id');
+        parentId = String(parentId || 0);
+        if (parentId !== '0' && $sel.find('option[value="' + parentId + '"]').length === 0) {
+            var label = 'Current parent';
+            if (parent) {
+                label = [parent.role_name, parent.outlet_name, ((parent.first_name || '') + ' ' + (parent.last_name || '')).trim(), parent.mobile_number]
+                    .filter(Boolean)
+                    .join(' | ');
+            } else {
+                label = 'Parent #' + parentId;
             }
-
-        });
-
+            $sel.append($('<option>', { value: parentId, text: label }));
+        }
+        $sel.val(parentId);
     }
-
-
 
     $('#parent_id_value_f').on('keyup', function(){
 
@@ -1496,15 +1406,13 @@
 
                 $('#user_list_f').show();
 
-                console.log(res);
+                var users = (typeof adminUsersFromRes === 'function') ? adminUsersFromRes(res) : ((res && res.users) ? res.users : []);
 
                 htmlView = "";
 
-                //$('#user_list').empty();d
+                for(let i = 0; i < users.length; i++){
 
-                for(let i = 0; i < res.users.length; i++){
-
-                    htmlView += '<a onclick="selectValueF(`'+res.users[i].id+'`,`'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'`)">'+res.users[i].outlet_name+' | '+res.users[i].first_name+' '+res.users[i].middle_name+' '+res.users[i].last_name+' | '+res.users[i].mobile_number+'</a></br></hr>';
+                    htmlView += '<a onclick="selectValueF(`'+users[i].id+'`,`'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'`)">'+users[i].outlet_name+' | '+users[i].first_name+' '+users[i].middle_name+' '+users[i].last_name+' | '+users[i].mobile_number+'</a></br></hr>';
 
                 }
 
@@ -1527,26 +1435,6 @@
         $('#user_list_f').hide();
 
     }
-
-
-
-    function selectValueP(id,full_text) {
-
-        $('#parent_id').val(id);
-
-        $('#parent_id_value').val(full_text);
-
-        $('#user_list_p').hide();
-
-    }
-
-
-
-    // $(document).on('change','#parent_id',function(e){
-
-    //    alert($('#parent_id').val());
-
-    // });
 
 
 
@@ -2037,6 +1925,8 @@
 
         $("#edit_id").val(0);
 
+        $("#parent_id").val("0");
+
         setUserPasswordMode(true);
 
         $("#area_locality_list").empty();
@@ -2175,7 +2065,6 @@
 
 <script src="{{ URL::asset('assets/js/pages/password-addon.init.js') }}"></script>
 
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 
 
 

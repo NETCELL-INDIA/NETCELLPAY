@@ -111,7 +111,6 @@
 </div>
 @endsection
 @section('script')
-<script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 <script>
 var csrf = '{{ csrf_token() }}';
 var apis = @json($apis);

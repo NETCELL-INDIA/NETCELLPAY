@@ -160,6 +160,8 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::get('users/profile/logout',[AuthController::class,'Logout'])->name('usersLogout');
     Route::get('users/api-settings', [ApiSettingsController::class, 'index'])->name('apiSettings');
     Route::post('users/api-settings/save', [ApiSettingsController::class, 'store'])->name('apiSettingsStore');
+    Route::post('users/api-settings/generate-key', [ApiSettingsController::class, 'generateKey'])->name('apiSettingsGenerateKey');
+    Route::post('users/api-settings/generate-key', [ApiSettingsController::class, 'generateKey'])->name('apiSettingsGenerateKey');
     Route::get('users/profile/my-profile',[ProfileController::class,'myProfile'])->name('myProfile');
     Route::get('users/profile/my-profile-data',[ProfileController::class,'myProfileData'])->name('myProfileData');
     Route::post('users/profile/my-profile-password-change',[ProfileController::class,'myProfilePasswordChange'])->name('myProfilePasswordChange');

@@ -258,6 +258,13 @@ class FundController extends Controller
         }else{
             $slip_image = "slip_image.png";
         }
+        $stopped = \App\Services\SystemSettingService::blockedMessage();
+        if ($stopped) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $stopped
+            ));
+        }
         $user = DB::table('users')->where('id',Session::get('user_id'))->first();
         $update = DB::table('fund_requests')->insert([
             'user_id' => Session::get('user_id'),

@@ -2,7 +2,7 @@
     <div class="container-fluid">
         <div class="row">
             <div class="col-sm-6">
-            Copyright <script>document.write(new Date().getFullYear())</script> © <a id="copyrightName">Made with ❤️ in India.
+            Copyright <script>document.write(new Date().getFullYear())</script> © Made with ❤️ in India.
             </div>
             <div class="col-sm-6">
                 <div class="text-sm-end d-none d-sm-block">
@@ -25,6 +25,9 @@
     });
     
 function capitalizeFirstLetter(string){
+        if (!string || typeof string !== 'string') {
+            return '';
+        }
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
@@ -114,24 +117,27 @@ function capitalizeFirstLetter(string){
     });
 
     
+    function adminUsersFromRes(res) {
+        if (!res || res.users == null) return [];
+        if (Array.isArray(res.users)) return res.users;
+        return Object.keys(res.users).map(function (k) { return res.users[k]; }).filter(Boolean);
+    }
+
     function ajaxCalltopbar() {
         $.ajax({
             url: '{{ route('topbarCount') }}',
             method: 'post',
             data: {_token: '{{ csrf_token() }}'},
             success: function(data) {
-                if(data.type == "success"){
+                if(data && data.type == "success" && data.data){
                     $("#TopBarComplaintCount").text(data.data.complaint);
                     $("#TopBarPendingCount").text(data.data.pending);
                     $("#DropComplaintCount").text(data.data.complaint || '');
                     $("#DropPendingCount").text(data.data.pending || '');
-                }else{
-                    Error_Msg(capitalizeFirstLetter(data.type), data.message, data.type);
                 }
             },
             error: function(err) {
                 console.log(err);
-                Error_Msg("Oops...", "Something went wrong!", "error");
             }
         });
     }

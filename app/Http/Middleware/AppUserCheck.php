@@ -2,14 +2,33 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\SystemSettingService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 class AppUserCheck
 {
-    
+    private const GUEST_PATHS = [
+        'api/v1/services-list',
+        'api/v1/service-providers',
+        'api/v1/check-number',
+        'api/v1/check-roffer',
+        'api/v1/check-view-plan',
+        'api/v1/dth-info',
+        'api/v1/dth-plans',
+        'api/v1/bill-params',
+        'api/v1/bill-fetch',
+    ];
+
     public function handle(Request $post, Closure $next)
     {
+        $isGuestPath = in_array(trim($post->path(), '/'), self::GUEST_PATHS, true);
+        $hasLogin = $post->filled('login_key') || $post->filled('user_id');
+
+        if (SystemSettingService::isOn('app_without_login') && $isGuestPath && !$hasLogin) {
+            return $next($post);
+        }
+
         $rules = array(
             'login_key' => 'required',
             'user_id' => 'required',

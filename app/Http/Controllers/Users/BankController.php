@@ -216,6 +216,14 @@ class BankController extends Controller
         
        // return $post->account_type;
         if($post->edit_id==0){
+            $ownerId = (int) Session::get('user_id');
+            $limit = \App\Services\SystemSettingService::payoutLimitMessage($ownerId);
+            if ($limit) {
+                return response()->json(array(
+                    'type' => 'error',
+                    'message' => $limit
+                ));
+            }
             if($post->bank_logo){
                 $bankLogo = csrf_token().time().'.'.$post->bank_logo->extension();  
                 $post->bank_logo->move(public_path('bank_logo'), $bankLogo);
@@ -225,7 +233,7 @@ class BankController extends Controller
                 $bankLogo = "bank_logo.png";
             }
             $update = DB::table('banks')->insert([
-                'user_id' => 1,
+                'user_id' => $ownerId,
                 'account_name' => $post->account_name,
                 'account_number' => $post->account_number,
                 'bank_name' => $post->bank_name,

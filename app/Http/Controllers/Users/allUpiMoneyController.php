@@ -17,6 +17,13 @@ class allUpiMoneyController extends Controller
     {
 
         $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+        $stopped = \App\Services\SystemSettingService::blockedMessage();
+        if ($stopped) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $stopped
+            ));
+        }
         //return $company;
         if($company->payment_gateway2 != 1){
             return response()->json(array(

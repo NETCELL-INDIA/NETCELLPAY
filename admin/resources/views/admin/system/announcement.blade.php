@@ -112,5 +112,4 @@
     <script src="{{ URL::asset('assets/libs/@ckeditor/@ckeditor.min.js') }}"></script>
     <script src="{{ URL::asset('assets/libs/quill/quill.min.js') }}"></script>
     <script src="{{ URL::asset('assets/js/pages/form-editor.init.js') }}"></script>
-    <script src="{{ URL::asset('/assets/js/app.min.js') }}"></script>
 @endsection

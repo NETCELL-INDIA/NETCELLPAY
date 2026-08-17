@@ -136,25 +136,45 @@ class UserListController extends Controller
     {
         $data['scheme'] = DB::table('schemes')->where('deleted_at', '!=' , 1)->where('status', 1)->get();
         $data['role'] = DB::table('roles')->where('status', 1)->get();
-        //$data['user'] = DB::table('users')->where('deleted_at', '!=' , 1)->orderBy('id', 'ASC')->get();
+        $data['parents'] = DB::table('users as u')
+            ->leftJoin('roles as r', 'r.id', '=', 'u.role_id')
+            ->whereIn('u.role_id', [1, 4, 5])
+            ->where('u.deleted_at', 0)
+            ->orderBy('u.role_id')
+            ->orderBy('u.outlet_name')
+            ->get([
+                'u.id',
+                'u.outlet_name',
+                'u.first_name',
+                'u.middle_name',
+                'u.last_name',
+                'u.mobile_number',
+                'u.role_id',
+                'r.role_name',
+            ]);
         return view('admin.users.list', $data);
     }
 
     public function parentListSearchUuser(Request $post)
     {
-        if($post->keyword != ''){
-            $user = DB::table('users')->whereNotIn('role_id', [3,6])
-            // ->where('role_id', [1,4,5])
-            // ->where('deleted_at', '!=' , 1)
-            ->where('mobile_number','LIKE','%'.$post->keyword.'%')
-            ->orWhere('email_address','LIKE','%'.$post->keyword.'%')
-            // ->orWhere('outlet_name','LIKE','%'.$post->keyword.'%')
-            // ->orWhere('first_name','LIKE','%'.$post->keyword.'%')
-            // ->orWhere('last_name','LIKE','%'.$post->keyword.'%')
-            ->get(['id','first_name','middle_name','last_name','outlet_name','mobile_number']);
+        $users = collect();
+        $keyword = trim((string) $post->keyword);
+        if ($keyword !== '') {
+            $users = DB::table('users')
+                ->whereIn('role_id', [1, 4, 5])
+                ->where('deleted_at', 0)
+                ->where(function ($q) use ($keyword) {
+                    $q->where('mobile_number', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('email_address', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('outlet_name', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('first_name', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('last_name', 'LIKE', '%' . $keyword . '%');
+                })
+                ->limit(25)
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'mobile_number']);
         }
         return response()->json([
-            'users' => $user
+            'users' => $users
         ]);
     }
 
@@ -398,10 +418,26 @@ class UserListController extends Controller
         $get = DB::table('users')->where('id', $post->id)->first();
         if($get){
             unset($get->password, $get->login_key, $get->otp, $get->email_otp);
+            $parent = null;
+            if ((int) ($get->parent_id ?? 0) > 0) {
+                $parent = DB::table('users as u')
+                    ->leftJoin('roles as r', 'r.id', '=', 'u.role_id')
+                    ->where('u.id', $get->parent_id)
+                    ->first([
+                        'u.id',
+                        'u.outlet_name',
+                        'u.first_name',
+                        'u.last_name',
+                        'u.mobile_number',
+                        'u.role_id',
+                        'r.role_name',
+                    ]);
+            }
             return response()->json([
                 'type' => 'success',
                 'message' => 'Get sucessfuly',
                 'data' => $get,
+                'parent' => $parent,
             ]);
         }
 
@@ -434,8 +470,6 @@ class UserListController extends Controller
             'scheme_id'  => 'required|numeric',
             'outlet_name'  => 'required|string|max:70',
             'first_name'  => 'required|string|max:70',
-            'middle_name'  => 'nullable|string|max:70',
-            'last_name'  => 'nullable|string|max:70',
             'date_of_birth'  => 'required',
             'mobile_number' => $mobileRules,
             'email_address' => $emailRules,
@@ -501,6 +535,26 @@ class UserListController extends Controller
             ));
         }
 
+        $parentId = (int) $post->parent_id;
+        if ($parentId > 0) {
+            $existingParentId = $isEdit
+                ? (int) DB::table('users')->where('id', $editId)->value('parent_id')
+                : 0;
+            if ($parentId !== $existingParentId) {
+                $parentOk = DB::table('users')
+                    ->where('id', $parentId)
+                    ->whereIn('role_id', [1, 4, 5])
+                    ->where('deleted_at', 0)
+                    ->exists();
+                if (!$parentOk) {
+                    return response()->json([
+                        'type' => 'error',
+                        'message' => 'Parent must be Admin, Master Distributor, or Distributor.',
+                    ]);
+                }
+            }
+        }
+
         //echo "<pre>";print_r($post->all());die;
         if($post->edit_id==0){
             if($post->profile_pic){
@@ -513,14 +567,17 @@ class UserListController extends Controller
                 ensure_user_visible_password_column();
                 $g_pass = (string) $post->password;
                 $t_pin = normalize_user_pin(random_int(0, 9999));
+                $apiKey = ((int) $post->role_id === 3)
+                    ? (Str::random(15) . rand(11111111, 9999999) . Str::random(15))
+                    : null;
                 $update = DB::table('users')->insert(array_merge([
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
                     'scheme_id'  => $post->scheme_id,
                     'outlet_name'  => $post->outlet_name,
                     'first_name'  => $post->first_name,
-                    'middle_name'  => $post->middle_name,
-                    'last_name'  => $post->last_name,
+                    'middle_name'  => '',
+                    'last_name'  => '',
                     'date_of_birth'  => $post->date_of_birth,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
@@ -543,6 +600,7 @@ class UserListController extends Controller
                     'ip_address'  => $ipAddress,
                     'callback_url'  => $post->callback_url,
                     'complaint_callback_url'  => $post->complaint_callback_url,
+                    'api_key' => $apiKey,
                     'profile_pic' => $profilePic,
                     'status' => $post->status,
                     'created_at' => Carbon::now(),
@@ -607,8 +665,6 @@ class UserListController extends Controller
                     'scheme_id'  => $post->scheme_id,
                     'outlet_name'  => $post->outlet_name,
                     'first_name'  => $post->first_name,
-                    'middle_name'  => $post->middle_name,
-                    'last_name'  => $post->last_name,
                     'date_of_birth'  => $post->date_of_birth,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
@@ -633,6 +689,13 @@ class UserListController extends Controller
                     'status' => $post->status,
                     'updated_at' => Carbon::now()
                 ];
+
+                if ((int) $post->role_id === 3) {
+                    $existingApiUser = DB::table('users')->where('id', $editId)->first(['api_key']);
+                    if ($existingApiUser && empty($existingApiUser->api_key)) {
+                        $updateFields['api_key'] = Str::random(15) . rand(11111111, 9999999) . $editId . Str::random(15);
+                    }
+                }
 
                 if ($post->filled('password')) {
                     $updateFields = array_merge(
