@@ -1054,6 +1054,10 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/support/complaint/get-report',[ComplaintController::class,'getReport'])->name('ComplaintsGetReport');
 
+    Route::post('admin/support/complaint/close',[ComplaintController::class,'closeComplaint'])->name('ComplaintsClose');
+
+    Route::post('admin/support/complaint/clear-success',[ComplaintController::class,'clearSuccessTickets'])->name('ComplaintsClearSuccess');
+
 
 
 

@@ -69,7 +69,11 @@ class ComplaintController extends Controller
 
         $status = trim((string) ($post->status ?? 'Pending'));
         if ($status === '' || $status === 'Pending') {
-            $query->whereIn('c.status', ['Open', 'Under Review', 'Pending']);
+            $query->whereIn('c.status', ['Open', 'Under Review', 'Pending'])
+                ->where(function ($q) {
+                    $q->whereNull('r.status')
+                        ->orWhereNotIn('r.status', ['Success', 'Refunded', 'Refund']);
+                });
         } elseif ($status === 'Success') {
             $query->where('r.status', 'Success');
         } elseif ($status === 'Failure' || $status === 'Failed') {
@@ -128,6 +132,7 @@ class ComplaintController extends Controller
                     <th>Subject</th>
                     <th>Action Details</th>
                     <th>Status</th>
+                    <th>Clear</th>
                 </tr>
             </thead>
             <tbody>';
@@ -152,6 +157,11 @@ class ComplaintController extends Controller
                 $statusHtml = function_exists('report_status_html')
                     ? report_status_html($list->txn_status ?? '')
                     : '<span class="rpt-status">'.e(strtoupper((string) ($list->txn_status ?? '-'))).'</span>';
+                $ticketOpen = in_array((string) $list->status, ['Open', 'Under Review', 'Pending'], true);
+                $statusHtml .= '<div class="text-muted mt-1" style="font-size:.75rem">Ticket: '.e(strtoupper((string) $list->status)).'</div>';
+                $clearBtn = $ticketOpen
+                    ? '<button type="button" class="btn btn-sm btn-outline-danger" onclick="closeComplaint('.(int) $list->id.')">Clear</button>'
+                    : '<span class="text-muted">-</span>';
 				$output .= '<tr>
                     <td>' . $i . '</td>
                     <td>' . $list->request_id . '</td>
@@ -165,6 +175,7 @@ class ComplaintController extends Controller
                         Remark : ' . $list->decision_remark . ' </br>
                     </td>
                     <td>' . $statusHtml . '</td>
+                    <td>' . $clearBtn . '</td>
               </tr>';
               $i++;
 			}
@@ -276,6 +287,72 @@ class ComplaintController extends Controller
         }
 
         return $output;
+    }
+
+    public function closeComplaint(Request $post)
+    {
+        $id = (int) ($post->id ?? 0);
+        if ($id < 1) {
+            return response()->json(['type' => 'error', 'message' => 'Complaint not found.']);
+        }
+
+        $complaint = DB::table('complaints')->where('id', $id)->first();
+        if (!$complaint) {
+            return response()->json(['type' => 'error', 'message' => 'Complaint not found.']);
+        }
+        if (!in_array((string) $complaint->status, ['Open', 'Under Review', 'Pending'], true)) {
+            return response()->json(['type' => 'error', 'message' => 'This complaint is already closed.']);
+        }
+
+        $remark = trim((string) ($post->remark ?? ''));
+        if ($remark === '') {
+            $remark = 'Cleared from complaints (no refund)';
+        }
+
+        $this->markComplaintClosed($complaint, $remark);
+
+        return response()->json(['type' => 'success', 'message' => 'Complaint cleared.']);
+    }
+
+    public function clearSuccessTickets(Request $post)
+    {
+        $rows = DB::table('complaints as c')
+            ->join('reports as r', 'r.id', '=', 'c.report_id')
+            ->whereIn('c.status', ['Open', 'Under Review', 'Pending'])
+            ->where('r.status', 'Success')
+            ->select('c.id', 'c.report_id', 'c.status')
+            ->get();
+
+        $count = 0;
+        foreach ($rows as $row) {
+            $this->markComplaintClosed($row, 'Cleared SUCCESS ticket from complaints (no refund)');
+            $count++;
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'message' => $count > 0
+                ? $count.' SUCCESS ticket'.($count === 1 ? '' : 's').' cleared from pending.'
+                : 'No open SUCCESS tickets to clear.',
+            'count' => $count,
+        ]);
+    }
+
+    private function markComplaintClosed($complaint, string $remark): void
+    {
+        if (!empty($complaint->report_id)) {
+            DB::table('reports')->where('id', $complaint->report_id)->update([
+                'complaint_id' => 0,
+            ]);
+        }
+
+        DB::table('complaints')->where('id', $complaint->id)->update([
+            'decision_by' => Session::get('user_id'),
+            'decision_remark' => $remark,
+            'status' => 'Closed',
+            'decision_date' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
     }
 
 }

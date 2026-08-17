@@ -1292,3 +1292,74 @@ if (! function_exists('report_status_html')) {
     }
 }
 
+if (! function_exists('email_brand')) {
+    function email_brand(): array
+    {
+        $company = null;
+        try {
+            $host = '';
+            try {
+                $host = (string) request()->getHost();
+            } catch (\Throwable $e) {
+            }
+            $query = DB::table('companies')->where('status', '1');
+            if ($host !== '') {
+                $company = (clone $query)->where('domain', $host)->first();
+            }
+            $company = $company ?: $query->first();
+        } catch (\Throwable $e) {
+        }
+
+        $name = $company->company_name ?? 'NETCELL PAY';
+        $supportEmail = $company->support_email ?? '';
+        $supportPhone = $company->support_number ?? '';
+        $domain = (string) ($company->domain ?? 'netcellpay.in');
+        $website = $domain;
+        if ($website !== '' && ! preg_match('#^https?://#i', $website)) {
+            $website = 'https://'.$website;
+        }
+
+        $logo = '';
+        $logoFile = (string) ($company->company_logo ?? '');
+        if ($logoFile !== '') {
+            $adminHost = rtrim((string) env('ADMIN_HOST', ''), '/');
+            if ($adminHost !== '') {
+                $logo = $adminHost.'/company_logo/'.ltrim($logoFile, '/');
+            }
+        }
+
+        return [
+            'name' => $name,
+            'logo' => $logo,
+            'support_email' => $supportEmail,
+            'support_phone' => $supportPhone,
+            'website' => $website,
+            'year' => date('Y'),
+        ];
+    }
+}
+
+if (! function_exists('email_body_html')) {
+    function email_body_html(?string $msg): string
+    {
+        $msg = trim((string) $msg);
+        if ($msg === '') {
+            return '';
+        }
+
+        if ($msg !== strip_tags($msg)) {
+            return preg_replace('#<(script|iframe|object|embed)[^>]*>.*?</\1>#is', '', $msg) ?: '';
+        }
+
+        $html = nl2br(e($msg), false);
+        $html = preg_replace(
+            '/(OTP(?:\s*(?:is|:|-))?\s*)(\d{4,8})/i',
+            '$1<span style="display:inline-block;margin:10px 0;padding:12px 20px;border-radius:14px;background:#f4f1ff;border:1px solid #ddd8ff;color:#34308f;font-size:26px;font-weight:800;letter-spacing:6px;line-height:1;">$2</span>',
+            $html,
+            1
+        );
+
+        return $html;
+    }
+}
+

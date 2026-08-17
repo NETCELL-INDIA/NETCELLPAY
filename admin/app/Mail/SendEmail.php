@@ -15,6 +15,7 @@ class SendEmail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
     public $subject;
     public $message;
+    public $brand;
     /**
      * Create a new message instance.
      *
@@ -24,6 +25,14 @@ class SendEmail extends Mailable implements ShouldQueue
     {
        $this->subject = $subject;
        $this->message = $message;
+       $this->brand = function_exists('email_brand') ? email_brand() : [
+           'name' => 'NETCELL PAY',
+           'logo' => '',
+           'support_email' => '',
+           'support_phone' => '',
+           'website' => 'https://netcellpay.in',
+           'year' => date('Y'),
+       ];
     }
 
     /**
@@ -47,7 +56,12 @@ class SendEmail extends Mailable implements ShouldQueue
     {
         return new Content(
             view: 'admin.emails.email',
-            with: ['subject'=>$this->subject,'msg'=>$this->message],
+            with: [
+                'subject' => $this->subject,
+                'msg' => $this->message,
+                'bodyHtml' => function_exists('email_body_html') ? email_body_html($this->message) : e((string) $this->message),
+                'brand' => $this->brand,
+            ],
         );
     }
 

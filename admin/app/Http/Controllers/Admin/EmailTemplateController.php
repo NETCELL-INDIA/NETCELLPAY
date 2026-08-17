@@ -13,6 +13,14 @@ class EmailTemplateController extends Controller
     public function index(Request $post)
     {
         $data['categories'] = DB::table('message_categories')->get();
+        $data['brand'] = function_exists('email_brand') ? email_brand() : [
+            'name' => 'NETCELL PAY',
+            'logo' => '',
+            'support_email' => '',
+            'support_phone' => '',
+            'website' => 'https://netcellpay.in',
+            'year' => date('Y'),
+        ];
         return view('admin.company.email-template', $data);
     }
 
@@ -44,7 +52,7 @@ class EmailTemplateController extends Controller
                 <td>' . $i . '</td>
                 <td>' . ucwords(str_replace("_"," ",$list->slug)) . '</td>
                 <td>' . $list->subject . '</td>
-                <td>' . $list->content . '</td>
+                <td>' . e(\Illuminate\Support\Str::limit(strip_tags((string) $list->content), 70)) . '</td>
                 <td>' . $status . '</td>
                 <td>
                     <a id="' . $list->id . '" class="badge text-bg-secondary editDetails"><i class="ri-pencil-fill align-bottom"></i> Edit</a>

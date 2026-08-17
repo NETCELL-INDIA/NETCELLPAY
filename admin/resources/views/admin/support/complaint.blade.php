@@ -73,10 +73,11 @@
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Complaint List</h4>
                 <div class="flex-shrink-0">
+                    <button type="button" class="btn btn-sm btn-danger" id="clear_success_btn" onclick="clearSuccessTickets()">Clear SUCCESS tickets</button>
                 </div>
             </div>
             <div class="card-body">
-                <div class="text-muted mb-2" style="font-size:.8rem">Pending complaints (Open / Under Review) load for all days. Use dates only if you want to search history.</div>
+                <div class="text-muted mb-2" style="font-size:.8rem">Pending list hides SUCCESS recharges. Use <strong>Clear SUCCESS tickets</strong> to close those tickets (no refund). Dates are only for history search.</div>
                 <div id="list_result">
                     <h4 class="text-center text-secondary my-3">No record found</h4>
                 </div>
@@ -137,6 +138,45 @@
             error: function() {
                 $("#search_btn").text('Search Records');
                 $('#search_btn').prop('disabled', false);
+            }
+        });
+    }
+
+    function closeComplaint(id){
+        if (!confirm('Clear this complaint from pending? Recharge will not be refunded.')) {
+            return;
+        }
+        $.ajax({
+            url: '{{ route('ComplaintsClose') }}',
+            method: 'post',
+            data: {_token: '{{csrf_token()}}', id: id},
+            success: function(res) {
+                alert(res.message || 'Done');
+                fetchAllSearch();
+            },
+            error: function() {
+                alert('Unable to clear complaint.');
+            }
+        });
+    }
+
+    function clearSuccessTickets(){
+        if (!confirm('Close all Open complaints whose recharge is SUCCESS? Wallet will not be refunded.')) {
+            return;
+        }
+        $("#clear_success_btn").prop('disabled', true).text('Clearing...');
+        $.ajax({
+            url: '{{ route('ComplaintsClearSuccess') }}',
+            method: 'post',
+            data: {_token: '{{csrf_token()}}'},
+            success: function(res) {
+                $("#clear_success_btn").prop('disabled', false).text('Clear SUCCESS tickets');
+                alert(res.message || 'Done');
+                fetchAllSearch();
+            },
+            error: function() {
+                $("#clear_success_btn").prop('disabled', false).text('Clear SUCCESS tickets');
+                alert('Unable to clear SUCCESS tickets.');
             }
         });
     }

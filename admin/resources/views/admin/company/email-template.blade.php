@@ -19,8 +19,13 @@
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Email Template List</h4>
             </div>
-            <div class="card-body" id="list_result">
-                <h4 class="text-center text-secondary my-3">No record found</h4>
+            <div class="card-body">
+                <div class="alert alert-info mb-3" style="border-radius:12px">
+                    Recipients now get a modern branded email (header, card, support footer). Edit the message text here; the stylish layout is applied automatically when the mail is sent.
+                </div>
+                <div id="list_result">
+                    <h4 class="text-center text-secondary my-3">No record found</h4>
+                </div>
             </div>
         </div>
     </div>
@@ -29,40 +34,49 @@
 
 <!-- Details Modals -->
 <div id="detailsModal" class="modal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="detailsModalLabel">Create Details</h5>
+                <h5 class="modal-title" id="detailsModalLabel">Edit Email Template</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"> </button>
             </div>
             <div class="modal-body">
                 <form action="#" method="POST" id="edit_details_form" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="edit_id" id="edit_id">
-                    <div class="mb-3">
-                        <label>Category<span class="text-danger">*</span></label>
-                        <select class="form-control" name="slug" id="slug">
-                            <option selected>Select Category</option>
-                            @foreach($categories as $item)
-                            <option value="{{$item->slug}}">{{$item->category_name}}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label>Subject <span class="text-danger">*</span></label>
-                        <input type="text" name="subject" id="subject" class="form-control" required="">
-                    </div> 
-                    <div class="mb-3">
-                        <label>Content <span class="text-danger">*</span></label>
-                        <textarea type="text" name="content" id="msg_content" class="form-control" required=""></textarea>
-                    </div> 
-                    <div class="mb-3">
-                        <label class="col-form-label">Status:</label>
-                        <select class="form-select mb-3 status" aria-label="Default select example" name="status">
-                            <option selected="">Select Status</option>
-                            <option value="1">Active</option>
-                            <option value="0">Deactive</option>
-                        </select>
+                    <div class="row g-4">
+                        <div class="col-lg-5">
+                            <div class="mb-3">
+                                <label>Category<span class="text-danger">*</span></label>
+                                <select class="form-control" name="slug" id="slug">
+                                    <option selected>Select Category</option>
+                                    @foreach($categories as $item)
+                                    <option value="{{$item->slug}}">{{$item->category_name}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label>Subject <span class="text-danger">*</span></label>
+                                <input type="text" name="subject" id="subject" class="form-control" required="">
+                            </div>
+                            <div class="mb-3">
+                                <label>Content <span class="text-danger">*</span></label>
+                                <textarea name="content" id="msg_content" class="form-control" rows="8" required="" placeholder="Dear {NAME}, your OTP is {OTP}"></textarea>
+                                <div class="form-text">Use placeholders like {NAME}, {OTP}, {AMOUNT}. Recipients will see this text inside the modern email card.</div>
+                            </div>
+                            <div class="mb-0">
+                                <label class="col-form-label">Status:</label>
+                                <select class="form-select status" aria-label="Default select example" name="status">
+                                    <option selected="">Select Status</option>
+                                    <option value="1">Active</option>
+                                    <option value="0">Deactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <label class="form-label">Live preview (how the recipient sees it)</label>
+                            <div id="email_live_preview" style="background:#eef2ff;border-radius:16px;padding:18px;min-height:420px;"></div>
+                        </div>
                     </div>
             </div>
             <div class="modal-footer">
@@ -112,6 +126,48 @@
             }
         });
     }
+
+    var emailBrand = @json($brand ?? ['name' => 'NETCELL PAY', 'logo' => '', 'support_email' => '', 'support_phone' => '', 'website' => '', 'year' => date('Y')]);
+
+    function escapeHtml(text) {
+        return $('<div>').text(text || '').html();
+    }
+
+    function renderEmailPreview() {
+        var subject = $('#subject').val() || 'Notification';
+        var content = $('#msg_content').val() || '';
+        var body = escapeHtml(content).replace(/\n/g, '<br>');
+        body = body.replace(/(OTP(?:\s*(?:is|:|-))?\s*)(\d{4,8}|\{OTP\})/i, '$1<span style="display:inline-block;margin:10px 0;padding:10px 16px;border-radius:12px;background:#f4f1ff;color:#34308f;font-size:22px;font-weight:800;letter-spacing:4px;">$2</span>');
+        var logo = emailBrand.logo
+            ? '<img src="'+emailBrand.logo+'" alt="" width="40" height="40" style="border-radius:10px;background:#fff">'
+            : '';
+        var support = '';
+        if (emailBrand.support_email) {
+            support += ' at <strong>'+escapeHtml(emailBrand.support_email)+'</strong>';
+        }
+        if (emailBrand.support_phone) {
+            support += ' / '+escapeHtml(emailBrand.support_phone);
+        }
+        $('#email_live_preview').html(
+            '<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(23,27,61,.12)">' +
+                '<div style="background:linear-gradient(135deg,#171b3d 0%,#34308f 58%,#00a892 140%);padding:22px 24px;color:#fff">' +
+                    logo +
+                    '<div style="margin-top:10px;font-weight:800;font-size:18px">'+escapeHtml(emailBrand.name)+'</div>' +
+                    '<div style="opacity:.8;font-size:12px">Secure payments. Instant updates.</div>' +
+                '</div>' +
+                '<div style="height:4px;background:#00bfa6"></div>' +
+                '<div style="padding:24px">' +
+                    '<div style="font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#00a892">'+escapeHtml(emailBrand.name)+' Notification</div>' +
+                    '<div style="margin:8px 0 14px;font-size:20px;font-weight:800;color:#171b3d">'+escapeHtml(subject)+'</div>' +
+                    '<div style="font-size:15px;line-height:1.7;color:#334155">'+body+'</div>' +
+                    '<div style="margin-top:16px;padding:12px 14px;background:#f8fafc;border:1px solid #e8eef7;border-radius:12px;color:#64748b;font-size:12px">Need help? Contact support'+support+'</div>' +
+                '</div>' +
+                '<div style="background:#f4f7fb;padding:14px;text-align:center;color:#94a3b8;font-size:11px">&copy; '+escapeHtml(String(emailBrand.year || ''))+' '+escapeHtml(emailBrand.name)+'</div>' +
+            '</div>'
+        );
+    }
+
+    $(document).on('input change', '#subject, #msg_content', renderEmailPreview);
 
     $(document).on('click', '.deleteData', function(e) {
         e.preventDefault();
@@ -173,11 +229,12 @@
             }else if(data.type=="success"){  
                 $("#slug").val(data.data.slug).change();
                 $("#subject").val(data.data.subject);
-                $("#msg_content").text(data.data.content);
+                $("#msg_content").val(data.data.content);
                 $("#edit_id").val(data.data.id);
                 $(".status").val(data.data.status).change();
-                $('#detailsModalLabel').text('Edit Details');
+                $('#detailsModalLabel').text('Edit Email Template');
                 $('#detailsModal').modal('show');
+                renderEmailPreview();
             }else{
                 Error_Msg("Oops...","Something went wrong!","error");
             }

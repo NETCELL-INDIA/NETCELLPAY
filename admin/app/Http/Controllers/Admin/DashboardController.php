@@ -96,16 +96,7 @@ class DashboardController extends Controller
                 ->where('transaction_type', 'Recharge')
                 ->where('status', 'Pending')
                 ->count();
-            $complaint = DB::table('complaints')
-                ->whereIn('status', ['Open', 'Under Review'])
-                ->whereExists(function ($q) {
-                    $q->select(DB::raw(1))
-                        ->from('reports')
-                        ->whereColumn('reports.id', 'complaints.report_id')
-                        ->whereColumn('reports.complaint_id', 'complaints.id')
-                        ->where('reports.status', 'Success');
-                })
-                ->count();
+            $complaint = $this->countPendingComplaints();
             return response()->json([
                 'type' => 'success',
                 'message' => "Fetch Successfully",
@@ -162,6 +153,16 @@ class DashboardController extends Controller
         }
     }
 
+    private function countPendingComplaints(): int
+    {
+        return (int) DB::table('complaints as c')
+            ->join('reports as r', 'r.id', '=', 'c.report_id')
+            ->whereIn('c.status', ['Open', 'Under Review', 'Pending'])
+            ->whereColumn('r.complaint_id', 'c.id')
+            ->whereNotIn('r.status', ['Success', 'Refunded', 'Refund'])
+            ->count('c.id');
+    }
+
     private function pendingSummary(): array
     {
         $pendingRecharges = 0;
@@ -180,18 +181,7 @@ class DashboardController extends Controller
         }
 
         try {
-            // Only real pending complains: still Open/Under Review AND linked on reports.complaint_id.
-            // Orphan Open rows (report already cleared) must not inflate dashboard/topbar counts.
-            $pendingComplaints = DB::table('complaints')
-                ->whereIn('status', ['Open', 'Under Review'])
-                ->whereExists(function ($q) {
-                    $q->select(DB::raw(1))
-                        ->from('reports')
-                        ->whereColumn('reports.id', 'complaints.report_id')
-                        ->whereColumn('reports.complaint_id', 'complaints.id')
-                        ->where('reports.status', 'Success');
-                })
-                ->count();
+            $pendingComplaints = $this->countPendingComplaints();
         } catch (\Throwable $e) {
         }
 
