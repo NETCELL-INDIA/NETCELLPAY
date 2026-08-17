@@ -47,12 +47,11 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Status </label>
                             <select class="form-select mb-3" name="status_type" id="status_type">
-                                <option selected value="Pending">Pending</option>
-                                <option value="All">All</option>
-                                <option value="Open">Open</option>
-                                <option value="Closed">Closed</option>
-                                <option value="Sloved">Sloved</option>
-                                <option value="Under Review">Under Review</option>
+                                <option selected value="Pending" style="color:#b78103;font-weight:700">PENDING</option>
+                                <option value="All">ALL</option>
+                                <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
+                                <option value="Failure" style="color:#dc3545;font-weight:700">FAILURE</option>
+                                <option value="Refunded" style="color:#0d6efd;font-weight:700">REFUNDED</option>
                             </select>
                         </div>
                         <div class="col-lg-2">

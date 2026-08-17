@@ -1002,6 +1002,9 @@
     if(urlParams.has('role')){
        $("#role_name").val(urlParams.get('role')).change();
     }
+    if(urlParams.has('kyc')){
+       $("#status_kyc").val(urlParams.get('kyc')).change();
+    }
 
     fetchAll(1,10);
 

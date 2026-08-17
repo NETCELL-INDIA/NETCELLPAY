@@ -23,7 +23,7 @@ class ComplaintController extends Controller
         $rules = array(
             'page' => 'required|numeric',
             'limit' => 'required|numeric',
-            'status' => 'nullable|in:All,Pending,Open,Closed,Sloved,Under Review',
+            'status' => 'nullable|in:All,Pending,Open,Closed,Sloved,Under Review,Success,Failure,Failed,Refunded',
         );
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
@@ -46,7 +46,9 @@ class ComplaintController extends Controller
         }
         $start = ($page - 1) * $limit;
 
-        $query = DB::table($table);
+        $query = DB::table($table.' as c')
+            ->leftJoin('reports as r', 'r.id', '=', 'c.report_id')
+            ->select('c.*', 'r.status as txn_status', 'r.operator_id as txn_operator_id');
 
         $from = trim((string) ($post->from_date ?? ''));
         $to = trim((string) ($post->to_date ?? ''));
@@ -57,22 +59,28 @@ class ComplaintController extends Controller
             if ($to === '') {
                 $to = Carbon::today()->format('Y-m-d');
             }
-            $query->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59']);
+            $query->whereBetween('c.created_at', [$from.' 00:00:00', $to.' 23:59:59']);
         }
 
         $requestId = trim((string) ($post->request_id ?? ''));
         if ($requestId !== '') {
-            $query->where('request_id', 'like', '%'.$requestId.'%');
+            $query->where('c.request_id', 'like', '%'.$requestId.'%');
         }
 
         $status = trim((string) ($post->status ?? 'Pending'));
         if ($status === '' || $status === 'Pending') {
-            $query->whereIn('status', ['Open', 'Under Review', 'Pending']);
+            $query->whereIn('c.status', ['Open', 'Under Review', 'Pending']);
+        } elseif ($status === 'Success') {
+            $query->where('r.status', 'Success');
+        } elseif ($status === 'Failure' || $status === 'Failed') {
+            $query->whereIn('r.status', ['Failed', 'Failure']);
+        } elseif ($status === 'Refunded') {
+            $query->whereIn('r.status', ['Refunded', 'Refund']);
         } elseif ($status !== 'All') {
-            $query->where('status', $status);
+            $query->where('c.status', $status);
         }
 
-        $total_row_count = (clone $query)->count();
+        $total_row_count = (clone $query)->count('c.id');
         $total_pages = max(1, (int) ceil($total_row_count / $limit));
         $page_link = '';
         for ($i1=1; $i1<=$total_pages; $i1++) {
@@ -86,7 +94,7 @@ class ComplaintController extends Controller
             $page_link .= '<li class="page-item "><a href="javascript:void(0)" class="page-link '.$act.'" '.$d.'>'.$i1.'</a></li>';
         };
         
-        $list = (clone $query)->orderByDesc('id')->offset($start)->limit($limit)->get();
+        $list = (clone $query)->orderByDesc('c.id')->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
         $output = '';
@@ -141,15 +149,9 @@ class ComplaintController extends Controller
                     $d_mobile_number = "-";
                 }
 
-                if($list->status == "Sloved"){
-                    $bg = "success";
-                }elseif ($list->status == "Closed") {
-                    $bg = "danger";
-                }elseif ($list->status == "Open") {
-                    $bg = "warning";    
-                }else{
-                    $bg = "primary";
-                }
+                $statusHtml = function_exists('report_status_html')
+                    ? report_status_html($list->txn_status ?? '')
+                    : '<span class="rpt-status">'.e(strtoupper((string) ($list->txn_status ?? '-'))).'</span>';
 				$output .= '<tr>
                     <td>' . $i . '</td>
                     <td>' . $list->request_id . '</td>
@@ -162,9 +164,7 @@ class ComplaintController extends Controller
                         Date : ' . $list->decision_date . ' </br>
                         Remark : ' . $list->decision_remark . ' </br>
                     </td>
-                    <td>
-                        <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->status . '</span>
-                    </td>
+                    <td>' . $statusHtml . '</td>
               </tr>';
               $i++;
 			}
@@ -253,7 +253,7 @@ class ComplaintController extends Controller
                     <tr class="table-'.$table_bg.'">
                         <td>Status : </td>
                         <td>
-                            <span class="badge rounded-pill text-bg-' . $bg . '">' . $report->status . '</span>
+                            '.report_status_html($report->status).'
                         </td>
                     </tr>
                     <tr class="table-'.$table_bg.'">

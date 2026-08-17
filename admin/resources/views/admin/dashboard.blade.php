@@ -21,6 +21,18 @@ Dashboard
         box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
         position: relative;
         overflow: hidden;
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    a.pending-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(16, 24, 40, 0.1);
+        border-color: #cfd8e3;
+        color: inherit;
+        text-decoration: none;
     }
     .pending-card::after {
         content: "";
@@ -141,34 +153,34 @@ Dashboard
 
 <div class="row g-3 mb-3" id="pending-cards">
     <div class="col-md col-6">
-        <div class="pending-card cyan">
+        <a class="pending-card cyan" href="{{ URL::asset('admin/recharge-reports/pending-report') }}">
             <div class="label">Pending Recharges</div>
             <div class="value" id="pending_recharges">0</div>
-        </div>
+        </a>
     </div>
     <div class="col-md col-6">
-        <div class="pending-card orange" role="button" style="cursor:pointer" onclick="location.href='{{ URL::asset('admin/support/complaint') }}'">
+        <a class="pending-card orange" href="{{ URL::asset('admin/support/complaint') }}">
             <div class="label">Pending Complains</div>
             <div class="value" id="pending_complaints">0</div>
-        </div>
+        </a>
     </div>
     <div class="col-md col-6">
-        <div class="pending-card green">
+        <a class="pending-card green" href="{{ URL::asset('admin/fund/fund-request?status=Pending') }}">
             <div class="label">Pending Payments</div>
             <div class="value" id="pending_fund">0</div>
-        </div>
+        </a>
     </div>
     <div class="col-md col-6">
-        <div class="pending-card red">
+        <a class="pending-card red" href="{{ URL::asset('admin/recharge-reports/refund-report') }}">
             <div class="label">Pending Refunds</div>
             <div class="value" id="pending_refunds">0</div>
-        </div>
+        </a>
     </div>
     <div class="col-md col-6">
-        <div class="pending-card blue">
+        <a class="pending-card blue" href="{{ URL::asset('admin/users/list?kyc=Pending') }}">
             <div class="label">KYC Requests</div>
             <div class="value" id="pending_kyc">0</div>
-        </div>
+        </a>
     </div>
 </div>
 
