@@ -12,7 +12,11 @@ class EmailTemplateController extends Controller
 {
     public function index(Request $post)
     {
-        $data['categories'] = DB::table('message_categories')->get();
+        $data['categories'] = collect();
+        try {
+            $data['categories'] = DB::table('message_categories')->get();
+        } catch (\Throwable $e) {
+        }
         $data['brand'] = function_exists('email_brand') ? email_brand() : [
             'name' => 'NETCELL PAY',
             'logo' => '',

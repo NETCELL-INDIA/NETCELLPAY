@@ -1310,17 +1310,17 @@ if (! function_exists('email_brand')) {
         } catch (\Throwable $e) {
         }
 
-        $name = $company->company_name ?? 'NETCELL PAY';
-        $supportEmail = $company->support_email ?? '';
-        $supportPhone = $company->support_number ?? '';
-        $domain = (string) ($company->domain ?? 'netcellpay.in');
+        $name = $company?->company_name ?: 'NETCELL PAY';
+        $supportEmail = (string) ($company?->support_email ?? '');
+        $supportPhone = (string) ($company?->support_number ?? '');
+        $domain = (string) ($company?->domain ?: 'netcellpay.in');
         $website = $domain;
         if ($website !== '' && ! preg_match('#^https?://#i', $website)) {
             $website = 'https://'.$website;
         }
 
         $logo = '';
-        $logoFile = (string) ($company->company_logo ?? '');
+        $logoFile = (string) ($company?->company_logo ?? '');
         if ($logoFile !== '') {
             $adminHost = rtrim((string) env('ADMIN_HOST', ''), '/');
             if ($adminHost !== '') {

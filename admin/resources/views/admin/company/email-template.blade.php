@@ -127,7 +127,7 @@
         });
     }
 
-    var emailBrand = @json($brand ?? ['name' => 'NETCELL PAY', 'logo' => '', 'support_email' => '', 'support_phone' => '', 'website' => '', 'year' => date('Y')]);
+    var emailBrand = @json($brand);
 
     function escapeHtml(text) {
         return $('<div>').text(text || '').html();
