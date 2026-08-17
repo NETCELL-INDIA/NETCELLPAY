@@ -36,24 +36,42 @@ class SystemSettingService
 
     public static function ensureTable(): void
     {
-        if (Schema::hasTable('system_settings')) {
-            return;
+        try {
+            if (Schema::hasTable('system_settings')) {
+                return;
+            }
+        } catch (\Throwable $e) {
         }
 
-        Schema::create('system_settings', function ($table) {
-            $table->id();
-            $table->string('setting_key', 80)->unique();
-            $table->text('setting_value')->nullable();
-            $table->timestamps();
-        });
+        try {
+            DB::statement("CREATE TABLE IF NOT EXISTS `system_settings` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `setting_key` VARCHAR(80) NOT NULL,
+                `setting_value` TEXT NULL,
+                `created_at` TIMESTAMP NULL DEFAULT NULL,
+                `updated_at` TIMESTAMP NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `system_settings_setting_key_unique` (`setting_key`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } catch (\Throwable $e) {
+            \Log::warning('system_settings create failed: '.$e->getMessage());
+        }
     }
 
     public static function all(): array
     {
-        self::ensureTable();
-        $rows = DB::table('system_settings')->pluck('setting_value', 'setting_key')->toArray();
+        try {
+            self::ensureTable();
+            $rows = DB::table('system_settings')->pluck('setting_value', 'setting_key')->toArray();
+            if (!is_array($rows)) {
+                $rows = [];
+            }
 
-        return array_merge(self::defaults(), $rows);
+            return array_merge(self::defaults(), $rows);
+        } catch (\Throwable $e) {
+            \Log::warning('system_settings read failed: '.$e->getMessage());
+            return self::defaults();
+        }
     }
 
     public static function get(string $key, $default = null)

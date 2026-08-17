@@ -135,14 +135,14 @@
 
                 @if($page === 'system')
                     <div class="ss-grid">
-                        @include('admin.system-settings._field', ['name' => 'fund_interval_minute', 'label' => 'Fund Interval(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['fund_interval_minute']])
-                        @include('admin.system-settings._field', ['name' => 'interval_recharge_minute', 'label' => 'Interval Recharge(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['interval_recharge_minute']])
-                        @include('admin.system-settings._field', ['name' => 'min_fund_transfer', 'label' => 'Minimum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['min_fund_transfer']])
-                        @include('admin.system-settings._field', ['name' => 'max_fund_transfer', 'label' => 'Maximum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['max_fund_transfer']])
-                        @include('admin.system-settings._field', ['name' => 'balance_alert_below', 'label' => 'Balance Alert Below Then', 'icon' => 'ri-alarm-warning-line', 'value' => $settings['balance_alert_below']])
-                        @include('admin.system-settings._field', ['name' => 'referral_amount', 'label' => 'Referral Amount', 'icon' => 'ri-gift-line', 'value' => $settings['referral_amount']])
-                        @include('admin.system-settings._field', ['name' => 'wrong_login_attempt', 'label' => 'Wrong Login Attempt', 'icon' => 'ri-error-warning-line', 'value' => $settings['wrong_login_attempt']])
-                        @include('admin.system-settings._field', ['name' => 'max_payout_account', 'label' => 'Add maximum payout account', 'icon' => 'ri-bank-line', 'value' => $settings['max_payout_account']])
+                        @include('admin.system-settings._field', ['name' => 'fund_interval_minute', 'label' => 'Fund Interval(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['fund_interval_minute'] ?? '15'])
+                        @include('admin.system-settings._field', ['name' => 'interval_recharge_minute', 'label' => 'Interval Recharge(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['interval_recharge_minute'] ?? '30'])
+                        @include('admin.system-settings._field', ['name' => 'min_fund_transfer', 'label' => 'Minimum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['min_fund_transfer'] ?? '500'])
+                        @include('admin.system-settings._field', ['name' => 'max_fund_transfer', 'label' => 'Maximum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['max_fund_transfer'] ?? '50000'])
+                        @include('admin.system-settings._field', ['name' => 'balance_alert_below', 'label' => 'Balance Alert Below Then', 'icon' => 'ri-alarm-warning-line', 'value' => $settings['balance_alert_below'] ?? '500'])
+                        @include('admin.system-settings._field', ['name' => 'referral_amount', 'label' => 'Referral Amount', 'icon' => 'ri-gift-line', 'value' => $settings['referral_amount'] ?? '0'])
+                        @include('admin.system-settings._field', ['name' => 'wrong_login_attempt', 'label' => 'Wrong Login Attempt', 'icon' => 'ri-error-warning-line', 'value' => $settings['wrong_login_attempt'] ?? '3'])
+                        @include('admin.system-settings._field', ['name' => 'max_payout_account', 'label' => 'Add maximum payout account', 'icon' => 'ri-bank-line', 'value' => $settings['max_payout_account'] ?? '20'])
                     </div>
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">
@@ -150,7 +150,7 @@
                                 <span><i class="ri-close-circle-line text-danger me-1"></i> Stop All Transactions</span>
                                 <div class="form-check form-switch mb-0">
                                     <input type="hidden" name="stop_all_transactions" value="0">
-                                    <input class="form-check-input" type="checkbox" name="stop_all_transactions" value="1" {{ $settings['stop_all_transactions'] == '1' ? 'checked' : '' }}>
+                                    <input class="form-check-input" type="checkbox" name="stop_all_transactions" value="1" {{ ($settings['stop_all_transactions'] ?? '0') == '1' ? 'checked' : '' }}>
                                 </div>
                             </div>
                         </div>
@@ -159,7 +159,7 @@
                                 <span><i class="ri-smartphone-line text-warning me-1"></i> App Without Login</span>
                                 <div class="form-check form-switch mb-0">
                                     <input type="hidden" name="app_without_login" value="0">
-                                    <input class="form-check-input" type="checkbox" name="app_without_login" value="1" {{ $settings['app_without_login'] == '1' ? 'checked' : '' }}>
+                                    <input class="form-check-input" type="checkbox" name="app_without_login" value="1" {{ ($settings['app_without_login'] ?? '0') == '1' ? 'checked' : '' }}>
                                 </div>
                             </div>
                         </div>
@@ -257,7 +257,7 @@ $('#ssSaveBtn').on('click', function () {
     var btn = $(this);
     btn.prop('disabled', true).text('Saving...');
     $.ajax({
-        url: '{{ route("systemSettingSave") }}',
+        url: '{{ URL::asset("admin/system-settings/save") }}',
         method: 'post',
         data: $('#ssForm').serialize(),
         success: function (data) {

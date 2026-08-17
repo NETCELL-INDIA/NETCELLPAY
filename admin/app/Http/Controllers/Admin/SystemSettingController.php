@@ -19,7 +19,7 @@ class SystemSettingController extends Controller
         'pusher' => 'Pusher setting',
     ];
 
-    public function show(?string $page = 'system')
+    public function show(Request $post, $page = 'system')
     {
         $page = $page ?: 'system';
         if (!isset(self::PAGES[$page])) {
@@ -27,17 +27,33 @@ class SystemSettingController extends Controller
         }
 
         $settings = SystemSettingService::all();
-        $services = DB::table('services')->orderBy('id')->get(['id', 'service_name', 'status']);
-        $company = DB::table('companies')->where('id', 1)->first();
+        $services = collect();
+        $company = null;
+        try {
+            $services = DB::table('services')->orderBy('id')->get(['id', 'service_name', 'status']);
+        } catch (\Throwable $e) {
+        }
+        try {
+            $company = DB::table('companies')->where('id', 1)->first();
+        } catch (\Throwable $e) {
+        }
 
-        return view('admin.system-settings.index', [
-            'page' => $page,
-            'pageTitle' => self::PAGES[$page],
-            'pages' => self::PAGES,
-            'settings' => $settings,
-            'services' => $services,
-            'company' => $company,
-        ]);
+        try {
+            return view('admin.system-settings.index', [
+                'page' => $page,
+                'pageTitle' => self::PAGES[$page],
+                'pages' => self::PAGES,
+                'settings' => $settings,
+                'services' => $services,
+                'company' => $company,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('System setting page failed: '.$e->getMessage());
+            return response(
+                '<div style="padding:24px;font-family:sans-serif"><h3>System Setting could not load</h3><p>'.e($e->getMessage()).'</p></div>',
+                200
+            );
+        }
     }
 
     public function save(Request $post)

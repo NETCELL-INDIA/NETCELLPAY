@@ -27,12 +27,29 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         $this->configurePublicUrls();
+        $this->loadSystemSettingClasses();
 
         try {
             View::share('company', app()->runningInConsole() ? null : Common::getCompanyByHost());
         } catch (\Throwable $e) {
             View::share('company', null);
             \Log::warning('Admin company share failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Production classmap-authoritative autoload can miss newly added classes.
+     */
+    protected function loadSystemSettingClasses(): void
+    {
+        $files = [
+            app_path('Services/SystemSettingService.php'),
+            app_path('Http/Controllers/Admin/SystemSettingController.php'),
+        ];
+        foreach ($files as $file) {
+            if (is_file($file)) {
+                require_once $file;
+            }
         }
     }
 
