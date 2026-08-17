@@ -12,15 +12,13 @@ File: Common Plugins Js File
         path = String(path || '').replace(/^\//, '');
         var scripts = document.getElementsByTagName('script');
         for (var i = scripts.length - 1; i >= 0; i--) {
-            var src = scripts[i].getAttribute('src') || '';
-            if (src.indexOf('assets/js/plugins.min.js') !== -1 || src.indexOf('assets/js/plugins.js') !== -1) {
-                return src.replace(/assets\/js\/plugins(?:\.min)?\.js.*$/i, path);
+            var abs = scripts[i].src || '';
+            if (abs.indexOf('assets/js/plugins.min.js') !== -1 || abs.indexOf('assets/js/plugins.js') !== -1) {
+                return abs.replace(/assets\/js\/plugins(?:\.min)?\.js.*$/i, path);
             }
         }
-        if (location.pathname.indexOf('/admin/') === 0) {
-            return location.origin + '/admin/' + path;
-        }
-        return location.origin + '/' + path;
+        var prefix = location.pathname.indexOf('/admin') === 0 ? '/admin/' : '/';
+        return location.origin + prefix + path;
     }
 
     // NodeList is always truthy — must check .length or every page loads these scripts.

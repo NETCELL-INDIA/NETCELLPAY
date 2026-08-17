@@ -3,7 +3,7 @@
 <script src="{{ admin_asset('assets/libs/node-waves/node-waves.min.js') }}"></script>
 <script src="{{ admin_asset('assets/libs/feather-icons/feather-icons.min.js') }}"></script>
 <script src="{{ admin_asset('assets/js/pages/plugins/lord-icon-2.1.0.min.js') }}"></script>
-<script src="{{ admin_asset('assets/js/plugins.min.js') }}"></script>
+<script src="{{ admin_asset('assets/js/plugins.min.js') }}?v=20260817-plugins2"></script>
 <script>
 /* Legacy "Search" section titles → Rambhiya "Filters" */
 document.addEventListener('DOMContentLoaded', function () {
