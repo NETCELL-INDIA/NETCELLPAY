@@ -14,12 +14,7 @@ class AdminReportsController extends Controller
 {
     public function liveRechargeReports(Request $post)
     {
-        $apis = DB::table('apis')->orderBy('api_name')->get(['id', 'api_name']);
-        $services = DB::table('services')->orderBy('service_name')->get(['id', 'service_name']);
-        $providers = DB::table('providers')->orderBy('provider_name')->get(['id', 'provider_name', 'service_id']);
-        $circles = DB::table('states')->orderBy('state_name')->get(['id', 'state_name']);
-
-        return view('admin.admin-reports.live-recharge-report', compact('apis', 'services', 'providers', 'circles'));
+        return view('admin.admin-reports.live-recharge-report');
     }
 
     private function liveRechargeBaseQuery(Request $post)

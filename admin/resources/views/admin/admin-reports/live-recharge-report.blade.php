@@ -312,12 +312,6 @@
             </div>
         </div>
         <div class="live-top-filters">
-            <select id="provider_id" title="Operator">
-                <option value="">All Operators</option>
-                @foreach($providers as $p)
-                    <option value="{{ $p->id }}">{{ $p->provider_name }}</option>
-                @endforeach
-            </select>
             <select id="status" title="Status">
                 <option value="">All Status</option>
                 <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
@@ -378,7 +372,6 @@ function filterPayload() {
         page: currentPage,
         from_date: today,
         to_date: today,
-        provider_id: $('#provider_id').val(),
         status: $('#status').val()
     };
 }
@@ -423,7 +416,7 @@ function fetchLive(silent) {
 }
 
 $(function () {
-    $('#provider_id, #status').on('change', function () {
+    $('#status').on('change', function () {
         currentPage = 1;
         fetchLive(false);
     });
