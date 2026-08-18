@@ -196,49 +196,25 @@ Route::get('/send-mail', function() {
    Mail::to('shibatechnology@gmail.com')->queue(new SendEmail($subject,$message));
 });
 
-Route::get('/optimize', function() {
-
-
-
-    //\Artisan::call('vendor:publish --tag=datatables');
-
-
-
-    
-
-
-
-    //\Artisan::call('make:mail SendEmail');
-
-
-
-    \Artisan::call('route:cache');
-
-
-
-    \Artisan::call('config:cache');
-
-
-
+Route::get('/optimize', function () {
+    \Artisan::call('route:clear');
+    \Artisan::call('config:clear');
     \Artisan::call('cache:clear');
-
-
-
     \Artisan::call('view:clear');
-
-
-
     \Artisan::call('optimize:clear');
 
-
-
     return 'software optimize';
-
-
-
 });
 
+Route::get('admin/optimize', function () {
+    \Artisan::call('route:clear');
+    \Artisan::call('config:clear');
+    \Artisan::call('cache:clear');
+    \Artisan::call('view:clear');
+    \Artisan::call('optimize:clear');
 
+    return 'software optimize';
+});
 
 Route::get('/', function () {
 
