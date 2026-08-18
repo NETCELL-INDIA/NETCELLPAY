@@ -86,20 +86,39 @@ class UserListController extends Controller
                 }
                 return $mobiles;
             }else if($post->msg_source == "NOTIFICATION"){
+                if (! Common::fcmServerKey()) {
+                    return response()->json([
+                        'message' => 'FCM Server Key missing. Save it in System Setting → Pusher setting → FCM Server Key, then try again.',
+                        'type' => 'error',
+                    ]);
+                }
+
                 $sent = 0;
+                $noToken = 0;
                 $failed = 0;
                 $title = trim((string) $post->subject);
                 $body = trim(strip_tags((string) $post->message_text));
                 foreach ($users as $user) {
-                    if (Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_broadcast')) {
+                    $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_broadcast');
+                    if ($result === true) {
                         $sent++;
+                    } elseif ($result === 'no_token') {
+                        $noToken++;
                     } else {
                         $failed++;
                     }
                 }
 
+                $parts = ["Push sent to {$sent} user(s)"];
+                if ($noToken) {
+                    $parts[] = "{$noToken} have no app login token (user must open Netcell Pay app and login again)";
+                }
+                if ($failed) {
+                    $parts[] = "{$failed} failed to send";
+                }
+
                 return response()->json([
-                    'message' => "Push sent to {$sent} user(s)".($failed ? ", {$failed} failed (missing token or FCM key)" : ''),
+                    'message' => implode('. ', $parts).'.',
                     'type' => $sent > 0 ? 'success' : 'error',
                 ]);
             }else if($post->msg_source == "WHATSAPP"){

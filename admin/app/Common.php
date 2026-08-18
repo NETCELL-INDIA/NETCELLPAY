@@ -727,7 +727,7 @@ use Illuminate\Http\Request;
         return $key !== '' ? $key : null;
     }
 
-    public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification'): bool
+    public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification')
     {
         if ($userId <= 0) {
             return false;
@@ -758,9 +758,9 @@ use Illuminate\Http\Request;
             }
 
             $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
-            $token = $user->fcm_token ?? ($user->device_token ?? null);
-            if (! $token) {
-                return false;
+            $token = trim((string) ($user->fcm_token ?? ($user->device_token ?? '')));
+            if ($token === '') {
+                return 'no_token';
             }
 
             $serverKey = self::fcmServerKey();
