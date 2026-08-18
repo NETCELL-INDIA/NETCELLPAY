@@ -220,7 +220,8 @@ class RechargeReportsController extends Controller
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
-                    <td class="text-end recharge-amount">' . (function_exists('recharge_amount_cell_html') ? recharge_amount_cell_html($list) : '₹' . number_format((float) $list->amount, 2)) . '</td>
+                    <td class="text-end recharge-amount">' . (function_exists('recharge_report_money') ? recharge_report_money($list->total_amount ?? 0) : number_format((float) ($list->total_amount ?? 0), 2)) . '</td>
+                    <td class="text-end recharge-debit">' . (function_exists('recharge_report_money') ? recharge_report_money($list->amount ?? 0) : number_format((float) ($list->amount ?? 0), 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="recharge-ids"><span>' . $opId . '</span><span>' . $reqId . '</span></td>
@@ -229,7 +230,7 @@ class RechargeReportsController extends Controller
                 </tr>';
             }
         } else {
-            $rows = '<tr><td colspan="12" class="text-center text-muted py-4">No data available in table</td></tr>';
+            $rows = '<tr><td colspan="13" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
         $fromEntry = $total ? ($offset + 1) : 0;

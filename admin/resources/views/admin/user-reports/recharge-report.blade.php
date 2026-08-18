@@ -161,7 +161,8 @@
                         <th>Operator</th>
                         <th>Circle</th>
                         <th>Number</th>
-                        <th class="text-end">Amount<br><span class="recharge-th-sub">Margin / Debit</span></th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end">Debit</th>
                         <th>Status</th>
                         <th>API</th>
                         <th>IDs</th>
@@ -170,7 +171,7 @@
                     </tr>
                 </thead>
                 <tbody id="rechargeBody">
-                    <tr><td colspan="12" class="text-center text-muted py-3">No data available</td></tr>
+                    <tr><td colspan="13" class="text-center text-muted py-3">No data available</td></tr>
                 </tbody>
             </table>
         </div>
@@ -312,7 +313,7 @@ function renderSummary(s) {
 }
 
 function fetchAllSearch() {
-    $('#rechargeBody').html('<tr><td colspan="12" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-muted py-4">Loading...</td></tr>');
     $.ajax({
         url: '{{ route("rechargeReportsListModern") }}',
         method: 'POST',
@@ -320,7 +321,7 @@ function fetchAllSearch() {
         data: filterPayload(),
         success: function (res) {
             if (!res || res.type !== 'success') {
-                $('#rechargeBody').html('<tr><td colspan="12" class="text-center text-danger">Failed to load</td></tr>');
+                $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-danger">Failed to load</td></tr>');
                 return;
             }
             $('#rechargeBody').html(res.rows);
@@ -333,7 +334,7 @@ function fetchAllSearch() {
             $('#btnNext').prop('disabled', currentPage >= lastPage);
         },
         error: function () {
-            $('#rechargeBody').html('<tr><td colspan="12" class="text-center text-danger">Failed to load</td></tr>');
+            $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-danger">Failed to load</td></tr>');
         }
     });
 }
