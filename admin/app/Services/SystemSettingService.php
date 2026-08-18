@@ -160,6 +160,8 @@ class SystemSettingService
             }
 
             $rows = DB::table('system_settings')
+                ->whereNotNull($storage['key'])
+                ->where($storage['key'], '!=', '')
                 ->pluck($storage['value'], $storage['key'])
                 ->toArray();
 
@@ -205,7 +207,7 @@ class SystemSettingService
                 DB::table('system_settings')->where('id', $existing->id)->update($payload);
             } else {
                 $payload['created_at'] = $now;
-                DB::table('system_settings')->insert($payload);
+                DB::table('system_settings')->insert(self::withRequiredColumns($payload));
             }
 
             foreach ($data as $key => $value) {
@@ -228,9 +230,79 @@ class SystemSettingService
         $keyCol = $storage['key'] ?? 'setting_key';
         $valueCol = $storage['value'] ?? 'setting_value';
 
-        DB::table('system_settings')->updateOrInsert(
-            [$keyCol => $key],
-            [$valueCol => $value, 'updated_at' => $now, 'created_at' => $now]
-        );
+        $payload = self::withRequiredColumns([
+            $keyCol => $key,
+            $valueCol => $value,
+            'updated_at' => $now,
+            'created_at' => $now,
+        ]);
+
+        $existing = DB::table('system_settings')->where($keyCol, $key)->first();
+        if ($existing) {
+            unset($payload['created_at']);
+            DB::table('system_settings')->where('id', $existing->id)->update($payload);
+
+            return;
+        }
+
+        DB::table('system_settings')->insert($payload);
+    }
+
+    protected static function withRequiredColumns(array $payload): array
+    {
+        $known = [
+            'status' => 1,
+            'deleted_at' => 0,
+            'company_id' => 1,
+            'user_id' => 1,
+            'created_by' => 1,
+            'type' => 'system',
+            'name' => $payload['setting_key'] ?? ($payload['key'] ?? 'setting'),
+            'slug' => $payload['setting_key'] ?? ($payload['key'] ?? 'setting'),
+            'title' => $payload['setting_key'] ?? ($payload['key'] ?? 'setting'),
+        ];
+
+        foreach ($known as $column => $value) {
+            if (! array_key_exists($column, $payload)) {
+                $payload[$column] = $value;
+            }
+        }
+
+        try {
+            $required = DB::select("
+                SELECT COLUMN_NAME, DATA_TYPE
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'system_settings'
+                  AND IS_NULLABLE = 'NO'
+                  AND EXTRA NOT LIKE '%auto_increment%'
+                  AND (COLUMN_DEFAULT IS NULL AND EXTRA NOT LIKE '%DEFAULT_GENERATED%')
+            ");
+
+            foreach ($required as $column) {
+                $name = $column->COLUMN_NAME;
+                if (array_key_exists($name, $payload)) {
+                    continue;
+                }
+
+                $type = strtolower((string) $column->DATA_TYPE);
+                if (in_array($type, ['int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double'], true)) {
+                    $payload[$name] = $name === 'status' ? 1 : 0;
+                } elseif (in_array($type, ['datetime', 'timestamp', 'date'], true)) {
+                    $payload[$name] = now();
+                } else {
+                    $payload[$name] = '';
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            $columns = array_flip(Schema::getColumnListing('system_settings'));
+            $payload = array_intersect_key($payload, $columns);
+        } catch (\Throwable $e) {
+        }
+
+        return $payload;
     }
 }
