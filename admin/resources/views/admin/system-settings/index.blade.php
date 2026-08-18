@@ -243,6 +243,7 @@
                         @include('admin.system-settings._field', ['name' => 'pusher_key', 'label' => 'Pusher Key', 'icon' => 'ri-key-2-line', 'value' => $settings['pusher_key']])
                         @include('admin.system-settings._field', ['name' => 'pusher_secret', 'label' => 'Pusher Secret', 'icon' => 'ri-lock-password-line', 'value' => $settings['pusher_secret']])
                         @include('admin.system-settings._field', ['name' => 'pusher_cluster', 'label' => 'Pusher Cluster', 'icon' => 'ri-global-line', 'value' => $settings['pusher_cluster']])
+                        @include('admin.system-settings._field', ['name' => 'fcm_server_key', 'label' => 'FCM Server Key (App Push)', 'icon' => 'ri-notification-3-line', 'value' => $settings['fcm_server_key']])
                     </div>
                 @endif
             </form>

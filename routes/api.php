@@ -53,6 +53,9 @@ Route::post('/v1/reset-password-otp',[AuthController::class,'resetPasswordOtp'])
 Route::group(['middleware' => AppUserCheck::class], function () {
     /////
     Route::post('/v1/home',[AuthController::class,'homeData']);
+    Route::post('/v1/update-fcm-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/notifications',[AuthController::class,'notificationList']);
+    Route::post('/v1/notifications/read',[AuthController::class,'notificationMarkRead']);
     Route::post('/v1/my-profile',[AuthController::class,'myProfile']);
     Route::post('/v1/my-commission',[AuthController::class,'myCommission']);
     Route::post('/v1/change-password',[AuthController::class,'myProfilePasswordChange']);

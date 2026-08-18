@@ -176,22 +176,13 @@ class ProcessRecharge implements ShouldQueue
                         $reportRow = DB::table('reports')->where('id', $this->report_id)->first();
                         $user = DB::table('users')->where('id', $reportRow->user_id)->first();
                         $content = 'Recharge successful for Rs. ' . $reportRow->total_amount . '. Order ID: ' . $reportRow->order_id;
-                        DB::table('messages')->insert([
-                            'user_id' => 1,
-                            'to_user_id' => $user->id,
-                            'subject' => 'recharge_success',
-                            'msg_source' => 'SMS',
-                            'template_id' => 0,
-                            'content' => $content,
-                            'status' => 0,
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now(),
-                        ]);
-
-                        $token = $user->fcm_token ?? ($user->device_token ?? null);
-                        if ($token) {
-                            \helpers::sendFcmNotification($token, 'Recharge Successful', $content, ['order_id' => $reportRow->order_id, 'amount' => $reportRow->total_amount]);
-                        }
+                        \helpers::pushNotifyUser(
+                            (int) $user->id,
+                            'Recharge Successful',
+                            $content,
+                            ['order_id' => (string) $reportRow->order_id, 'amount' => (string) $reportRow->total_amount],
+                            'recharge_success'
+                        );
                     } catch (\Throwable $e) {
                         DB::table('apilogs')->insert([
                             'url' => 'notification-error',

@@ -58,7 +58,8 @@
                                 <option selected value="">Select Message Source</option>
                                     <option value="SMS">SMS</option>
                                     <option value="WHATSAPP">WHATSAPP</option>          
-                                    <option value="EMAIL">EMAIL</option>          
+                                    <option value="EMAIL">EMAIL</option>
+                                    <option value="NOTIFICATION">APP NOTIFICATION</option>
                             </select>
                         </div>
                         <div class="col-lg-2">

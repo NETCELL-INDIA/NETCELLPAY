@@ -711,4 +711,98 @@ use Illuminate\Http\Request;
         return $row ? (int) $row->id : null;
     }
 
+    public static function fcmServerKey(): ?string
+    {
+        $key = trim((string) env('FCM_SERVER_KEY', ''));
+        if ($key !== '') {
+            return $key;
+        }
+
+        try {
+            $key = trim((string) \App\Services\SystemSettingService::get('fcm_server_key', ''));
+        } catch (\Throwable $e) {
+            $key = '';
+        }
+
+        return $key !== '' ? $key : null;
+    }
+
+    public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification'): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('messages')) {
+                DB::table('messages')->insert([
+                    'user_id' => 1,
+                    'to_user_id' => $userId,
+                    'subject' => $subject,
+                    'msg_source' => 'PUSH',
+                    'template_id' => 0,
+                    'content' => $body,
+                    'status' => 0,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            foreach (['fcm_token', 'device_token'] as $column) {
+                if (! \Illuminate\Support\Facades\Schema::hasColumn('users', $column)) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` VARCHAR(255) NULL");
+                }
+            }
+
+            $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
+            $token = $user->fcm_token ?? ($user->device_token ?? null);
+            if (! $token) {
+                return false;
+            }
+
+            $serverKey = self::fcmServerKey();
+            if (! $serverKey) {
+                return false;
+            }
+
+            $payloadData = ['title' => (string) $title, 'body' => (string) $body];
+            foreach ($data as $key => $value) {
+                $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
+            }
+
+            $payload = json_encode([
+                'to' => $token,
+                'priority' => 'high',
+                'notification' => [
+                    'title' => $title,
+                    'body' => $body,
+                    'sound' => 'default',
+                ],
+                'data' => $payloadData,
+            ]);
+
+            self::curl(
+                'https://fcm.googleapis.com/fcm/send',
+                'POST',
+                $payload,
+                [
+                    'Content-Type: application/json',
+                    'Authorization: key='.$serverKey,
+                ],
+                'yes',
+                'FCM',
+                (string) time()
+            );
+
+            return true;
+        } catch (\Throwable $e) {
+            \Log::warning('pushNotifyUser failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
     }

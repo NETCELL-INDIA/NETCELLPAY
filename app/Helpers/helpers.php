@@ -875,20 +875,188 @@ class helpers
 
 
 
+    public static function fcmServerKey(): ?string
+    {
+        $key = trim((string) env('FCM_SERVER_KEY', ''));
+        if ($key !== '') {
+            return $key;
+        }
+
+        try {
+            $key = trim((string) \App\Services\SystemSettingService::get('fcm_server_key', ''));
+        } catch (\Throwable $e) {
+            $key = '';
+        }
+
+        return $key !== '' ? $key : null;
+    }
+
+    public static function ensureUserPushColumns(): void
+    {
+        foreach ([
+            'fcm_token' => 'VARCHAR(255) NULL',
+            'device_token' => 'VARCHAR(255) NULL',
+        ] as $column => $definition) {
+            try {
+                if (! Schema::hasColumn('users', $column)) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` {$definition}");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    public static function extractPushTokenFromRequest(Request $request): ?string
+    {
+        foreach (['fcm_token', 'device_token', 'firebase_token', 'notification_token', 'push_token'] as $key) {
+            $value = trim((string) $request->input($key, ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    public static function saveUserPushToken(int $userId, ?string $token): void
+    {
+        if ($userId <= 0 || ! $token) {
+            return;
+        }
+
+        self::ensureUserPushColumns();
+
+        try {
+            DB::table('users')->where('id', $userId)->update([
+                'fcm_token' => $token,
+                'device_token' => $token,
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('saveUserPushToken failed: '.$e->getMessage());
+        }
+    }
+
+    public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'app_notification'): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        self::ensureUserPushColumns();
+
+        try {
+            if (Schema::hasTable('messages')) {
+                DB::table('messages')->insert([
+                    'user_id' => 1,
+                    'to_user_id' => $userId,
+                    'subject' => $subject,
+                    'msg_source' => 'PUSH',
+                    'template_id' => 0,
+                    'content' => $body,
+                    'status' => 0,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('pushNotifyUser message insert failed: '.$e->getMessage());
+        }
+
+        try {
+            $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
+            $token = $user->fcm_token ?? ($user->device_token ?? null);
+            if (! $token) {
+                return false;
+            }
+
+            return (bool) self::sendFcmNotification($token, $title, $body, $data);
+        } catch (\Throwable $e) {
+            \Log::warning('pushNotifyUser failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    public static function fetchUserNotifications(int $userId, int $limit = 20)
+    {
+        if ($userId <= 0 || ! Schema::hasTable('messages')) {
+            return collect();
+        }
+
+        try {
+            return DB::table('messages')
+                ->where('to_user_id', $userId)
+                ->where('msg_source', 'PUSH')
+                ->orderByDesc('id')
+                ->take($limit)
+                ->get(['id', 'subject', 'content', 'status', 'created_at']);
+        } catch (\Throwable $e) {
+            return collect();
+        }
+    }
+
+    public static function countUnreadNotifications(int $userId): int
+    {
+        if ($userId <= 0 || ! Schema::hasTable('messages')) {
+            return 0;
+        }
+
+        try {
+            return (int) DB::table('messages')
+                ->where('to_user_id', $userId)
+                ->where('msg_source', 'PUSH')
+                ->where('status', 0)
+                ->count();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    public static function markNotificationsRead(int $userId, ?array $ids = null): void
+    {
+        if ($userId <= 0 || ! Schema::hasTable('messages')) {
+            return;
+        }
+
+        try {
+            $query = DB::table('messages')
+                ->where('to_user_id', $userId)
+                ->where('msg_source', 'PUSH')
+                ->where('status', 0);
+
+            if (is_array($ids) && count($ids) > 0) {
+                $query->whereIn('id', $ids);
+            }
+
+            $query->update([
+                'status' => 1,
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
     public static function sendFcmNotification($token, $title, $body, $data = []){
-        // Try to send push notification using FCM. Server key in env FCM_SERVER_KEY
         try{
             if(!$token) return false;
-            $serverKey = env('FCM_SERVER_KEY');
+            $serverKey = self::fcmServerKey();
             if(!$serverKey) return false;
+
+            $payloadData = ['title' => (string) $title, 'body' => (string) $body];
+            foreach ($data as $key => $value) {
+                $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
+            }
+
             $payload = [
                 'to' => $token,
+                'priority' => 'high',
                 'notification' => [
                     'title' => $title,
                     'body' => $body,
-                    'sound' => 'default'
+                    'sound' => 'default',
                 ],
-                'data' => (object)$data
+                'data' => $payloadData,
             ];
             $json = json_encode($payload);
             $headers = [

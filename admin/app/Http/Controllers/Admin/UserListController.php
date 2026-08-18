@@ -28,7 +28,7 @@ class UserListController extends Controller
     public function sendMessageUsers(Request $post)
     {
         $rules = array(
-            'msg_source' => 'required|IN:SMS,EMAIL,WHATSAPP',
+            'msg_source' => 'required|IN:SMS,EMAIL,WHATSAPP,NOTIFICATION',
             'user_id' => 'numeric',
             'role_id' => 'numeric',
             'message_text' => 'required',
@@ -85,6 +85,23 @@ class UserListController extends Controller
                     $mobiles .= $mobile."|";
                 }
                 return $mobiles;
+            }else if($post->msg_source == "NOTIFICATION"){
+                $sent = 0;
+                $failed = 0;
+                $title = trim((string) $post->subject);
+                $body = trim(strip_tags((string) $post->message_text));
+                foreach ($users as $user) {
+                    if (Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_broadcast')) {
+                        $sent++;
+                    } else {
+                        $failed++;
+                    }
+                }
+
+                return response()->json([
+                    'message' => "Push sent to {$sent} user(s)".($failed ? ", {$failed} failed (missing token or FCM key)" : ''),
+                    'type' => $sent > 0 ? 'success' : 'error',
+                ]);
             }else if($post->msg_source == "WHATSAPP"){
                 $mobiles = '';
                 foreach ($num['mobile'] as $mobile){
@@ -111,16 +128,20 @@ class UserListController extends Controller
                         'type' => 'error',
                     ]);
                 }
-            }else{
+            }else if($post->msg_source == "EMAIL"){
                 $body = $post->message_text;
                 $subject = $post->subject;
                 $view = 'admin.emails.welcome';
                 foreach ($num['email'] as $email){
                     Mail::to($email)->send(new SendEmail($body,$subject,$view));
                 }
+                return response()->json([
+                    'message' => 'Email sent successfully',
+                    'type' => 'success',
+                ]);
             }
             return response()->json([
-                'message' => "sms send successfully", 
+                'message' => "Message sent successfully",
                 'type' => 'success',
             ]);
         }else{

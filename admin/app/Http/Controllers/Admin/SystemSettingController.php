@@ -119,6 +119,7 @@ class SystemSettingController extends Controller
                 'pusher_key' => trim((string) $post->pusher_key),
                 'pusher_secret' => trim((string) $post->pusher_secret),
                 'pusher_cluster' => trim((string) $post->pusher_cluster),
+                'fcm_server_key' => trim((string) $post->fcm_server_key),
             ]);
         }
 

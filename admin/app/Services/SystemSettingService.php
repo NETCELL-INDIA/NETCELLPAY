@@ -31,6 +31,7 @@ class SystemSettingService
             'pusher_key' => '',
             'pusher_secret' => '',
             'pusher_cluster' => 'ap2',
+            'fcm_server_key' => '',
         ];
     }
 

@@ -144,7 +144,9 @@ class AuthController extends Controller
             'mobile' =>  $user->mobile_number,
             'email' =>  $user->email_address,
             'profile' =>  env('ADMIN_HOST')."/profile_pic/".$user->profile_pic,
-            'announcement' =>   DB::table('announcements')->find(1)->message,
+            'announcement' => optional(DB::table('announcements')->find(1))->message ?? '',
+            'notifications' => \helpers::fetchUserNotifications((int) $post->user_id, 20)->values()->all(),
+            'unread_notifications' => \helpers::countUnreadNotifications((int) $post->user_id),
             'sliders' =>   DB::table('sliders')->where('status',1)->where('deleted_at',0)->get(),
             'parent_id' =>  $user->parent_id,
             'whatsapp' =>'whatsapp://send/?phone=+919337692413&text=Hii',
@@ -270,6 +272,7 @@ class AuthController extends Controller
                         ////
                         $random = Str::random(40);
                         $update = DB::table('users')->where("id",$user->id)->update(['login_key'=>$random]);
+                        $this->syncPushTokenFromRequest($post, (int) $user->id);
                         ///
                         $user = DB::table('users')->where("id",$user->id)->first();
                         $data['data'] = [
@@ -562,6 +565,7 @@ class AuthController extends Controller
                             'email_otp' => null,
                             'otp_limit' => 0,
                         ]);
+                        $this->syncPushTokenFromRequest($post, (int) $user->id);
                         ///
                         $user = DB::table('users')->where("id",$user->id)->first();
                         $data['data'] = [
@@ -1055,6 +1059,56 @@ class AuthController extends Controller
         return strlen((string) $user->otp) === 6
             && ctype_digit((string) $user->otp)
             && hash_equals((string) $user->otp, $otp);
+    }
+
+    public function updateFcmToken(Request $post)
+    {
+        \helpers::saveUserPushToken((int) $post->user_id, \helpers::extractPushTokenFromRequest($post));
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Notification token updated.',
+        ]);
+    }
+
+    public function notificationList(Request $post)
+    {
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Fetch Successfully',
+            'data' => [
+                'notifications' => \helpers::fetchUserNotifications((int) $post->user_id, 50)->values()->all(),
+                'unread_notifications' => \helpers::countUnreadNotifications((int) $post->user_id),
+            ],
+        ]);
+    }
+
+    public function notificationMarkRead(Request $post)
+    {
+        $ids = $post->input('notification_ids');
+        if (is_string($ids)) {
+            $ids = array_filter(array_map('intval', explode(',', $ids)));
+        } elseif (is_array($ids)) {
+            $ids = array_filter(array_map('intval', $ids));
+        } else {
+            $ids = null;
+        }
+
+        \helpers::markNotificationsRead((int) $post->user_id, $ids);
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Notifications marked as read.',
+            'unread_notifications' => \helpers::countUnreadNotifications((int) $post->user_id),
+        ]);
+    }
+
+    private function syncPushTokenFromRequest(Request $post, int $userId): void
+    {
+        try {
+            \helpers::saveUserPushToken($userId, \helpers::extractPushTokenFromRequest($post));
+        } catch (\Throwable $e) {
+        }
     }
 
 }
