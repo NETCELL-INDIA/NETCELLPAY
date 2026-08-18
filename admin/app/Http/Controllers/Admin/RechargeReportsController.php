@@ -220,7 +220,7 @@ class RechargeReportsController extends Controller
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
-                    <td class="text-end recharge-amount">₹' . number_format((float) $list->amount, 2) . '</td>
+                    <td class="text-end recharge-amount">' . (function_exists('recharge_amount_cell_html') ? recharge_amount_cell_html($list) : '₹' . number_format((float) $list->amount, 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="recharge-ids"><span>' . $opId . '</span><span>' . $reqId . '</span></td>
@@ -283,7 +283,7 @@ class RechargeReportsController extends Controller
 
         $callback = function () use ($reports) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'Circle', 'Number', 'Amount', 'Status', 'API', 'Operator ID', 'Mode']);
+            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'Circle', 'Number', 'Recharge', 'Margin', 'Debit', 'Status', 'API', 'Operator ID', 'Mode']);
             foreach ($reports as $list) {
                 fputcsv($out, [
                     $list->order_id ?: ('R' . $list->id),
@@ -292,6 +292,8 @@ class RechargeReportsController extends Controller
                     $list->provider_name,
                     $list->circle_name,
                     $list->number,
+                    $list->total_amount,
+                    $list->commission,
                     $list->amount,
                     $list->status,
                     $list->api_name,

@@ -161,7 +161,7 @@
                         <th>Operator</th>
                         <th>Circle</th>
                         <th>Number</th>
-                        <th class="text-end">Amount</th>
+                        <th class="text-end">Amount<br><span class="recharge-th-sub">Margin / Debit</span></th>
                         <th>Status</th>
                         <th>API</th>
                         <th>IDs</th>

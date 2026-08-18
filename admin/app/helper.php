@@ -1051,3 +1051,18 @@ if (! function_exists('email_body_html')) {
         return $html;
     }
 }
+
+if (! function_exists('recharge_amount_cell_html')) {
+    function recharge_amount_cell_html($list): string
+    {
+        $recharge = number_format((float) ($list->total_amount ?? 0), 2);
+        $margin = number_format((float) ($list->commission ?? 0), 2);
+        $debit = number_format((float) ($list->amount ?? 0), 2);
+
+        return '<div class="recharge-amount-stack">'
+            . '<span class="recharge-amount-stack__recharge" title="Recharge">₹' . $recharge . '</span>'
+            . '<span class="recharge-amount-stack__margin" title="Margin">Margin ₹' . $margin . '</span>'
+            . '<span class="recharge-amount-stack__debit" title="Debit">Debit ₹' . $debit . '</span>'
+            . '</div>';
+    }
+}

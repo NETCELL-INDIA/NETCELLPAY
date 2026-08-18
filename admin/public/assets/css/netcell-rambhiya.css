@@ -1783,8 +1783,41 @@ table thead.table-dark > tr > th {
 
 .recharge-amount {
     font-weight: 600;
-    color: var(--rb-success);
     white-space: nowrap;
+}
+
+.recharge-amount-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    line-height: 1.25;
+}
+
+.recharge-amount-stack__recharge {
+    font-weight: 700;
+    color: var(--rb-success);
+    font-size: 0.82rem;
+}
+
+.recharge-amount-stack__margin {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #b78103;
+}
+
+.recharge-amount-stack__debit {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.recharge-th-sub {
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .recharge-ids span {
