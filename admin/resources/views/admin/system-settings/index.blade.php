@@ -244,6 +244,12 @@
                         @include('admin.system-settings._field', ['name' => 'pusher_secret', 'label' => 'Pusher Secret', 'icon' => 'ri-lock-password-line', 'value' => $settings['pusher_secret']])
                         @include('admin.system-settings._field', ['name' => 'pusher_cluster', 'label' => 'Pusher Cluster', 'icon' => 'ri-global-line', 'value' => $settings['pusher_cluster']])
                         @include('admin.system-settings._field', ['name' => 'fcm_server_key', 'label' => 'FCM Server Key (App Push)', 'icon' => 'ri-notification-3-line', 'value' => $settings['fcm_server_key']])
+                        <div class="col-12">
+                            <p class="text-muted mb-0" style="font-size:.82rem">
+                                Paste Firebase Cloud Messaging <strong>Server key</strong> in <strong>FCM Server Key</strong> only (not in Pusher Key).
+                                Pusher fields are optional unless you use Pusher channels.
+                            </p>
+                        </div>
                     </div>
                 @endif
             </form>
@@ -258,16 +264,23 @@ $('#ssSaveBtn').on('click', function () {
     var btn = $(this);
     btn.prop('disabled', true).text('Saving...');
     $.ajax({
-        url: '{{ URL::asset("admin/system-settings/save") }}',
+        url: '{{ route('systemSettingSave') }}',
         method: 'post',
+        dataType: 'json',
         data: $('#ssForm').serialize(),
         success: function (data) {
             btn.prop('disabled', false).text('Save Setting');
             Swal.fire({ title: data.type === 'success' ? 'Success' : 'Error', text: data.message, icon: data.type === 'success' ? 'success' : 'error' });
         },
-        error: function () {
+        error: function (xhr) {
             btn.prop('disabled', false).text('Save Setting');
-            Swal.fire({ title: 'Error', text: 'Unable to save setting', icon: 'error' });
+            var message = 'Unable to save setting';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                message = xhr.responseJSON.message;
+            } else if (xhr.status === 419) {
+                message = 'Session expired. Please refresh the page and try again.';
+            }
+            Swal.fire({ title: 'Error', text: message, icon: 'error' });
         }
     });
 });

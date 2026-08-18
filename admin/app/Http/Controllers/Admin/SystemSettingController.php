@@ -63,7 +63,8 @@ class SystemSettingController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Invalid settings page']);
         }
 
-        if ($page === 'system') {
+        try {
+            if ($page === 'system') {
             SystemSettingService::putMany([
                 'fund_interval_minute' => (int) $post->fund_interval_minute,
                 'min_fund_transfer' => (float) $post->min_fund_transfer,
@@ -123,6 +124,14 @@ class SystemSettingController extends Controller
             ]);
         }
 
-        return response()->json(['type' => 'success', 'message' => 'Setting saved successfully']);
+            return response()->json(['type' => 'success', 'message' => 'Setting saved successfully']);
+        } catch (\Throwable $e) {
+            \Log::error('System setting save failed: '.$e->getMessage());
+
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to save setting. '.$e->getMessage(),
+            ], 500);
+        }
     }
 }
