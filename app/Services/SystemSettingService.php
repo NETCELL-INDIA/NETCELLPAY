@@ -41,6 +41,8 @@ class SystemSettingService
     {
         try {
             if (Schema::hasTable('system_settings')) {
+                self::resolveStorage();
+
                 return;
             }
         } catch (\Throwable $e) {
@@ -56,8 +58,70 @@ class SystemSettingService
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `system_settings_setting_key_unique` (`setting_key`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            self::$storage = ['mode' => 'kv', 'key' => 'setting_key', 'value' => 'setting_value'];
         } catch (\Throwable $e) {
             \Log::warning('system_settings create failed: '.$e->getMessage());
+        }
+    }
+
+    /** @var array{mode:string,key?:string,value?:string}|null */
+    protected static ?array $storage = null;
+
+    /** @return array{mode:string,key?:string,value?:string} */
+    protected static function resolveStorage(): array
+    {
+        if (self::$storage !== null) {
+            return self::$storage;
+        }
+
+        foreach ([
+            ['setting_key', 'setting_value'],
+            ['key', 'value'],
+            ['name', 'value'],
+            ['setting_name', 'setting_value'],
+        ] as [$keyCol, $valueCol]) {
+            try {
+                if (Schema::hasColumn('system_settings', $keyCol) && Schema::hasColumn('system_settings', $valueCol)) {
+                    return self::$storage = ['mode' => 'kv', 'key' => $keyCol, 'value' => $valueCol];
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (self::hasWideColumns()) {
+            return self::$storage = ['mode' => 'wide'];
+        }
+
+        self::addKeyValueColumns();
+
+        return self::$storage = ['mode' => 'kv', 'key' => 'setting_key', 'value' => 'setting_value'];
+    }
+
+    protected static function hasWideColumns(): bool
+    {
+        foreach (array_keys(self::defaults()) as $settingKey) {
+            try {
+                if (Schema::hasColumn('system_settings', $settingKey)) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return false;
+    }
+
+    protected static function addKeyValueColumns(): void
+    {
+        try {
+            if (! Schema::hasColumn('system_settings', 'setting_key')) {
+                DB::statement('ALTER TABLE `system_settings` ADD COLUMN `setting_key` VARCHAR(80) NULL');
+            }
+            if (! Schema::hasColumn('system_settings', 'setting_value')) {
+                DB::statement('ALTER TABLE `system_settings` ADD COLUMN `setting_value` TEXT NULL');
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('system_settings add kv columns failed: '.$e->getMessage());
         }
     }
 
@@ -65,7 +129,27 @@ class SystemSettingService
     {
         try {
             self::ensureTable();
-            $rows = DB::table('system_settings')->pluck('setting_value', 'setting_key')->toArray();
+            $storage = self::resolveStorage();
+
+            if ($storage['mode'] === 'wide') {
+                $row = DB::table('system_settings')->orderBy('id')->first();
+                if (! $row) {
+                    return self::defaults();
+                }
+
+                $saved = [];
+                foreach (array_keys(self::defaults()) as $key) {
+                    if (isset($row->{$key})) {
+                        $saved[$key] = $row->{$key};
+                    }
+                }
+
+                return array_merge(self::defaults(), $saved);
+            }
+
+            $rows = DB::table('system_settings')
+                ->pluck($storage['value'], $storage['key'])
+                ->toArray();
             if (!is_array($rows)) {
                 $rows = [];
             }
