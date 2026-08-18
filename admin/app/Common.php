@@ -382,8 +382,204 @@ use Illuminate\Http\Request;
         ];
     }
 
+    public static function ensureLoginHistoriesTable(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('login_histories')) {
+                self::ensureLoginHistoryColumns();
+
+                return;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            DB::statement("CREATE TABLE IF NOT EXISTS `login_histories` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `user_id` INT UNSIGNED NOT NULL,
+                `ip_address` VARCHAR(45) NULL,
+                `login_path` VARCHAR(50) NULL,
+                `user_agent` TEXT NULL,
+                `browser` VARCHAR(120) NULL,
+                `platform` VARCHAR(120) NULL,
+                `device_type` VARCHAR(50) NULL,
+                `device` VARCHAR(120) NULL,
+                `created_at` TIMESTAMP NULL DEFAULT NULL,
+                `updated_at` TIMESTAMP NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `login_histories_user_id_index` (`user_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        } catch (\Throwable $e) {
+            \Log::warning('login_histories create failed: '.$e->getMessage());
+        }
+    }
+
+    protected static function ensureLoginHistoryColumns(): void
+    {
+        $columns = [
+            'user_agent' => 'TEXT NULL',
+            'browser' => 'VARCHAR(120) NULL',
+            'platform' => 'VARCHAR(120) NULL',
+            'device_type' => 'VARCHAR(50) NULL',
+            'device' => 'VARCHAR(120) NULL',
+        ];
+
+        foreach ($columns as $column => $definition) {
+            try {
+                if (! \Illuminate\Support\Facades\Schema::hasColumn('login_histories', $column)) {
+                    DB::statement("ALTER TABLE `login_histories` ADD COLUMN `{$column}` {$definition}");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    public static function fetchLoginHistoryForUser(?int $userId, int $limit = 50)
+    {
+        if (! $userId) {
+            return collect();
+        }
+
+        try {
+            self::ensureLoginHistoriesTable();
+
+            $historyColumns = ['id', 'user_id', 'ip_address', 'login_path', 'created_at'];
+            foreach (['user_agent', 'browser', 'platform', 'device_type', 'device'] as $column) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', $column)) {
+                    $historyColumns[] = $column;
+                }
+            }
+
+            $select = array_map(static fn ($column) => 'lh.'.$column, $historyColumns);
+            $select = array_merge($select, [
+                'u.first_name',
+                'u.middle_name',
+                'u.last_name',
+                'u.outlet_name',
+                'u.mobile_number',
+            ]);
+
+            return DB::table('login_histories as lh')
+                ->leftJoin('users as u', 'u.id', '=', 'lh.user_id')
+                ->where('lh.user_id', $userId)
+                ->orderByDesc('lh.id')
+                ->take($limit)
+                ->get($select)
+                ->map(function ($row) use ($historyColumns) {
+                    $name = trim(implode(' ', array_filter([
+                        $row->first_name ?? '',
+                        $row->middle_name ?? '',
+                        $row->last_name ?? '',
+                    ])));
+                    if ($name === '') {
+                        $name = $row->outlet_name ?: ('User #'.($row->user_id ?? ''));
+                    }
+
+                    $item = [
+                        'id' => (int) ($row->id ?? 0),
+                        'user_name' => $name,
+                        'mobile_number' => $row->mobile_number ?? '',
+                        'ip_address' => $row->ip_address ?? '',
+                        'login_path' => $row->login_path ?? '',
+                        'created_at' => $row->created_at ?? '',
+                    ];
+
+                    foreach (['user_agent', 'browser', 'platform', 'device_type', 'device'] as $column) {
+                        if (in_array($column, $historyColumns, true)) {
+                            $item[$column] = $row->{$column} ?? '';
+                        } else {
+                            $item[$column] = '';
+                        }
+                    }
+
+                    return $item;
+                })
+                ->values();
+        } catch (\Throwable $e) {
+            \Log::warning('fetchLoginHistoryForUser failed: '.$e->getMessage());
+
+            return collect();
+        }
+    }
+
+    public static function fetchProfileUser(?int $userId)
+    {
+        if (! $userId) {
+            return null;
+        }
+
+        $select = [
+            'users.first_name',
+            'users.middle_name',
+            'users.last_name',
+            'users.outlet_name',
+            'users.email_address',
+            'users.mobile_number',
+            'users.wallet_balance',
+        ];
+
+        foreach ([
+            'date_of_birth',
+            'city',
+            'state',
+            'district',
+            'minium_balance',
+            'profile_pic',
+            'kyc_status',
+            'callback_url',
+            'ip_address',
+        ] as $column) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('users', $column)) {
+                    $select[] = 'users.'.$column;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('roles')) {
+                $select[] = 'roles.role_name';
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            $query = DB::table('users')->where('users.id', $userId);
+            if (in_array('roles.role_name', $select, true)) {
+                $query->leftJoin('roles', 'users.role_id', '=', 'roles.id');
+            }
+
+            return $query->first($select);
+        } catch (\Throwable $e) {
+            \Log::warning('fetchProfileUser failed: '.$e->getMessage());
+
+            try {
+                return DB::table('users')
+                    ->where('id', $userId)
+                    ->first([
+                        'first_name',
+                        'middle_name',
+                        'last_name',
+                        'outlet_name',
+                        'email_address',
+                        'mobile_number',
+                        'wallet_balance',
+                    ]);
+            } catch (\Throwable $e2) {
+                return null;
+            }
+        }
+    }
+
     public static function recordLoginHistory(int $userId, string $loginPath = 'Web'): void
     {
+        try {
+            self::ensureLoginHistoriesTable();
+        } catch (\Throwable $e) {
+            return;
+        }
+
         $parsed = self::parseUserAgent();
         $row = [
             'user_id' => $userId,
@@ -399,7 +595,11 @@ use Illuminate\Http\Request;
             }
         }
 
-        DB::table('login_histories')->insert($row);
+        try {
+            DB::table('login_histories')->insert($row);
+        } catch (\Throwable $e) {
+            \Log::warning('recordLoginHistory failed: '.$e->getMessage());
+        }
     }
 
     public static function roleCodeFromId(int $roleId): string

@@ -58,7 +58,13 @@
 
             </div>
 
-            <div class="card-body" id="list_result">
+            <div class="card-body pb-0">
+                <div class="alert alert-info py-2 mb-0" style="font-size:.85rem">
+                    One company is shown here. Admin (ID 1) and User Portal (ID 2) database rows stay in sync when you save.
+                </div>
+            </div>
+
+            <div class="card-body pt-2" id="list_result">
 
                 <h4 class="text-center text-secondary my-3">No record found</h4>
 

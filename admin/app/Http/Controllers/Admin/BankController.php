@@ -269,4 +269,38 @@ class BankController extends Controller
         }
         return $data;
     }
+
+    public function banks_list($id)
+    {
+        try {
+            $banks = DB::table('banks')
+                ->where('deleted_at', '!=', 1)
+                ->where('user_id', (int) $id)
+                ->where('status', 1)
+                ->orderByDesc('id')
+                ->get([
+                    'id',
+                    'account_name',
+                    'account_number',
+                    'bank_name',
+                    'bank_branch',
+                    'ifsc_code',
+                    'account_type',
+                    'bank_logo',
+                    'status',
+                ]);
+
+            return response()->json([
+                'type' => 'success',
+                'data' => $banks,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('banks_list failed: '.$e->getMessage());
+
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to fetch banks.',
+            ], 500);
+        }
+    }
 }

@@ -10,6 +10,14 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 class CompanyController extends Controller
 {
+    /** Admin (id 1) and user portal (id 2) share one company config; list shows primary row only. */
+    protected function companyListQuery()
+    {
+        return DB::table('companies')
+            ->where('deleted_at', '!=', 1)
+            ->where('id', 1);
+    }
+
     public function index(Request $post)
     {
         return view('admin.company.manage-company');
@@ -47,7 +55,7 @@ class CompanyController extends Controller
             $limit = 10; 
         }
         $start= ($page-1) * $limit;
-        $total_row = DB::table('companies')->where('deleted_at', '!=', 1)->get();
+        $total_row = $this->companyListQuery()->get();
         $total_row_count = $total_row->count();
         $total_pages = ceil($total_row_count / $limit);
         $page_link = '';
@@ -62,7 +70,7 @@ class CompanyController extends Controller
             $page_link .= '<li class="page-item "><a href="javascript:void(0)" class="page-link '.$act.'" '.$d.'>'.$i1.'</a></li>';
         };
 
-        $list = DB::table('companies')->where('deleted_at', '!=' , 1)->orderBy('id', 'DESC')->offset($start)->limit($limit)->get();
+        $list = $this->companyListQuery()->orderBy('id', 'DESC')->offset($start)->limit($limit)->get();
         $list_count = $list->count();
         $output = '';
 		if ($list->count() > 0) {
@@ -245,7 +253,7 @@ class CompanyController extends Controller
                 $invoiceLogo =  $post->old_invoice_logo;
             }
 
-            $update = DB::table('companies')->whereIn('id', [1,2])->update([
+            $update = DB::table('companies')->whereIn('id', [1, 2])->update([
                 //'domain' => $post->domain,
                 'company_name' => $post->company_name,
                 'support_number' => $post->support_number,

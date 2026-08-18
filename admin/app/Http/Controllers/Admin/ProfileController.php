@@ -34,88 +34,22 @@ class ProfileController extends Controller
 
     public function loginHistory(Request $post)
     {
-        $login_history = $this->fetchLoginHistory(50);
+        $login_history = Common::fetchLoginHistoryForUser((int) Session::get('user_id'), 50)->values()->all();
+
         return view('admin.profile.login-history', compact('login_history'));
     }
 
     protected function fetchLoginHistory($limit = 50)
     {
-        return DB::table('login_histories as lh')
-            ->leftJoin('users as u', 'u.id', '=', 'lh.user_id')
-            ->where('lh.user_id', Session::get('user_id'))
-            ->orderByDesc('lh.id')
-            ->take($limit)
-            ->get([
-                'lh.id',
-                'lh.user_id',
-                'lh.ip_address',
-                'lh.login_path',
-                'lh.user_agent',
-                'lh.browser',
-                'lh.platform',
-                'lh.device_type',
-                'lh.device',
-                'lh.created_at',
-                'u.first_name',
-                'u.middle_name',
-                'u.last_name',
-                'u.outlet_name',
-                'u.mobile_number',
-            ])
-            ->map(function ($row) {
-                $name = trim(implode(' ', array_filter([
-                    $row->first_name ?? '',
-                    $row->middle_name ?? '',
-                    $row->last_name ?? '',
-                ])));
-                if ($name === '') {
-                    $name = $row->outlet_name ?: ('User #' . ($row->user_id ?? ''));
-                }
-                return [
-                    'id' => (int) ($row->id ?? 0),
-                    'user_name' => $name,
-                    'mobile_number' => $row->mobile_number ?? '',
-                    'ip_address' => $row->ip_address ?? '',
-                    'login_path' => $row->login_path ?? '',
-                    'user_agent' => $row->user_agent ?? '',
-                    'browser' => $row->browser ?? '',
-                    'platform' => $row->platform ?? '',
-                    'device_type' => $row->device_type ?? '',
-                    'device' => $row->device ?? '',
-                    'created_at' => $row->created_at ?? '',
-                ];
-            })
-            ->values();
+        return Common::fetchLoginHistoryForUser((int) Session::get('user_id'), $limit);
     }
 
     public function myProfileData(Request $post)
     {
         try {
-            $user = DB::table('users')
-                ->select(
-                    'users.first_name',
-                    'users.middle_name',
-                    'users.last_name',
-                    'users.outlet_name',
-                    'users.date_of_birth',
-                    'users.email_address',
-                    'users.mobile_number',
-                    'users.city',
-                    'users.state',
-                    'users.district',
-                    'users.minium_balance',
-                    'users.wallet_balance',
-                    'users.profile_pic',
-                    'users.kyc_status',
-                    'users.callback_url',
-                    'users.ip_address',
-                    'roles.role_name'
-                )
-                ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
-                ->where('users.id', Session::get('user_id'))
-                ->first();
-
-            $login_history = $this->fetchLoginHistory(50);
+            $userId = (int) Session::get('user_id');
+            $user = Common::fetchProfileUser($userId);
+            $login_history = Common::fetchLoginHistoryForUser($userId, 50)->values()->all();
 
             $company = null;
             try {
@@ -130,7 +64,14 @@ class ProfileController extends Controller
             }
 
             if ($user) {
-                return [
+                if (isset($user->wallet_balance)) {
+                    $user->wallet_balance = (float) $user->wallet_balance;
+                }
+                if (isset($user->minium_balance)) {
+                    $user->minium_balance = (float) $user->minium_balance;
+                }
+
+                return response()->json([
                     'type' => 'success',
                     'message' => 'Fetch Successfully',
                     'data' => [
@@ -139,18 +80,20 @@ class ProfileController extends Controller
                         'company' => $company,
                         'announcements' => $announcements,
                     ],
-                ];
+                ]);
             }
 
-            return [
+            return response()->json([
                 'type' => 'error',
-                'message' => 'Something went wrong!',
-            ];
+                'message' => 'Profile not found.',
+            ]);
         } catch (\Throwable $e) {
-            return [
+            \Log::warning('myProfileData failed: '.$e->getMessage());
+
+            return response()->json([
                 'type' => 'error',
                 'message' => 'Failed to load profile data',
-            ];
+            ]);
         }
     }
 
@@ -173,26 +116,37 @@ class ProfileController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("id",Session::get('user_id'))->where("role_id",1)->first();
-        if(Hash::check($post->current_password, $user->password)){
-            $password = Hash::make($post->confirm_password);
-            $user = DB::table('users')->where('id', $user->id)->update(['password' => $password]);
-            if($user){
-                return response()->json(array(
-                    'type' => 'success',  
-                    'message' => "Password Change Successfuly."
-                ));
-            }else{
-                return response()->json(array(
-                    'type' => 'error',  
-                    'message' => "Something went wrong."
-                ));
-            }
-        }else{
-            $data['type'] = 'error';
-            $data['message'] = "Current password do not match.";
+        $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
         }
-        return $data;
+
+        if (! Hash::check($post->current_password, $user->password)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Current password do not match.',
+            ]);
+        }
+
+        $updated = DB::table('users')->where('id', $user->id)->update([
+            'password' => Hash::make($post->confirm_password),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        if ($updated) {
+            return response()->json([
+                'type' => 'success',
+                'message' => 'Password Change Successfuly.',
+            ]);
+        }
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Something went wrong.',
+        ]);
     }
 
 }
