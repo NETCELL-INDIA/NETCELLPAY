@@ -1174,6 +1174,7 @@
                 $("#city").val(data.data.city);
                 $("#state").val(data.data.state);
                 $("#district").val(data.data.district);
+                $("#pincode").val(data.data.pincode || '');
                 $("#minium_balance").val(data.data.minium_balance);
                 $(".kyc_status").val(data.data.kyc_status).change();
                 $("#bank_account_number").val(data.data.bank_account_number);
@@ -1912,7 +1913,8 @@
 
           error: function( jqXhr, textStatus, errorThrown ){
 
-            Error_Msg("Oops...","Something went wrong!","error");
+            var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message) ? jqXhr.responseJSON.message : "Something went wrong!";
+            Error_Msg("Oops...", msg, "error");
 
             $("#edit_details_btn").text('Save Changes');
 

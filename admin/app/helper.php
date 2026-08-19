@@ -954,13 +954,14 @@ if (! function_exists('normalize_user_pin')) {
 if (! function_exists('ensure_user_visible_password_column')) {
     function ensure_user_visible_password_column(): void
     {
-        if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'visible_password')) {
-            return;
-        }
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'visible_password')) {
+                return;
+            }
 
-        \Illuminate\Support\Facades\Schema::table('users', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->string('visible_password', 255)->nullable()->after('password');
-        });
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `users` ADD COLUMN `visible_password` VARCHAR(255) NULL");
+        } catch (\Throwable $e) {
+        }
     }
 }
 
@@ -969,11 +970,40 @@ if (! function_exists('user_password_update_fields')) {
     {
         ensure_user_visible_password_column();
 
-        return [
+        $fields = [
             'password' => \Illuminate\Support\Facades\Hash::make($plain),
-            'visible_password' => $plain,
             'updated_at' => now(),
         ];
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'visible_password')) {
+                $fields['visible_password'] = $plain;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $fields;
+    }
+}
+
+if (! function_exists('filter_users_columns')) {
+    function filter_users_columns(array $data): array
+    {
+        static $columns = null;
+
+        if ($columns === null) {
+            try {
+                $columns = array_flip(\Illuminate\Support\Facades\Schema::getColumnListing('users'));
+            } catch (\Throwable $e) {
+                $columns = [];
+            }
+        }
+
+        if ($columns === []) {
+            return $data;
+        }
+
+        return array_intersect_key($data, $columns);
     }
 }
 

@@ -15,6 +15,8 @@ use DateTime;
 use Session;
 use DataTables;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\SendEmail;
 class UserListController extends Controller
 {
@@ -530,7 +532,7 @@ class UserListController extends Controller
             'ip_address'  => '',
             'callback_url'  => '',
             'complaint_callback_url'  => '',
-            'profile_pic' => 'mimes:jpeg,jpg,png|max:2048',
+            'profile_pic' => 'nullable|mimes:jpeg,jpg,png|max:2048',
             'status' => 'required|numeric|digits:1',
         );
 
@@ -538,10 +540,10 @@ class UserListController extends Controller
             $rules['password'] = 'required|string|min:8|confirmed';
         }
 
-        $bankAccountNumber = $bankEnabled ? $post->bank_account_number : '';
-        $branchName = $bankEnabled ? $post->branch_name : '';
-        $ifscCode = $bankEnabled ? $post->ifsc_code : '';
-        $bankAccountType = $bankEnabled ? $post->bank_account_type : '';
+        $bankAccountNumber = $bankEnabled ? $post->bank_account_number : 0;
+        $branchName = $bankEnabled ? (string) $post->branch_name : '';
+        $ifscCode = $bankEnabled ? (string) $post->ifsc_code : '';
+        $bankAccountType = $bankEnabled ? (string) $post->bank_account_type : 'Savings';
         $ipAddress = trim((string) $post->ip_address);
         if (in_array($ipAddress, ['1.1.1.1', '0.0.0.0'], true)) {
             $ipAddress = '';
@@ -593,7 +595,6 @@ class UserListController extends Controller
             }
         }
 
-        //echo "<pre>";print_r($post->all());die;
         if($post->edit_id==0){
             if($post->profile_pic){
                 $profilePic = csrf_token().time().'.'.$post->profile_pic->extension();  
@@ -602,13 +603,13 @@ class UserListController extends Controller
                 $profilePic = "avatar-2.png";
             }
             try {
-                ensure_user_visible_password_column();
+                $this->ensureUserSaveColumns();
                 $g_pass = Str::random(4).random_int(1000, 9999).Str::random(2);
                 $t_pin = normalize_user_pin(random_int(0, 9999));
                 $apiKey = ((int) $post->role_id === 3)
                     ? (Str::random(15) . rand(11111111, 9999999) . Str::random(15))
                     : null;
-                $update = DB::table('users')->insert(array_merge([
+                $row = array_merge([
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
                     'scheme_id'  => $post->scheme_id,
@@ -616,14 +617,15 @@ class UserListController extends Controller
                     'first_name'  => $post->first_name,
                     'middle_name'  => '',
                     'last_name'  => '',
-                    'date_of_birth'  => $post->date_of_birth,
+                    'date_of_birth'  => $this->normalizeDateOfBirth($post->date_of_birth),
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
                     't_pin' => $t_pin,
                     'login_type'  => $post->login_type,
                     'gender'  => $post->gender,
-                    'flat_door_no'  => $post->flat_door_no,
-                    'road_street'  => $post->road_street,
+                    'flat_door_no'  => $post->flat_door_no ?: '',
+                    'road_street'  => $post->road_street ?: '',
+                    'pincode'  => preg_replace('/\D+/', '', (string) $post->pincode),
                     'area_locality'  => $post->area_locality,
                     'city'  => $post->city,
                     'state'  => $post->state,
@@ -641,50 +643,28 @@ class UserListController extends Controller
                     'api_key' => $apiKey,
                     'profile_pic' => $profilePic,
                     'status' => $post->status,
+                    'wallet_balance' => 0,
+                    'otp_limit' => 0,
+                    'deleted_at' => 0,
+                    'login_key' => Str::random(40),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now()
-                ], user_password_update_fields($g_pass)));
-                //$message = "Create sucessfuly. Password Is: " .$g_pass;
-                ////Send Whatsapp Message Start
-                if ($post->boolean('auto_send')) {
-                $user_data = DB::table('users')->where('mobile_number', $post->mobile_number)->first();
-                $slug = 'create_user';
-                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                if ($sms_tmp) {
-                    $content = $sms_tmp->content;
-                    $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                    $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
-                    $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
-                    $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                    if ($sms_tmp->status == 1) {
-                        $msg_data = [
-                            'mobile_number' => $post->mobile_number,
-                            'content' => $content,
-                            'template_id' => $sms_tmp->template_id,
-                        ];
-                        Common::sendWhatasappMsg($msg_data);
-                    }
-                }
-                ////Send Whatsapp Message End
-                ////Send Email Start
-                $company = Common::getCompanyByHost();
-                if (!empty($company) && $company->email_message == 1) {
-                    $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                    if ($email_tmp) {
-                        $content_email = $email_tmp->content;
-                        $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
-                        $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
-                        $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
-                        $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
-                        Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
-                    }
-                }
-                ////Send Email End
+                ], user_password_update_fields($g_pass));
+
+                DB::table('users')->insert(filter_users_columns($row));
+
+                $sent = false;
+                try {
+                    $sent = $this->sendCreatedUserCredentials($post, $g_pass, $t_pin);
+                } catch (\Throwable $notifyError) {
+                    Log::warning('Create user notify failed: '.$notifyError->getMessage());
                 }
 
                 $successMessage = 'User registered successfully.';
                 if ($post->boolean('auto_send')) {
-                    $successMessage .= ' Password sent to mobile/email: '.$g_pass;
+                    $successMessage .= $sent
+                        ? ' Password sent to mobile/email: '.$g_pass
+                        : ' Password: '.$g_pass;
                 }
 
                 return response()->json(array(
@@ -692,6 +672,7 @@ class UserListController extends Controller
                     'message' => $successMessage
                 ));
             } catch (\Exception $e) {
+                Log::error('Create user failed: '.$e->getMessage());
                 return response()->json(
                     $this->formatDbSaveErrorResponse($e, $post->mobile_number, $post->email_address, 0)
                 );
@@ -705,19 +686,21 @@ class UserListController extends Controller
             }
 
             try {
+                $this->ensureUserSaveColumns();
                 $updateFields = [
                     'parent_id'  => $post->parent_id,
                     'role_id'  => $post->role_id,
                     'scheme_id'  => $post->scheme_id,
                     'outlet_name'  => $post->outlet_name,
                     'first_name'  => $post->first_name,
-                    'date_of_birth'  => $post->date_of_birth,
+                    'date_of_birth'  => $this->normalizeDateOfBirth($post->date_of_birth),
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
                     'login_type'  => $post->login_type,
                     'gender'  => $post->gender,
-                    'flat_door_no'  => $post->flat_door_no,
-                    'road_street'  => $post->road_street,
+                    'flat_door_no'  => $post->flat_door_no ?: '',
+                    'road_street'  => $post->road_street ?: '',
+                    'pincode'  => preg_replace('/\D+/', '', (string) $post->pincode),
                     'area_locality'  => $post->area_locality,
                     'city'  => $post->city,
                     'state'  => $post->state,
@@ -750,9 +733,10 @@ class UserListController extends Controller
                     );
                 }
 
-                $update = DB::table('users')->where('id', $post->edit_id)->update($updateFields);
+                $update = DB::table('users')->where('id', $post->edit_id)->update(filter_users_columns($updateFields));
                 $message = "Update sucessfuly";
             } catch (\Exception $e) {
+                Log::error('Update user failed: '.$e->getMessage());
                 return response()->json(
                     $this->formatDbSaveErrorResponse($e, $post->mobile_number, $post->email_address, $editId)
                 );
@@ -1354,9 +1338,120 @@ class UserListController extends Controller
             ];
         }
 
+        if (preg_match("/Unknown column '([^']+)'/", $msg, $m)) {
+            return [
+                'type' => 'error',
+                'message' => 'Unable to save because a required database field is missing: '.$m[1].'.',
+            ];
+        }
+
+        if (str_contains($msg, 'Incorrect date value') || str_contains($msg, 'date_of_birth')) {
+            return [
+                'type' => 'error',
+                'message' => 'Please enter a valid Date of Birth.',
+            ];
+        }
+
+        if (str_contains($msg, 'Incorrect integer value') || str_contains($msg, 'cannot be null')) {
+            return [
+                'type' => 'error',
+                'message' => 'Some required details are missing or invalid. Please check PIN code, KYC, and bank fields.',
+            ];
+        }
+
         return [
             'type' => 'error',
             'message' => 'Something went wrong while saving. Please try again.',
         ];
+    }
+
+    protected function normalizeDateOfBirth($value): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        try {
+            if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $value)) {
+                return Carbon::createFromFormat('d-m-Y', $value)->format('Y-m-d');
+            }
+
+            return Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return $value;
+        }
+    }
+
+    protected function ensureUserSaveColumns(): void
+    {
+        ensure_user_visible_password_column();
+
+        $columns = [
+            'complaint_callback_url' => 'VARCHAR(255) NULL',
+            'callback_url' => 'VARCHAR(255) NULL',
+            'api_key' => 'VARCHAR(191) NULL',
+            'pincode' => 'VARCHAR(10) NULL',
+            'login_key' => 'VARCHAR(191) NULL',
+            'otp_limit' => 'INT NULL DEFAULT 0',
+            'wallet_balance' => 'DECIMAL(12,2) NOT NULL DEFAULT 0',
+            'deleted_at' => 'TINYINT NOT NULL DEFAULT 0',
+        ];
+
+        foreach ($columns as $column => $definition) {
+            try {
+                if (! Schema::hasColumn('users', $column)) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` {$definition}");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    protected function sendCreatedUserCredentials(Request $post, string $password, string $pin): bool
+    {
+        if (! $post->boolean('auto_send')) {
+            return false;
+        }
+
+        $user_data = DB::table('users')->where('mobile_number', $post->mobile_number)->first();
+        if (! $user_data) {
+            return false;
+        }
+
+        $sent = false;
+        $slug = 'create_user';
+        $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
+        if ($sms_tmp) {
+            $content = $sms_tmp->content;
+            $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+            $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
+            $content = str_replace('{PASSWORD}', '' . $password . '', $content);
+            $content = str_replace('{PIN}', '' . $pin . '', $content);
+            if ((int) $sms_tmp->status === 1) {
+                Common::sendWhatasappMsg([
+                    'mobile_number' => $post->mobile_number,
+                    'content' => $content,
+                    'template_id' => $sms_tmp->template_id,
+                ]);
+                $sent = true;
+            }
+        }
+
+        $company = Common::getCompanyByHost();
+        if (!empty($company) && (int) $company->email_message === 1) {
+            $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+            if ($email_tmp && !empty($user_data->email_address)) {
+                $content_email = $email_tmp->content;
+                $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
+                $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
+                $content_email = str_replace('{PASSWORD}', '' . $password . '', $content_email);
+                $content_email = str_replace('{PIN}', '' . $pin . '', $content_email);
+                Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                $sent = true;
+            }
+        }
+
+        return $sent;
     }
 }
