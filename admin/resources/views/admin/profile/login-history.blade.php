@@ -46,6 +46,17 @@
         display: inline-block;
         max-width: 220px;
     }
+    .lh-map-pin {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #e03131;
+        font-size: 1.35rem;
+        line-height: 1;
+        text-decoration: none;
+    }
+    .lh-map-pin:hover { color: #c92a2a; }
+    .lh-map-pin.is-disabled { color: #adb5bd; pointer-events: none; }
 </style>
 @endsection
 
@@ -78,6 +89,9 @@
                             <th>OS / Platform</th>
                             <th>Login Path</th>
                             <th>Date &amp; Time</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th class="text-center">Location</th>
                             <th>User Agent</th>
                         </tr>
                     </thead>
@@ -98,11 +112,24 @@
                                 <td>{{ $v['platform'] ?: '-' }}</td>
                                 <td>{{ $v['login_path'] ?: '-' }}</td>
                                 <td>{{ $v['created_at'] ?: '-' }}</td>
+                                <td>{{ !empty($v['latitude']) ? $v['latitude'] : '-' }}</td>
+                                <td>{{ !empty($v['longitude']) ? $v['longitude'] : '-' }}</td>
+                                <td class="text-center">
+                                    @if(!empty($v['maps_url']))
+                                        <a class="lh-map-pin" href="{{ $v['maps_url'] }}" target="_blank" rel="noopener noreferrer" title="Open map">
+                                            <i class="ri-map-pin-2-fill"></i>
+                                        </a>
+                                    @else
+                                        <span class="lh-map-pin is-disabled" title="Location not available">
+                                            <i class="ri-map-pin-2-fill"></i>
+                                        </span>
+                                    @endif
+                                </td>
                                 <td title="{{ $ua }}"><small>{{ $uaShort }}</small></td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center text-muted">No login history found</td>
+                                <td colspan="14" class="text-center text-muted">No login history found</td>
                             </tr>
                         @endforelse
                     </tbody>

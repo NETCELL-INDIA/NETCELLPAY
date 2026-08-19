@@ -199,7 +199,7 @@ class AuthController extends Controller
                         ]);
                         $post->session()->put('user_id', $user->id);
                         $post->session()->put('login_key', $loginKey);
-                        Common::recordLoginHistory((int) $user->id, 'Web');
+                        Common::recordLoginHistory((int) $user->id, 'WEB');
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "Wrong otp.";

@@ -49,12 +49,28 @@ class ProfileController extends Controller
         ->join('roles', 'users.role_id', '=', 'roles.id')
         ->where('users.id',Session::get('user_id'))
         ->first();
+        $historyColumns = ['ip_address', 'login_path', 'created_at'];
+        try {
+            \helpers::ensureLoginHistoryGeoColumns();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', 'latitude')) {
+                $historyColumns[] = 'latitude';
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', 'longitude')) {
+                $historyColumns[] = 'longitude';
+            }
+        } catch (\Throwable $e) {
+        }
+
         $login_history = DB::table('login_histories')
         ->where("user_id",Session::get('user_id'))
         
         ->take(5)
         ->orderBy('id', 'DESC')
-        ->get(['ip_address','login_path','created_at']);
+        ->get($historyColumns)
+        ->map(function ($row) {
+            $row->maps_url = \helpers::googleMapsUrl($row->latitude ?? null, $row->longitude ?? null);
+            return $row;
+        });
 
         $company = user_company();
 

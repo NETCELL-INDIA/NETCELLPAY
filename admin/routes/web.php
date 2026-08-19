@@ -55,6 +55,7 @@ use App\Http\Controllers\Admin\PlanCircleDthApiController;
 
 
 use App\Http\Controllers\Admin\UserListController;
+use App\Http\Controllers\Admin\LoginHistoryReportController;
 
 
 
@@ -693,6 +694,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::get('admin/users/list',[UserListController::class,'index']);
+    Route::get('admin/users/login-history', [LoginHistoryReportController::class, 'index'])->name('usersLoginHistory');
 
 
 

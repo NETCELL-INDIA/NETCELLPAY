@@ -534,9 +534,7 @@ class UserListController extends Controller
             'status' => 'required|numeric|digits:1',
         );
 
-        if (!$isEdit) {
-            $rules['password'] = 'required|string|min:8|confirmed';
-        } elseif ($post->filled('password')) {
+        if ($isEdit && $post->filled('password')) {
             $rules['password'] = 'required|string|min:8|confirmed';
         }
 
@@ -605,7 +603,7 @@ class UserListController extends Controller
             }
             try {
                 ensure_user_visible_password_column();
-                $g_pass = (string) $post->password;
+                $g_pass = Str::random(4).random_int(1000, 9999).Str::random(2);
                 $t_pin = normalize_user_pin(random_int(0, 9999));
                 $apiKey = ((int) $post->role_id === 3)
                     ? (Str::random(15) . rand(11111111, 9999999) . Str::random(15))
@@ -648,6 +646,7 @@ class UserListController extends Controller
                 ], user_password_update_fields($g_pass)));
                 //$message = "Create sucessfuly. Password Is: " .$g_pass;
                 ////Send Whatsapp Message Start
+                if ($post->boolean('auto_send')) {
                 $user_data = DB::table('users')->where('mobile_number', $post->mobile_number)->first();
                 $slug = 'create_user';
                 $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -681,9 +680,16 @@ class UserListController extends Controller
                     }
                 }
                 ////Send Email End
+                }
+
+                $successMessage = 'User registered successfully.';
+                if ($post->boolean('auto_send')) {
+                    $successMessage .= ' Password sent to mobile/email: '.$g_pass;
+                }
+
                 return response()->json(array(
                     'type' => "success",  
-                    'message' => "User registered successfully."
+                    'message' => $successMessage
                 ));
             } catch (\Exception $e) {
                 return response()->json(

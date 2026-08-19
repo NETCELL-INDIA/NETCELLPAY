@@ -154,13 +154,7 @@ class AuthController extends Controller
                         $post->session()->put('login_key', $user->login_key);
                         $post->session()->put('role_id', $user->role_id);
                         try {
-                            DB::table('login_histories')->insert([
-                                'user_id' => $user->id,
-                                'ip_address' => request()->ip(),
-                                'login_path' => "Web",
-                                'created_at' => Carbon::now(),
-                                'updated_at' => Carbon::now()
-                            ]);
+                            \helpers::recordLoginHistory((int) $user->id, 'WEB');
                         } catch (\Throwable $e) {
                         }
                     }
@@ -233,13 +227,7 @@ class AuthController extends Controller
                         $post->session()->put('login_key', $user->login_key);
                         $post->session()->put('role_id', $user->role_id);
                         try {
-                            DB::table('login_histories')->insert([
-                                'user_id' => $user->id,
-                                'ip_address' => request()->ip(),
-                                'login_path' => "Web",
-                                'created_at' => Carbon::now(),
-                                'updated_at' => Carbon::now()
-                            ]);
+                            \helpers::recordLoginHistory((int) $user->id, 'WEB');
                         } catch (\Throwable $e) {
                         }
                     }else{

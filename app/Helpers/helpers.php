@@ -40,6 +40,96 @@ class helpers
         return array_intersect_key($data, $columns);
     }
 
+    public static function loginCoordinatesFromRequest($request = null): array
+    {
+        $req = $request ?: request();
+        $latRaw = $req->input('latitude', $req->input('lat'));
+        $lngRaw = $req->input('longitude', $req->input('lng', $req->input('long')));
+
+        if (! is_numeric($latRaw) || ! is_numeric($lngRaw)) {
+            return [null, null];
+        }
+
+        $lat = round((float) $latRaw, 7);
+        $lng = round((float) $lngRaw, 7);
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180 || ($lat == 0.0 && $lng == 0.0)) {
+            return [null, null];
+        }
+
+        return [$lat, $lng];
+    }
+
+    public static function googleMapsUrl($lat, $lng): ?string
+    {
+        if (! is_numeric($lat) || ! is_numeric($lng)) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+        if ($lat == 0.0 && $lng == 0.0) {
+            return null;
+        }
+
+        return 'https://www.google.com/maps?q='.rawurlencode($lat.','.$lng);
+    }
+
+    public static function ensureLoginHistoryGeoColumns(): void
+    {
+        try {
+            if (! Schema::hasTable('login_histories')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        foreach ([
+            'latitude' => 'DECIMAL(10,7) NULL',
+            'longitude' => 'DECIMAL(10,7) NULL',
+        ] as $column => $definition) {
+            try {
+                if (! Schema::hasColumn('login_histories', $column)) {
+                    DB::statement("ALTER TABLE `login_histories` ADD COLUMN `{$column}` {$definition}");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    public static function recordLoginHistory(int $userId, string $loginPath = 'WEB'): void
+    {
+        try {
+            if (! Schema::hasTable('login_histories')) {
+                return;
+            }
+            self::ensureLoginHistoryGeoColumns();
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $row = [
+            'user_id' => $userId,
+            'ip_address' => request()->ip(),
+            'login_path' => $loginPath,
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ];
+
+        [$lat, $lng] = self::loginCoordinatesFromRequest();
+        if (Schema::hasColumn('login_histories', 'latitude')) {
+            $row['latitude'] = $lat;
+        }
+        if (Schema::hasColumn('login_histories', 'longitude')) {
+            $row['longitude'] = $lng;
+        }
+
+        try {
+            DB::table('login_histories')->insert($row);
+        } catch (\Throwable $e) {
+        }
+    }
+
 
 
     public static function refund_row($report){

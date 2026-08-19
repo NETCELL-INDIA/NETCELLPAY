@@ -143,9 +143,7 @@ class AdminReportsController extends Controller
                 $userMeta = e(($list->mobile_number ?: '-') . ' · ID:' . ($list->user_id ?: '-'));
                 $dt = $list->transaction_date ?: $list->created_at;
                 $mode = $hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB');
-                $idsLine = '<span>' . e($list->operator_id ?: '-') . '</span> / '
-                    . '<span class="opt-supplier">' . e($list->operator_id ?: '-') . '</span> / '
-                    . '<span class="opt-client">' . e($list->request_order_id ?: '-') . '</span>';
+                $idsLine = e($list->operator_id ?: '-');
 
                 $rows .= '<tr data-number="' . e($list->number ?: '') . '">
                     <td><span class="live-id">' . e($list->order_id ?: ('R' . $list->id)) . '</span><span class="live-id-sub">#' . e($list->id) . '</span></td>

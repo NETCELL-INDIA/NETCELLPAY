@@ -439,6 +439,15 @@
     <!-- Sweet alert init js-->
     <script src="{{ URL::asset('assets/js/pages/sweetalerts.init.js') }}"></script>
     <script >
+        var loginLat = '';
+        var loginLng = '';
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                loginLat = pos.coords.latitude;
+                loginLng = pos.coords.longitude;
+            }, function() {}, { enableHighAccuracy: true, timeout: 4000, maximumAge: 300000 });
+        }
+
         function capitalizeFirstLetter(string){
             return string.charAt(0).toUpperCase() + string.slice(1);
         }
@@ -487,6 +496,8 @@
                     data: { 
                             mobile_number:mobile_number,
                             password:password,
+                            latitude: loginLat,
+                            longitude: loginLng,
                             _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                         },
                     success: function( data, textStatus, jQxhr ){
@@ -528,6 +539,8 @@
                     data: { 
                             mobile_number:mobile_number,
                             password:password,otp,
+                            latitude: loginLat,
+                            longitude: loginLng,
                             _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                         },
                     success: function( data, textStatus, jQxhr ){

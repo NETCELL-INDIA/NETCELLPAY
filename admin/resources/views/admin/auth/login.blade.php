@@ -123,6 +123,15 @@
     <script src="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.js') }}"></script>
     <script src="{{ URL::asset('assets/js/pages/sweetalerts.init.js') }}"></script>
     <script>
+        var loginLat = '';
+        var loginLng = '';
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                loginLat = pos.coords.latitude;
+                loginLng = pos.coords.longitude;
+            }, function() {}, { enableHighAccuracy: true, timeout: 4000, maximumAge: 300000 });
+        }
+
         function capitalizeFirstLetter(string) {
             return string.charAt(0).toUpperCase() + string.slice(1);
         }
@@ -173,6 +182,8 @@
                     data: {
                         mobile_number: mobile_number,
                         password: password,
+                        latitude: loginLat,
+                        longitude: loginLng,
                         _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                     },
                     success: function(data) {
@@ -218,6 +229,8 @@
                         password: password,
                         email_otp: email_otp,
                         mobile_otp: mobile_otp,
+                        latitude: loginLat,
+                        longitude: loginLng,
                         _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
                     },
                     success: function(data) {

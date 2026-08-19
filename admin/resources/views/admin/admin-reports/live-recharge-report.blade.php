@@ -336,7 +336,7 @@
                         <th>Amount</th>
                         <th>Status</th>
                         <th>API</th>
-                        <th>Opt ID / <span class="opt-supplier">Supplier ID</span> / <span class="opt-client">Client ID</span></th>
+                        <th>Opt ID</th>
                         <th>Mode</th>
                     </tr>
                 </thead>

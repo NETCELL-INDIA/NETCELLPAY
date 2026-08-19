@@ -362,6 +362,7 @@
                                         <th scope="col">Ip Address</th>
                                         <th scope="col">Login Path</th>
                                         <th scope="col">Date & Time</th>
+                                        <th scope="col" class="text-center">Location</th>
                                     </tr>
                                 </thead>
                                 <tbody id="loginHistoryResult">
@@ -776,7 +777,10 @@
             $("#side_destination").text(data.user.outlet_name+" / "+data.user.role_name);
             html = '';
             $.each(data.login_history, function(k,v) {
-                html+='<tr><td>'+parseInt(k+1)+'</td><td>'+v.ip_address+'</td><td>'+v.login_path+'</td><td>'+parseDateTime(v.created_at)+'</td></tr>';
+                var pin = (v.maps_url)
+                    ? '<a href="'+v.maps_url+'" target="_blank" rel="noopener noreferrer" title="Open map" style="color:#e03131;font-size:1.25rem;"><i class="ri-map-pin-2-fill"></i></a>'
+                    : '<span class="text-muted">-</span>';
+                html+='<tr><td>'+parseInt(k+1)+'</td><td>'+v.ip_address+'</td><td>'+v.login_path+'</td><td>'+parseDateTime(v.created_at)+'</td><td class="text-center">'+pin+'</td></tr>';
             });
             console.log(html);
             $('#loginHistoryResult').append(html);

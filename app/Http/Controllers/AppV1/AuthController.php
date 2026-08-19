@@ -293,13 +293,7 @@ class AuthController extends Controller
                         // $post->session()->put('user_id', $user->id);
                         // $post->session()->put('login_key', $user->login_key);
                         // $post->session()->put('role_id', $user->role_id);
-                        DB::table('login_histories')->insert([
-                            'user_id' => $user->id,
-                            'ip_address' => request()->ip(),
-                            'login_path' => "Web",
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now()
-                        ]);
+                        \helpers::recordLoginHistory((int) $user->id, 'APP');
                     }
                     //$post->session()->flush();
                     //return  session('login_key');
@@ -583,13 +577,7 @@ class AuthController extends Controller
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
                         // 
-                        DB::table('login_histories')->insert([
-                            'user_id' => $user->id,
-                            'ip_address' => request()->ip(),
-                            'login_path' => "Web",
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now()
-                        ]);
+                        \helpers::recordLoginHistory((int) $user->id, 'APP');
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "Wrong otp.";
@@ -780,13 +768,7 @@ class AuthController extends Controller
                         'recharge_services' => config('recharge_services.recharge', []),
                     ];
                     // 
-                    DB::table('login_histories')->insert([
-                        'user_id' => $user->id,
-                        'ip_address' => request()->ip(),
-                        'login_path' => "Web",
-                        'created_at' => Carbon::now(),
-                        'updated_at' => Carbon::now()
-                    ]);
+                    \helpers::recordLoginHistory((int) $user->id, 'APP');
                     ////Send Whatsapp Message Start
                     $slug = 'create_user';
                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);

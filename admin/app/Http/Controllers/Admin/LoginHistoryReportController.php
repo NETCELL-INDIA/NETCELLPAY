@@ -1,18 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Users;
+namespace App\Http\Controllers\Admin;
 
+use App\Common;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-class LoginHistoryController extends Controller
+class LoginHistoryReportController extends Controller
 {
     public function index(Request $request)
     {
-        \helpers::ensureLoginHistoryGeoColumns();
+        Common::ensureLoginHistoriesTable();
 
         $mobile = trim((string) $request->get('mobile', ''));
         $fromDate = $request->get('from_date') ?: Carbon::today()->format('Y-m-d');
@@ -20,8 +21,9 @@ class LoginHistoryController extends Controller
 
         $query = DB::table('login_histories as lh')
             ->leftJoin('users as u', 'u.id', '=', 'lh.user_id')
-            ->orderByDesc('lh.id')
-            ->whereBetween('lh.created_at', [$fromDate.' 00:00:00', $toDate.' 23:59:59']);
+            ->orderByDesc('lh.id');
+
+        $query->whereBetween('lh.created_at', [$fromDate.' 00:00:00', $toDate.' 23:59:59']);
 
         if ($mobile !== '') {
             $query->where('u.mobile_number', 'like', '%'.$mobile.'%');
@@ -54,11 +56,14 @@ class LoginHistoryController extends Controller
                 $row->last_name ?? '',
             ])));
             if ($name === '') {
-                $name = $row->outlet_name ?: 'User';
+                $name = $row->outlet_name ?: ('User #'.($row->id ?? ''));
             }
 
+            $lat = $row->latitude ?? null;
+            $lng = $row->longitude ?? null;
+
             $row->display_name = $name;
-            $row->maps_url = \helpers::googleMapsUrl($row->latitude ?? null, $row->longitude ?? null);
+            $row->maps_url = Common::googleMapsUrl($lat, $lng);
             $row->login_by = strtoupper((string) ($row->login_path ?: 'WEB'));
             $row->display_time = $row->created_at
                 ? Carbon::parse($row->created_at)->format('d-m-Y h:i:s A')
@@ -67,6 +72,6 @@ class LoginHistoryController extends Controller
             return $row;
         });
 
-        return view('users.reports.login-history', compact('logs', 'mobile', 'fromDate', 'toDate'));
+        return view('admin.users.login-history', compact('logs', 'mobile', 'fromDate', 'toDate'));
     }
 }

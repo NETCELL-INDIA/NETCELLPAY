@@ -579,11 +579,27 @@
 
                             <!--end col-->
 
-                            <div class="col-xxl-3 col-md-6" id="user_password_wrap">
+                            <div class="col-xxl-3 col-md-6 user-auto-send-wrap">
 
                                 <div>
 
-                                    <label for="user_password" class="form-label">Password: <span class="text-danger user-password-required">*</span></label>
+                                    <label class="form-label">Password</label>
+                                    <div class="form-check mt-2">
+                                        <input type="hidden" name="auto_send" id="auto_send_value" value="1">
+                                        <input class="form-check-input" type="checkbox" id="auto_send_password" checked>
+                                        <label class="form-check-label" for="auto_send_password">Auto Send</label>
+                                    </div>
+                                    <small class="text-muted">Password is generated automatically and sent if Auto Send is on.</small>
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-xxl-3 col-md-6" id="user_password_wrap" style="display:none">
+
+                                <div>
+
+                                    <label for="user_password" class="form-label">Password:</label>
 
                                     <div class="position-relative auth-pass-inputgroup">
 
@@ -597,13 +613,13 @@
 
                                     </div>
 
-                                    <small class="text-muted user-password-hint-edit" style="display:none">Leave blank to keep current password.</small>
+                                    <small class="text-muted user-password-hint-edit">Leave blank to keep current password.</small>
 
                                 </div>
 
                             </div>
 
-                            <div class="col-xxl-3 col-md-6" id="user_password_confirm_wrap">
+                            <div class="col-xxl-3 col-md-6" id="user_password_confirm_wrap" style="display:none">
 
                                 <div>
 
@@ -932,7 +948,7 @@
 
                                 <div>
 
-                                    <label for="profile_pic" class="form-label">Profile Pic: <a style="color: red">*</a></label>
+                                    <label for="profile_pic" class="form-label">Profile Pic:</label>
 
                                     <input type="file" class="form-control" name="profile_pic" id="profile_pic" accept="image/png, image/gif, image/jpeg">
 
@@ -1039,36 +1055,34 @@
     }
 
     function setUserPasswordMode(isCreate) {
-        $('#user_password, #user_password_confirmation').val('').attr('type', 'password');
+        $('#user_password, #user_password_confirmation').val('').attr('type', 'password').prop('readonly', false).prop('required', false);
 
         if (isCreate) {
-            $('#user_password, #user_password_confirmation').prop('required', true);
-            $('.user-password-required').show();
-            $('.user-password-hint-edit').hide();
+            $('#auto_send_password').prop('checked', true);
+            $('#auto_send_value').val('1');
+            $('.user-auto-send-wrap').show();
+            $('#user_password_wrap, #user_password_confirm_wrap').hide();
             $('#detailsModalLabel').text('Create Details');
         } else {
-            $('#user_password, #user_password_confirmation').prop('required', false);
-            $('.user-password-required').hide();
-            $('.user-password-hint-edit').show();
+            $('#auto_send_password').prop('checked', false);
+            $('#auto_send_value').val('0');
+            $('.user-auto-send-wrap').hide();
+            $('#user_password_wrap, #user_password_confirm_wrap').show();
             $('#detailsModalLabel').text('Edit Details');
         }
     }
 
-    function validateUserPasswordFields(isCreate) {
-        var pwd = $('#user_password').val();
-        var pwdConfirm = $('#user_password_confirmation').val();
+    $(document).on('change', '#auto_send_password', function () {
+        $('#auto_send_value').val($(this).is(':checked') ? '1' : '0');
+    });
 
+    function validateUserPasswordFields(isCreate) {
         if (isCreate) {
-            if (!pwd || pwd.length < 8) {
-                Error_Msg('Error', 'Password must be at least 8 characters.', 'error');
-                return false;
-            }
-            if (pwd !== pwdConfirm) {
-                Error_Msg('Error', 'Password confirmation does not match.', 'error');
-                return false;
-            }
             return true;
         }
+
+        var pwd = $('#user_password').val();
+        var pwdConfirm = $('#user_password_confirmation').val();
 
         if (pwd || pwdConfirm) {
             if (!pwd || pwd.length < 8) {

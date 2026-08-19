@@ -232,6 +232,7 @@
                     <div class="collapse menu-dropdown" id="sidebarUsers">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Users</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/users/login-history') }}" class="nav-link">Login History</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Manage KYC</a></li>
                         </ul>
                     </div>

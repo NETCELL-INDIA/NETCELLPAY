@@ -14,6 +14,7 @@ class MenuPlaceholderController extends Controller
     private array $redirects = [
         // Users
         'users/create-user' => 'admin/users/list',
+        'users/login-history' => 'admin/users/login-history',
         'users/default-margins' => 'admin/system/scheme',
         'users/default-cashback' => 'admin/system/scheme',
         'users/special-margins' => 'admin/system/scheme',
@@ -94,7 +95,6 @@ class MenuPlaceholderController extends Controller
         'express-dmt/outward-margins' => ['section' => 'Express DMT', 'title' => 'Outward Margins', 'description' => 'Not in this Netcell build yet'],
 
         // Users (no dedicated pages)
-        'users/login-history' => ['section' => 'Users', 'title' => 'Login History', 'description' => 'Login history table not present in this Netcell build'],
         'users/signup-requests' => ['section' => 'Users', 'title' => 'Signup Requests', 'description' => 'Signup requests module not present'],
         'users/refer-earn-users' => ['section' => 'Users', 'title' => 'Refer & Earn Users', 'description' => 'Refer & Earn module not present'],
 

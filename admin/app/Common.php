@@ -404,6 +404,8 @@ use Illuminate\Http\Request;
                 `platform` VARCHAR(120) NULL,
                 `device_type` VARCHAR(50) NULL,
                 `device` VARCHAR(120) NULL,
+                `latitude` DECIMAL(10,7) NULL,
+                `longitude` DECIMAL(10,7) NULL,
                 `created_at` TIMESTAMP NULL DEFAULT NULL,
                 `updated_at` TIMESTAMP NULL DEFAULT NULL,
                 PRIMARY KEY (`id`),
@@ -422,6 +424,8 @@ use Illuminate\Http\Request;
             'platform' => 'VARCHAR(120) NULL',
             'device_type' => 'VARCHAR(50) NULL',
             'device' => 'VARCHAR(120) NULL',
+            'latitude' => 'DECIMAL(10,7) NULL',
+            'longitude' => 'DECIMAL(10,7) NULL',
         ];
 
         foreach ($columns as $column => $definition) {
@@ -444,7 +448,7 @@ use Illuminate\Http\Request;
             self::ensureLoginHistoriesTable();
 
             $historyColumns = ['id', 'user_id', 'ip_address', 'login_path', 'created_at'];
-            foreach (['user_agent', 'browser', 'platform', 'device_type', 'device'] as $column) {
+            foreach (['user_agent', 'browser', 'platform', 'device_type', 'device', 'latitude', 'longitude'] as $column) {
                 if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', $column)) {
                     $historyColumns[] = $column;
                 }
@@ -484,13 +488,15 @@ use Illuminate\Http\Request;
                         'created_at' => $row->created_at ?? '',
                     ];
 
-                    foreach (['user_agent', 'browser', 'platform', 'device_type', 'device'] as $column) {
+                    foreach (['user_agent', 'browser', 'platform', 'device_type', 'device', 'latitude', 'longitude'] as $column) {
                         if (in_array($column, $historyColumns, true)) {
                             $item[$column] = $row->{$column} ?? '';
                         } else {
                             $item[$column] = '';
                         }
                     }
+
+                    $item['maps_url'] = self::googleMapsUrl($item['latitude'] ?? null, $item['longitude'] ?? null);
 
                     return $item;
                 })
@@ -572,7 +578,41 @@ use Illuminate\Http\Request;
         }
     }
 
-    public static function recordLoginHistory(int $userId, string $loginPath = 'Web'): void
+    public static function loginCoordinatesFromRequest($request = null): array
+    {
+        $req = $request ?: request();
+        $latRaw = $req->input('latitude', $req->input('lat'));
+        $lngRaw = $req->input('longitude', $req->input('lng', $req->input('long')));
+
+        if (! is_numeric($latRaw) || ! is_numeric($lngRaw)) {
+            return [null, null];
+        }
+
+        $lat = round((float) $latRaw, 7);
+        $lng = round((float) $lngRaw, 7);
+        if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180 || ($lat == 0.0 && $lng == 0.0)) {
+            return [null, null];
+        }
+
+        return [$lat, $lng];
+    }
+
+    public static function googleMapsUrl($lat, $lng): ?string
+    {
+        if (! is_numeric($lat) || ! is_numeric($lng)) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+        if ($lat == 0.0 && $lng == 0.0) {
+            return null;
+        }
+
+        return 'https://www.google.com/maps?q='.rawurlencode($lat.','.$lng);
+    }
+
+    public static function recordLoginHistory(int $userId, string $loginPath = 'WEB'): void
     {
         try {
             self::ensureLoginHistoriesTable();
@@ -593,6 +633,14 @@ use Illuminate\Http\Request;
             if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', $col)) {
                 $row[$col] = $parsed[$col] ?? null;
             }
+        }
+
+        [$lat, $lng] = self::loginCoordinatesFromRequest();
+        if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', 'latitude')) {
+            $row['latitude'] = $lat;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('login_histories', 'longitude')) {
+            $row['longitude'] = $lng;
         }
 
         try {
