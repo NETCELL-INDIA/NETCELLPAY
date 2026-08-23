@@ -85,7 +85,18 @@
             success: function (res) {
                 $('#provider_id').empty().append('<option value="">Select Provider</option>');
                 $.each(res.provider || [], function (k, v) {
-                    $('#provider_id').append('<option value="' + v.id + '">' + v.provider_name + '</option>');
+                    var providerName = String(v.provider_name || '');
+                    var isDisabled = false;
+
+                    if (Number(v.status) !== 1) {
+                        providerName += ' (OFF)';
+                        isDisabled = true;
+                    } else if (Number(v.provider_down) === 1 || Number(v.user_down) === 1) {
+                        providerName += ' (DOWN)';
+                        isDisabled = true;
+                    }
+
+                    $('#provider_id').append($('<option>').val(v.id).text(providerName).prop('disabled', isDisabled));
                 });
                 $('#state_id').empty().append('<option value="">Select Circle</option>');
                 $.each(res.state || [], function (k, v) {

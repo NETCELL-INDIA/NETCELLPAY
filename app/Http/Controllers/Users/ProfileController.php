@@ -228,10 +228,10 @@ class ProfileController extends Controller
         $total_row = DB::table('providers as p')
         ->leftjoin('scheme_commissions as sc','sc.provider_id','=','p.id',)
         ->leftjoin('services as s','p.service_id','=','s.id',)
+        ->select('p.*', 'sc.*', 's.service_name', 'p.status as provider_status', 'p.id as provider_id')
         ->where('p.service_id', 'like', "%$post->service_id%")
         ->where("sc.scheme_id", $user->scheme_id)
-        ->where("p.deleted_at", 0)
-        ->where("p.status", 1)->get();
+        ->where("p.deleted_at", 0)->get();
         $total_row_count = $total_row->count();
         $total_pages = ceil($total_row_count / $limit);
         $page_link = '';
@@ -249,11 +249,11 @@ class ProfileController extends Controller
         $list = DB::table('providers as p')
         ->leftjoin('scheme_commissions as sc','sc.provider_id','=','p.id',)
         ->leftjoin('services as s','p.service_id','=','s.id',)
+        ->select('p.*', 'sc.*', 's.service_name', 'p.status as provider_status', 'p.id as provider_id')
         //->where("p.service_id",$post->service_id)
         ->where('p.service_id', 'like', "%$post->service_id%")
         ->where("sc.scheme_id", $user->scheme_id)
         ->where("p.deleted_at", 0)
-        ->where("p.status", 1)
         ->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
@@ -310,12 +310,19 @@ class ProfileController extends Controller
                     $amount_value = '';
                 }
                 $down = (int) ($list->provider_down ?? 0);
-                if($down == 0){
+                if ($down === 0 && \helpers::isProviderDownForUser($list->provider_id ?? $list->id, $user->id)) {
+                    $down = 1;
+                }
+                $providerStatus = (int) ($list->provider_status ?? 1);
+                if($providerStatus !== 1){
+                    $bg = "secondary";
+                    $st = "DEACTIVE";
+                }else if($down == 0){
                     $bg = "success";
                     $st = "ONLINE";
                 }else if($down == 1){
                     $bg = "danger";
-                    $st = "OFLINE";
+                    $st = "OFFLINE";
                 }else{
                     $bg = "warning";
                     $st = "OTHER";

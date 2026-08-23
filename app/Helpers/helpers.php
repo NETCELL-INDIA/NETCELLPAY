@@ -1279,6 +1279,23 @@ class helpers
     }
 
 
+    public static function isProviderDownForUser($providerId, $userId): bool
+    {
+        try {
+            if (!Schema::hasTable('provider_user_downs')) {
+                return false;
+            }
+
+            return DB::table('provider_user_downs')
+                ->where('provider_id', (int) $providerId)
+                ->where('user_id', (int) $userId)
+                ->where('status', 1)
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public static function checkApis($route,$post,$user){
         $route_api_id = 0;
         try {

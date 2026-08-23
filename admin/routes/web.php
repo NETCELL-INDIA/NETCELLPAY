@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\DashboardController;
 
 
 use App\Http\Controllers\Admin\SchemeController;
+use App\Http\Controllers\Admin\CommissionController;
 
 
 
@@ -386,8 +387,18 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     // Operator's Routing (service-wise grid)
     Route::get('admin/routings/operator', [OperatorRoutingController::class, 'index'])->name('operatorRouting');
+    Route::get('admin/routings/api-switching', [OperatorRoutingController::class, 'apiSwitching'])->name('apiSwitching');
+    Route::post('admin/routings/api-switching/list', [OperatorRoutingController::class, 'apiSwitchingList'])->name('apiSwitchingList');
+    Route::post('admin/routings/api-switching/save', [OperatorRoutingController::class, 'apiSwitchingSave'])->name('apiSwitchingSave');
+    Route::post('admin/routings/api-switching/delete', [OperatorRoutingController::class, 'apiSwitchingDelete'])->name('apiSwitchingDelete');
     Route::post('admin/routings/operator/list', [OperatorRoutingController::class, 'list'])->name('operatorRoutingList');
     Route::post('admin/routings/operator/save', [OperatorRoutingController::class, 'save'])->name('operatorRoutingSave');
+    Route::post('admin/routings/operator/status', [OperatorRoutingController::class, 'updateStatus'])->name('operatorRoutingStatus');
+    Route::post('admin/routings/operator/delete', [OperatorRoutingController::class, 'delete'])->name('operatorRoutingDelete');
+    Route::post('admin/routings/operator/down-users', [OperatorRoutingController::class, 'downUsers'])->name('operatorRoutingDownUsers');
+    Route::post('admin/routings/operator/down-users/search', [OperatorRoutingController::class, 'searchUsers'])->name('operatorRoutingDownUsersSearch');
+    Route::post('admin/routings/operator/down-users/add', [OperatorRoutingController::class, 'addDownUser'])->name('operatorRoutingDownUsersAdd');
+    Route::post('admin/routings/operator/down-users/remove', [OperatorRoutingController::class, 'removeDownUser'])->name('operatorRoutingDownUsersRemove');
 
     //My Profile Routes 
 
@@ -404,6 +415,10 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/logs/apilogs',[LogsController::class,'apilogs'])->name('adminApilogs');
 
 
+
+    //Commission Route
+
+    Route::get('admin/commission',[CommissionController::class,'index'])->name('adminCommission');
 
     //Scheme Routes 
 

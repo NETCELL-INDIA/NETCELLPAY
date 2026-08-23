@@ -149,7 +149,23 @@ class RechargeControllerV2 extends Controller
             )); 
         }
 
+        if(($provider->status ?? 0) == 0){
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',  
+                'message' => "This time ".$provider->provider_name." provider deactive please try again."
+            ));
+        }
+
         if($provider->provider_down == 1){
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',  
+                'message' => "This time ".$provider->provider_name." provider down please try again."
+            ));
+        }
+
+        if(\helpers::isProviderDownForUser($provider->id, $user->id)){
             return response()->json(array(
                 'status' => 'Failed',
                 'type' => 'error',  
@@ -383,7 +399,16 @@ class RechargeControllerV2 extends Controller
                 'message' => $error
             ));
         }
-        $provider = DB::table('providers')->select('id','provider_name')->where('service_id',$post->service)->where('deleted_at', '!=' , 1)->where('status',1)->get();
+        $provider = DB::table('providers')->select('id','provider_name','status','provider_down')
+            ->where('service_id',$post->service)
+            ->where('deleted_at', '!=' , 1)
+            ->orderByDesc('status')
+            ->orderBy('provider_name')
+            ->get()
+            ->map(function ($row) {
+                $row->user_down = \helpers::isProviderDownForUser($row->id, Session::get('user_id')) ? 1 : 0;
+                return $row;
+            });
         $states = DB::table('states')->select('id','state_name')->where('status',1)->get();
         if($provider){
             $data['type'] = 'success';

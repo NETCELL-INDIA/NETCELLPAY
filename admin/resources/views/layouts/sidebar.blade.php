@@ -218,10 +218,18 @@
                     <div class="collapse menu-dropdown" id="sidebarRoutings">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="{{ URL::asset('admin/routings/general') }}" class="nav-link">General Routings</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/routings/operator') }}" class="nav-link">Operator API Switch</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/routings/operator') }}" class="nav-link">Manage Operator</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/routings/api-switching') }}" class="nav-link">API Switching</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/routes-settings') }}" class="nav-link">Routes Priority</a></li>
                         </ul>
                     </div>
+                </li>
+
+                {{-- Commission --}}
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="{{ URL::asset('admin/commission') }}">
+                        <i class="bx bx-percentage"></i> <span>Commission</span>
+                    </a>
                 </li>
 
                 {{-- Users --}}

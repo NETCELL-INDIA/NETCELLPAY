@@ -806,9 +806,18 @@
 
                     $.each(res.provider, function(k, v) {
 
-                        $('#provider_id').append('<option value="' + v.id + '">' + v.provider_name
+                        var providerName = String(v.provider_name || '').toUpperCase();
+                        var isDisabled = false;
 
-                            .toUpperCase() + '</option>');
+                        if (Number(v.status) !== 1) {
+                            providerName += ' (OFF)';
+                            isDisabled = true;
+                        } else if (Number(v.provider_down) === 1 || Number(v.user_down) === 1) {
+                            providerName += ' (DOWN)';
+                            isDisabled = true;
+                        }
+
+                        $('#provider_id').append($('<option>').val(v.id).text(providerName).prop('disabled', isDisabled));
 
                     });
 

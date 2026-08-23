@@ -370,6 +370,20 @@ class RechargeController extends Controller
 
         }
 
+        if (\helpers::isProviderDownForUser($provider->id, $user->id)) {
+
+            return response()->json(array(
+
+                'status' => 'Failed',
+
+                'type' => 'error',
+
+                'message' => "This time " . $provider->provider_name . " provider down please try again."
+
+            ));
+
+        }
+
 
 
 
@@ -1050,12 +1064,16 @@ class RechargeController extends Controller
         $serviceId = (int) $post->service;
         $serviceIds = ($serviceId === 4) ? [4, 15] : [$serviceId];
 
-        $provider = DB::table('providers')->select('id', 'provider_name')
+        $provider = DB::table('providers')->select('id', 'provider_name', 'status', 'provider_down')
             ->whereIn('service_id', $serviceIds)
             ->where('deleted_at', '!=', 1)
-            ->where('status', 1)
+            ->orderByDesc('status')
             ->orderBy('provider_name')
-            ->get();
+            ->get()
+            ->map(function ($row) {
+                $row->user_down = \helpers::isProviderDownForUser($row->id, Session::get('user_id')) ? 1 : 0;
+                return $row;
+            });
 
         $states = DB::table('states')->select('id', 'state_name')->where('status', 1)->get();
 

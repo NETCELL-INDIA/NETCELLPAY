@@ -365,14 +365,15 @@ class SchemeController extends Controller
                 )
             );
         }
+        $newSchemeId = null;
         if ($post->edit_id == 0) {
-            $update = DB::table('schemes')->insert([
+            $newSchemeId = DB::table('schemes')->insertGetId([
                 'scheme_name' => $post->schemeName,
-                'user_id' => 1,
                 'status' => $post->status,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now()
             ]);
+            $update = $newSchemeId ? true : false;
             $message = "Create sucessfuly";
         } else {
             $update = DB::table('schemes')->where('id', $post->edit_id)->update([
@@ -385,6 +386,8 @@ class SchemeController extends Controller
         if ($update) {
             $data['type'] = 'success';
             $data['message'] = $message;
+            $data['id'] = $newSchemeId ?? $post->edit_id;
+            $data['scheme_name'] = $post->schemeName;
         } else {
             $data['type'] = 'error';
             $data['message'] = "Something went wrong!";
