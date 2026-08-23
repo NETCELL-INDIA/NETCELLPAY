@@ -20,8 +20,8 @@
     color: #1b2559;
 }
 .api-switch-table th {
-    background: #f8fafc;
-    color: #475569;
+    background: #1e3a8a;
+    color: #fff;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: .04em;
@@ -29,6 +29,14 @@
 }
 .api-switch-table td {
     vertical-align: middle;
+}
+.operator-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
 }
 </style>
 @endsection
@@ -44,6 +52,29 @@
         <div class="card api-switch-card">
             <div class="card-header">
                 <h4 class="card-title mb-0">API Switching</h4>
+            </div>
+            <div class="p-3 border-bottom">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label for="filter_operator_name" class="form-label">Operator Name</label>
+                        <input type="text" class="form-control" id="filter_operator_name" placeholder="Search operator name">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="filter_operator_type" class="form-label">Operator Type</label>
+                        <select class="form-select" id="filter_operator_type">
+                            <option value="">All Types</option>
+                            @foreach($services as $service)
+                                <option value="{{ $service->id }}">{{ $service->service_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-primary" id="apiSwitchFilterSearch">
+                            <i class="ri-search-line align-bottom"></i>
+                        </button>
+                        <button type="button" class="btn btn-light" id="apiSwitchFilterReset">Reset</button>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <form id="apiSwitchForm">
@@ -116,7 +147,8 @@
                     <table class="table table-bordered api-switch-table mb-0">
                         <thead>
                             <tr>
-                                <th>Operator</th>
+                                <th style="width: 80px;">Logo</th>
+                                <th>Operator Name</th>
                                 <th>Operator Type</th>
                                 <th>Primary API</th>
                                 <th>Backup API 1</th>
@@ -127,7 +159,7 @@
                         </thead>
                         <tbody id="apiSwitchTableBody">
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Loading...</td>
+                                <td colspan="8" class="text-center text-muted py-4">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -142,6 +174,7 @@
 <script>
 var csrf = '{{ csrf_token() }}';
 var mappings = {};
+var defaultLogo = @json(asset('assets/images/users/user-dummy-img.jpg'));
 
 function esc(value) {
     return String(value == null ? '' : value)
@@ -166,6 +199,23 @@ function showMessage(type, message) {
     }
 }
 
+function operatorTypeLabel(value) {
+    if (!value) {
+        return '<span class="text-muted">-</span>';
+    }
+    var type = String(value);
+    var badge = 'bg-secondary';
+    var lower = type.toLowerCase();
+    if (lower.indexOf('mobile') !== -1) {
+        badge = 'bg-primary';
+    } else if (lower.indexOf('dth') !== -1) {
+        badge = 'bg-success';
+    } else if (lower.indexOf('bill') !== -1 || lower.indexOf('postpaid') !== -1) {
+        badge = 'bg-warning text-dark';
+    }
+    return '<span class="badge ' + badge + '">' + esc(type) + '</span>';
+}
+
 function apiName(value) {
     return value ? esc(value) : '<span class="text-muted">No API</span>';
 }
@@ -174,7 +224,7 @@ function renderMappings(rows) {
     mappings = {};
 
     if (!rows || !rows.length) {
-        $('#apiSwitchTableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">No operators found</td></tr>');
+        $('#apiSwitchTableBody').html('<tr><td colspan="8" class="text-center text-muted py-4">No operators found</td></tr>');
         return;
     }
 
@@ -182,8 +232,9 @@ function renderMappings(rows) {
     rows.forEach(function (row) {
         mappings[row.operator_id] = row;
         html += '<tr>' +
+            '<td><img src="' + esc(row.logo_url || defaultLogo) + '" alt="" class="operator-logo"></td>' +
             '<td class="fw-semibold">' + esc(row.operator_name) + '</td>' +
-            '<td>' + (row.operator_type ? esc(row.operator_type) : '<span class="text-muted">-</span>') + '</td>' +
+            '<td>' + operatorTypeLabel(row.operator_type) + '</td>' +
             '<td>' + apiName(row.api_name) + '</td>' +
             '<td>' + apiName(row.backup_api_1_name) + '</td>' +
             '<td>' + apiName(row.backup_api_2_name) + '</td>' +
@@ -203,16 +254,20 @@ function renderMappings(rows) {
 }
 
 function loadMappings() {
-    $('#apiSwitchTableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#apiSwitchTableBody').html('<tr><td colspan="8" class="text-center text-muted py-4">Loading...</td></tr>');
 
-    $.post('{{ route('apiSwitchingList') }}', { _token: csrf }, function (res) {
+    $.post('{{ route('apiSwitchingList') }}', {
+        _token: csrf,
+        operator_name: $('#filter_operator_name').val(),
+        operator_type: $('#filter_operator_type').val()
+    }, function (res) {
         if (res && res.type === 'success') {
             renderMappings(res.data);
         } else {
-            $('#apiSwitchTableBody').html('<tr><td colspan="7" class="text-center text-danger py-4">Failed to load</td></tr>');
+            $('#apiSwitchTableBody').html('<tr><td colspan="8" class="text-center text-danger py-4">Failed to load</td></tr>');
         }
     }, 'json').fail(function () {
-        $('#apiSwitchTableBody').html('<tr><td colspan="7" class="text-center text-danger py-4">Failed to load</td></tr>');
+        $('#apiSwitchTableBody').html('<tr><td colspan="8" class="text-center text-danger py-4">Failed to load</td></tr>');
     });
 }
 
@@ -243,6 +298,20 @@ $('#operator_id').on('change', function () {
 });
 
 $('#apiSwitchResetBtn').on('click', resetApiSwitchForm);
+
+$('#apiSwitchFilterSearch').on('click', loadMappings);
+$('#apiSwitchFilterReset').on('click', function () {
+    $('#filter_operator_name').val('');
+    $('#filter_operator_type').val('');
+    loadMappings();
+});
+$('#filter_operator_name').on('keypress', function (e) {
+    if (e.which === 13) {
+        e.preventDefault();
+        loadMappings();
+    }
+});
+$('#filter_operator_type').on('change', loadMappings);
 
 $('#apiSwitchForm').on('submit', function (e) {
     e.preventDefault();

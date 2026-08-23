@@ -324,22 +324,33 @@ class OperatorRoutingController extends Controller
         $operators = $this->operatorsQuery()
             ->leftJoin('services', 'services.id', '=', 'providers.service_id')
             ->orderBy('providers.provider_name')
-            ->get(['providers.id', 'providers.provider_name', 'services.service_name as operator_type']);
+            ->get(['providers.id', 'providers.provider_name', DB::raw('COALESCE(services.service_name, providers.operator_type) as operator_type')]);
 
         $apis = $this->rechargeApisQuery()
             ->orderBy('apis.api_name')
             ->get(['apis.id', 'apis.api_name']);
 
-        return view('admin.routings.api-switching', compact('operators', 'apis'));
+        $services = Schema::hasTable('services')
+            ? DB::table('services')
+                ->where('services.status', 1)
+                ->where(function ($q) {
+                    $q->whereNull('services.deleted_at')->orWhere('services.deleted_at', '!=', 1);
+                })
+                ->orderBy('services.service_name')
+                ->get(['services.id', 'services.service_name'])
+            : collect();
+
+        return view('admin.routings.api-switching', compact('operators', 'apis', 'services'));
     }
 
-    public function apiSwitchingList()
+    public function apiSwitchingList(Request $request)
     {
         $columns = [
             'providers.id as operator_id',
             'providers.provider_name as operator_name',
-            'services.service_name as operator_type',
+            DB::raw('COALESCE(services.service_name, providers.operator_type) as operator_type'),
             'providers.service_id',
+            'providers.provider_logo',
             'providers.api_id',
             'primary_api.api_name',
         ];
@@ -347,6 +358,19 @@ class OperatorRoutingController extends Controller
         $query = $this->operatorsQuery()
             ->leftJoin('services', 'services.id', '=', 'providers.service_id')
             ->leftJoin('apis as primary_api', 'primary_api.id', '=', 'providers.api_id');
+
+        if ($request->filled('operator_name')) {
+            $query->where('providers.provider_name', 'like', '%' . trim((string) $request->operator_name) . '%');
+        }
+
+        if ($request->filled('operator_type')) {
+            $operatorType = trim((string) $request->operator_type);
+            if (is_numeric($operatorType)) {
+                $query->where('providers.service_id', (int) $operatorType);
+            } else {
+                $query->whereRaw('COALESCE(services.service_name, providers.operator_type) like ?', ['%' . $operatorType . '%']);
+            }
+        }
 
         foreach (['backup_api_id', 'backup_api2_id', 'backup_api3_id'] as $index => $column) {
             if (!Schema::hasColumn('providers', $column)) {
@@ -359,7 +383,11 @@ class OperatorRoutingController extends Controller
             $columns[] = "{$alias}.api_name as {$alias}_name";
         }
 
-        $rows = $query->orderBy('providers.provider_name')->get($columns);
+        $rows = $query->orderBy('providers.provider_name')->get($columns)
+            ->map(function ($row) {
+                $row->logo_url = $this->logoUrl($row->provider_logo ?? '');
+                return $row;
+            });
 
         return response()->json([
             'type' => 'success',
