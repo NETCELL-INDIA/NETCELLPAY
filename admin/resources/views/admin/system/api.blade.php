@@ -663,6 +663,10 @@
 
                                             <option value="recharge" selected="">Recharge</option>
 
+                                            <option value="plan">Plan / Circle / DTH Info</option>
+
+                                            <option value="message">Message / SMS / WhatsApp</option>
+
                                             <option value="biillpay">Bill Pay</option>
 
                                             <option value="moneytransfer">Money Transfer</option>

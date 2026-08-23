@@ -1734,7 +1734,16 @@ class PlanInfoFetchService
             return collect();
         }
 
-        return DB::table('apis')->orderBy('api_name')->get(['id', 'api_name', 'api_url', 'api_username', 'api_password', 'api_key']);
+        $q = DB::table('apis')->orderBy('api_name');
+        if (Schema::hasColumn('apis', 'api_type')) {
+            $q->where(function ($w) {
+                $w->whereNull('api_type')
+                    ->orWhere('api_type', '')
+                    ->orWhere('api_type', 'plan');
+            });
+        }
+
+        return $q->get(['id', 'api_name', 'api_url', 'api_username', 'api_password', 'api_key']);
     }
 
     public static function apiLabel(int $apiId): string

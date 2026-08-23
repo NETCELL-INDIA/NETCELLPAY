@@ -65,7 +65,18 @@ class ApiController extends Controller
             $page_link .= '<li class="page-item "><a href="javascript:void(0)" class="page-link '.$act.'" '.$d.'>'.$i1.'</a></li>';
         };
 
-        $list = DB::table('apis')->where('deleted_at', '!=' , 1)->orderBy('id', 'DESC')->offset($start)->limit($limit)->get();
+        $typeOrder = "CASE LOWER(COALESCE(NULLIF(api_type, ''), 'recharge'))
+            WHEN 'recharge' THEN 1
+            WHEN 'biillpay' THEN 2
+            WHEN 'moneytransfer' THEN 3
+            WHEN 'aeps' THEN 4
+            WHEN 'plan' THEN 5
+            WHEN 'message' THEN 6
+            ELSE 9 END";
+        $list = DB::table('apis')->where('deleted_at', '!=' , 1)
+            ->orderByRaw($typeOrder)
+            ->orderBy('id', 'DESC')
+            ->offset($start)->limit($limit)->get();
         $list_count = $list->count();
         $output = '';
 		if ($list->count() > 0) {
@@ -94,6 +105,7 @@ class ApiController extends Controller
                 <th>Name</th>
                 <th>Username</th>
                 <th>Password</th>
+                <th>Type</th>
                 <th>Status</th>
                 <th>Store Log</th>
                 <th>API Balance</th>
@@ -109,6 +121,17 @@ class ApiController extends Controller
                     $status = '<span class="badge rounded-pill text-bg-danger">Deactive</span>';
                 }
                 $pass = $list->api_password ? str_repeat('x', min(30, max(8, strlen((string) $list->api_password)))) : '-';
+                $typeLabels = [
+                    'recharge' => 'Recharge',
+                    'plan' => 'Plan',
+                    'message' => 'Message',
+                    'biillpay' => 'Bill Pay',
+                    'moneytransfer' => 'Money Transfer',
+                    'aeps' => 'Aeps',
+                    'others' => 'Others',
+                ];
+                $typeLabel = $typeLabels[strtolower((string) ($list->api_type ?? 'recharge'))] ?? ucfirst((string) ($list->api_type ?? 'Recharge'));
+                $typeBadge = '<span class="badge rounded-pill text-bg-info">' . e($typeLabel) . '</span>';
                 $storeOn = (int) ($list->store_log ?? 0) === 1;
                 $storeLog = $storeOn
                     ? '<span class="badge rounded-pill text-bg-success">On</span>'
@@ -121,6 +144,7 @@ class ApiController extends Controller
                 <td>' . e($list->api_name) . '</td>
                 <td>' . e($list->api_username) . '</td>
                 <td>' . e($pass) . '</td>
+                <td>' . $typeBadge . '</td>
                 <td>' . $status . '</td>
                 <td>' . $storeLog . '</td>
                 <td>

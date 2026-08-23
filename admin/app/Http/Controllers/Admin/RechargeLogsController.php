@@ -48,7 +48,8 @@ class RechargeLogsController extends Controller
             })
             ->leftJoin('users as u', 'u.id', '=', 'r.user_id')
             ->leftJoin('apis as a', 'a.id', '=', 'r.api_id')
-            ->whereDate('l.created_at', $date);
+            ->whereDate('l.created_at', $date)
+            ->whereNotIn('l.modal', ['WHATSAPP_URL', 'FCM', 'CHECK_MOBILE', 'DTH INFO', 'BILL_INFO', 'USER_RECHARGE_CALLBACK', 'USER_COMPLAINT_CALLBACK']);
 
         if ($request->user_id) {
             $q->where('r.user_id', (int) $request->user_id);

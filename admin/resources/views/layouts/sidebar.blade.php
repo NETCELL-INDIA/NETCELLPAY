@@ -281,8 +281,6 @@
                             <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Add / List APIs</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/apis/plan-circle-dth-api') }}" class="nav-link">Plan / Circle / DTH Info Fetch API</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/plan-logs-report') }}" class="nav-link">Plan / Roffer / HLR Logs</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Balance &amp; Status Check</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/system/apis') }}" class="nav-link">Plan / Circle / Provider Codes</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/api-log-report') }}" class="nav-link">API Log Report</a></li>
                         </ul>
                     </div>

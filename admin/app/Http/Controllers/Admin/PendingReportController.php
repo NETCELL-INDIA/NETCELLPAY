@@ -12,10 +12,28 @@ class PendingReportController extends Controller
 {
     public function index()
     {
-        $apis = DB::table('apis')->orderBy('api_name')->get(['id', 'api_name']);
+        $apis = $this->rechargeApis();
         $providers = DB::table('providers')->orderBy('provider_name')->get(['id', 'provider_name']);
 
         return view('admin.recharge-reports.pending-report', compact('apis', 'providers'));
+    }
+
+    private function rechargeApis()
+    {
+        $q = DB::table('apis')
+            ->where('deleted_at', '!=', 1)
+            ->where('status', 1)
+            ->orderBy('api_name');
+
+        if (Schema::hasColumn('apis', 'api_type')) {
+            $q->where(function ($w) {
+                $w->whereNull('api_type')
+                    ->orWhere('api_type', '')
+                    ->orWhere('api_type', 'recharge');
+            });
+        }
+
+        return $q->get(['id', 'api_name']);
     }
 
     private function baseQuery(Request $request)
@@ -108,6 +126,7 @@ class PendingReportController extends Controller
                     <td><span class="badge bg-warning text-dark">' . e(strtoupper($list->status ?: 'PENDING')) . '</span></td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '">Resend</button>
                         <button type="button" class="btn btn-sm btn-outline-success btn-mark" data-id="' . e($list->id) . '" data-status="Success">Success</button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-mark" data-id="' . e($list->id) . '" data-status="Failed">Fail</button>
                     </td>
@@ -219,6 +238,90 @@ class PendingReportController extends Controller
         ]);
     }
 
+    public function resend(Request $request)
+    {
+        $id = (int) $request->id;
+        if ($id <= 0) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid transaction']);
+        }
+
+        $report = DB::table('reports')->where('id', $id)->first();
+        if (!$report) {
+            return response()->json(['type' => 'error', 'message' => 'Transaction not found']);
+        }
+        if (!in_array($report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+            return response()->json(['type' => 'error', 'message' => 'Only pending transactions can be resent']);
+        }
+
+        $api = DB::table('apis')->where('id', $report->api_id)->first();
+        if (!$api || (int) $api->status !== 1) {
+            return response()->json(['type' => 'error', 'message' => 'Active API not found for this transaction']);
+        }
+        $apiType = strtolower((string) ($api->api_type ?? 'recharge'));
+        if ($apiType !== '' && $apiType !== 'recharge') {
+            return response()->json(['type' => 'error', 'message' => 'Only Recharge API can be resent']);
+        }
+
+        try {
+            $providerCode = \helpers::ApiProviderCode($api->id, $report->provider_id);
+            $stateCode = \helpers::ApiStateCode($api->id, $report->state_id);
+
+            $url = (string) $api->api_url;
+            $url = str_replace('{API_USERNAME}', (string) $api->api_username, $url);
+            $url = str_replace('{API_PASSWORD}', (string) $api->api_password, $url);
+            $url = str_replace('{API_KEY}', (string) $api->api_key, $url);
+            $url = str_replace('{NUMBER}', (string) $report->number, $url);
+            $url = str_replace('{PROVIDER_CODE}', (string) $providerCode, $url);
+            $url = str_replace('{STATE_CODE}', (string) $stateCode, $url);
+            $url = str_replace('{AMOUNT}', (string) ($report->total_amount ?? $report->amount), $url);
+            $url = str_replace('{ORDER_ID}', (string) $report->order_id, $url);
+
+            $method = strtoupper(trim($api->api_method ?: 'GET'));
+            $logFlag = ((int) ($api->store_log ?? 0) === 1) ? 'yes' : 'no';
+            $result = \helpers::curl($url, $method, '', [], $logFlag, $report->transaction_type ?: 'RECHARGE', $report->order_id);
+
+            $response = (string) ($result['response'] ?? '');
+            $status = 'Pending';
+            $operatorId = '';
+            $remark = 'Resent to ' . ($api->api_name ?? 'API');
+
+            if ($response !== '' && $api->api_format === 'JSON') {
+                $data = json_decode($response, true);
+                if (is_array($data)) {
+                    $statusKey = $api->status_value;
+                    if ($statusKey && isset($data[$statusKey])) {
+                        $val = $data[$statusKey];
+                        if ($val == $api->success_value) {
+                            $status = 'Success';
+                        } elseif ($val == $api->failed_value) {
+                            $status = 'Failed';
+                        }
+                    }
+                    if (!empty($api->operator_id_value) && isset($data[$api->operator_id_value])) {
+                        $operatorId = (string) $data[$api->operator_id_value];
+                    }
+                }
+            }
+
+            $update = [
+                'status' => $status,
+                'remark' => $remark,
+                'updated_at' => Carbon::now(),
+            ];
+            if ($operatorId !== '' && Schema::hasColumn('reports', 'operator_id')) {
+                $update['operator_id'] = $operatorId;
+            }
+            DB::table('reports')->where('id', $report->id)->update($update);
+
+            return response()->json([
+                'type' => 'success',
+                'message' => 'Resent to ' . ($api->api_name ?? 'API') . ' — ' . $status,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['type' => 'error', 'message' => $e->getMessage()]);
+        }
+    }
+
     public function rehit(Request $request)
     {
         $ids = $request->ids;
@@ -233,6 +336,10 @@ class PendingReportController extends Controller
         $api = DB::table('apis')->where('id', $apiId)->first();
         if (!$api) {
             return response()->json(['type' => 'error', 'message' => 'Invalid Rehit API']);
+        }
+        $apiType = strtolower((string) ($api->api_type ?? 'recharge'));
+        if ($apiType !== '' && $apiType !== 'recharge') {
+            return response()->json(['type' => 'error', 'message' => 'Only Recharge API can be used for resend/rehit']);
         }
 
         $data = [

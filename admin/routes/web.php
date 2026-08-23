@@ -314,6 +314,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/recharge-reports/pending-report/list', [PendingReportController::class, 'list'])->name('pendingReportList');
     Route::post('admin/recharge-reports/pending-report/bulk-status', [PendingReportController::class, 'bulkStatus'])->name('pendingReportBulkStatus');
     Route::post('admin/recharge-reports/pending-report/rehit', [PendingReportController::class, 'rehit'])->name('pendingReportRehit');
+    Route::post('admin/recharge-reports/pending-report/resend', [PendingReportController::class, 'resend'])->name('pendingReportResend');
 
     // Margin Report (full page)
     Route::get('admin/recharge-reports/margin-report', [MarginReportController::class, 'index'])->name('marginReport');

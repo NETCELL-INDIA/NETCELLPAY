@@ -300,6 +300,30 @@ $(function () {
         });
     });
 
+    $(document).on('click', '.btn-resend', function () {
+        var id = $(this).data('id');
+        var $btn = $(this);
+        if (!confirm('Resend this recharge to its API?')) return;
+        $btn.prop('disabled', true).text('...');
+        $.ajax({
+            url: '{{ route("pendingReportResend") }}',
+            method: 'POST',
+            dataType: 'json',
+            data: { _token: csrf, id: id },
+            success: function (res) {
+                alert(res.message || (res.type === 'success' ? 'Done' : 'Failed'));
+                if (res.type === 'success') fetchPending();
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed';
+                alert(msg);
+            },
+            complete: function () {
+                $btn.prop('disabled', false).text('Resend');
+            }
+        });
+    });
+
     $(document).on('click', '.btn-mark', function () {
         var id = $(this).data('id');
         var status = $(this).data('status');
