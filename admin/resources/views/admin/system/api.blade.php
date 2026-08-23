@@ -205,7 +205,7 @@
 
                                     <label for="api_password" class="col-form-label">Api Password:</label>
 
-                                    <input type="text" class="form-control" name="api_password" id="api_password" required="required">
+                                    <input type="text" class="form-control" name="api_password" id="api_password" placeholder="Optional">
 
                                 </div>
 
@@ -239,7 +239,7 @@
 
                                 <div>
 
-                                    <label for="balance_check_url" class="col-form-label">Balance Check URL:</label>
+                                    <label for="balance_check_url" class="col-form-label">Balance Check URL: {API_USERNAME},{API_PASSWORD},{API_KEY}</label>
 
                                     <textarea class="form-control" name="balance_check_url" id="balance_check_url"></textarea>
 

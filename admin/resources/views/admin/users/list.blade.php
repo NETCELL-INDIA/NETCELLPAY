@@ -264,6 +264,18 @@
 
                             </div>
 
+                            <div class="col-xxl-12 col-md-12">
+
+                                <div>
+
+                                    <label for="fund_t_pin" class="form-label">PIN: <a style="color: red">*</a></label>
+
+                                    <input type="password" class="form-control" name="t_pin" id="fund_t_pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="Enter 4-digit PIN" required autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+
+                                </div>
+
+                            </div>
+
                             <!--end col-->
 
                         </div>
@@ -1499,6 +1511,12 @@
     $("#fund_details_form").submit(function(e) {
 
         e.preventDefault();
+
+        var pin = String($("#fund_t_pin").val() || '').replace(/\D/g, '');
+        if (pin.length !== 4) {
+            Error_Msg("Error", "Please enter a valid 4-digit PIN.", "error");
+            return;
+        }
 
         const fd = new FormData(this);
 

@@ -453,10 +453,15 @@ class ApiController extends Controller
             //echo "<pre>";print_r($get->balance_check_url);die;
 
             if($get->balance_check_url){
+                $balanceUrl = (string) $get->balance_check_url;
+                $balanceUrl = str_replace('{API_USERNAME}', (string) ($get->api_username ?? ''), $balanceUrl);
+                $balanceUrl = str_replace('{API_PASSWORD}', (string) ($get->api_password ?? ''), $balanceUrl);
+                $balanceUrl = str_replace('{API_KEY}', (string) ($get->api_key ?? ''), $balanceUrl);
+
                 $curl = curl_init();
 
                 curl_setopt_array($curl, array(
-                  CURLOPT_URL => $get->balance_check_url,
+                  CURLOPT_URL => $balanceUrl,
                   CURLOPT_RETURNTRANSFER => true,
                   CURLOPT_ENCODING => '',
                   CURLOPT_MAXREDIRS => 10,
@@ -545,7 +550,7 @@ class ApiController extends Controller
             'apiName'  => 'required',
 
             'api_username' => 'required',
-            'api_password' => 'required',
+            'api_password' => 'nullable',
             'api_key' => 'required',
             'api_url' => 'required',
             'balance_check_url' => 'required',

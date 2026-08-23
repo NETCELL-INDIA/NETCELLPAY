@@ -951,6 +951,17 @@ if (! function_exists('normalize_user_pin')) {
     }
 }
 
+if (! function_exists('verify_user_pin')) {
+    function verify_user_pin($stored, $entered): bool
+    {
+        if ($stored === null || $stored === '') {
+            return false;
+        }
+
+        return hash_equals(normalize_user_pin($stored), normalize_user_pin($entered));
+    }
+}
+
 if (! function_exists('ensure_user_visible_password_column')) {
     function ensure_user_visible_password_column(): void
     {

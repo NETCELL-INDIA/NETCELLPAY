@@ -105,8 +105,32 @@ document.addEventListener('DOMContentLoaded', function () {
             link.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
+                var item = link.closest('.nav-item');
+                var drop = item ? item.querySelector(':scope > .menu-dropdown') : null;
+                document.querySelectorAll('#navbar-nav > .nav-item > .menu-dropdown.show').forEach(function (d) {
+                    if (d !== drop) d.classList.remove('show');
+                });
+                document.querySelectorAll('#navbar-nav > .nav-item > a.menu-link[aria-expanded="true"]').forEach(function (a) {
+                    if (a !== link) a.setAttribute('aria-expanded', 'false');
+                });
+                if (drop) {
+                    drop.classList.toggle('show');
+                    link.setAttribute('aria-expanded', drop.classList.contains('show') ? 'true' : 'false');
+                }
             });
         });
+        if (!document.documentElement.dataset.hmenuDocBound) {
+            document.documentElement.dataset.hmenuDocBound = '1';
+            document.addEventListener('click', function (e) {
+                if (e.target && e.target.closest && e.target.closest('#navbar-nav > .nav-item')) return;
+                document.querySelectorAll('#navbar-nav > .nav-item > .menu-dropdown.show').forEach(function (d) {
+                    d.classList.remove('show');
+                });
+                document.querySelectorAll('#navbar-nav > .nav-item > a.menu-link[aria-expanded="true"]').forEach(function (a) {
+                    a.setAttribute('aria-expanded', 'false');
+                });
+            });
+        }
     }
     unwrapNavbarSimpleBar();
     flattenMoreMenu();

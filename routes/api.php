@@ -37,6 +37,7 @@ Route::group(['middleware' => ApiPartnerCheck::class], function () {
     Route::get('/ApiPartner/V1/Recharge',[RechargeController::class,'rechargeCall']);
     Route::get('/ApiPartner/V1/RechargeStatus',[RechargeController::class,'getRechargeReciept']);
     Route::get('/ApiPartner/V1/RechargeComplaint',[RechargeController::class,'submitRechargeComplaint']);
+    Route::get('/ApiPartner/V1/Balance',[ApiController::class,'checkBalance']);
 });
 
 

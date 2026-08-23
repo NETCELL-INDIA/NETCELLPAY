@@ -927,6 +927,7 @@ class UserListController extends Controller
             'type'  => 'required|in:Transfer,Reverse',
             'amount' => 'required|numeric|gt:0',
             'remark' => 'required|max:50|string',
+            't_pin' => 'required|digits:4',
         );
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
@@ -940,6 +941,18 @@ class UserListController extends Controller
             ));
         }
         $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        if (!$user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+        if (! verify_user_pin($user->t_pin ?? '', $post->t_pin)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Invalid PIN.',
+            ]);
+        }
         $isAdmin = (int) ($user->role_id ?? 0) === 1;
 
         if($post->type == "Transfer"){

@@ -292,6 +292,10 @@
                         <label for="admin_load_remark" class="form-label">Remark <span class="text-danger">*</span></label>
                         <textarea class="form-control" name="remark" id="admin_load_remark" rows="3" placeholder="Enter remark" required></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label for="admin_load_pin" class="form-label">PIN <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="t_pin" id="admin_load_pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="Enter 4-digit PIN" required autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+                    </div>
                     <div class="text-end">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-success" id="admin_load_wallet_btn">Add Balance</button>

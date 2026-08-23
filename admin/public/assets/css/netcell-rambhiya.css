@@ -170,6 +170,7 @@
     min-width: 220px;
     padding: 0.35rem 0 !important;
     display: none;
+    margin-top: 0 !important;
 }
 
 [data-layout=horizontal] .navbar-nav > .nav-item:nth-last-child(-n+3) > .menu-dropdown {
@@ -1401,18 +1402,19 @@ table thead.table-dark > tr > th {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 4px;
 }
 
 .users-action-btns .btn {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.78rem;
+    font-size: 1rem;
     line-height: 1;
+    border-radius: 50%;
 }
 
 .users-list-footer {

@@ -349,8 +349,9 @@
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarEmployees">
                         <ul class="nav nav-sm flex-column">
-                            <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">List Employees / Users</a></li>
-                            <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/user-sale-report') }}" class="nav-link">Performance (Sale Report)</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Employees</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/system/role') }}" class="nav-link">Permissions / Roles</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/user-sale-report') }}" class="nav-link">Performance Report</a></li>
                         </ul>
                     </div>
                 </li>

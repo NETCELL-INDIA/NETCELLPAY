@@ -54,6 +54,9 @@ function capitalizeFirstLetter(string){
         if (!modalEl) {
             return;
         }
+        if ($("#admin_load_wallet_form")[0]) {
+            $("#admin_load_wallet_form")[0].reset();
+        }
         if (window.bootstrap && bootstrap.Modal) {
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
         } else {
@@ -72,6 +75,11 @@ function capitalizeFirstLetter(string){
 
     $("#admin_load_wallet_form").submit(function(e) {
         e.preventDefault();
+        var pin = String($("#admin_load_pin").val() || '').replace(/\D/g, '');
+        if (pin.length !== 4) {
+            Error_Msg("Error", "Please enter a valid 4-digit PIN.", "error");
+            return;
+        }
         const fd = new FormData(this);
         $("#admin_load_wallet_btn").text('Please wait...');
         $('#admin_load_wallet_btn').prop('disabled', true);

@@ -6,6 +6,7 @@ API Settings
 @section('content')
 @php
     $apiKey = $user->api_key ?: 'YOUR_API_KEY';
+    $balanceSample = $baseUrl . '/Balance?api_key=' . urlencode($apiKey);
     $rechargeSample = $baseUrl . '/Recharge?api_key=' . urlencode($apiKey) . '&number=9876543210&amount=199&provider_id=1&service_id=1&request_order_id=REQ' . date('YmdHis');
     $statusSample = $baseUrl . '/RechargeStatus?api_key=' . urlencode($apiKey) . '&request_order_id=REQ' . date('YmdHis');
     $complaintSample = $baseUrl . '/RechargeComplaint?api_key=' . urlencode($apiKey) . '&order_id=RC20260817111918870042258&subject=Wrong%20recharge';
@@ -78,6 +79,11 @@ API Settings
                         </thead>
                         <tbody>
                             <tr>
+                                <td>Balance</td>
+                                <td><code>{{ $baseUrl }}/Balance</code></td>
+                                <td><code>api_key</code></td>
+                            </tr>
+                            <tr>
                                 <td>Recharge</td>
                                 <td><code>{{ $baseUrl }}/Recharge</code></td>
                                 <td>
@@ -100,12 +106,21 @@ API Settings
                 </div>
 
                 <h5 class="mb-2">Sample requests</h5>
+                <p class="mb-1"><strong>Balance</strong></p>
+                <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $balanceSample }}</pre>
                 <p class="mb-1"><strong>Recharge</strong></p>
                 <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $rechargeSample }}</pre>
                 <p class="mb-1"><strong>Status</strong></p>
                 <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $statusSample }}</pre>
                 <p class="mb-1"><strong>Complaint</strong></p>
                 <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $complaintSample }}</pre>
+
+                <h5 class="mb-2">Balance response</h5>
+                <pre class="bg-light p-2 small mb-3">{
+  "type": "success",
+  "message": "Get sucessfuly",
+  "balance": 1250.50
+}</pre>
 
                 <h5 class="mb-2">Recharge response</h5>
                 <pre class="bg-light p-2 small mb-3">{
@@ -140,6 +155,7 @@ API Settings
                 <h5 class="mb-2">Notes</h5>
                 <ul class="mb-0">
                     <li>Do not send <code>pin</code>.</li>
+                    <li>Balance URL returns the current wallet amount for the API key.</li>
                     <li><code>request_order_id</code> = your unique txn id. Reuse returns “request order id already exists.”</li>
                     <li><code>order_id</code> = our system id (starts with RC…). Use this for complaints.</li>
                     <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid.</li>

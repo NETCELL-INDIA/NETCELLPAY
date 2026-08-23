@@ -32,6 +32,7 @@ class DashboardController extends Controller
         $rules = array(
             'remark'  => 'required',
             'amount' => 'required|numeric',
+            't_pin' => 'required|digits:4',
         );
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
@@ -44,17 +45,25 @@ class DashboardController extends Controller
                 'message' => $error
             ));
         }
+        $userId = (int) Session::get('user_id');
+        $user = DB::table('users')->where('id', $userId)->first();
+        if (!$user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+        if (! verify_user_pin($user->t_pin ?? '', $post->t_pin)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Invalid PIN.',
+            ]);
+        }
+
         try {
             DB::beginTransaction();
             $order_id = "FND" . rand(11111111111, 9999999999);
-            $userId = (int) Session::get('user_id');
             $user = DB::table('users')->where('id', $userId)->first();
-            if (!$user) {
-                return response()->json([
-                    'type' => 'error',
-                    'message' => 'User not found.',
-                ]);
-            }
             $newBalance = (float) $user->wallet_balance + (float) $post->amount;
             DB::table('reports')->insert([
                 'user_id' => $user->id,
