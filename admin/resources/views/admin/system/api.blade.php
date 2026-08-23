@@ -1655,11 +1655,11 @@
 
                 $("#api_key").val(data.data.api_key);
 
-                $("#api_url").text(data.data.api_url);
+                $("#api_url").val(data.data.api_url);
 
-                $("#complaint_api_url").text(data.data.complaint_api_url);
+                $("#complaint_api_url").val(data.data.complaint_api_url);
 
-                $("#balance_check_url").text(data.data.balance_check_url);
+                $("#balance_check_url").val(data.data.balance_check_url);
 
                 $("#status_value").val(data.data.status_value);
 
