@@ -598,113 +598,115 @@ class ApiController extends Controller
                 $error = $value[0];
             }
             return response()->json(array(
-                'type' => 'error',  
+                'type' => 'error',
                 'message' => $error
             ));
         }
-        if($post->edit_id==0){
-            $update = DB::table('apis')->insert([
-                'api_name' => $post->apiName,
-               
-                'complaint_api_url' => $post->complaint_api_url,
-                'complaint_api_method' => $post->complaint_api_method,
-                'complaint_status_value' => $post->complaint_status_value,
-                'complaint_success_value' => $post->complaint_success_value,
-                'complaint_failed_value' => $post->complaint_failed_value,
-                'complaint_callback_status_value' => $post->complaint_callback_status_value,
-                'complaint_callback_success_value' => $post->complaint_callback_success_value,
-                'complaint_callback_failed_value' => $post->complaint_callback_failed_value,
-                'complaint_callback_remark' => $post->complaint_callback_remark,
-                'complaint_callback_api_method' => $post->complaint_callback_api_method,
-                'refund_value' => $post->refund_value,
-                'callback_refund_value' => $post->callback_refund_value,
 
-                
-                'api_username' => $post->api_username,
-                'api_password' => $post->api_password,
-                'api_key' => $post->api_key,
-                'api_url' => $post->api_url,
-                'balance_check_url' => $post->balance_check_url,
-                'status_value' => $post->status_value,
-                'success_value' => $post->success_value,
-                'failed_value' => $post->failed_value,
-                'pending_value' => $post->pending_value,
-                'error_value' => $post->error_value,
-                'error_value_response' => $post->error_value_response,
-                'order_id_value' => $post->order_id_value,
-                'operator_id_value' => $post->operator_id_value,
-                'api_method' => $post->api_method,
-                'api_format' => $post->api_format,
-                'callback_status_value' => $post->callback_status_value,
-                'callback_success_value' => $post->callback_success_value,
-                'callback_failed_value' => $post->callback_failed_value,
-                'callback_order_id_value' => $post->callback_order_id_value,
-                'callback_operator_id_value' => $post->callback_operator_id_value,
-                'callback_remark' => $post->callback_remark,
-                'callback_api_method' => $post->callback_api_method,
-                'api_type' => $post->api_type,
+        $this->ensureApiUrlColumns();
 
-                'status' => $post->status,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now()
+        $payload = [
+            'api_name' => $post->apiName,
+            'complaint_api_url' => $post->complaint_api_url,
+            'complaint_api_method' => $post->complaint_api_method,
+            'complaint_status_value' => $post->complaint_status_value,
+            'complaint_success_value' => $post->complaint_success_value,
+            'complaint_failed_value' => $post->complaint_failed_value,
+            'complaint_callback_status_value' => $post->complaint_callback_status_value,
+            'complaint_callback_success_value' => $post->complaint_callback_success_value,
+            'complaint_callback_failed_value' => $post->complaint_callback_failed_value,
+            'complaint_callback_remark' => $post->complaint_callback_remark,
+            'complaint_callback_api_method' => $post->complaint_callback_api_method,
+            'refund_value' => $post->refund_value,
+            'callback_refund_value' => $post->callback_refund_value,
+            'api_username' => $post->api_username,
+            'api_password' => (string) ($post->api_password ?? ''),
+            'api_key' => $post->api_key,
+            'api_url' => $post->api_url,
+            'balance_check_url' => $post->balance_check_url,
+            'status_value' => $post->status_value,
+            'success_value' => $post->success_value,
+            'failed_value' => $post->failed_value,
+            'pending_value' => $post->pending_value,
+            'error_value' => $post->error_value,
+            'error_value_response' => $post->error_value_response,
+            'order_id_value' => $post->order_id_value,
+            'operator_id_value' => $post->operator_id_value,
+            'api_method' => $post->api_method,
+            'api_format' => $post->api_format,
+            'callback_status_value' => $post->callback_status_value,
+            'callback_success_value' => $post->callback_success_value,
+            'callback_failed_value' => $post->callback_failed_value,
+            'callback_order_id_value' => $post->callback_order_id_value,
+            'callback_operator_id_value' => $post->callback_operator_id_value,
+            'callback_remark' => $post->callback_remark,
+            'callback_api_method' => $post->callback_api_method,
+            'api_type' => $post->api_type,
+            'status' => $post->status,
+            'updated_at' => Carbon::now(),
+        ];
+
+        $columns = Schema::hasTable('apis') ? Schema::getColumnListing('apis') : array_keys($payload);
+        $payload = array_intersect_key($payload, array_flip($columns));
+
+        try {
+            if ((int) $post->edit_id === 0) {
+                if (in_array('created_at', $columns, true)) {
+                    $payload['created_at'] = Carbon::now();
+                }
+                $ok = DB::table('apis')->insert($payload);
+                $message = 'Create sucessfuly';
+            } else {
+                $existing = DB::table('apis')->where('id', $post->edit_id)->first();
+                if (!$existing) {
+                    return response()->json([
+                        'type' => 'error',
+                        'message' => 'API not found.',
+                    ]);
+                }
+                DB::table('apis')->where('id', $post->edit_id)->update($payload);
+                $ok = true;
+                $message = 'Update sucessfuly';
+            }
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => $e->getMessage(),
             ]);
-            $message = "Create sucessfuly";
-        }else{
-            $update = DB::table('apis')->where('id', $post->edit_id)->update([
-                'api_name' => $post->apiName,
+        }
 
-                    
-                    'complaint_api_url' => $post->complaint_api_url,
-                    'complaint_api_method' => $post->complaint_api_method,
-                    'complaint_status_value' => $post->complaint_status_value,
-                    'complaint_success_value' => $post->complaint_success_value,
-                    'complaint_failed_value' => $post->complaint_failed_value,
-                    'complaint_callback_status_value' => $post->complaint_callback_status_value,
-                    'complaint_callback_success_value' => $post->complaint_callback_success_value,
-                    'complaint_callback_failed_value' => $post->complaint_callback_failed_value,
-                    'complaint_callback_remark' => $post->complaint_callback_remark,
-                    'complaint_callback_api_method' => $post->complaint_callback_api_method,
-                    'refund_value' => $post->refund_value,
-                    'callback_refund_value' => $post->callback_refund_value,
-
-                    
-                'api_username' => $post->api_username,
-                'api_password' => $post->api_password,
-                'api_key' => $post->api_key,
-                'api_url' => $post->api_url,
-                'balance_check_url' => $post->balance_check_url,
-                'status_value' => $post->status_value,
-                'success_value' => $post->success_value,
-                'failed_value' => $post->failed_value,
-                'pending_value' => $post->pending_value,
-                'error_value' => $post->error_value,
-                'error_value_response' => $post->error_value_response,
-                'order_id_value' => $post->order_id_value,
-                'operator_id_value' => $post->operator_id_value,
-                'api_method' => $post->api_method,
-                'api_format' => $post->api_format,
-                'callback_status_value' => $post->callback_status_value,
-                'callback_success_value' => $post->callback_success_value,
-                'callback_failed_value' => $post->callback_failed_value,
-                'callback_order_id_value' => $post->callback_order_id_value,
-                'callback_operator_id_value' => $post->callback_operator_id_value,
-                'callback_remark' => $post->callback_remark,
-                'callback_api_method' => $post->callback_api_method,
-                'api_type' => $post->api_type,
-
-
-                'status' => $post->status,
-                'updated_at' => Carbon::now()
+        if ($ok) {
+            return response()->json([
+                'type' => 'success',
+                'message' => $message,
             ]);
-            $message = "Update sucessfuly";
         }
-        if($update){
-            $data['type'] = 'success';
-            $data['message'] =  $message;
-        } else {
-            $data['type'] = 'error';
-            $data['message'] = "Something went wrong!";
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Something went wrong!',
+        ]);
+    }
+
+    protected function ensureApiUrlColumns(): void
+    {
+        if (!Schema::hasTable('apis')) {
+            return;
         }
-        return $data;
+
+        foreach (['api_url', 'balance_check_url', 'complaint_api_url'] as $column) {
+            try {
+                if (!Schema::hasColumn('apis', $column)) {
+                    DB::statement("ALTER TABLE `apis` ADD COLUMN `{$column}` TEXT NULL");
+                    continue;
+                }
+
+                $type = Schema::getColumnType('apis', $column);
+                if (!in_array($type, ['text', 'mediumtext', 'longtext'], true)) {
+                    DB::statement("ALTER TABLE `apis` MODIFY `{$column}` TEXT NULL");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
     }
 }

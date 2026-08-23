@@ -1831,7 +1831,9 @@
 
           error: function( jqXhr, textStatus, errorThrown ){
 
-            Error_Msg("Oops...","Something went wrong!","error");
+            var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message) ? jqXhr.responseJSON.message : "Something went wrong!";
+
+            Error_Msg("Oops...", msg, "error");
 
             $("#edit_details_btn").text('Save Changes');
 
