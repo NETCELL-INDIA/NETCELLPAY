@@ -699,6 +699,20 @@
 
                             </div>
 
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div class="form-check mt-4">
+
+                                    <input class="form-check-input" type="checkbox" name="store_log" id="store_log" value="1">
+
+                                    <label class="form-check-label" for="store_log">API Store Log</label>
+
+                                    <small class="d-block text-muted">Tick to save and show this API request/response only.</small>
+
+                                </div>
+
+                            </div>
+
                         </div>
 
                     </div>       
@@ -1728,6 +1742,8 @@
                 $("#callback_api_method").val(data.data.callback_api_method).change();
 
                 $("#api_type").val(data.data.api_type).change();
+
+                $("#store_log").prop('checked', Number(data.data.store_log) === 1);
 
 
 

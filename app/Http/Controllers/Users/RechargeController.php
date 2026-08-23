@@ -1719,7 +1719,8 @@ class RechargeController extends Controller
 
                         if (isset($url) && isset($parameters) && isset($method) && isset($header)) {
 
-                            $result = \helpers::curl($url, $method, $parameters, $header, "yes", "COMPLAINT_URL", $request_id);
+                            $logFlag = ((int) ($api_details->store_log ?? 0) === 1) ? 'yes' : 'no';
+                            $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, "COMPLAINT_URL", $request_id);
 
                             if ($result['code'] != 200) {
 

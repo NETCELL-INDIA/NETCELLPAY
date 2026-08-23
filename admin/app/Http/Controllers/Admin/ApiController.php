@@ -13,11 +13,14 @@ class ApiController extends Controller
 {
     public function index(Request $post)
     {
+        $this->ensureApiUrlColumns();
         return view('admin.system.api');
     }
 
     public function fetchAll(Request $post)
     {
+        $this->ensureApiUrlColumns();
+
         $rules = array(
             'page' => 'required|numeric',
             'limit' => 'required|numeric',
@@ -92,6 +95,7 @@ class ApiController extends Controller
                 <th>Username</th>
                 <th>Password</th>
                 <th>Status</th>
+                <th>Store Log</th>
                 <th>API Balance</th>
                 <th>Action</th>
               </tr>
@@ -105,16 +109,24 @@ class ApiController extends Controller
                     $status = '<span class="badge rounded-pill text-bg-danger">Deactive</span>';
                 }
                 $pass = $list->api_password ? str_repeat('x', min(30, max(8, strlen((string) $list->api_password)))) : '-';
+                $storeOn = (int) ($list->store_log ?? 0) === 1;
+                $storeLog = $storeOn
+                    ? '<span class="badge rounded-pill text-bg-success">On</span>'
+                    : '<span class="badge rounded-pill text-bg-secondary">Off</span>';
+                $logsBtn = $storeOn
+                    ? '<a href="javascript:void(0)" id="' . $list->id . '" data-name="' . e($list->api_name) . '" class="btn btn-sm btn-outline-success viewApiLogs">Logs</a>'
+                    : '';
 				$output .= '<tr>
                 <td>' . $i . '</td>
                 <td>' . e($list->api_name) . '</td>
                 <td>' . e($list->api_username) . '</td>
                 <td>' . e($pass) . '</td>
                 <td>' . $status . '</td>
+                <td>' . $storeLog . '</td>
                 <td>
                     <div class="d-inline-flex align-items-center gap-1 flex-wrap">
                         <a href="javascript:void(0)" id="' . $list->id . '" class="btn btn-sm btn-outline-success checkLiveBalance">Get Balance</a>
-                        <a href="javascript:void(0)" id="' . $list->id . '" data-name="' . e($list->api_name) . '" class="btn btn-sm btn-outline-success viewApiLogs">Logs</a>
+                        ' . $logsBtn . '
                     </div>
                 </td>
                 <td>
@@ -459,24 +471,38 @@ class ApiController extends Controller
                 $balanceUrl = str_replace('{API_KEY}', (string) ($get->api_key ?? ''), $balanceUrl);
 
                 $curl = curl_init();
-
                 curl_setopt_array($curl, array(
                   CURLOPT_URL => $balanceUrl,
                   CURLOPT_RETURNTRANSFER => true,
                   CURLOPT_ENCODING => '',
                   CURLOPT_MAXREDIRS => 10,
-                  CURLOPT_TIMEOUT => 0,
+                  CURLOPT_TIMEOUT => 30,
                   CURLOPT_FOLLOWLOCATION => true,
                   CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                  CURLOPT_CUSTOMREQUEST => $get->api_method,
+                  CURLOPT_CUSTOMREQUEST => $get->api_method ?: 'GET',
                 ));
-                
                 $response = curl_exec($curl);
-                
+                $err = curl_error($curl);
                 curl_close($curl);
-                ///echo "<pre>";print_r($response);die;
+
+                if ((int) ($get->store_log ?? 0) === 1 && Schema::hasTable('apilogs')) {
+                    try {
+                        DB::table('apilogs')->insert([
+                            'url' => $balanceUrl,
+                            'modal' => 'BALANCE_CHECK',
+                            'txnid' => $get->id,
+                            'header' => '',
+                            'request' => '',
+                            'response' => $response,
+                            'created_at' => Carbon::now(),
+                            'updated_at' => Carbon::now(),
+                        ]);
+                    } catch (\Throwable $e) {
+                    }
+                }
+
                 $data['type'] = 'success';
-                $data['message'] = $response;
+                $data['message'] = ($response !== '' && $response !== false) ? $response : ($err ?: 'Empty response');
             }else{
                 $data['type'] = 'error';
                 $data['message'] = "Something went wrong!";
@@ -495,6 +521,15 @@ class ApiController extends Controller
             return response()->json(['type' => 'error', 'message' => 'API not found', 'data' => []]);
         }
 
+        if ((int) ($api->store_log ?? 0) !== 1) {
+            return response()->json([
+                'type' => 'success',
+                'api_name' => $api->api_name,
+                'message' => 'Store Log is off for this API.',
+                'data' => [],
+            ]);
+        }
+
         if (!Schema::hasTable('apilogs')) {
             return response()->json([
                 'type' => 'success',
@@ -504,7 +539,7 @@ class ApiController extends Controller
         }
 
         $hosts = [];
-        foreach ([$api->api_url ?? '', $api->balance_check_url ?? ''] as $url) {
+        foreach ([$api->api_url ?? '', $api->balance_check_url ?? '', $api->complaint_api_url ?? ''] as $url) {
             $host = parse_url((string) $url, PHP_URL_HOST);
             if ($host) {
                 $hosts[] = $host;
@@ -512,28 +547,23 @@ class ApiController extends Controller
         }
         $hosts = array_values(array_unique($hosts));
 
-        $q = DB::table('apilogs')->orderByDesc('id');
-        if (!empty($hosts)) {
-            $q->where(function ($w) use ($hosts, $api) {
-                foreach ($hosts as $host) {
-                    $w->orWhere('url', 'like', '%' . $host . '%');
-                }
-                if (!empty($api->api_username)) {
-                    $w->orWhere('url', 'like', '%' . $api->api_username . '%');
-                    $w->orWhere('request', 'like', '%' . $api->api_username . '%');
-                }
-            });
+        if (empty($hosts)) {
+            return response()->json([
+                'type' => 'success',
+                'api_name' => $api->api_name,
+                'data' => [],
+            ]);
         }
+
+        $q = DB::table('apilogs')->orderByDesc('id');
+        $q->where(function ($w) use ($hosts) {
+            foreach ($hosts as $host) {
+                $w->orWhere('url', 'like', '%' . $host . '%');
+            }
+        });
 
         $rows = $q->limit(15)
             ->get(['id', 'txnid', 'modal', 'url', 'header', 'request', 'response', 'created_at']);
-
-        if ($rows->isEmpty() && !empty($hosts)) {
-            $rows = DB::table('apilogs')
-                ->orderByDesc('id')
-                ->limit(15)
-                ->get(['id', 'txnid', 'modal', 'url', 'header', 'request', 'response', 'created_at']);
-        }
 
         return response()->json([
             'type' => 'success',
@@ -643,6 +673,7 @@ class ApiController extends Controller
             'callback_api_method' => $post->callback_api_method,
             'api_type' => $post->api_type,
             'status' => $post->status,
+            'store_log' => $post->boolean('store_log') ? 1 : 0,
             'updated_at' => Carbon::now(),
         ];
 
@@ -707,6 +738,13 @@ class ApiController extends Controller
                 }
             } catch (\Throwable $e) {
             }
+        }
+
+        try {
+            if (!Schema::hasColumn('apis', 'store_log')) {
+                DB::statement('ALTER TABLE `apis` ADD COLUMN `store_log` TINYINT(1) NOT NULL DEFAULT 0');
+            }
+        } catch (\Throwable $e) {
         }
     }
 }

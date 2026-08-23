@@ -112,7 +112,8 @@ class ProcessRecharge implements ShouldQueue
                 $header = [];
                 $parameters = '';
 
-                $result = \helpers::curl($url, $method, $parameters, $header, 'yes', $this->service, $report->order_id);
+                $logFlag = ((int) ($api_details->store_log ?? 0) === 1) ? 'yes' : 'no';
+                $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
 
                 if ((empty($result['response']) && !empty($result['error'])) || empty($result['response']) || (isset($result['code']) && $result['code'] >= 500)) {
                     throw new \Exception('Transient API error: ' . ($result['error'] ?? 'empty response'));

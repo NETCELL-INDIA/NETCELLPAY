@@ -1213,7 +1213,7 @@ class helpers
 
         curl_close($curl);
 
-        if($log != "no"){
+        if($log != "no" && self::shouldStoreSupplierApiLog($url)){
 
             try {
                 DB::table('apilogs')->insert([
@@ -1245,6 +1245,37 @@ class helpers
 
         return ["response" => $response, "error" => $err, 'code' => $code];
 
+    }
+
+    protected static function shouldStoreSupplierApiLog(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!$host || !Schema::hasTable('apis')) {
+            return true;
+        }
+
+        try {
+            $apis = DB::table('apis')
+                ->where('deleted_at', '!=', 1)
+                ->get(['store_log', 'api_url', 'balance_check_url', 'complaint_api_url']);
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        $matched = false;
+        foreach ($apis as $api) {
+            foreach ([$api->api_url ?? '', $api->balance_check_url ?? '', $api->complaint_api_url ?? ''] as $apiUrl) {
+                $apiHost = parse_url((string) $apiUrl, PHP_URL_HOST);
+                if ($apiHost && strcasecmp($apiHost, $host) === 0) {
+                    $matched = true;
+                    if ((int) ($api->store_log ?? 0) === 1) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return !$matched;
     }
 
 
