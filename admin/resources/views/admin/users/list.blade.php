@@ -948,7 +948,7 @@
 
                                     <label for="ip_address" class="form-label">IP Address: </label>
 
-                                    <input type="text" class="form-control" name="ip_address" id="ip_address" value="" placeholder="API IP whitelist (blank = allow all on local)">
+                                    <input type="text" class="form-control" name="ip_address" id="ip_address" value="" placeholder="API IP whitelist (required for API access)">
 
                                 </div>
 

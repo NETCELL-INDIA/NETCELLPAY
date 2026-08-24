@@ -32,11 +32,21 @@ class ApiPartnerCheck
             )); 
         }
 
-        if (!self::isIpAllowed((string) $user->ip_address, (string) \helpers::getIp())) {
+        $configuredIp = trim((string) $user->ip_address);
+        $clientIp = (string) \helpers::getIp();
+
+        if ($configuredIp === '' || in_array($configuredIp, ['0.0.0.0', '1.1.1.1'], true)) {
             return response()->json(array(
-                'type' => 'error',  
-                'message' => "invaild ip address your ip is ".\helpers::getIp(),
-            )); 
+                'type' => 'error',
+                'message' => "ip not approved, contact admin to approve your ip " . $clientIp,
+            ));
+        }
+
+        if (!self::isIpAllowed($configuredIp, $clientIp)) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => "invaild ip address your ip is " . $clientIp,
+            ));
         }
         // //return "shiba";
         return $next($post);
@@ -44,12 +54,7 @@ class ApiPartnerCheck
 
     protected static function isIpAllowed(string $configuredIp, string $clientIp): bool
     {
-        if (app()->environment('local')) {
-            return true;
-        }
-
-        $configuredIp = trim($configuredIp);
-        if ($configuredIp === '' || in_array($configuredIp, ['0.0.0.0', '1.1.1.1', '*'], true)) {
+        if ($configuredIp === '*') {
             return true;
         }
 
