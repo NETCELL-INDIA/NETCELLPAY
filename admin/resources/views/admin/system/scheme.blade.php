@@ -93,20 +93,6 @@
                         </select>
                     </div>
                     <div class="col-sm-1">
-                        <label> WT Com Type</label>
-                        <select class="form-select mb-3 wt_comtype" aria-label="Default select example" id="wt_comtype">
-                            <option selected="">Select Type</option>
-                            <option value="Commission Flat">Commission Flat</option>
-                            <option value="Commission Percent" >Commission Percent</option>
-                            <option value="Charge Flat">Charge Flat</option>
-                            <option value="Charge Percent">Charge Percent</option>
-                        </select>
-                    </div>
-                    <div class="col-sm-1">
-                        <label> WT Com Val</label>
-                        <input type="text" class="form-control" id="wt_value" required="required" value="0">
-                    </div>  
-                    <div class="col-sm-1">
                         <label> MD Com Type</label>
                         <select class="form-select mb-3 md_comtype" aria-label="Default select example" id="md_comtype">
                             <option selected="">Select Amount Type</option>
@@ -147,7 +133,21 @@
                     <div class="col-sm-1">
                         <label > RT Com Val</label>
                         <input type="text" class="form-control" id="rt_value" required="required" value="0">
-                    </div> 
+                    </div>
+                    <div class="col-sm-1">
+                        <label > AP Com Type</label>
+                        <select class="form-select mb-3 ap_comtype" aria-label="Default select example" id="ap_comtype">
+                            <option selected="">Select Amount Type</option>
+                            <option value="Commission Flat">Commission Flat</option>
+                            <option value="Commission Percent" >Commission Percent</option>
+                            <option value="Charge Flat">Charge Flat</option>
+                            <option value="Charge Percent">Charge Percent</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-1">
+                        <label > AP Com Val</label>
+                        <input type="text" class="form-control" id="ap_value" required="required" value="0">
+                    </div>
                     <div class="col-sm-2">
                         <label >Apply All</label>
                         <input type="button" value="Apply" class="form-control btn btn-primary waves-effect waves-light" id="apply_all"/>
@@ -272,9 +272,6 @@
         let id = $(this).attr('id');
         var provider_id = $("#"+id+"_provider_id").val();
         var scheme_id = $("#scheme_id").val();
-        var wt_comtype = $("#"+id+"_wt_comtype").val();
-        var wt_value = $("#"+id+"_wt_value").val();
-
         var md_comtype = $("#"+id+"_md_comtype").val();
         var md_value = $("#"+id+"_md_value").val();
 
@@ -283,15 +280,14 @@
 
         var rt_comtype = $("#"+id+"_rt_comtype").val();
         var rt_value = $("#"+id+"_rt_value").val();
+        var ap_comtype = $("#"+id+"_ap_comtype").val();
+        var ap_value = $("#"+id+"_ap_value").val();
         $.ajax({
           url: '{{ route('schemeSingleUpdateCommission') }}',
           method: 'post',
           data: {
             scheme_id: scheme_id,
             provider_id: provider_id,
-
-            wt_comtype: wt_comtype,
-            wt_value: wt_value,
 
             md_comtype: md_comtype,
             md_value: md_value,
@@ -301,6 +297,8 @@
 
             rt_comtype: rt_comtype,
             rt_value: rt_value,
+            ap_comtype: ap_comtype,
+            ap_value: ap_value,
 
             _token: '{{ csrf_token() }}'
           },
@@ -357,9 +355,6 @@
     });
 
     $('#apply_all').click(function(){
-        $('select[name="wt_comtype[]"]').val($("#wt_comtype").val());
-        $('input[name="wt_value[]"]').val($("#wt_value").val());
-
         $('select[name="md_comtype[]"]').val($("#md_comtype").val());
         $('input[name="md_value[]"]').val($("#md_value").val());
 
@@ -368,6 +363,8 @@
 
         $('select[name="rt_comtype[]"]').val($("#rt_comtype").val());
         $('input[name="rt_value[]"]').val($("#rt_value").val());
+        $('select[name="ap_comtype[]"]').val($("#ap_comtype").val());
+        $('input[name="ap_value[]"]').val($("#ap_value").val());
        
         //alert('Does this work?');
     });

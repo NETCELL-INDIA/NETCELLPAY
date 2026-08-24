@@ -214,6 +214,8 @@ class SchemeController extends Controller
 
         //echo "<pre>";print_r($post->all());die;
 
+        $this->ensureApiPartnerCommissionColumns();
+
         $providers = DB::table('providers')->where('deleted_at', '!=', 1)->where('service_id', $post->service)->where('status', 1)->get();
         foreach ($providers as $key => $provider) {
             $commission = DB::table('scheme_commissions')->where('provider_id', $provider->id)->where('scheme_id', $post->id)->first();
@@ -229,6 +231,8 @@ class SchemeController extends Controller
                 //
                 $provider->rt_amount_type = $commission->rt_amount_type;
                 $provider->rt_amount_value = $commission->rt_amount_value;
+                $provider->ap_amount_type = $commission->ap_amount_type ?? 0;
+                $provider->ap_amount_value = $commission->ap_amount_value ?? 0;
             } else {
                 $provider->wt_amount_type = 0;
                 $provider->wt_amount_value = 0;
@@ -241,6 +245,8 @@ class SchemeController extends Controller
                 //
                 $provider->rt_amount_type = 0;
                 $provider->rt_amount_value = 0;
+                $provider->ap_amount_type = 0;
+                $provider->ap_amount_value = 0;
             }
         }
         // $data['type'] = 'success';
@@ -255,9 +261,6 @@ class SchemeController extends Controller
                 <th>ID</th>
                 <th>Provider Name</th>
 
-                <th>WT Com Type</th>
-                <th>WT Com Val</th>
-
                 <th>MD Com Type</th>
                 <th>MD Com Val</th>
 
@@ -266,6 +269,9 @@ class SchemeController extends Controller
 
                 <th>RT Com Type</th>
                 <th>RT Com Val</th>
+
+                <th>AP Com Type</th>
+                <th>AP Com Val</th>
 
                 <th>Action</th>
               </tr>
@@ -279,23 +285,6 @@ class SchemeController extends Controller
                 <input type="hidden" id="' . $list->id . '_provider_id" name="provider_id[]" value="' . $list->id . '">
                 ' . $list->provider_name . '
                 </td>
-
-
-
-                <td>
-                    <select class="form-select" s="' . $list->wt_amount_type . '" aria-label="Default select example" id="' . $list->id . '_wt_comtype" name="wt_comtype[]">
-                        <option selected="">Select Amount Type</option>
-                        <option ' . ($list->wt_amount_type == "Commission Flat" ? "selected" : "") . ' value="Commission Flat">Commission Flat</option>
-                        <option ' . ($list->wt_amount_type == "Commission Percent" ? "selected" : "") . ' value="Commission Percent">Commission Percent</option>
-                        <option ' . ($list->wt_amount_type == "Charge Flat" ? "selected" : "") . ' value="Charge Flat">Charge Flat</option>
-                        <option ' . ($list->wt_amount_type == "Charge Percent" ? "selected" : "") . ' value="Charge Percent">Charge Percent</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="text" class="form-control" id="' . $list->id . '_wt_value" name="wt_value[]" value="' . $list->wt_amount_value . '" required="required">
-                </td>
-
-
                 <td>
                     <select class="form-select" aria-label="Default select example" id="' . $list->id . '_md_comtype" name="md_comtype[]">
                         <option ' . ($list->md_amount_type == "Commission Flat" ? "selected" : "") . ' value="Commission Flat">Commission Flat</option>
@@ -331,6 +320,17 @@ class SchemeController extends Controller
                 </td>
                 <td>
                     <input type="text" class="form-control" id="' . $list->id . '_rt_value" name="rt_value[]" value="' . $list->rt_amount_value . '" required="required">
+                </td>
+                <td>
+                    <select class="form-select" aria-label="Default select example" id="' . $list->id . '_ap_comtype" name="ap_comtype[]">
+                        <option ' . ($list->ap_amount_type == "Commission Flat" ? "selected" : "") . ' value="Commission Flat">Commission Flat</option>
+                        <option ' . ($list->ap_amount_type == "Commission Percent" ? "selected" : "") . ' value="Commission Percent">Commission Percent</option>
+                        <option ' . ($list->ap_amount_type == "Charge Flat" ? "selected" : "") . ' value="Charge Flat">Charge Flat</option>
+                        <option ' . ($list->ap_amount_type == "Charge Percent" ? "selected" : "") . ' value="Charge Percent">Charge Percent</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" class="form-control" id="' . $list->id . '_ap_value" name="ap_value[]" value="' . $list->ap_amount_value . '" required="required">
                 </td>
                 <td>
                     <button class="btn btn-primary waves-effect waves-light updateCommission" id="' . $list->id . '">Update</button>
@@ -423,14 +423,14 @@ class SchemeController extends Controller
         $rules = array(
             'provider_id' => 'required',
             'scheme_id' => 'required',
-            'wt_comtype' => 'required|in:Commission Flat,Commission Percent,Charge Flat,Charge Percent',
-            'wt_value' => 'required',
             'md_comtype' => 'required|in:Commission Flat,Commission Percent,Charge Flat,Charge Percent',
             'md_value' => 'required',
             'dt_comtype' => 'required|in:Commission Flat,Commission Percent,Charge Flat,Charge Percent',
             'dt_value' => 'required',
             'rt_comtype' => 'required|in:Commission Flat,Commission Percent,Charge Flat,Charge Percent',
             'rt_value' => 'required',
+            'ap_comtype' => 'required|in:Commission Flat,Commission Percent,Charge Flat,Charge Percent',
+            'ap_value' => 'required',
         );
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
@@ -448,6 +448,11 @@ class SchemeController extends Controller
 
 
         try {
+            $this->ensureApiPartnerCommissionColumns();
+            $existing = DB::table('scheme_commissions')
+                ->where('scheme_id', $post->scheme_id)
+                ->where('provider_id', $post->provider_id)
+                ->first();
             DB::table('scheme_commissions')->updateOrInsert(
                 [
                     'scheme_id' => $post->scheme_id,
@@ -456,19 +461,16 @@ class SchemeController extends Controller
                 [
                     'provider_id' => $post->provider_id,
                     'scheme_id' => $post->scheme_id,
-
-
-                    'wt_amount_type' => $post->wt_comtype,
-                    'wt_amount_value' => $post->wt_value,
-
+                    'wt_amount_type' => $post->wt_comtype ?: ($existing->wt_amount_type ?? 'Commission Flat'),
+                    'wt_amount_value' => $post->filled('wt_value') ? $post->wt_value : ($existing->wt_amount_value ?? 0),
                     'md_amount_type' => $post->md_comtype,
                     'md_amount_value' => $post->md_value,
-
                     'dt_amount_type' => $post->dt_comtype,
                     'dt_amount_value' => $post->dt_value,
-
                     'rt_amount_type' => $post->rt_comtype,
                     'rt_amount_value' => $post->rt_value,
+                    'ap_amount_type' => $post->ap_comtype,
+                    'ap_amount_value' => $post->ap_value,
                 ]
             );
             $message = "Update sucessfuly";
@@ -484,9 +486,12 @@ class SchemeController extends Controller
 
     public function BulkUpdateCommission(Request $post)
     {
+        $this->ensureApiPartnerCommissionColumns();
         foreach ($post->provider_id as $k => $v) {
-            //echo "<pre>";print_r($post->wt_comtype[$k]);
-            //echo "<pre>";print_r($v);
+            $existing = DB::table('scheme_commissions')
+                ->where('scheme_id', $post->scheme_id)
+                ->where('provider_id', $post->provider_id[$k])
+                ->first();
             DB::table('scheme_commissions')->updateOrInsert(
                 [
                     'scheme_id' => $post->scheme_id,
@@ -495,19 +500,16 @@ class SchemeController extends Controller
                 [
                     'provider_id' => $post->provider_id[$k],
                     'scheme_id' => $post->scheme_id,
-
-
-                    'wt_amount_type' => $post->wt_comtype[$k],
-                    'wt_amount_value' => $post->wt_value[$k],
-
+                    'wt_amount_type' => $post->wt_comtype[$k] ?? ($existing->wt_amount_type ?? 'Commission Flat'),
+                    'wt_amount_value' => $post->wt_value[$k] ?? ($existing->wt_amount_value ?? 0),
                     'md_amount_type' => $post->md_comtype[$k],
                     'md_amount_value' => $post->md_value[$k],
-
                     'dt_amount_type' => $post->dt_comtype[$k],
                     'dt_amount_value' => $post->dt_value[$k],
-
                     'rt_amount_type' => $post->rt_comtype[$k],
                     'rt_amount_value' => $post->rt_value[$k],
+                    'ap_amount_type' => $post->ap_comtype[$k] ?? 'Commission Flat',
+                    'ap_amount_value' => $post->ap_value[$k] ?? 0,
                 ]
             );
         }
@@ -515,5 +517,10 @@ class SchemeController extends Controller
         $data['type'] = 'success';
         $data['message'] = $message;
         return $data;
+    }
+
+    private function ensureApiPartnerCommissionColumns(): void
+    {
+        ensure_api_partner_commission_columns();
     }
 }

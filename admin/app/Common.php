@@ -82,19 +82,33 @@ use Illuminate\Http\Request;
  
              if ($comdata) {
  
-                 if($role_id== 6){
- 
-                     if ($comdata->rt_amount_type == "Commission Percent") {
- 
-                         $commission = $amount * $comdata->rt_amount_value / 100;
- 
-                     }else{
- 
-                         $commission = $comdata->rt_amount_value;
- 
-                     }
- 
-                 }else if($role_id== 5){
+                if($role_id== 6){
+
+                    if ($comdata->rt_amount_type == "Commission Percent") {
+
+                        $commission = $amount * $comdata->rt_amount_value / 100;
+
+                    }else{
+
+                        $commission = $comdata->rt_amount_value;
+
+                    }
+
+                }else if($role_id== 3){
+
+                    $apType = $comdata->ap_amount_type ?? '';
+                    $apValue = $comdata->ap_amount_value ?? null;
+                    if ($apType === '' || $apType === '0' || $apType === 0) {
+                        $apType = $comdata->rt_amount_type;
+                        $apValue = $comdata->rt_amount_value;
+                    }
+                    if ($apType == "Commission Percent") {
+                        $commission = $amount * $apValue / 100;
+                    } else {
+                        $commission = $apValue;
+                    }
+
+                }else if($role_id== 5){
  
                      if ($comdata->dt_amount_type == "Commission Percent") {
  

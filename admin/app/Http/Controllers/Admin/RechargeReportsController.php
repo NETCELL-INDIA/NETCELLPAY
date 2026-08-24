@@ -224,6 +224,7 @@ class RechargeReportsController extends Controller
                     <td class="text-end recharge-amount">' . (function_exists('recharge_report_money') ? recharge_report_money($list->total_amount ?? 0) : number_format((float) ($list->total_amount ?? 0), 2)) . '</td>
                     <td class="text-end recharge-commission">' . (function_exists('recharge_report_money') ? recharge_report_money($list->commission ?? 0) : number_format((float) ($list->commission ?? 0), 2)) . '</td>
                     <td class="text-end recharge-debit">' . (function_exists('recharge_report_money') ? recharge_report_money($list->amount ?? 0) : number_format((float) ($list->amount ?? 0), 2)) . '</td>
+                    <td class="text-end recharge-balance">' . (function_exists('recharge_report_money') ? recharge_report_money($list->closing_balance ?? 0) : number_format((float) ($list->closing_balance ?? 0), 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="recharge-ids"><span>' . $opId . '</span><span>' . $reqId . '</span></td>
@@ -232,7 +233,7 @@ class RechargeReportsController extends Controller
                 </tr>';
             }
         } else {
-            $rows = '<tr><td colspan="14" class="text-center text-muted py-4">No data available in table</td></tr>';
+            $rows = '<tr><td colspan="15" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
         $fromEntry = $total ? ($offset + 1) : 0;
@@ -287,7 +288,7 @@ class RechargeReportsController extends Controller
 
         $callback = function () use ($reports) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'Circle', 'Number', 'Recharge', 'Margin', 'Debit', 'Status', 'API', 'Operator ID', 'Mode']);
+            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'Circle', 'Number', 'Recharge', 'Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
             foreach ($reports as $list) {
                 fputcsv($out, [
                     $list->order_id ?: ('R' . $list->id),
@@ -299,6 +300,7 @@ class RechargeReportsController extends Controller
                     $list->total_amount,
                     $list->commission,
                     $list->amount,
+                    $list->closing_balance,
                     $list->status,
                     $list->api_name,
                     $list->operator_id,
@@ -2178,6 +2180,20 @@ class RechargeReportsController extends Controller
 
                         $commission = $comdata->rt_amount_value;
 
+                    }
+
+                }else if($role_id== 3){
+
+                    $apType = $comdata->ap_amount_type ?? '';
+                    $apValue = $comdata->ap_amount_value ?? null;
+                    if ($apType === '' || $apType === '0' || $apType === 0) {
+                        $apType = $comdata->rt_amount_type;
+                        $apValue = $comdata->rt_amount_value;
+                    }
+                    if ($apType == "Commission Percent") {
+                        $commission = $amount * $apValue / 100;
+                    } else {
+                        $commission = $apValue;
                     }
 
                 }else if($role_id== 5){

@@ -942,6 +942,25 @@ if (! function_exists('report_status_html')) {
     }
 }
 
+if (! function_exists('ensure_api_partner_commission_columns')) {
+    function ensure_api_partner_commission_columns(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('scheme_commissions')) {
+            return;
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('scheme_commissions', 'ap_amount_type')) {
+            \Illuminate\Support\Facades\Schema::table('scheme_commissions', function ($table) {
+                $table->string('ap_amount_type', 50)->nullable();
+            });
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('scheme_commissions', 'ap_amount_value')) {
+            \Illuminate\Support\Facades\Schema::table('scheme_commissions', function ($table) {
+                $table->decimal('ap_amount_value', 12, 4)->default(0);
+            });
+        }
+    }
+}
+
 if (! function_exists('normalize_user_pin')) {
     function normalize_user_pin($pin): string
     {
