@@ -222,6 +222,9 @@
                         <a class="dropdown-item" href="{{ route('changePassword') }}">
                             <i class="ri-lock-password-line me-2"></i> Change Password
                         </a>
+                        <a class="dropdown-item" href="{{ route('pinReset') }}">
+                            <i class="ri-key-2-line me-2"></i> PIN Reset
+                        </a>
                         <a class="dropdown-item" href="{{ route('loginHistory') }}">
                             <i class="ri-history-line me-2"></i> Login History
                         </a>

@@ -32,6 +32,62 @@ class ProfileController extends Controller
         return view('admin.profile.change-password');
     }
 
+    public function pinReset(Request $post)
+    {
+        return view('admin.profile.pin-reset');
+    }
+
+    public function pinResetChange(Request $post) {
+        $rules = array(
+            'current_password' => 'required|min:8',
+            'new_pin' => 'required|digits:4',
+            'confirm_pin' => 'required|same:new_pin|digits:4',
+        );
+
+        $validator = \Validator::make($post->all(), array_reverse($rules));
+        if ($validator->fails()) {
+            foreach ($validator->errors()->messages() as $key => $value) {
+                $error = $value[0];
+            }
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $error
+            ));
+        }
+
+        $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+
+        if (! Hash::check($post->current_password, $user->password)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Current password do not match.',
+            ]);
+        }
+
+        $updated = DB::table('users')->where('id', $user->id)->update([
+            't_pin' => normalize_user_pin($post->new_pin),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        if ($updated) {
+            return response()->json([
+                'type' => 'success',
+                'message' => 'PIN Reset Successfuly.',
+            ]);
+        }
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Something went wrong.',
+        ]);
+    }
+
     public function loginHistory(Request $post)
     {
         $login_history = Common::fetchLoginHistoryForUser((int) Session::get('user_id'), 50)->values()->all();

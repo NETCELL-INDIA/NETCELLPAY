@@ -406,6 +406,8 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::get('admin/profile/my-profile',[ProfileController::class,'myProfile'])->name('myProfile');
     Route::get('admin/profile/change-password',[ProfileController::class,'changePassword'])->name('changePassword');
+    Route::get('admin/profile/pin-reset',[ProfileController::class,'pinReset'])->name('pinReset');
+    Route::post('admin/profile/pin-reset-change',[ProfileController::class,'pinResetChange'])->name('pinResetChange');
     Route::get('admin/profile/login-history',[ProfileController::class,'loginHistory'])->name('loginHistory');
     Route::post('admin/profile/my-profile-data',[ProfileController::class,'myProfileData'])->name('myProfileData');
     Route::post('admin/profile/my-profile-password-change',[ProfileController::class,'myProfilePasswordChange'])->name('myProfilePasswordChange');
