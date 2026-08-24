@@ -12,6 +12,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SendEmail;
 use Session;
 class ProfileController extends Controller
 {
@@ -196,6 +198,138 @@ class ProfileController extends Controller
             return response()->json([
                 'type' => 'success',
                 'message' => 'Password Change Successfuly.',
+            ]);
+        }
+
+        return response()->json([
+            'type' => 'error',
+            'message' => 'Something went wrong.',
+        ]);
+    }
+
+    public function pinResetOtpSend(Request $post) {
+        $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+
+        try {
+            $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+            DB::table('users')->where('id', $user->id)->update([
+                'otp' => Hash::make($otp),
+                'otp_created_at' => Carbon::now(),
+            ]);
+
+            $data = [
+                'type' => 'success',
+                'message' => 'OTP sent to your registered mobile number and email.',
+            ];
+
+            if (app()->environment('local')) {
+                $data['local_otp'] = $otp;
+                $data['message'] = 'Local dev OTP generated. Use the code shown on screen.';
+            } else {
+                try {
+                    $sms_tmp = DB::table('sms_templates')->where('slug', 'otp')->first(['template_id','content','status']);
+                    if ($sms_tmp) {
+                        $content = $sms_tmp->content;
+                        $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
+                        $content = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content);
+                        $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
+                        $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
+                        $content = str_replace('{OTP}', $otp, $content);
+                        if ($sms_tmp->status == 1) {
+                            Common::sendWhatasappMsg([
+                                'mobile_number' => $user->mobile_number,
+                                'content' => $content,
+                                'template_id' => $sms_tmp->template_id,
+                            ]);
+                        }
+                    }
+
+                    $company = Common::getCompanyByHost();
+                    if ($company && $company->email_message == 1) {
+                        $email_tmp = DB::table('email_templates')->where('slug', 'otp')->first(['subject','content','status']);
+                        if ($email_tmp && !empty($user->email_address)) {
+                            $content_email = $email_tmp->content;
+                            $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                            $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                            $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                            $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                            $content_email = str_replace('{OTP}', $otp, $content_email);
+                            Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // OTP is already saved; delivery failures should not block the reset.
+                }
+            }
+
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to send OTP. Please try again.',
+            ]);
+        }
+    }
+
+    public function pinResetOtpVerify(Request $post) {
+        $rules = array(
+            'otp' => 'required|numeric|digits:6',
+            'new_pin' => 'required|digits:4',
+            'confirm_pin' => 'required|same:new_pin|digits:4',
+        );
+
+        $validator = \Validator::make($post->all(), array_reverse($rules));
+        if ($validator->fails()) {
+            foreach ($validator->errors()->messages() as $key => $value) {
+                $error = $value[0];
+            }
+            return response()->json(array(
+                'type' => 'error',
+                'message' => $error
+            ));
+        }
+
+        $user = DB::table('users')->where('id', Session::get('user_id'))->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+
+        if (empty($user->otp) || ! Hash::check($post->otp, $user->otp)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Wrong OTP.',
+            ]);
+        }
+
+        $otpAgeMin = (strtotime(Carbon::now()) - strtotime($user->otp_created_at)) / 60;
+        if ($otpAgeMin > 10) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'OTP expired. Please request a new OTP.',
+            ]);
+        }
+
+        $updated = DB::table('users')->where('id', $user->id)->update([
+            't_pin' => normalize_user_pin($post->new_pin),
+            'otp' => null,
+            'otp_limit' => 0,
+            'updated_at' => Carbon::now(),
+        ]);
+
+        if ($updated) {
+            return response()->json([
+                'type' => 'success',
+                'message' => 'PIN Reset Successfuly.',
             ]);
         }
 
