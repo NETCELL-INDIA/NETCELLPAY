@@ -577,7 +577,7 @@
 
                                     <select class="form-select mb-3 login_type" aria-label="Default select example" name="login_type">
 
-                                        <option selected="">Select Type</option>
+                                        <option value="" selected>Select Type</option>
 
                                         <option value="PASSWORD">Password</option>
 

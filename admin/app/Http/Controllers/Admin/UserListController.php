@@ -515,7 +515,7 @@ class UserListController extends Controller
             'date_of_birth'  => 'required',
             'mobile_number' => $mobileRules,
             'email_address' => $emailRules,
-            'login_type'  => 'required|string|max:70',
+            'login_type'  => 'required|in:PASSWORD,OTP',
             'gender'  => 'required|string|max:70',
             'flat_door_no'  => '',
             'road_street'  => '',
@@ -575,6 +575,14 @@ class UserListController extends Controller
             ));
         }
 
+        $dob = $this->normalizeDateOfBirth($post->date_of_birth);
+        if ($dob === '') {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Please enter a valid Date of Birth.',
+            ]);
+        }
+
         $parentId = (int) $post->parent_id;
         if ($parentId > 0) {
             $existingParentId = $isEdit
@@ -617,7 +625,7 @@ class UserListController extends Controller
                     'first_name'  => $post->first_name,
                     'middle_name'  => '',
                     'last_name'  => '',
-                    'date_of_birth'  => $this->normalizeDateOfBirth($post->date_of_birth),
+                    'date_of_birth'  => $dob,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
                     't_pin' => $t_pin,
@@ -645,6 +653,7 @@ class UserListController extends Controller
                     'status' => $post->status,
                     'wallet_balance' => 0,
                     'otp_limit' => 0,
+                    'otp_created_at' => null,
                     'deleted_at' => 0,
                     'login_key' => Str::random(40),
                     'created_at' => Carbon::now(),
@@ -693,7 +702,7 @@ class UserListController extends Controller
                     'scheme_id'  => $post->scheme_id,
                     'outlet_name'  => $post->outlet_name,
                     'first_name'  => $post->first_name,
-                    'date_of_birth'  => $this->normalizeDateOfBirth($post->date_of_birth),
+                    'date_of_birth'  => $dob,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
                     'login_type'  => $post->login_type,
@@ -1358,10 +1367,18 @@ class UserListController extends Controller
             ];
         }
 
-        if (str_contains($msg, 'Incorrect date value') || str_contains($msg, 'date_of_birth')) {
+        if (preg_match("/Incorrect (?:date|datetime) value: '([^']*)' for column [`']?date_of_birth/i", $msg, $m)
+            || preg_match("/Incorrect (?:date|datetime) value:.*[`']date_of_birth[`']/i", $msg)) {
             return [
                 'type' => 'error',
-                'message' => 'Please enter a valid Date of Birth.',
+                'message' => 'Please enter a valid Date of Birth (DD-MM-YYYY).',
+            ];
+        }
+
+        if (preg_match("/Field '([^']+)' doesn't have a default value/i", $msg, $m)) {
+            return [
+                'type' => 'error',
+                'message' => 'Unable to save user. Missing value for '.$m[1].'.',
             ];
         }
 
@@ -1385,14 +1402,19 @@ class UserListController extends Controller
             return '';
         }
 
+        $value = str_replace(['/', '.', '–', '—'], '-', $value);
+
         try {
             if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $value)) {
                 return Carbon::createFromFormat('d-m-Y', $value)->format('Y-m-d');
             }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                return Carbon::createFromFormat('Y-m-d', $value)->format('Y-m-d');
+            }
 
             return Carbon::parse($value)->format('Y-m-d');
         } catch (\Throwable $e) {
-            return $value;
+            return '';
         }
     }
 
