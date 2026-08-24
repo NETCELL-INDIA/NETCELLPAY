@@ -111,6 +111,7 @@
                         <th>USER DETAILS</th>
                         <th>OPERATOR</th>
                         <th>NUMBER</th>
+                        <th>MRP</th>
                         <th>AMOUNT</th>
                         <th>STATUS</th>
                         <th>API</th>
@@ -118,7 +119,7 @@
                     </tr>
                 </thead>
                 <tbody id="pendingBody">
-                    <tr><td colspan="10" class="text-center text-muted py-4">No data available in table</td></tr>
+                    <tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr>
                 </tbody>
             </table>
         </div>
@@ -210,7 +211,7 @@ function selectedIds() {
 }
 
 function fetchPending() {
-    $('#pendingBody').html('<tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#pendingBody').html('<tr><td colspan="11" class="text-center text-muted py-4">Loading...</td></tr>');
     $.ajax({
         url: '{{ route("pendingReportList") }}',
         method: 'POST',
@@ -218,7 +219,7 @@ function fetchPending() {
         data: filterPayload(),
         success: function (res) {
             if (!res || res.type !== 'success') {
-                $('#pendingBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load</td></tr>');
+                $('#pendingBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
                 return;
             }
             $('#pendingBody').html(res.rows);
@@ -233,7 +234,7 @@ function fetchPending() {
             $('#btnNext').prop('disabled', currentPage >= lastPage);
         },
         error: function () {
-            $('#pendingBody').html('<tr><td colspan="10" class="text-center text-danger">Failed to load</td></tr>');
+            $('#pendingBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
         }
     });
 }

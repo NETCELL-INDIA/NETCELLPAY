@@ -273,6 +273,7 @@
             contentType: false,
             processData: false,
             dataType: 'json',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
             success: function(data) {
                 $('#new_scheme_btn').text('Save').prop('disabled', false);
                 if (data.type == 'success') {
@@ -287,9 +288,10 @@
                     commissionNotify('Error', data.message || 'Something went wrong!', 'error');
                 }
             },
-            error: function() {
+            error: function(xhr) {
                 $('#new_scheme_btn').text('Save').prop('disabled', false);
-                commissionNotify('Oops...', 'Something went wrong!', 'error');
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Something went wrong!';
+                commissionNotify('Oops...', msg, 'error');
             }
         });
     });

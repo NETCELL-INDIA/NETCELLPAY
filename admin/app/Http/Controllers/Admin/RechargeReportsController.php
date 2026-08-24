@@ -157,6 +157,7 @@ class RechargeReportsController extends Controller
             ->selectRaw("
                 SUM(CASE WHEN r.status = 'Success' THEN r.amount ELSE 0 END) as success_amt,
                 SUM(CASE WHEN r.status = 'Success' THEN 1 ELSE 0 END) as success_cnt,
+                SUM(CASE WHEN r.status = 'Success' THEN r.commission ELSE 0 END) as success_com,
                 SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN r.amount ELSE 0 END) as pending_amt,
                 SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN 1 ELSE 0 END) as pending_cnt,
                 SUM(CASE WHEN r.status IN ('Failed','Failure') THEN r.amount ELSE 0 END) as failure_amt,
@@ -221,6 +222,7 @@ class RechargeReportsController extends Controller
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
                     <td class="text-end recharge-amount">' . (function_exists('recharge_report_money') ? recharge_report_money($list->total_amount ?? 0) : number_format((float) ($list->total_amount ?? 0), 2)) . '</td>
+                    <td class="text-end recharge-commission">' . (function_exists('recharge_report_money') ? recharge_report_money($list->commission ?? 0) : number_format((float) ($list->commission ?? 0), 2)) . '</td>
                     <td class="text-end recharge-debit">' . (function_exists('recharge_report_money') ? recharge_report_money($list->amount ?? 0) : number_format((float) ($list->amount ?? 0), 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
@@ -230,7 +232,7 @@ class RechargeReportsController extends Controller
                 </tr>';
             }
         } else {
-            $rows = '<tr><td colspan="13" class="text-center text-muted py-4">No data available in table</td></tr>';
+            $rows = '<tr><td colspan="14" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
         $fromEntry = $total ? ($offset + 1) : 0;
@@ -242,6 +244,7 @@ class RechargeReportsController extends Controller
             'summary' => [
                 'success_amt' => number_format((float) ($summaryRows->success_amt ?? 0), 2),
                 'success_cnt' => (int) ($summaryRows->success_cnt ?? 0),
+                'success_com' => number_format((float) ($summaryRows->success_com ?? 0), 2),
                 'pending_amt' => number_format((float) ($summaryRows->pending_amt ?? 0), 2),
                 'pending_cnt' => (int) ($summaryRows->pending_cnt ?? 0),
                 'failure_amt' => number_format((float) ($summaryRows->failure_amt ?? 0), 2),

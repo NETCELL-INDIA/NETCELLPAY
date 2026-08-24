@@ -70,6 +70,7 @@ class RehitRechargeHistoryController extends Controller
             ->leftJoin('users as u', 'u.id', '=', 'h.user_id')
             ->leftJoin('providers as p', 'p.id', '=', 'h.provider_id')
             ->leftJoin('apis as a', 'a.id', '=', 'h.api_id')
+            ->leftJoin('reports as rp', 'rp.id', '=', 'h.report_id')
             ->whereDate('h.rehit_at', $date);
 
         if ($request->recharge_id) {
@@ -77,27 +78,32 @@ class RehitRechargeHistoryController extends Controller
         }
 
         $total = (clone $q)->count();
-        $rowsData = (clone $q)->select('h.*', 'u.outlet_name', 'u.first_name', 'u.mobile_number', 'p.provider_name', 'a.api_name')
+        $rowsData = (clone $q)->select('h.*', 'u.outlet_name', 'u.first_name', 'u.mobile_number', 'p.provider_name', 'a.api_name', 'rp.total_amount as mrp', 'rp.status as recharge_status')
             ->orderByDesc('h.id')->offset($offset)->limit($limit)->get();
 
         $html = '';
         if ($rowsData->count()) {
             foreach ($rowsData as $r) {
                 $user = trim(($r->outlet_name ?: $r->first_name ?: 'User') . ' / ' . ($r->mobile_number ?: '-'));
+                $mrp = $r->mrp !== null ? (float) $r->mrp : (float) $r->amount;
+                $status = strtoupper((string) ($r->recharge_status ?: '-'));
+                $statusClass = in_array($status, ['SUCCESS'], true) ? 'bg-success' : (in_array($status, ['FAILED', 'FAILURE'], true) ? 'bg-danger' : 'bg-warning text-dark');
                 $html .= '<tr>
                     <td>' . e($r->recharge_id ?: '-') . '</td>
                     <td>' . e($r->rehit_at) . '</td>
                     <td>' . e($user) . '</td>
                     <td>' . e($r->provider_name ?: '-') . '</td>
                     <td>' . e($r->number ?: '-') . '</td>
+                    <td><strong>₹' . number_format($mrp, 2) . '</strong></td>
                     <td>₹' . number_format((float) $r->amount, 2) . '</td>
+                    <td><span class="badge ' . $statusClass . '">' . e($status) . '</span></td>
                     <td>' . e($r->api_name ?: '-') . '</td>
                     <td><small>' . e(($r->operator_id ?: '-') . ' / ' . ($r->operator_id ?: '-')) . '</small></td>
                     <td>' . e(($r->mode ?: '-') . ' / ' . ($r->ip_address ?: '-')) . '</td>
                 </tr>';
             }
         } else {
-            $html = '<tr><td colspan="9" class="text-center text-muted py-4">No data available in table</td></tr>';
+            $html = '<tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
         return response()->json([

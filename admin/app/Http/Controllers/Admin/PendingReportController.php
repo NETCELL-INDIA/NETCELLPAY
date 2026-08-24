@@ -122,6 +122,7 @@ class PendingReportController extends Controller
                     <td>' . e($userDetails) . '</td>
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->number ?: '-') . '</td>
+                    <td><strong>₹' . number_format((float) ($list->total_amount ?: $list->amount), 2) . '</strong></td>
                     <td>₹' . number_format((float) $list->amount, 2) . '</td>
                     <td><span class="badge bg-warning text-dark">' . e(strtoupper($list->status ?: 'PENDING')) . '</span></td>
                     <td>' . e($list->api_name ?: '-') . '</td>
@@ -133,7 +134,7 @@ class PendingReportController extends Controller
                 </tr>';
             }
         } else {
-            $rows = '<tr><td colspan="10" class="text-center text-muted py-4">No data available in table</td></tr>';
+            $rows = '<tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
         $apiStats = $this->apiWiseStats($request);

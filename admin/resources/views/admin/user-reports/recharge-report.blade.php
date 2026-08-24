@@ -146,6 +146,7 @@
     <div class="card-body py-2 px-3">
         <div class="recharge-summary" id="summaryPills">
             <span class="recharge-summary__item recharge-summary__item--success">SUCCESS: 0.00 (0)</span>
+            <span class="recharge-summary__item recharge-summary__item--commission">COMMISSION: 0.00</span>
             <span class="recharge-summary__item recharge-summary__item--pending">PENDING: 0.00 (0)</span>
             <span class="recharge-summary__item recharge-summary__item--failure">FAILURE: 0.00 (0)</span>
             <span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: 0.00 (0)</span>
@@ -162,6 +163,7 @@
                         <th>Circle</th>
                         <th>Number</th>
                         <th class="text-end">Amount</th>
+                        <th class="text-end">Commission</th>
                         <th class="text-end">Debit</th>
                         <th>Status</th>
                         <th>API</th>
@@ -171,7 +173,7 @@
                     </tr>
                 </thead>
                 <tbody id="rechargeBody">
-                    <tr><td colspan="13" class="text-center text-muted py-3">No data available</td></tr>
+                    <tr><td colspan="14" class="text-center text-muted py-3">No data available</td></tr>
                 </tbody>
             </table>
         </div>
@@ -306,6 +308,7 @@ function filterPayload(extra) {
 function renderSummary(s) {
     $('#summaryPills').html(
         '<span class="recharge-summary__item recharge-summary__item--success">SUCCESS: ' + s.success_amt + ' (' + s.success_cnt + ')</span>' +
+        '<span class="recharge-summary__item recharge-summary__item--commission">COMMISSION: ' + (s.success_com || '0.00') + '</span>' +
         '<span class="recharge-summary__item recharge-summary__item--pending">PENDING: ' + s.pending_amt + ' (' + s.pending_cnt + ')</span>' +
         '<span class="recharge-summary__item recharge-summary__item--failure">FAILURE: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
         '<span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
@@ -313,7 +316,7 @@ function renderSummary(s) {
 }
 
 function fetchAllSearch() {
-    $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#rechargeBody').html('<tr><td colspan="14" class="text-center text-muted py-4">Loading...</td></tr>');
     $.ajax({
         url: '{{ route("rechargeReportsListModern") }}',
         method: 'POST',
@@ -321,7 +324,7 @@ function fetchAllSearch() {
         data: filterPayload(),
         success: function (res) {
             if (!res || res.type !== 'success') {
-                $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-danger">Failed to load</td></tr>');
+                $('#rechargeBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load</td></tr>');
                 return;
             }
             $('#rechargeBody').html(res.rows);
@@ -334,7 +337,7 @@ function fetchAllSearch() {
             $('#btnNext').prop('disabled', currentPage >= lastPage);
         },
         error: function () {
-            $('#rechargeBody').html('<tr><td colspan="13" class="text-center text-danger">Failed to load</td></tr>');
+            $('#rechargeBody').html('<tr><td colspan="14" class="text-center text-danger">Failed to load</td></tr>');
         }
     });
 }

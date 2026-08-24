@@ -22,9 +22,9 @@
             <table class="table table-bordered table-striped mb-0">
                 <thead class="table-dark"><tr>
                     <th>RECHARGE ID</th><th>DATE &amp; TIME</th><th>USER</th><th>OPERATOR</th><th>NUMBER</th>
-                    <th>AMOUNT</th><th>API</th><th>OPT ID / SUPPLIER ID</th><th>MODE / IP</th>
+                    <th>MRP</th><th>AMOUNT</th><th>STATUS</th><th>API</th><th>OPT ID / SUPPLIER ID</th><th>MODE / IP</th>
                 </tr></thead>
-                <tbody id="body"><tr><td colspan="9" class="text-center text-muted py-4">No data available in table</td></tr></tbody>
+                <tbody id="body"><tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr></tbody>
             </table>
         </div>
         <div class="d-flex justify-content-between mt-3">

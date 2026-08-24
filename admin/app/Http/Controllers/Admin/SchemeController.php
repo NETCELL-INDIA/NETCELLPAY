@@ -8,6 +8,8 @@ use Redirect;
 use Validator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Session;
 
 class SchemeController extends Controller
 {
@@ -349,7 +351,7 @@ class SchemeController extends Controller
     public function updateData(Request $post)
     {
         $rules = array(
-            'schemeName' => 'required|regex:/^[\pL\s\-]+$/u',
+            'schemeName' => 'required|string|max:100|regex:/^[A-Za-z0-9\s\-]+$/',
             'status' => 'required|numeric|digits:1',
         );
 
@@ -365,34 +367,54 @@ class SchemeController extends Controller
                 )
             );
         }
-        $newSchemeId = null;
-        if ($post->edit_id == 0) {
-            $newSchemeId = DB::table('schemes')->insertGetId([
-                'scheme_name' => $post->schemeName,
-                'status' => $post->status,
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now()
+
+        try {
+            $newSchemeId = null;
+            $isNew = ((int) $post->edit_id) === 0;
+            if ($isNew) {
+                $row = [
+                    'scheme_name' => trim((string) $post->schemeName),
+                    'status' => (int) $post->status,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ];
+                if (Schema::hasColumn('schemes', 'deleted_at')) {
+                    $row['deleted_at'] = 0;
+                }
+                if (Schema::hasColumn('schemes', 'user_id')) {
+                    $row['user_id'] = (int) (Session::get('user_id') ?: 1);
+                }
+                $newSchemeId = DB::table('schemes')->insertGetId($row);
+                $update = $newSchemeId ? true : false;
+                $message = "Create sucessfuly";
+            } else {
+                $update = DB::table('schemes')->where('id', $post->edit_id)->update([
+                    'scheme_name' => trim((string) $post->schemeName),
+                    'status' => (int) $post->status,
+                    'updated_at' => Carbon::now()
+                ]);
+                $message = "Update sucessfuly";
+            }
+            if ($update) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => $message,
+                    'id' => $newSchemeId ?? $post->edit_id,
+                    'scheme_name' => $post->schemeName,
+                ]);
+            }
+
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to save scheme. Please try again.',
             ]);
-            $update = $newSchemeId ? true : false;
-            $message = "Create sucessfuly";
-        } else {
-            $update = DB::table('schemes')->where('id', $post->edit_id)->update([
-                'scheme_name' => $post->schemeName,
-                'status' => $post->status,
-                'updated_at' => Carbon::now()
+        } catch (\Throwable $e) {
+            \Log::warning('schemeUpdate failed: '.$e->getMessage());
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Unable to create scheme: '.$e->getMessage(),
             ]);
-            $message = "Update sucessfuly";
         }
-        if ($update) {
-            $data['type'] = 'success';
-            $data['message'] = $message;
-            $data['id'] = $newSchemeId ?? $post->edit_id;
-            $data['scheme_name'] = $post->schemeName;
-        } else {
-            $data['type'] = 'error';
-            $data['message'] = "Something went wrong!";
-        }
-        return $data;
     }
 
 
