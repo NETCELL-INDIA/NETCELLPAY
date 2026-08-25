@@ -1448,6 +1448,65 @@ class helpers
         ];
     }
 
+    public static function ensureApiPartnerCommissionColumns(): void
+    {
+        try {
+            if (! Schema::hasTable('scheme_commissions')) {
+                return;
+            }
+            if (! Schema::hasColumn('scheme_commissions', 'ap_amount_type')) {
+                Schema::table('scheme_commissions', function ($table) {
+                    $table->string('ap_amount_type', 50)->nullable();
+                });
+            }
+            if (! Schema::hasColumn('scheme_commissions', 'ap_amount_value')) {
+                Schema::table('scheme_commissions', function ($table) {
+                    $table->decimal('ap_amount_value', 12, 4)->default(0);
+                });
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function commissionFieldsForRole($row, $roleId): array
+    {
+        $roleId = (int) $roleId;
+        $pick = function ($type, $value) {
+            $type = trim((string) ($type ?? ''));
+            if ($type === '0') {
+                $type = '';
+            }
+            if ($value === null || $value === '') {
+                return [$type, ''];
+            }
+
+            return [$type, (string) $value];
+        };
+
+        if ($roleId === 3) {
+            [$type, $value] = $pick($row->ap_amount_type ?? null, $row->ap_amount_value ?? null);
+            if ($type === '') {
+                return $pick($row->rt_amount_type ?? null, $row->rt_amount_value ?? null);
+            }
+
+            return [$type, $value];
+        }
+        if ($roleId === 6) {
+            return $pick($row->rt_amount_type ?? null, $row->rt_amount_value ?? null);
+        }
+        if ($roleId === 5) {
+            return $pick($row->dt_amount_type ?? null, $row->dt_amount_value ?? null);
+        }
+        if ($roleId === 4) {
+            return $pick($row->md_amount_type ?? null, $row->md_amount_value ?? null);
+        }
+        if ($roleId === 2) {
+            return $pick($row->wt_amount_type ?? null, $row->wt_amount_value ?? null);
+        }
+
+        return ['', ''];
+    }
+
 }
 
 if (! function_exists('user_company')) {

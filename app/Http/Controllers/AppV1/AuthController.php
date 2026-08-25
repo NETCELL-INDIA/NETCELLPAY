@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\SendEmail;
 class AuthController extends Controller
 {
@@ -853,34 +854,51 @@ class AuthController extends Controller
 
 
     function myCommission(Request $post) {
+        \helpers::ensureApiPartnerCommissionColumns();
         $user = DB::table('users')->where("id",$post->user_id)->first();
+        if (! $user) {
+            return response()->json(array(
+                'type' => "error",
+                'message' => "User not found.",
+                'data' => []
+            ));
+        }
 
+        $select = [
+            'providers.id as p_id',
+            'providers.provider_name as p_name',
+            'providers.provider_logo as p_logo',
+            's.scheme_id',
+            's.md_amount_type',
+            's.md_amount_value',
+            's.dt_amount_type',
+            's.dt_amount_value',
+            's.rt_amount_type',
+            's.rt_amount_value',
+        ];
+        if (Schema::hasColumn('scheme_commissions', 'ap_amount_type')) {
+            $select[] = 's.ap_amount_type';
+            $select[] = 's.ap_amount_value';
+        }
 
         $service = DB::table('services')->where('status',1)->where('deleted_at',0)->get(['id','service_name']);
-        //return count($service);
-        foreach ($service as $s_list) { 
-            $list[$s_list->service_name][] = DB::table('providers')
+        $list = [];
+        foreach ($service as $s_list) {
+            $rows = DB::table('providers')
             ->where('providers.status',1)
             ->where('providers.service_id',$s_list->id)
             ->where('providers.deleted_at',0)
             ->join('scheme_commissions as s','s.provider_id','=','providers.id')
             ->where('s.scheme_id','=', $user->scheme_id)
-            ->get([
-                'providers.id as p_id',
-                'providers.provider_name as p_name',
-              	'providers.provider_logo as p_logo',
-                's.scheme_id',
-                ////
-                's.md_amount_type',
-                's.md_amount_value',
-                's.dt_amount_type',
-                's.dt_amount_value',
-                's.rt_amount_type',
-                's.rt_amount_value',
-            ]);
+            ->get($select);
+
+            foreach ($rows as $row) {
+                [$row->amount_type, $row->amount_value] = \helpers::commissionFieldsForRole($row, $user->role_id);
+            }
+            $list[$s_list->service_name] = $rows;
         }
         return response()->json(array(
-            'type' => "success",  
+            'type' => "success",
             'message' => "Fetch Successfuly.",
             'data' => $list
         ));

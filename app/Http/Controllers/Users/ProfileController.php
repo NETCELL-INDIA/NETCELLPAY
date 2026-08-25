@@ -190,7 +190,12 @@ class ProfileController extends Controller
     }
 
     public function myProfileCommissionList(Request $post){
+        \helpers::ensureApiPartnerCommissionColumns();
         $user = DB::table('users')->where("id",Session::get('user_id'))->whereNotIn("role_id",[1,2])->first();
+        if (! $user) {
+            echo '<h4 class="text-center text-secondary my-3">User not found</h4>';
+            return;
+        }
         $rules = array(
             'page' => 'required|numeric',
             'limit' => 'required|numeric',
@@ -293,22 +298,7 @@ class ProfileController extends Controller
             <tbody>';
             $i=$start + 1;
             foreach ($list as $list) {
-                if($user->role_id == 6 ||$user->role_id == 3){
-                    $amount_type = $list->rt_amount_type ?? '';
-                    $amount_value = $list->rt_amount_value ?? '';
-                }else if($user->role_id == 5){
-                    $amount_type = $list->dt_amount_type ?? '';
-                    $amount_value = $list->dt_amount_value ?? '';
-                }else if($user->role_id == 4){
-                    $amount_type = $list->md_amount_type ?? '';
-                    $amount_value = $list->md_amount_value ?? '';
-                }else if($user->role_id == 2){
-                    $amount_type = $list->wt_amount_type ?? '';
-                    $amount_value = $list->wt_amount_value ?? '';
-                } else {
-                    $amount_type = '';
-                    $amount_value = '';
-                }
+                [$amount_type, $amount_value] = \helpers::commissionFieldsForRole($list, $user->role_id);
                 $down = (int) ($list->provider_down ?? 0);
                 if ($down === 0 && \helpers::isProviderDownForUser($list->provider_id ?? $list->id, $user->id)) {
                     $down = 1;
@@ -331,8 +321,8 @@ class ProfileController extends Controller
                     <td>' . $i . '</td>
                     <td>' . $list->service_name . ' <br>' . $list->provider_name . '</td>
                     <td>' . $list->provider_id . '</td>
-                    <td>' . $amount_type . '</td>
-                    <td>' . $amount_value . '</td>
+                    <td>' . ($amount_type !== '' ? e($amount_type) : '-') . '</td>
+                    <td>' . ($amount_value !== '' ? e($amount_value) : '0') . '</td>
                     <td>' . $list->minium_amount . ' - ' . $list->maxium_amount . '</td>
                     <td>
                         <span class="badge rounded-pill text-bg-' . $bg . '">' . $st . '</span>

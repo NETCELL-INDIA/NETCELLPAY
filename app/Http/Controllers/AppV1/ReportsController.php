@@ -458,22 +458,18 @@ class ReportsController extends Controller
 
         if($post->from_date){
             $from_date = $post->from_date." 00:00:00";
-            $to_date = $post->to_date." 23:59:59";
+            $to_date = ($post->to_date ?: $post->from_date)." 23:59:59";
         }else{
             $from_date = Carbon::today()->format('Y-m-d')." 00:00:00";
             $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
-            $table = "reports";
         } 
         
         $query = DB::table('reports')
         ->select(
             'reports.id',
-            //'reports.number',
             'reports.amount',
-            //'reports.status',
+            'reports.status',
             'reports.closing_balance',
-            //'reports.provider_id',
-            //'reports.number',
             'reports.total_amount',
             'reports.order_id',
             'reports.remark',
@@ -481,9 +477,7 @@ class ReportsController extends Controller
             'reports.transaction_type',
             'reports.fund_type',
             'reports.transaction_date',
-            //'providers.provider_logo',
-            //'providers.provider_name',
-            //'providers.id as p_id',
+            'reports.created_at',
             'u.id as u_id',
             'u.outlet_name as u_outlet_name',
             'u.mobile_number as u_mobile_number',
@@ -491,7 +485,6 @@ class ReportsController extends Controller
             'u.last_name as u_last_name',
             'u.middle_name as u_middle_name',
             'u.email_address as u_email_address',
-            ///
             'd.id as d_id',
             'd.outlet_name as d_outlet_name',
             'd.mobile_number as d_mobile_number',
@@ -499,7 +492,6 @@ class ReportsController extends Controller
             'd.last_name as d_last_name',
             'd.middle_name as d_middle_name',
             'd.email_address as d_email_address',
-            ///
             'c.id as c_id',
             'c.outlet_name as c_outlet_name',
             'c.mobile_number as c_mobile_number',
@@ -508,11 +500,14 @@ class ReportsController extends Controller
             'c.middle_name as c_middle_name',
             'c.email_address as c_email_address',
         )
-        //->join('providers','providers.id','=','reports.provider_id')
-        ->join('users as u','u.id','=','reports.user_id')
-        ->join('users as d','d.id','=','reports.debit_user_id')
-        ->join('users as c','c.id','=','reports.credit_user_id')
-        ->where('reports.user_id', $post->user_id)->whereBetween('reports.created_at', [$from_date,$to_date])
+        ->leftJoin('users as u','u.id','=','reports.user_id')
+        ->leftJoin('users as d','d.id','=','reports.debit_user_id')
+        ->leftJoin('users as c','c.id','=','reports.credit_user_id')
+        ->where('reports.user_id', $post->user_id)
+        ->where(function ($w) use ($from_date, $to_date) {
+            $w->whereBetween('reports.created_at', [$from_date, $to_date])
+                ->orWhereBetween('reports.transaction_date', [$from_date, $to_date]);
+        })
         ->whereIn('reports.transaction_type',['Transfer Money','Receive Money','Upi Add Money','Self Money','Money Reverse','Reverse Money'])
         ;
 
@@ -542,7 +537,18 @@ class ReportsController extends Controller
 
         $list =  $query->orderBy('reports.id', 'DESC')->offset($start)->limit($limit)->get();
 
-
+        foreach ($list as $row) {
+            if (empty($row->d_id)) {
+                $row->d_outlet_name = $row->d_outlet_name ?: 'Admin';
+                $row->d_first_name = $row->d_first_name ?: 'Admin';
+                $row->d_mobile_number = $row->d_mobile_number ?: '-';
+            }
+            if (empty($row->c_id)) {
+                $row->c_outlet_name = $row->c_outlet_name ?: 'Admin';
+                $row->c_first_name = $row->c_first_name ?: 'Admin';
+                $row->c_mobile_number = $row->c_mobile_number ?: '-';
+            }
+        }
 
         return response()->json(array(
             'type' => "success",  
