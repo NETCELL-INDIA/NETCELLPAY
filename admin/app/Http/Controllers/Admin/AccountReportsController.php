@@ -168,27 +168,23 @@ class AccountReportsController extends Controller
 
         $start= ($page-1) * $limit;
 
-        $total_row = DB::table($table)
+        $filterQuery = function () use ($table, $from_date, $to_date, $post) {
+            return DB::table($table)
+                ->whereBetween('created_at', [$from_date,$to_date])
+                ->where('user_id', 'like', '%' . $post->user_id . '%')
+                ->where('order_id', 'like', '%' . $post->order_id . '%')
+                ->where('fund_type', 'like', '%' . $post->fund_type . '%')
+                ->where('transaction_type', 'like', '%' . $post->tr_type . '%');
+        };
 
-            ->whereBetween('created_at', [$from_date,$to_date])
+        $total_row_count = $filterQuery()->count();
 
-            ->where('user_id', 'like', '%' . $post->user_id . '%')
-
-            ->where('order_id', 'like', '%' . $post->order_id . '%')
-
-            ->where('fund_type', 'like', '%' . $post->fund_type . '%')
-
-            ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
-
-            //->where('transaction_type', $post->tr_type)
-
-            //->whereNotIn('transaction_type',['Commission','Recharge','Reverse Commission','Refund','Money Transfer'])
-
-            ->orderBy('id', 'DESC')
-
-            ->get();
-
-        $total_row_count = $total_row->count();
+        $totals = $filterQuery()->selectRaw("
+                COALESCE(SUM(CASE WHEN fund_type = 'Credit' THEN amount ELSE 0 END), 0) as total_credit,
+                COALESCE(SUM(CASE WHEN fund_type = 'Debit' THEN amount ELSE 0 END), 0) as total_debit
+            ")->first();
+        $total_credit = (float) ($totals->total_credit ?? 0);
+        $total_debit = (float) ($totals->total_debit ?? 0);
 
         $total_pages = ceil($total_row_count / $limit);
 
@@ -218,28 +214,10 @@ class AccountReportsController extends Controller
 
         
 
-        $list = DB::table($table)
-
-            ->whereBetween('created_at', [$from_date,$to_date])
-
-            ->where('user_id', 'like', '%' . $post->user_id . '%')
-
-            ->where('order_id', 'like', '%' . $post->order_id . '%')
-
-            ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
-
-            //->whereIn('transaction_type',['Transfer Money','Receive Money','Upi Add Money','Self Money','Money Reverse','Reverse Money'])
-
-            //->whereNotIn('transaction_type',['Commission','Recharge','Reverse Commission','Refund','Money Transfer'])
-
-            ->where('fund_type', 'like', '%' . $post->fund_type . '%')
-
+        $list = $filterQuery()
             ->orderBy('id', 'DESC')
-
             ->offset($start)
-
             ->limit($limit)
-
             ->get();
 
         $list_count = $list->count();
@@ -286,32 +264,25 @@ class AccountReportsController extends Controller
 
                 </div><br>';
 
+            $output .= '<div class="row g-2 mb-3">
+                <div class="col-md-4"><div class="border rounded p-2 bg-success-subtle"><small class="text-muted">Total Credit</small><div class="fw-bold text-success">₹ '.number_format($total_credit, 2).'</div></div></div>
+                <div class="col-md-4"><div class="border rounded p-2 bg-danger-subtle"><small class="text-muted">Total Debit</small><div class="fw-bold text-danger">₹ '.number_format($total_debit, 2).'</div></div></div>
+                <div class="col-md-4"><div class="border rounded p-2"><small class="text-muted">Net (Credit − Debit)</small><div class="fw-bold">₹ '.number_format($total_credit - $total_debit, 2).'</div></div></div>
+            </div>';
+
             $output .= '<table class="table table-bordered table-nowrap" id="pagination_table"><thead>
-
               <tr>
-
                 <th>User</th>
-
                 <th>Date &amp; Time</th>
-
                 <th>Order Id</th>
-
                 <th>Type</th>
-
                 <th>Remark</th>
-
-                <th>Wallet</th>
-
-                <th>Credit / Debit</th>
-
-                <th>Opening</th>
-
-                <th>Closing</th>
-
+                <th class="text-end">Credit</th>
+                <th class="text-end">Debit</th>
+                <th class="text-end">Opening</th>
+                <th class="text-end">Closing</th>
               </tr>
-
             </thead>
-
             <tbody>';
 
             $i=$start + 1;
@@ -326,60 +297,29 @@ class AccountReportsController extends Controller
                 $user_dt_outlet_name = $user_dt->outlet_name ?? '-';
                 $user_dt_mobile_number = $user_dt->mobile_number ?? '-';
 
-                if($list->fund_type == "Credit"){
-
-                    $bg = "success";
-
-                    $inr = "green";
-
-                }elseif ($list->fund_type == "Debit") {
-
-                    $bg = "danger";
-
-                    $inr = "red";
-
-                }else{
-
-                    $bg = "warning";
-
-                    $inr = "black";
-
-                }
+                $amt = (float) $list->amount;
+                $creditCell = ($list->fund_type == 'Credit')
+                    ? '<span class="text-success fw-bold">₹ '.number_format($amt, 2).'</span>'
+                    : '—';
+                $debitCell = ($list->fund_type == 'Debit')
+                    ? '<span class="text-danger fw-bold">₹ '.number_format($amt, 2).'</span>'
+                    : '—';
 
 				$output .= '<tr>
-
                 <td>
-
                     ' . e(trim($user_dt_first_name.' '.$user_dt_middle_name.' '.$user_dt_last_name)) . ' <br>
-
                     <small>' . e($user_dt_outlet_name) . ' · ' . e($user_dt_mobile_number) . '</small>
-
                 </td>
-
                 <td>' . e($list->transaction_date) . '</td>
-
                 <td>' . e($list->order_id) . '</td>
-
                 <td>
-
                     <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
-
                 </td>
-
                 <td>' . e($list->remark) . '</td>
-
-                <td style="color: '.$inr.';font-weight:700;"> ₹ ' . number_format((float) $list->amount, 2) . '</td>
-
-                <td>
-
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . e($list->fund_type) . '</span>
-
-                </td>
-
-                <td> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
-
-                <td> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
-
+                <td class="text-end">' . $creditCell . '</td>
+                <td class="text-end">' . $debitCell . '</td>
+                <td class="text-end"> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
+                <td class="text-end"> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
               </tr>';
 
               $i++;
@@ -522,8 +462,8 @@ class AccountReportsController extends Controller
                 'Date/Time',
                 'Tr Type',
                 'Remark',
-                'Wallet',
-                'Credit/Debit',
+                'Credit',
+                'Debit',
                 'Opening',
                 'Closing',
                 'Path',
@@ -545,6 +485,7 @@ class AccountReportsController extends Controller
 
                 foreach ($rows as $list) {
                     $user_dt = DB::table('users')->where('id', $list->user_id)->first();
+                    $isCredit = ($list->fund_type == 'Credit');
                     fputcsv($handle, [
                         trim(($user_dt->first_name ?? '') . ' ' . ($user_dt->middle_name ?? '') . ' ' . ($user_dt->last_name ?? '')),
                         $user_dt->outlet_name ?? '',
@@ -554,8 +495,8 @@ class AccountReportsController extends Controller
                         $list->transaction_date,
                         $list->transaction_type,
                         $list->remark,
-                        round((float) $list->amount, 2),
-                        $list->fund_type,
+                        $isCredit ? round((float) $list->amount, 2) : '',
+                        $isCredit ? '' : round((float) $list->amount, 2),
                         $list->opening_balance,
                         $list->closing_balance,
                         $list->path,

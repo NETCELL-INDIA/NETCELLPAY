@@ -134,7 +134,7 @@
                     <div class="collapse menu-dropdown" id="sidebarUserReports">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/account-report') }}" class="nav-link">Wallet Ledger</a>
+                                <a href="{{ URL::asset('users/user-reports/account-report') }}" class="nav-link">Account Reports</a>
                             </li>
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/user-reports/recharge-report') }}" class="nav-link">Recharge Report</a>

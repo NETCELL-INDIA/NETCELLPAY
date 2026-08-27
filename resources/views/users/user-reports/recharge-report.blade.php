@@ -14,7 +14,7 @@
 @slot('title')Recharge Report @endslot
 @endcomponent
 <div class="alert alert-secondary py-2 mb-3">
-    <strong>Recharge Report</strong> — operator, number, MRP, status. Wallet opening/closing is in <a href="{{ URL::asset('users/user-reports/account-report') }}">Wallet Ledger</a>.
+    <strong>Recharge Report</strong> — operator, number, MRP, status. Credit / Debit / Fund wallet entries are in <a href="{{ URL::asset('users/user-reports/account-report') }}">Account Reports</a>.
 </div>
 <style>
         .receipt {

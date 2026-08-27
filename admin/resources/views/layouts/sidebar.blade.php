@@ -267,7 +267,7 @@
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarAccountsReports">
                         <ul class="nav nav-sm flex-column">
-                            <li class="nav-item"><a href="{{ URL::asset('admin/user-reports/account-report') }}" class="nav-link">Wallet Ledger</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/user-reports/account-report') }}" class="nav-link">Account Reports</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/user-sale-report') }}" class="nav-link">User Sale Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/md-dt-sale-report') }}" class="nav-link">MD / DT Sale Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/provider-sale-report') }}" class="nav-link">Operator Sale Report</a></li>

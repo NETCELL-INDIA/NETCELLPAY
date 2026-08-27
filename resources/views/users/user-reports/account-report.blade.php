@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title') Wallet Ledger @endsection
+@section('title') Account Reports @endsection
 @section('css')
 <!--datatable css-->
 <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet" type="text/css" />
@@ -11,12 +11,13 @@
 @section('content')
 @component('components.breadcrumb')
 @slot('li_1') Reports @endslot
-@slot('title')Wallet Ledger @endslot
+@slot('title')Account Reports @endslot
 @endcomponent
 
 <div class="alert alert-info py-2 mb-3">
-    <strong>Wallet Ledger</strong> — wallet credit / debit with opening and closing balance.
-    Recharge also shows here as a <strong>Debit</strong> (wallet cut). For operator number, MRP and status use <a href="{{ URL::asset('users/user-reports/recharge-report') }}">Recharge Report</a>.
+    <strong>Account Reports</strong> — every wallet transaction: Credit, Debit and Fund.
+    Recharge appears as Debit (wallet cut). Operator number / MRP / status is in
+    <a href="{{ URL::asset('users/user-reports/recharge-report') }}">Recharge Report</a>.
 </div>
 
 <div class="row">
@@ -53,17 +54,17 @@
                             <label class="form-label mb-0">Transaction Type </label>
                             <select class="form-select mb-3" name="tr_type"  id="tr_type">
                                 <option selected value="">All types</option>
-                                <option value="Recharge">Recharge (wallet debit)</option>
-                                <option value="Commission">Commission</option>
-                                <option value="Refund">Refund</option>
-                                <option value="Money Transfer">Money Transfer</option>
+                                <option value="Transfer Money">Fund — Transfer Money</option>
+                                <option value="Receive Money">Fund — Receive Money</option>
+                                <option value="Self Money">Fund — Self Money</option>
+                                <option value="Upi Add Money">Fund — UPI Add Money</option>
+                                <option value="Reverse Money">Fund — Reverse Money</option>
+                                <option value="Money Reverse">Fund — Money Reverse</option>
+                                <option value="Recharge">Recharge (Debit)</option>
+                                <option value="Refund">Refund (Credit)</option>
+                                <option value="Commission">Commission (Credit)</option>
                                 <option value="Reverse Commission">Reverse Commission</option>
-                                <option value="Receive Money">Receive Money</option>
-                                <option value="Transfer Money">Transfer Money</option>
-                                <option value="Upi Add Money">Upi Add Money</option>
-                                <option value="Self Money">Self Money</option>
-                                <option value="Money Reverse">Money Reverse</option>
-                                <option value="Reverse Money">Reverse Money</option>
+                                <option value="Money Transfer">Money Transfer</option>
                             </select>
                         </div>
                         <div class="col-lg-2">
@@ -98,7 +99,7 @@
     <div class="col-lg-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Wallet Ledger</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Account Reports — All Transactions</h4>
                 <div class="flex-shrink-0">
                 </div>
             </div>

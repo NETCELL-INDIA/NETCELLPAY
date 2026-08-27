@@ -1,6 +1,6 @@
 @extends('layouts.master')
 
-@section('title') Wallet Ledger @endsection
+@section('title') Account Reports @endsection
 
 @section('css')
 
@@ -24,15 +24,14 @@
 
 @slot('li_1') Accounts Reports @endslot
 
-@slot('title')Wallet Ledger @endslot
+@slot('title')Account Reports @endslot
 
 @endcomponent
 
 <div class="alert alert-info py-2 mb-3">
-    <strong>Wallet Ledger</strong> shows wallet credit/debit and opening → closing balance.
-    Recharge rows here are wallet cuts, not operator status.
-    For number / MRP / SUCCESS-PENDING-FAILURE use <a href="{{ URL::asset('admin/user-reports/recharge-report') }}">Recharge Report</a>.
-    For user-to-user fund only use <a href="{{ URL::asset('admin/fund/fund-report') }}">Fund Transfer History</a>.
+    <strong>Account Reports</strong> lists every wallet transaction: Credit, Debit and Fund (transfer / receive / UPI / self).
+    Opening and closing balance are shown on each row. Recharge here is the wallet cut; operator status is in
+    <a href="{{ URL::asset('admin/user-reports/recharge-report') }}">Recharge Report</a>.
 </div>
 
 
@@ -127,25 +126,27 @@
 
                                 <option selected value="All">All types</option>
 
-                                <option value="Recharge">Recharge (wallet debit)</option>
+                                <option value="Transfer Money">Fund — Transfer Money</option>
 
-                                <option value="Money Transfer">Money Transfer</option>
+                                <option value="Receive Money">Fund — Receive Money</option>
 
-                                <option value="Refund">Refund</option>
+                                <option value="Self Money">Fund — Self Money</option>
 
-                                <option value="Transfer Money">Transfer Money</option>
+                                <option value="Upi Add Money">Fund — UPI Add Money</option>
 
-                                <option value="Receive Money">Receive Money</option>
+                                <option value="Reverse Money">Fund — Reverse Money</option>
 
-                              	<option value="Upi Add Money">Upi Add Money</option>
+                                <option value="Money Reverse">Fund — Money Reverse</option>
 
-                                <option value="Reverse Money">Reverse Money</option>
+                                <option value="Recharge">Recharge (Debit)</option>
 
-                                <option value="Money Reverse">Money Reverse</option>
+                                <option value="Refund">Refund (Credit)</option>
 
-                                <option value="Commission">Commission</option>
+                                <option value="Commission">Commission (Credit)</option>
 
                                 <option value="Reverse Commission">Reverse Commission</option>
+
+                                <option value="Money Transfer">Money Transfer</option>
 
                             </select>
 
@@ -215,7 +216,7 @@
 
             <div class="card-header align-items-center d-flex">
 
-                <h4 class="card-title mb-0 flex-grow-1">Wallet Ledger</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Account Reports — All Transactions</h4>
 
                 <div class="flex-shrink-0">
                     <div class="form-check form-switch form-switch-right form-switch-md">

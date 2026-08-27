@@ -16,7 +16,7 @@
 @endcomponent
 
 @unless($manualOnly)
-<p class="text-muted mb-3" style="font-size:.9rem">Recharge Report = operator, number, MRP, status. Wallet opening/closing is in <a href="{{ URL::asset('admin/user-reports/account-report') }}">Wallet Ledger</a>.</p>
+<p class="text-muted mb-3" style="font-size:.9rem">Recharge Report = operator, number, MRP, status. Credit / Debit / Fund wallet entries are in <a href="{{ URL::asset('admin/user-reports/account-report') }}">Account Reports</a>.</p>
 @endunless
 
 <div class="card recharge-filter-card">

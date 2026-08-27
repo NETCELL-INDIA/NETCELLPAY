@@ -62,13 +62,21 @@ class AccountReportsController extends Controller
         }
 
         $start= ($page-1) * $limit;
-        $total_row = DB::table($table)
-        ->where('user_id', Session::get('user_id'))->whereBetween('created_at', [$from_date,$to_date])
-        ->where('order_id', 'like', '%' . $post->order_id . '%')
-        ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
-        ->where('fund_type', 'like', '%' . $post->fund_type . '%')
-        ->orderBy('id', 'DESC')->get();
-        $total_row_count = $total_row->count();
+        $filterQuery = function () use ($table, $from_date, $to_date, $post) {
+            return DB::table($table)
+                ->where('user_id', Session::get('user_id'))
+                ->whereBetween('created_at', [$from_date,$to_date])
+                ->where('order_id', 'like', '%' . $post->order_id . '%')
+                ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
+                ->where('fund_type', 'like', '%' . $post->fund_type . '%');
+        };
+        $total_row_count = $filterQuery()->count();
+        $totals = $filterQuery()->selectRaw("
+                COALESCE(SUM(CASE WHEN fund_type = 'Credit' THEN amount ELSE 0 END), 0) as total_credit,
+                COALESCE(SUM(CASE WHEN fund_type = 'Debit' THEN amount ELSE 0 END), 0) as total_debit
+            ")->first();
+        $total_credit = (float) ($totals->total_credit ?? 0);
+        $total_debit = (float) ($totals->total_debit ?? 0);
         $total_pages = ceil($total_row_count / $limit);
         $page_link = '';
         for ($i1=1; $i1<=$total_pages; $i1++) {
@@ -83,11 +91,7 @@ class AccountReportsController extends Controller
         };
         
         
-        $list = DB::table($table)
-        ->where('user_id', Session::get('user_id'))->whereBetween('created_at', [$from_date,$to_date])
-        ->where('order_id', 'like', '%' . $post->order_id . '%')
-        ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
-        ->where('fund_type', 'like', '%' . $post->fund_type . '%')
+        $list = $filterQuery()
         ->orderBy('id', 'DESC')
         ->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
@@ -113,31 +117,33 @@ class AccountReportsController extends Controller
                 <input type="text" class="form-control" id="searchValueTable" placeholder="Enter Search Value">
             </div>
         </div><br>';
+        $output .= '<div class="row g-2 mb-3">
+            <div class="col-md-4"><div class="border rounded p-2 bg-success-subtle"><small class="text-muted">Total Credit</small><div class="fw-bold text-success">₹ '.number_format($total_credit, 2).'</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2 bg-danger-subtle"><small class="text-muted">Total Debit</small><div class="fw-bold text-danger">₹ '.number_format($total_debit, 2).'</div></div></div>
+            <div class="col-md-4"><div class="border rounded p-2"><small class="text-muted">Net (Credit − Debit)</small><div class="fw-bold">₹ '.number_format($total_credit - $total_debit, 2).'</div></div></div>
+        </div>';
         $output .= '<table class="table table-bordered table-nowrap" id="pagination_table"><thead>
               <tr>
                 <th>Date &amp; Time</th>
                 <th>Order Id</th>
                 <th>Type</th>
                 <th>Remark</th>
-                <th>Wallet</th>
-                <th>Credit / Debit</th>
-                <th>Opening</th>
-                <th>Closing</th>
+                <th class="text-end">Credit</th>
+                <th class="text-end">Debit</th>
+                <th class="text-end">Opening</th>
+                <th class="text-end">Closing</th>
               </tr>
             </thead>
             <tbody>';
             $i=$start + 1;
 			foreach ($list as $list) {
-                if($list->fund_type == "Credit"){
-                    $bg = "success";
-                    $inr = "green";
-                }elseif ($list->fund_type == "Debit") {
-                    $bg = "danger";
-                    $inr = "red";
-                }else{
-                    $bg = "warning";
-                    $inr = "black";
-                }
+                $amt = (float) $list->amount;
+                $creditCell = ($list->fund_type == 'Credit')
+                    ? '<span class="text-success fw-bold">₹ '.number_format($amt, 2).'</span>'
+                    : '—';
+                $debitCell = ($list->fund_type == 'Debit')
+                    ? '<span class="text-danger fw-bold">₹ '.number_format($amt, 2).'</span>'
+                    : '—';
 				$output .= '<tr>
                 <td>' . e($list->transaction_date) . '</td>
                 <td>' . e($list->order_id) . '</td>
@@ -145,12 +151,10 @@ class AccountReportsController extends Controller
                     <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
                 </td>
                 <td>' . e($list->remark) . '</td>
-                <td style="color: '.$inr.';font-weight:700;"> ₹ ' . number_format((float) $list->amount, 2) . '</td>
-                <td>
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . e($list->fund_type) . '</span>
-                </td>
-                <td> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
-                <td> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
+                <td class="text-end">' . $creditCell . '</td>
+                <td class="text-end">' . $debitCell . '</td>
+                <td class="text-end"> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
+                <td class="text-end"> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
               </tr>';
               $i++;
 			}
