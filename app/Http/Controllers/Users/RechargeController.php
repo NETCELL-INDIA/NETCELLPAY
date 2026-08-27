@@ -54,6 +54,19 @@ class RechargeController extends Controller
 
 
 
+    private function currentWalletBalance($userId): float
+    {
+        return round((float) DB::table('users')->where('id', $userId)->value('wallet_balance'), 2);
+    }
+
+    private function withApiWalletBalance(array $payload, $user): array
+    {
+        if ($user && !empty($user->id) && request()->filled('api_key')) {
+            $payload['balance'] = $this->currentWalletBalance($user->id);
+        }
+        return $payload;
+    }
+
     public function finalApiCheck($post,$user) {
 
         $array_routes = [];
@@ -277,7 +290,7 @@ class RechargeController extends Controller
 
         if ($user->wallet_balance < $post->amount) {
 
-            return response()->json(array(
+            return response()->json($this->withApiWalletBalance(array(
 
                 'status' => 'Failed',
 
@@ -285,7 +298,7 @@ class RechargeController extends Controller
 
                 'message' => "You Have Insufficient your Wallet Balance"
 
-            ));
+            ), $user));
 
         }
 
@@ -297,7 +310,7 @@ class RechargeController extends Controller
 
         } else {
 
-            return response()->json(array(
+            return response()->json($this->withApiWalletBalance(array(
 
                 'status' => 'Failed',
 
@@ -305,7 +318,7 @@ class RechargeController extends Controller
 
                 'message' => "Please contact your admin your minimum maintain balance is " . $user->minium_balance
 
-            ));
+            ), $user));
 
         }
 
@@ -802,7 +815,7 @@ class RechargeController extends Controller
 
                                                             }
 
-                                                            return response()->json($data_show);
+                                                            return response()->json($this->withApiWalletBalance($data_show, $user));
 
                                                         }
 
@@ -850,7 +863,7 @@ class RechargeController extends Controller
 
                                                 }
 
-                                                return response()->json($data_show);
+                                                return response()->json($this->withApiWalletBalance($data_show, $user));
 
                                             }
 
@@ -898,7 +911,7 @@ class RechargeController extends Controller
 
                                     }
 
-                                    return response()->json($data_show);
+                                    return response()->json($this->withApiWalletBalance($data_show, $user));
 
                                 }
 
@@ -952,7 +965,7 @@ class RechargeController extends Controller
 
                         }
 
-                        return response()->json($data_show);
+                        return response()->json($this->withApiWalletBalance($data_show, $user));
 
                     }
 
@@ -1473,7 +1486,7 @@ class RechargeController extends Controller
 
         }
 
-        return $data;
+        return $this->withApiWalletBalance($data, $user);
 
         //echo "<pre>";print_r("Shiba");die;
 

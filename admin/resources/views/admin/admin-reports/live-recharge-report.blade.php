@@ -333,7 +333,7 @@
                         <th>Operator</th>
                         <th>Circle</th>
                         <th>Number</th>
-                        <th>Amount</th>
+                        <th>MRP</th>
                         <th>Status</th>
                         <th>API</th>
                         <th>Opt ID</th>

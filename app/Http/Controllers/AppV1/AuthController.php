@@ -200,7 +200,7 @@ class AuthController extends Controller
                 \App\Services\SystemSettingService::clearFailedLogin($user);
 
                 if($user->status==1){
-                    if(strtoupper((string) $user->login_type) === 'OTP'){
+                    if(\App\Services\SystemSettingService::userLoginRequiresOtp($user)){
                         if($user->otp_limit == 5){
                             $time_diff = strtotime(Carbon::now()) - strtotime($user->otp_created_at);
                             $time_diff_min = $time_diff / 60;

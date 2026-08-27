@@ -40,7 +40,7 @@ API Settings
                         <div class="col-md-12">
                             <label class="form-label">Recharge Callback URL</label>
                             <input type="text" name="callback_url" class="form-control" value="{{ old('callback_url', $user->callback_url) }}" placeholder="https://your-site.com/recharge-callback">
-                            <small class="text-muted">We call this as GET: <code>?request_order_id=&amp;status=&amp;amount=&amp;order_id=&amp;operator_id=</code></small>
+                            <small class="text-muted">We call this as GET: <code>?request_order_id=&amp;status=&amp;amount=&amp;order_id=&amp;operator_id=&amp;balance=</code></small>
                         </div>
                         <div class="col-md-12">
                             <label class="form-label">Complaint Callback URL</label>
@@ -133,7 +133,8 @@ API Settings
   "type": "success",
   "remark": "...",
   "message": "...",
-  "commission": 0
+  "commission": 0,
+  "balance": 1250.50
 }</pre>
                 <p class="text-muted">If <code>type</code> is <code>error</code>, check <code>message</code> (invalid API key, duplicate <code>request_order_id</code>, IP not allowed, wallet, operator, etc.).</p>
 
@@ -142,6 +143,7 @@ API Settings
   "type": "success",
   "message": "Get sucessfuly",
   "provider_name": "Airtel",
+  "balance": 1250.50,
   "data": {
     "order_id": "RC...",
     "request_order_id": "REQ...",
@@ -155,7 +157,7 @@ API Settings
                 <h5 class="mb-2">Notes</h5>
                 <ul class="mb-0">
                     <li>Do not send <code>pin</code>.</li>
-                    <li>Balance URL returns the current wallet amount for the API key.</li>
+                    <li>Balance URL, Recharge, and Recharge Status all return current wallet as <code>balance</code>.</li>
                     <li><code>request_order_id</code> = your unique txn id. Reuse returns “request order id already exists.”</li>
                     <li><code>order_id</code> = our system id (starts with RC…). Use this for complaints.</li>
                     <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid.</li>

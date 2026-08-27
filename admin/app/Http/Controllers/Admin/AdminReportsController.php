@@ -107,13 +107,13 @@ class AdminReportsController extends Controller
 
         $summaryRows = (clone $base)
             ->selectRaw("
-                SUM(CASE WHEN r.status = 'Success' THEN r.amount ELSE 0 END) as success_amt,
+                SUM(CASE WHEN r.status = 'Success' THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as success_amt,
                 SUM(CASE WHEN r.status = 'Success' THEN 1 ELSE 0 END) as success_cnt,
-                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN r.amount ELSE 0 END) as pending_amt,
+                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as pending_amt,
                 SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN 1 ELSE 0 END) as pending_cnt,
-                SUM(CASE WHEN r.status IN ('Failed','Failure') THEN r.amount ELSE 0 END) as failure_amt,
+                SUM(CASE WHEN r.status IN ('Failed','Failure') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as failure_amt,
                 SUM(CASE WHEN r.status IN ('Failed','Failure') THEN 1 ELSE 0 END) as failure_cnt,
-                SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN r.amount ELSE 0 END) as refunded_amt,
+                SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as refunded_amt,
                 SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN 1 ELSE 0 END) as refunded_cnt
             ")
             ->first();
@@ -152,7 +152,7 @@ class AdminReportsController extends Controller
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->circle_name ?: '-') . '</td>
                     <td class="live-number">' . e($list->number ?: '-') . '</td>
-                    <td class="live-amt">₹' . number_format((float) $list->amount, 2) . '</td>
+                    <td class="live-amt">₹' . number_format((float) ($list->total_amount ?: $list->amount), 2) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td><small>' . $idsLine . '</small></td>
@@ -223,7 +223,7 @@ class AdminReportsController extends Controller
                     $list->provider_name,
                     $list->circle_name,
                     $list->number,
-                    $list->amount,
+                    $list->total_amount ?: $list->amount,
                     $list->status,
                     $list->api_name,
                     $list->operator_id,

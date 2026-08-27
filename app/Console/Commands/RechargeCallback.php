@@ -36,8 +36,8 @@ class RechargeCallback extends Command
                 ->where('status','!=','Pending')->take(100)->get();
        $rows =  $res->count();
         for ($i = 0; $i < $rows; $i++) {
-            $user = DB::table('users')->where('id', $res[$i]->user_id)->first(['callback_url']);
-            $url = $user->callback_url . "?request_order_id=" . $res[$i]->request_order_id . "&status=" . $res[$i]->status . "&amount=" . $res[$i]->total_amount . "&order_id=" . $res[$i]->order_id . "&operator_id=" . $res[$i]->operator_id;
+            $user = DB::table('users')->where('id', $res[$i]->user_id)->first(['callback_url', 'wallet_balance']);
+            $url = $user->callback_url . "?request_order_id=" . $res[$i]->request_order_id . "&status=" . $res[$i]->status . "&amount=" . $res[$i]->total_amount . "&order_id=" . $res[$i]->order_id . "&operator_id=" . $res[$i]->operator_id . "&balance=" . round((float) ($user->wallet_balance ?? 0), 2);
             $order_id = $res[$i]->order_id;
             $header = [];
             $result = helpers::curl($url, "GET", "", $header, "yes", "USER_RECHARGE_CALLBACK", $order_id);

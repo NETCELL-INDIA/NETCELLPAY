@@ -23,6 +23,8 @@ class SystemSettingService
             'max_payout_account' => '20',
             'stop_all_transactions' => '0',
             'app_without_login' => '0',
+            'user_login_method' => 'USER',
+            'admin_login_method' => 'OTP',
             'activation_charge' => '0',
             'activation_charge_status' => '0',
             'add_money_charge_type' => 'fixed',
@@ -185,6 +187,24 @@ class SystemSettingService
         }
 
         return $default ?? (self::defaults()[$key] ?? null);
+    }
+
+    public static function userLoginRequiresOtp($user): bool
+    {
+        $mode = strtoupper((string) self::get('user_login_method', 'USER'));
+        if ($mode === 'PASSWORD') {
+            return false;
+        }
+        if ($mode === 'OTP') {
+            return true;
+        }
+
+        return strtoupper((string) ($user->login_type ?? '')) === 'OTP';
+    }
+
+    public static function adminLoginRequiresOtp(): bool
+    {
+        return strtoupper((string) self::get('admin_login_method', 'OTP')) !== 'PASSWORD';
     }
 
     public static function putMany(array $data): void

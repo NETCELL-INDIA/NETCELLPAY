@@ -69,6 +69,20 @@ class AuthController extends Controller
             if(Hash::check($post->password, $user->password)){
 
                 if($user->status==1){
+                    if (!\App\Services\SystemSettingService::adminLoginRequiresOtp()) {
+                        $data['type'] = 'success';
+                        $data['message'] = 'Login successful.';
+                        $loginKey = $user->login_key ?: Str::random(40);
+                        DB::table('users')->where('id', $user->id)->update([
+                            'login_key' => $loginKey,
+                            'otp_limit' => 0,
+                            'otp' => null,
+                            'email_otp' => null,
+                        ]);
+                        $post->session()->put('user_id', $user->id);
+                        $post->session()->put('login_key', $loginKey);
+                        Common::recordLoginHistory((int) $user->id, 'WEB');
+                    } else {
                     $otpLimit = (int) $user->otp_limit;
                     if($otpLimit === 5){
                         $time_diff = strtotime(Carbon::now()) - strtotime($user->otp_created_at);
@@ -141,6 +155,7 @@ class AuthController extends Controller
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "otp limit exhausted login after 10 minutes.";
+                    }
                     }
                 }else{
                     $data['type'] = 'error';
