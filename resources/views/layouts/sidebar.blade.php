@@ -129,26 +129,16 @@
                 
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarUserReports" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarUserReports">
-                        <i class='bx bxs-report' ></i></i> <span>User Reports</span>
+                        <i class='bx bxs-report'></i> <span>Reports</span>
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarUserReports">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/account-report') }}" class="nav-link"> Account Report </a>
+                                <a href="{{ URL::asset('users/user-reports/account-report') }}" class="nav-link">Wallet Ledger</a>
                             </li>
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/recharge-report') }}" class="nav-link"> Recharge </a>
+                                <a href="{{ URL::asset('users/user-reports/recharge-report') }}" class="nav-link">Recharge Report</a>
                             </li>
-                            <!-- <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/bill-payment-report') }}" class="nav-link"> Bill Payment </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/money-transfer-report') }}" class="nav-link"> Money Transfer </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/user-reports/aeps-report') }}" class="nav-link"> AEPS </a>
-                            </li> -->
-                          
                         </ul>
                     </div>
                 </li>

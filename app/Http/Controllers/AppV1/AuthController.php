@@ -29,95 +29,51 @@ class AuthController extends Controller
             $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
        // }
 
-        $report_s = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Recharge')
-        ->where('status', 'Success')
-        ->get();
-    $report_p = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Recharge')
-        ->where('status', 'Pending')
-        ->get();
-    $report_f = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Recharge')
-        ->where('status', 'Failed')
-        ->get();
-    $report_r = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Refund')
-        ->where('status', 'Success')
-        ->get();
-    $report_receive_money = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Receive Money')
-        ->where('status', 'Success')
-        ->get();
-    $report_upi_add_money = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-                ->where('user_id',$post->user_id)
-                ->where('transaction_type', 'Upi Add Money')
-                ->where('status', 'Success')
-                ->get();        
-    $tranaction_reports = DB::table('reports')->where('user_id',$post->user_id)
+        $userId = (int) $post->user_id;
+        $agg = DB::table('reports')
+            ->where('user_id', $userId)
+            ->whereBetween('created_at', [$from_date, $to_date])
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Success' THEN total_amount ELSE 0 END), 0) as rc_success_amount,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Success' THEN 1 ELSE 0 END), 0) as rc_success_hit,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Pending' THEN total_amount ELSE 0 END), 0) as rc_pending_amount,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Pending' THEN 1 ELSE 0 END), 0) as rc_pending_hit,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Failed' THEN total_amount ELSE 0 END), 0) as rc_failed_amount,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status = 'Failed' THEN 1 ELSE 0 END), 0) as rc_failed_hit,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Refund' AND status = 'Success' THEN total_amount ELSE 0 END), 0) as rc_refund_amount,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Refund' AND status = 'Success' THEN 1 ELSE 0 END), 0) as rc_refund_hit,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Receive Money' AND status = 'Success' THEN total_amount ELSE 0 END), 0) as rc_receive_money,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Upi Add Money' AND status = 'Success' THEN total_amount ELSE 0 END), 0) as rc_upi_add_money,
+                COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status IN ('Success','Pending') THEN commission ELSE 0 END), 0)
+                    + COALESCE(SUM(CASE WHEN transaction_type = 'Commission' AND status = 'Success' THEN amount ELSE 0 END), 0)
+                    + COALESCE(SUM(CASE WHEN transaction_type = 'Reverse Commission' AND status = 'Success' THEN amount ELSE 0 END), 0) as rc_commission
+            ")
+            ->first();
+    $tranaction_reports = DB::table('reports')->where('user_id',$userId)
         ->where('transaction_type','Recharge')
         ->orderBy('created_at', 'DESC')->take(5)
         ->get();  
-    // $fund_request = FundRequest::where('user_id',$post->user_id)
-    //         ->orderBy('created_at', 'DESC')->take(5)
-    //         ->get(); 
-    $fund_reports = DB::table('reports')->where('user_id',$post->user_id)
+    $fund_reports = DB::table('reports')->where('user_id',$userId)
             ->whereIn('transaction_type',['Transfer Money','Receive Money','Self Money','Money Reverse','Reverse Money'])
             ->orderBy('created_at', 'DESC')->take(5)
             ->get();
-    $user = DB::table('users')->where('id',$post->user_id)->first(); 
- //   if($user->role_id==3||$user->role_id==6){
+    $user = DB::table('users')->where('id',$userId)->first(); 
 
-        $Report_Success_Commission = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Recharge')
-        ->where('status', 'Success')
-        ->get();
-        $Report_Pending_Commission = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Recharge')
-        ->where('status', 'Pending')
-        ->get();
-        $Report_Parent_Commission = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Commission')
-        ->where('status', 'Success')
-        ->get();
-        $Report_Parent_Reverse_Commission = DB::table('reports')->whereBetween('created_at', [$from_date,$to_date])
-        ->where('user_id',$post->user_id)
-        ->where('transaction_type', 'Reverse Commission')
-        ->where('status', 'Success')
-        ->get();
-
-        $Total_Complaints_Count = DB::table('complaints')
-        //->whereBetween('created_at', [$from_date,$to_date])
-        ->whereIn('status', ['Open','Under Review'])
-        ->where('user_id',$post->user_id)
-        ->get();
-        //echo "<pre>";print_r($Report_Success->sum('commission'));die;
-
-   // }       
-       // echo "<pre>";print_r($user);die; 
-        $data_n['rc_success_amount'] = $report_s->sum('total_amount');
-        $data_n['rc_success_hit'] = $report_s->count();
-        $data_n['rc_pending_amount'] = $report_p->sum('total_amount');
-        $data_n['rc_pending_hit'] = $report_p->count();
-        $data_n['rc_failed_amount'] = $report_f->sum('total_amount');
-        $data_n['rc_failed_hit'] = $report_f->count();
-        $data_n['rc_refund_amount'] = $report_r->sum('total_amount');
-        $data_n['rc_refund_hit'] = $report_r->count();
-        $data_n['rc_receive_money'] = $report_receive_money->sum('total_amount');
-        $data_n['rc_upi_add_money'] = $report_upi_add_money->sum('total_amount');
-
-        $data_n['rc_receive_money'] = $data_n['rc_receive_money'] + $data_n['rc_upi_add_money'];
-        $data_n['rc_commission'] = $Report_Success_Commission->sum('commission') + $Report_Pending_Commission->sum('commission') + $Report_Parent_Commission->sum('amount') + $Report_Parent_Reverse_Commission->sum('amount');
-        
-        $data_n['rc_complaint_hit'] = $Total_Complaints_Count->count();
+        $data_n['rc_success_amount'] = (float) ($agg->rc_success_amount ?? 0);
+        $data_n['rc_success_hit'] = (int) ($agg->rc_success_hit ?? 0);
+        $data_n['rc_pending_amount'] = (float) ($agg->rc_pending_amount ?? 0);
+        $data_n['rc_pending_hit'] = (int) ($agg->rc_pending_hit ?? 0);
+        $data_n['rc_failed_amount'] = (float) ($agg->rc_failed_amount ?? 0);
+        $data_n['rc_failed_hit'] = (int) ($agg->rc_failed_hit ?? 0);
+        $data_n['rc_refund_amount'] = (float) ($agg->rc_refund_amount ?? 0);
+        $data_n['rc_refund_hit'] = (int) ($agg->rc_refund_hit ?? 0);
+        $data_n['rc_receive_money'] = (float) ($agg->rc_receive_money ?? 0) + (float) ($agg->rc_upi_add_money ?? 0);
+        $data_n['rc_upi_add_money'] = (float) ($agg->rc_upi_add_money ?? 0);
+        $data_n['rc_commission'] = (float) ($agg->rc_commission ?? 0);
+        $data_n['rc_complaint_hit'] = (int) DB::table('complaints')
+            ->whereIn('status', ['Open','Under Review'])
+            ->where('user_id', $userId)
+            ->count();
 
         $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
 

@@ -133,37 +133,26 @@ class ProcessRecharge implements ShouldQueue
                     if (is_array($data)) {
                         $status_key = $api_details->status_value;
                         $error_key = $api_details->error_value;
+                        $actual = \helpers::apiArrayGet($data, $status_key);
 
-                        // Netcellin often returns Response=Success/Fail without a Status key.
-                        if ($status_key && !isset($data[$status_key]) && isset($data['Response'])) {
-                            if ($data['Response'] === ($api_details->success_value ?: 'Success')) {
-                                $data[$status_key] = $api_details->success_value ?: 'Success';
-                            } elseif ($data['Response'] === ($api_details->error_value_response ?: 'Fail')
-                                || $data['Response'] === ($api_details->failed_value ?: 'Failed')) {
-                                $data[$status_key] = $api_details->failed_value ?: 'Failed';
-                            }
+                        if ($actual === null && isset($data['Response'])) {
+                            $actual = $data['Response'];
+                        }
+                        if ($actual === null) {
+                            $actual = \helpers::apiArrayGet($data, $error_key);
                         }
 
-                        if (isset($data[$status_key])) {
-                            if ($data[$status_key] == $api_details->success_value) {
-                                $update['status'] = 'Success';
-                                $update['operator_id'] = $data[$api_details->operator_id_value] ?? '';
-                                $update['api_operator_id'] = $data[$api_details->order_id_value] ?? '';
-                                $msg = $data['Message'] ?? $data['message'] ?? '';
+                        $mapped = \helpers::mapApiLiveStatus($api_details, $actual);
+                        if ($mapped) {
+                            $update['status'] = $mapped;
+                            $update['operator_id'] = \helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '';
+                            $update['api_operator_id'] = \helpers::apiArrayGet($data, $api_details->order_id_value) ?? '';
+                            $msg = $data['Message'] ?? $data['message'] ?? '';
+                            if ($mapped === 'Success') {
                                 $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
-                            } elseif ($data[$status_key] == $api_details->failed_value || $data[$status_key] == $api_details->refund_value) {
-                                $update['status'] = 'Failed';
-                                $update['operator_id'] = $data[$api_details->operator_id_value] ?? '';
-                                $update['api_operator_id'] = $data[$api_details->order_id_value] ?? '';
-                                $msg = $data['Message'] ?? $data['message'] ?? '';
+                            } elseif ($mapped === 'Failed') {
                                 $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                             }
-                        } elseif (isset($data[$error_key]) && $data[$error_key] == $api_details->error_value_response) {
-                            $update['status'] = 'Failed';
-                            $update['operator_id'] = '';
-                            $update['api_operator_id'] = '';
-                            $msg = $data['Message'] ?? $data['message'] ?? '';
-                            $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                         }
                     }
                 }

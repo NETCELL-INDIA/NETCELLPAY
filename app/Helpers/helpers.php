@@ -40,6 +40,123 @@ class helpers
         return array_intersect_key($data, $columns);
     }
 
+    public static function ensureHotIndexes(): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Cache::get('reports_hot_indexes_ok')) {
+                return;
+            }
+            $indexes = [
+                'reports_type_status_created' => 'ALTER TABLE `reports` ADD INDEX `reports_type_status_created` (`transaction_type`, `status`, `created_at`)',
+                'reports_user_type_created' => 'ALTER TABLE `reports` ADD INDEX `reports_user_type_created` (`user_id`, `transaction_type`, `created_at`)',
+                'reports_order_id' => 'ALTER TABLE `reports` ADD INDEX `reports_order_id` (`order_id`)',
+                'reports_callback_pending' => 'ALTER TABLE `reports` ADD INDEX `reports_callback_pending` (`path`, `callback_status`, `status`)',
+            ];
+            foreach ($indexes as $sql) {
+                try {
+                    DB::statement($sql);
+                } catch (\Throwable $e) {
+                }
+            }
+            \Illuminate\Support\Facades\Cache::put('reports_hot_indexes_ok', 1, 86400);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function apiArrayGet($data, $path)
+    {
+        if (!is_array($data) || $path === null || $path === '') {
+            return null;
+        }
+        $path = (string) $path;
+        if (array_key_exists($path, $data)) {
+            return $data[$path];
+        }
+        $cur = $data;
+        foreach (explode('.', $path) as $seg) {
+            if ($seg === '' || !is_array($cur) || !array_key_exists($seg, $cur)) {
+                return null;
+            }
+            $cur = $cur[$seg];
+        }
+
+        return $cur;
+    }
+
+    public static function apiValueMatches($actual, $configured): bool
+    {
+        if ($actual === null || $configured === null || $configured === '') {
+            return false;
+        }
+        $actual = trim((string) $actual);
+        if ($actual === '') {
+            return false;
+        }
+        foreach (preg_split('/\s*,\s*/', (string) $configured) as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+            if (strcasecmp($actual, $part) === 0) {
+                return true;
+            }
+            if (is_numeric($actual) && is_numeric($part) && (float) $actual == (float) $part) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function apiSwitchOn($api, string $column): bool
+    {
+        if (!$api) {
+            return true;
+        }
+        if (!isset($api->{$column})) {
+            return true;
+        }
+
+        return (int) $api->{$column} === 1;
+    }
+
+    public static function mapApiLiveStatus($api, $actual): ?string
+    {
+        if (self::apiValueMatches($actual, $api->success_value ?? '')) {
+            return self::apiSwitchOn($api, 'success_switch') ? 'Success' : 'Pending';
+        }
+        if (self::apiValueMatches($actual, $api->failed_value ?? '')
+            || self::apiValueMatches($actual, $api->error_value_response ?? '')) {
+            return self::apiSwitchOn($api, 'failure_switch') ? 'Failed' : 'Pending';
+        }
+        if (self::apiValueMatches($actual, $api->refund_value ?? '')) {
+            return self::apiSwitchOn($api, 'failure_switch') ? 'Failed' : 'Pending';
+        }
+        if (self::apiSwitchOn($api, 'pending_switch') && self::apiValueMatches($actual, $api->pending_value ?? '')) {
+            return 'Pending';
+        }
+
+        return null;
+    }
+
+    public static function mapApiCallbackStatus($api, $actual): string
+    {
+        if (self::apiValueMatches($actual, $api->callback_success_value ?? '')) {
+            return 'Success';
+        }
+        if (self::apiValueMatches($actual, $api->callback_failed_value ?? '')) {
+            return 'Failed';
+        }
+        if (self::apiValueMatches($actual, $api->callback_refund_value ?? '')) {
+            return 'Refunded';
+        }
+        if (self::apiValueMatches($actual, $api->callback_pending_value ?? $api->pending_value ?? '')) {
+            return 'Pending';
+        }
+
+        return 'Pending';
+    }
+
     public static function loginCoordinatesFromRequest($request = null): array
     {
         $req = $request ?: request();
@@ -1192,8 +1309,8 @@ class helpers
 
         curl_setopt($curl, CURLOPT_ENCODING, "");
 
-        $connectTimeout = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 10));
-        $timeout = max($connectTimeout, (int) env('RECHARGE_API_TIMEOUT', 30));
+        $connectTimeout = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 5));
+        $timeout = max($connectTimeout, (int) env('RECHARGE_API_TIMEOUT', 18));
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $connectTimeout);
         curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
 
@@ -1242,7 +1359,7 @@ class helpers
 
                     "request" => json_encode($parameters),
 
-                    "response" => $response,
+                    "response" => is_string($response) ? mb_substr($response, 0, 4000) : $response,
 
                     'created_at' => Carbon::now(),
 

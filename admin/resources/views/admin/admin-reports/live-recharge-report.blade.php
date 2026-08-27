@@ -428,7 +428,7 @@ $(function () {
     });
 
     fetchLive(false);
-    autoTimer = setInterval(function () { fetchLive(true); }, 5000);
+    autoTimer = setInterval(function () { fetchLive(true); }, 10000);
 });
 </script>
 </body>

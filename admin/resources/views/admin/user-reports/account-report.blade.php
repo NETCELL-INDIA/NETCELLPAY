@@ -1,6 +1,6 @@
 @extends('layouts.master')
 
-@section('title') Account Reports @endsection
+@section('title') Wallet Ledger @endsection
 
 @section('css')
 
@@ -22,11 +22,18 @@
 
 @component('components.breadcrumb')
 
-@slot('li_1') User Reports @endslot
+@slot('li_1') Accounts Reports @endslot
 
-@slot('title')Account Reports @endslot
+@slot('title')Wallet Ledger @endslot
 
 @endcomponent
+
+<div class="alert alert-info py-2 mb-3">
+    <strong>Wallet Ledger</strong> shows wallet credit/debit and opening → closing balance.
+    Recharge rows here are wallet cuts, not operator status.
+    For number / MRP / SUCCESS-PENDING-FAILURE use <a href="{{ URL::asset('admin/user-reports/recharge-report') }}">Recharge Report</a>.
+    For user-to-user fund only use <a href="{{ URL::asset('admin/fund/fund-report') }}">Fund Transfer History</a>.
+</div>
 
 
 
@@ -118,9 +125,9 @@
 
                             <select class="form-select mb-3" name="tr_type"  id="tr_type">
 
-                                <option selected value="All">All</option>
+                                <option selected value="All">All types</option>
 
-                                <option value="Recharge">Recharge</option>
+                                <option value="Recharge">Recharge (wallet debit)</option>
 
                                 <option value="Money Transfer">Money Transfer</option>
 
@@ -208,7 +215,7 @@
 
             <div class="card-header align-items-center d-flex">
 
-                <h4 class="card-title mb-0 flex-grow-1">Account Reports List</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Wallet Ledger</h4>
 
                 <div class="flex-shrink-0">
                     <div class="form-check form-switch form-switch-right form-switch-md">

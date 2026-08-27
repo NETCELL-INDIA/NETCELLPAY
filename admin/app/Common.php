@@ -4,6 +4,7 @@ namespace App;
 
 use Carbon\Carbon;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ use Illuminate\Http\Request;
     {
         try {
             $host = self::getHost($host);
+            return Cache::remember('company_by_host_'.$host, 60, function () use ($host) {
             $hosts = array_values(array_unique(array_filter([
                 $host,
                 explode(':', (string) $host)[0],
@@ -62,6 +64,7 @@ use Illuminate\Http\Request;
                 ->first();
 
             return $company ?: DB::table('companies')->where('status', 1)->first();
+            });
         } catch (\Throwable $e) {
             \Log::warning('Company lookup failed: ' . $e->getMessage());
             return null;

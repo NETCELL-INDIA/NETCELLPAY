@@ -698,6 +698,10 @@ class ApiController extends Controller
             'api_type' => $post->api_type,
             'status' => $post->status,
             'store_log' => $post->boolean('store_log') ? 1 : 0,
+            'success_switch' => $post->boolean('success_switch') ? 1 : 0,
+            'failure_switch' => $post->boolean('failure_switch') ? 1 : 0,
+            'pending_switch' => $post->boolean('pending_switch') ? 1 : 0,
+            'callback_switch' => $post->boolean('callback_switch') ? 1 : 0,
             'updated_at' => Carbon::now(),
         ];
 
@@ -769,6 +773,20 @@ class ApiController extends Controller
                 DB::statement('ALTER TABLE `apis` ADD COLUMN `store_log` TINYINT(1) NOT NULL DEFAULT 0');
             }
         } catch (\Throwable $e) {
+        }
+
+        foreach ([
+            'success_switch' => 1,
+            'failure_switch' => 1,
+            'pending_switch' => 1,
+            'callback_switch' => 1,
+        ] as $column => $default) {
+            try {
+                if (!Schema::hasColumn('apis', $column)) {
+                    DB::statement("ALTER TABLE `apis` ADD COLUMN `{$column}` TINYINT(1) NOT NULL DEFAULT {$default}");
+                }
+            } catch (\Throwable $e) {
+            }
         }
     }
 }

@@ -291,11 +291,9 @@ class PendingReportController extends Controller
                 if (is_array($data)) {
                     $statusKey = $api->status_value;
                     if ($statusKey && isset($data[$statusKey])) {
-                        $val = $data[$statusKey];
-                        if ($val == $api->success_value) {
-                            $status = 'Success';
-                        } elseif ($val == $api->failed_value) {
-                            $status = 'Failed';
+                        $mapped = \helpers::mapApiLiveStatus($api, $data[$statusKey]);
+                        if ($mapped) {
+                            $status = $mapped;
                         }
                     }
                     if (!empty($api->operator_id_value) && isset($data[$api->operator_id_value])) {

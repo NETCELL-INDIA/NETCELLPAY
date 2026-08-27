@@ -100,19 +100,25 @@ class DashboardController extends Controller
 
     public function topbarCount()
     {
+        \helpers::ensureHotIndexes();
+
         try {
-            $pending = DB::table('reports')
-                ->where('transaction_type', 'Recharge')
-                ->where('status', 'Pending')
-                ->count();
-            $complaint = $this->countPendingComplaints();
+            $payload = \Illuminate\Support\Facades\Cache::remember('admin_topbar_counts', 20, function () {
+                $pending = DB::table('reports')
+                    ->where('transaction_type', 'Recharge')
+                    ->where('status', 'Pending')
+                    ->where('created_at', '>=', Carbon::now()->subDays(30))
+                    ->count();
+                $complaint = $this->countPendingComplaints();
+                return [
+                    'pending' => $pending,
+                    'complaint' => $complaint
+                ];
+            });
             return response()->json([
                 'type' => 'success',
                 'message' => "Fetch Successfully",
-                'data' => [
-                    'pending' => $pending,
-                    'complaint' => $complaint
-                ]
+                'data' => $payload
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -133,18 +139,22 @@ class DashboardController extends Controller
         }
 
         try {
-            return response()->json([
-                'type' => 'success',
-                'pending' => $this->pendingSummary(),
-                'today_by_service' => $this->todayByService($from_date, $to_date),
-                'balances' => $this->balanceStatistics(),
-                'accounts' => $this->accountStatistics(),
-                'recharges' => $this->rechargeStatistics($from_date, $to_date),
-                'top_operators' => $this->topOperators($from_date, $to_date),
-                'top_retailers' => $this->topRetailers($from_date, $to_date),
-                'top_api_users' => $this->topApiUsers($from_date, $to_date),
-                'announcement' => $this->announcementMessage(),
-            ]);
+            \helpers::ensureHotIndexes();
+            $cacheKey = 'admin_dashboard_'.md5($from_date.'|'.$to_date);
+            $payload = \Illuminate\Support\Facades\Cache::remember($cacheKey, 15, function () use ($from_date, $to_date) {
+                return [
+                    'pending' => $this->pendingSummary(),
+                    'today_by_service' => $this->todayByService($from_date, $to_date),
+                    'balances' => $this->balanceStatistics(),
+                    'accounts' => $this->accountStatistics(),
+                    'recharges' => $this->rechargeStatistics($from_date, $to_date),
+                    'top_operators' => $this->topOperators($from_date, $to_date),
+                    'top_retailers' => $this->topRetailers($from_date, $to_date),
+                    'top_api_users' => $this->topApiUsers($from_date, $to_date),
+                    'announcement' => $this->announcementMessage(),
+                ];
+            });
+            return response()->json(array_merge(['type' => 'success'], $payload));
         } catch (\Throwable $e) {
             return response()->json([
                 'type' => 'error',

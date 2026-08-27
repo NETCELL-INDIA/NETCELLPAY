@@ -290,27 +290,19 @@ class AccountReportsController extends Controller
 
               <tr>
 
-                <th>ID</th>
+                <th>User</th>
 
-                <th>User Details</th>
-
-                <th>Date & Time</th>
+                <th>Date &amp; Time</th>
 
                 <th>Order Id</th>
 
-                <th>Tr Type</th>
-
-                <th>Credit By</th>
-
-                <th>Debit By</th>
+                <th>Type</th>
 
                 <th>Remark</th>
 
-                <th>Amount</th>
+                <th>Wallet</th>
 
-                <th>Total Amount</th>
-
-                <th>Credit/Debit</th>
+                <th>Credit / Debit</th>
 
                 <th>Opening</th>
 
@@ -326,97 +318,13 @@ class AccountReportsController extends Controller
 
 			foreach ($list as $list) {
 
+                $user_dt = DB::table('users')->where('id', $list->user_id)->first(['first_name','middle_name','last_name','outlet_name','mobile_number']);
 
-
-                $credit = DB::table('users')->where('id', $list->credit_user_id)->first();
-
-                if($credit){
-
-                    $c_first_name = $credit->first_name;
-
-                    $c_middle_name = $credit->middle_name;
-
-                    $c_last_name = $credit->last_name;
-
-                    $c_outlet_name = $credit->outlet_name;
-
-                    $c_mobile_number = $credit->mobile_number;
-
-                }else{
-
-                    $c_first_name = "-";
-
-                    $c_middle_name = "";
-
-                    $c_last_name = "";
-
-                    $c_outlet_name = "-";
-
-                    $c_mobile_number = "-";
-
-                }
-
-
-
-                $debit = DB::table('users')->where('id', $list->debit_user_id)->first();
-
-                if($debit){
-
-                    $d_first_name = $debit->first_name;
-
-                    $d_middle_name = $debit->middle_name;
-
-                    $d_last_name = $debit->last_name;
-
-                    $d_outlet_name = $debit->outlet_name;
-
-                    $d_mobile_number = $debit->mobile_number;
-
-                }else{
-
-                    $d_first_name = "-";
-
-                    $d_middle_name = "";
-
-                    $d_last_name = "";
-
-                    $d_outlet_name = "-";
-
-                    $d_mobile_number = "-";
-
-                }
-
-
-
-                $user_dt = DB::table('users')->where('id', $list->user_id)->first();
-
-                if($user_dt){
-
-                    $user_dt_first_name = $user_dt->first_name;
-
-                    $user_dt_middle_name = $user_dt->middle_name;
-
-                    $user_dt_last_name = $user_dt->last_name;
-
-                    $user_dt_outlet_name = $user_dt->outlet_name;
-
-                    $user_dt_mobile_number = $user_dt->mobile_number;
-
-                }else{
-
-                    $user_dt_first_name = "-";
-
-                    $user_dt_middle_name = "";
-
-                    $user_dt_last_name = "";
-
-                    $user_dt_outlet_name = "-";
-
-                    $user_dt_mobile_number = "-";
-
-                }
-
-
+                $user_dt_first_name = $user_dt->first_name ?? '-';
+                $user_dt_middle_name = $user_dt->middle_name ?? '';
+                $user_dt_last_name = $user_dt->last_name ?? '';
+                $user_dt_outlet_name = $user_dt->outlet_name ?? '-';
+                $user_dt_mobile_number = $user_dt->mobile_number ?? '-';
 
                 if($list->fund_type == "Credit"){
 
@@ -440,65 +348,37 @@ class AccountReportsController extends Controller
 
 				$output .= '<tr>
 
-                <td>' . $i . '</td>
-
                 <td>
 
-                    Name : '.$user_dt_first_name.' '.$user_dt_middle_name.' '.$user_dt_last_name.' </br>
+                    ' . e(trim($user_dt_first_name.' '.$user_dt_middle_name.' '.$user_dt_last_name)) . ' <br>
 
-                    Outlet Name : ' . $user_dt_outlet_name . ' </br>
-
-                    Mobile No. : ' . $user_dt_mobile_number . ' </br>
+                    <small>' . e($user_dt_outlet_name) . ' · ' . e($user_dt_mobile_number) . '</small>
 
                 </td>
 
-                <td>' . $list->transaction_date . '</td>
+                <td>' . e($list->transaction_date) . '</td>
 
-                <td>' . $list->order_id . '</td>
-
-                <td>
-
-                    <span class="badge badge-gradient-info">' . $list->transaction_type . '</span>
-
-                </td>
-
-
+                <td>' . e($list->order_id) . '</td>
 
                 <td>
 
-                    Name : '.$c_first_name.' '.$c_middle_name.' '.$c_last_name.' </br>
-
-                    Outlet Name : ' . $c_outlet_name . ' </br>
-
-                    Mobile No. : ' . $c_mobile_number . ' </br>
+                    <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
 
                 </td>
+
+                <td>' . e($list->remark) . '</td>
+
+                <td style="color: '.$inr.';font-weight:700;"> ₹ ' . number_format((float) $list->amount, 2) . '</td>
 
                 <td>
 
-                    Name : '.$d_first_name.' '.$d_middle_name.' '.$d_last_name.' </br>
-
-                    Outlet Name : ' . $d_outlet_name . ' </br>
-
-                    Mobile No. : ' . $d_mobile_number . ' </br>
+                    <span class="badge rounded-pill text-bg-' . $bg . '">' . e($list->fund_type) . '</span>
 
                 </td>
 
-                <td>' . $list->remark . '</td>
+                <td> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
 
-                <td style="color: '.$inr.';font-size: 18px;"> ₹ ' . $list->amount . '</td> 
-
-                <td style="color: '.$inr.';font-size: 18px;"> ₹ ' . $list->total_amount . '</td> 
-
-                <td>
-
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->fund_type . '</span>
-
-                </td>
-
-                <td> ₹ ' . $list->opening_balance . '</td>
-
-                <td> ₹ ' . $list->closing_balance . '</td>
+                <td> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
 
               </tr>';
 
@@ -641,12 +521,9 @@ class AccountReportsController extends Controller
                 'Order Id',
                 'Date/Time',
                 'Tr Type',
-                'Credit By',
-                'Debit By',
                 'Remark',
-                'Amount',
-                'Total Amount',
-                'Fund Type',
+                'Wallet',
+                'Credit/Debit',
                 'Opening',
                 'Closing',
                 'Path',
@@ -668,87 +545,22 @@ class AccountReportsController extends Controller
 
                 foreach ($rows as $list) {
                     $user_dt = DB::table('users')->where('id', $list->user_id)->first();
-
-                    $credit = DB::table('users')->where('id', $list->credit_user_id)->first();
-
-                    if($credit->id != 0){
-
-                        $c_first_name = $credit->first_name;
-
-                        $c_middle_name = $credit->middle_name;
-
-                        $c_last_name = $credit->last_name;
-
-                        $c_outlet_name = $credit->outlet_name;
-
-                        $c_mobile_number = $credit->mobile_number;
-
-                    }else{
-
-                        $c_first_name = "-";
-
-                        $c_middle_name = "";
-
-                        $c_last_name = "";
-
-                        $c_outlet_name = "-";
-
-                        $c_mobile_number = "-";
-
-                    }
-
-
-
-                    $debit = DB::table('users')->where('id', $list->debit_user_id)->first();
-
-                    if($debit->id !=0){
-
-                        $d_first_name = $debit->first_name;
-
-                        $d_middle_name = $debit->middle_name;
-
-                        $d_last_name = $debit->last_name;
-
-                        $d_outlet_name = $debit->outlet_name;
-
-                        $d_mobile_number = $debit->mobile_number;
-
-                    }else{
-
-                        $d_first_name = "-";
-
-                        $d_middle_name = "";
-
-                        $d_last_name = "";
-
-                        $d_outlet_name = "-";
-
-                        $d_mobile_number = "-";
-
-                    }
                     fputcsv($handle, [
-
-                        $user_dt->first_name." ".$user_dt->middle_name." ".$user_dt->last_name,
-                        $user_dt->outlet_name,
-                        $user_dt->mobile_number,
-                        $user_dt->id,
+                        trim(($user_dt->first_name ?? '') . ' ' . ($user_dt->middle_name ?? '') . ' ' . ($user_dt->last_name ?? '')),
+                        $user_dt->outlet_name ?? '',
+                        $user_dt->mobile_number ?? '',
+                        $user_dt->id ?? $list->user_id,
                         $list->order_id,
                         $list->transaction_date,
                         $list->transaction_type,
-                        $c_first_name.' '.$c_middle_name.' '.$c_last_name.' '. $c_outlet_name . ' ' .$c_mobile_number,
-                        $d_first_name.' '.$d_middle_name.' '.$d_last_name.' '. $d_outlet_name . ' ' .$d_mobile_number,
                         $list->remark,
-                        round($list->amount, 2),
-                        round($list->total_amount, 2),
+                        round((float) $list->amount, 2),
                         $list->fund_type,
                         $list->opening_balance,
                         $list->closing_balance,
                         $list->path,
                         $list->ip_address,
-                       
-
                     ]);
-
                 }
 
             });

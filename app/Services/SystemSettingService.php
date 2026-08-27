@@ -129,37 +129,54 @@ class SystemSettingService
 
     public static function all(): array
     {
+        static $memo = null;
+        if (is_array($memo)) {
+            return $memo;
+        }
+
         try {
-            self::ensureTable();
-            $storage = self::resolveStorage();
+            $memo = \Illuminate\Support\Facades\Cache::remember('system_settings_all', 60, function () {
+                self::ensureTable();
+                $storage = self::resolveStorage();
 
-            if ($storage['mode'] === 'wide') {
-                $row = DB::table('system_settings')->orderBy('id')->first();
-                if (! $row) {
-                    return self::defaults();
-                }
-
-                $saved = [];
-                foreach (array_keys(self::defaults()) as $key) {
-                    if (isset($row->{$key})) {
-                        $saved[$key] = $row->{$key};
+                if ($storage['mode'] === 'wide') {
+                    $row = DB::table('system_settings')->orderBy('id')->first();
+                    if (! $row) {
+                        return self::defaults();
                     }
+
+                    $saved = [];
+                    foreach (array_keys(self::defaults()) as $key) {
+                        if (isset($row->{$key})) {
+                            $saved[$key] = $row->{$key};
+                        }
+                    }
+
+                    return array_merge(self::defaults(), $saved);
                 }
 
-                return array_merge(self::defaults(), $saved);
-            }
+                $rows = DB::table('system_settings')
+                    ->pluck($storage['value'], $storage['key'])
+                    ->toArray();
+                if (!is_array($rows)) {
+                    $rows = [];
+                }
 
-            $rows = DB::table('system_settings')
-                ->pluck($storage['value'], $storage['key'])
-                ->toArray();
-            if (!is_array($rows)) {
-                $rows = [];
-            }
-
-            return array_merge(self::defaults(), $rows);
+                return array_merge(self::defaults(), $rows);
+            });
         } catch (\Throwable $e) {
             \Log::warning('system_settings read failed: '.$e->getMessage());
-            return self::defaults();
+            $memo = self::defaults();
+        }
+
+        return $memo;
+    }
+
+    public static function forgetCache(): void
+    {
+        try {
+            \Illuminate\Support\Facades\Cache::forget('system_settings_all');
+        } catch (\Throwable $e) {
         }
     }
 

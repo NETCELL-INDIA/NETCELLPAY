@@ -15,6 +15,10 @@
 @slot('title') {{ $manualOnly ? 'Manual Recharge Report' : 'Recharge Report' }} @endslot
 @endcomponent
 
+@unless($manualOnly)
+<p class="text-muted mb-3" style="font-size:.9rem">Recharge Report = operator, number, MRP, status. Wallet opening/closing is in <a href="{{ URL::asset('admin/user-reports/account-report') }}">Wallet Ledger</a>.</p>
+@endunless
+
 <div class="card recharge-filter-card">
     <div class="card-header align-items-center d-flex">
         <h4 class="card-title mb-0 flex-grow-1">Filters</h4>

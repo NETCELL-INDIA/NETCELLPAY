@@ -717,6 +717,29 @@
 
                             </div>
 
+                            <div class="col-12">
+                                <label class="col-form-label">Response switches</label>
+                                <div class="d-flex flex-wrap gap-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="success_switch" id="success_switch" value="1" checked>
+                                        <label class="form-check-label" for="success_switch">SUCCESS</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="failure_switch" id="failure_switch" value="1" checked>
+                                        <label class="form-check-label" for="failure_switch">FAILURE</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="pending_switch" id="pending_switch" value="1" checked>
+                                        <label class="form-check-label" for="pending_switch">PENDING</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="callback_switch" id="callback_switch" value="1" checked>
+                                        <label class="form-check-label" for="callback_switch">Callback</label>
+                                    </div>
+                                </div>
+                                <small class="d-block text-muted">SUCCESS/FAILURE OFF = live response stays Pending (wait for callback). Callback OFF = ignore supplier callback URL.</small>
+                            </div>
+
                         </div>
 
                     </div>       
@@ -1685,11 +1708,11 @@
 
                 $("#complaint_api_method").val(data.data.complaint_api_method).change();
 
-                $("#complaint_status_value").val(data.data.success_value);
+                $("#complaint_status_value").val(data.data.complaint_status_value);
 
-                $("#complaint_success_value").val(data.data.success_value);
+                $("#complaint_success_value").val(data.data.complaint_success_value);
 
-                $("#complaint_failed_value").val(data.data.success_value);
+                $("#complaint_failed_value").val(data.data.complaint_failed_value);
 
                 ///
 
@@ -1748,6 +1771,10 @@
                 $("#api_type").val(data.data.api_type).change();
 
                 $("#store_log").prop('checked', Number(data.data.store_log) === 1);
+                $("#success_switch").prop('checked', data.data.success_switch === undefined || Number(data.data.success_switch) === 1);
+                $("#failure_switch").prop('checked', data.data.failure_switch === undefined || Number(data.data.failure_switch) === 1);
+                $("#pending_switch").prop('checked', data.data.pending_switch === undefined || Number(data.data.pending_switch) === 1);
+                $("#callback_switch").prop('checked', data.data.callback_switch === undefined || Number(data.data.callback_switch) === 1);
 
 
 
@@ -1874,6 +1901,8 @@
         $("#edit_details_form")[0].reset();
 
         $("#edit_id").val(0);
+        $("#store_log").prop('checked', false);
+        $("#success_switch, #failure_switch, #pending_switch, #callback_switch").prop('checked', true);
 
         $('#detailsModal').modal('show');
 

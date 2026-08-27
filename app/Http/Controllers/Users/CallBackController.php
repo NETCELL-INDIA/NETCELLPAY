@@ -16,8 +16,8 @@ class CallBackController extends Controller
             DB::table('apilogs')->insert([
                 'url' => '/recharge-callback/' . $api_id,
                 'modal' => 'RechargeCallback',
-                'txnid' => '',
-                'header' => json_encode($_SERVER),
+                'txnid' => (string) ($_REQUEST['order_id'] ?? $_REQUEST['request_order_id'] ?? ''),
+                'header' => json_encode(\helpers::safeRequestMeta()),
                 'request' => json_encode($_REQUEST),
                 'response' => '',
                 'created_at' => Carbon::now(),
@@ -42,40 +42,37 @@ class CallBackController extends Controller
             ));
         }
 
+        if (!\helpers::apiSwitchOn($api, 'callback_switch')) {
+            return response()->json(array(
+                'type' => 'error',
+                'message' => 'callback switch is off for this api.',
+            ));
+        }
+
         $status = $api->callback_status_value;
-        $success = $api->callback_success_value;
-        $failed = $api->callback_failed_value;
-        $refund = $api->callback_refund_value;
         $operator_id = $api->callback_operator_id_value;
         $order_id = $api->callback_order_id_value;
 
         $data = json_decode(json_encode($_REQUEST), true);
-
-        // Determine intended update status from callback payload
-        $update = [];
-        if(isset($data[$status]) && $data[$status] == $success){
-            $update['status'] = "Success";
-            $update['operator_id'] = $data[$operator_id] ?? '';
-            $update['callback_response'] = json_encode($_REQUEST);
-        } else if(isset($data[$status]) && $data[$status] == $failed) {
-            $update['status'] = "Failed";
-            $update['operator_id'] = $data[$operator_id] ?? '';
-            $update['callback_response'] = json_encode($_REQUEST);
-        } else if(isset($data[$status]) && $data[$status] == $refund) {
-            $update['status'] = "Refunded";
-            $update['operator_id'] = $data[$operator_id] ?? '';
-            $update['callback_response'] = json_encode($_REQUEST);
-        } else {
-            $update['status'] = "Pending";
-            $update['callback_response'] = json_encode($_REQUEST);
+        $actual = \helpers::apiArrayGet($data, $status);
+        if ($actual === null && isset($data['Response'])) {
+            $actual = $data['Response'];
         }
 
+        $mapped = \helpers::mapApiCallbackStatus($api, $actual);
+        $update = [
+            'status' => $mapped,
+            'operator_id' => \helpers::apiArrayGet($data, $operator_id) ?? '',
+            'callback_response' => json_encode($_REQUEST),
+        ];
+
         // Use transaction + row lock to avoid races between worker job and callback
+        $orderRef = (string) (\helpers::apiArrayGet($data, $order_id) ?? '');
         try {
             DB::beginTransaction();
 
             $report = DB::table('reports')
-                ->where('order_id', $data[$order_id] ?? '')
+                ->where('order_id', $orderRef)
                 ->where('api_id', $api_id)
                 ->whereIn('status', ['Pending', 'Under Process', 'Under Proces', 'Processing'])
                 ->lockForUpdate()
@@ -92,14 +89,14 @@ class CallBackController extends Controller
             // If callback indicates Refunded and there's a successful parent recharge, handle specially
             if($update['status'] == "Refunded"){
                 // If the matched report is not Success, look for success parent with same order id
-                $successReport = DB::table('reports')->where('order_id', $data[$order_id] ?? '')->where('status', 'Success')->where('parent__id', 0)->first();
+                $successReport = DB::table('reports')->where('order_id', $orderRef)->where('status', 'Success')->where('parent__id', 0)->first();
                 if($successReport){
                     DB::table('reports')->where('id', $successReport->id)->update($update);
                     DB::commit();
                     \helpers::refund_row($successReport->id);
                     \helpers::ReverseCommission($successReport->id);
 
-                    $c_report = DB::table('complaints')->where('order_id', $data[$order_id] ?? '')->where('status', 'Open')->first();
+                    $c_report = DB::table('complaints')->where('order_id', $orderRef)->where('status', 'Open')->first();
                     if($c_report){
                         DB::table('complaints')->where('id', $c_report->id)->update([
                             'decision_by' => 1,
@@ -141,7 +138,7 @@ class CallBackController extends Controller
                 DB::table('apilogs')->insert([
                     'url' => '/recharge-callback-error/' . $api_id,
                     'modal' => 'RechargeCallbackError',
-                    'txnid' => $data[$order_id] ?? '',
+                    'txnid' => $orderRef,
                     'header' => json_encode($_SERVER),
                     'request' => json_encode($_REQUEST),
                     'response' => $e->getMessage(),

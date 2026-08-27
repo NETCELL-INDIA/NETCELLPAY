@@ -115,53 +115,19 @@ class AccountReportsController extends Controller
         </div><br>';
         $output .= '<table class="table table-bordered table-nowrap" id="pagination_table"><thead>
               <tr>
-                <th scope="col">ID</th>
-                <th scope="col">Date & Time</th>
-                <th scope="col">Order Id</th>
-                <th scope="col">Tr Type</th>
-                <th scope="col">Credit By</th>
-                <th scope="col">Debit By</th>
-                <th scope="col">Remark</th>
-                <th scope="col">Total Amount</th>
-                <th scope="col">Amount</th>
-                <th scope="col">Credit/Debit</th>
-                <th scope="col">Opening</th>
-                <th scope="col">Closing</th>
+                <th>Date &amp; Time</th>
+                <th>Order Id</th>
+                <th>Type</th>
+                <th>Remark</th>
+                <th>Wallet</th>
+                <th>Credit / Debit</th>
+                <th>Opening</th>
+                <th>Closing</th>
               </tr>
             </thead>
             <tbody>';
             $i=$start + 1;
 			foreach ($list as $list) {
-
-                $credit = DB::table('users')->where('id', $list->credit_user_id)->first();
-                if($credit){
-                    $c_first_name = $credit->first_name;
-                    $c_middle_name = $credit->middle_name;
-                    $c_last_name = $credit->last_name;
-                    $c_outlet_name = $credit->outlet_name;
-                    $c_mobile_number = $credit->mobile_number;
-                }else{
-                    $c_first_name = "-";
-                    $c_middle_name = "";
-                    $c_last_name = "";
-                    $c_outlet_name = "-";
-                    $c_mobile_number = "-";
-                }
-
-                $debit = DB::table('users')->where('id', $list->debit_user_id)->first();
-                if($debit){
-                    $d_first_name = $debit->first_name;
-                    $d_middle_name = $debit->middle_name;
-                    $d_last_name = $debit->last_name;
-                    $d_outlet_name = $debit->outlet_name;
-                    $d_mobile_number = $debit->mobile_number;
-                }else{
-                    $d_first_name = "-";
-                    $d_middle_name = "";
-                    $d_last_name = "";
-                    $d_outlet_name = "-";
-                    $d_mobile_number = "-";
-                }
                 if($list->fund_type == "Credit"){
                     $bg = "success";
                     $inr = "green";
@@ -173,30 +139,18 @@ class AccountReportsController extends Controller
                     $inr = "black";
                 }
 				$output .= '<tr>
-                <td>' . $i . '</td>
-                <td>' . $list->transaction_date . '</td>
-                <td>' . $list->order_id . '</td>
+                <td>' . e($list->transaction_date) . '</td>
+                <td>' . e($list->order_id) . '</td>
                 <td>
-                    <span class="badge badge-gradient-info">' . $list->transaction_type . '</span>
+                    <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
                 </td>
+                <td>' . e($list->remark) . '</td>
+                <td style="color: '.$inr.';font-weight:700;"> ₹ ' . number_format((float) $list->amount, 2) . '</td>
                 <td>
-                    Name : '.$c_first_name.' '.$c_middle_name.' '.$c_last_name.' </br>
-                    Outlet Name : ' . $c_outlet_name . ' </br>
-                    Mobile No. : ' . $c_mobile_number . ' </br>
+                    <span class="badge rounded-pill text-bg-' . $bg . '">' . e($list->fund_type) . '</span>
                 </td>
-                <td>
-                    Name : '.$d_first_name.' '.$d_middle_name.' '.$d_last_name.' </br>
-                    Outlet Name : ' . $d_outlet_name . ' </br>
-                    Mobile No. : ' . $d_mobile_number . ' </br>
-                </td>
-                <td>' . $list->remark . '</td>
-                <td style="font-size: 18px;"> ₹ ' . $list->total_amount . '</td> 
-                <td style="color: '.$inr.';font-size: 18px;"> ₹ ' . $list->amount . '</td> 
-                <td>
-                    <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->fund_type . '</span>
-                </td>
-                <td> ₹ ' . $list->opening_balance . '</td>
-                <td> ₹ ' . $list->closing_balance . '</td>
+                <td> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>
+                <td> ₹ ' . number_format((float) $list->closing_balance, 2) . '</td>
               </tr>';
               $i++;
 			}

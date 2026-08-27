@@ -10,9 +10,12 @@
 @endsection
 @section('content')
 @component('components.breadcrumb')
-@slot('li_1') User Reports @endslot
-@slot('title')Recharge Reports @endslot
+@slot('li_1') Reports @endslot
+@slot('title')Recharge Report @endslot
 @endcomponent
+<div class="alert alert-secondary py-2 mb-3">
+    <strong>Recharge Report</strong> — operator, number, MRP, status. Wallet opening/closing is in <a href="{{ URL::asset('users/user-reports/account-report') }}">Wallet Ledger</a>.
+</div>
 <style>
         .receipt {
             --vz-modal-width: 900px;

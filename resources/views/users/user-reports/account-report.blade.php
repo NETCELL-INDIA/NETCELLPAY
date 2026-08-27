@@ -1,5 +1,5 @@
 @extends('layouts.master')
-@section('title') Account Reports @endsection
+@section('title') Wallet Ledger @endsection
 @section('css')
 <!--datatable css-->
 <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet" type="text/css" />
@@ -10,9 +10,14 @@
 @endsection
 @section('content')
 @component('components.breadcrumb')
-@slot('li_1') User Reports @endslot
-@slot('title')Account Reports @endslot
+@slot('li_1') Reports @endslot
+@slot('title')Wallet Ledger @endslot
 @endcomponent
+
+<div class="alert alert-info py-2 mb-3">
+    <strong>Wallet Ledger</strong> — wallet credit / debit with opening and closing balance.
+    Recharge also shows here as a <strong>Debit</strong> (wallet cut). For operator number, MRP and status use <a href="{{ URL::asset('users/user-reports/recharge-report') }}">Recharge Report</a>.
+</div>
 
 <div class="row">
     <div class="col-lg-12">
@@ -47,8 +52,8 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Transaction Type </label>
                             <select class="form-select mb-3" name="tr_type"  id="tr_type">
-                                <option selected value="">Select Option</option>
-                                <option value="Recharge">Recharge</option>
+                                <option selected value="">All types</option>
+                                <option value="Recharge">Recharge (wallet debit)</option>
                                 <option value="Commission">Commission</option>
                                 <option value="Refund">Refund</option>
                                 <option value="Money Transfer">Money Transfer</option>
@@ -64,7 +69,7 @@
                         <div class="col-lg-2">
                             <label class="form-label mb-0">Credit/Debit </label>
                             <select class="form-select mb-3" name="fund_type"  id="fund_type">
-                                <option selected value="">Select Option</option>
+                                <option selected value="">All (Credit + Debit)</option>
                                 <option value="Credit">Credit</option>
                                 <option value="Debit">Debit</option>
                             </select>
@@ -93,7 +98,7 @@
     <div class="col-lg-12">
         <div class="card">
             <div class="card-header align-items-center d-flex">
-                <h4 class="card-title mb-0 flex-grow-1">Account Reports List</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Wallet Ledger</h4>
                 <div class="flex-shrink-0">
                 </div>
             </div>

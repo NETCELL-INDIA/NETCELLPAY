@@ -14,7 +14,7 @@
 <script>
     
     ajaxCalltopbar();
-    setInterval(ajaxCalltopbar, 5000);
+    setInterval(ajaxCalltopbar, 20000);
     $("#helpSupport").click(function(){
         var modalEl = document.getElementById('helpSupportModal');
         if (modalEl && window.bootstrap && bootstrap.Modal) {

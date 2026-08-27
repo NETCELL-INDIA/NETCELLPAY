@@ -249,7 +249,7 @@
                             <i class="ri-wallet-3-line me-2"></i> Fund Requests
                         </a>
                         <a class="dropdown-item" href="{{ URL::asset('admin/user-reports/account-report') }}">
-                            <i class="ri-file-list-3-line me-2"></i> Account Ledger
+                            <i class="ri-file-list-3-line me-2"></i> Wallet Ledger
                         </a>
                         <a class="dropdown-item" href="{{ URL::asset('admin/users/list') }}">
                             <i class="ri-group-line me-2"></i> Manage Users

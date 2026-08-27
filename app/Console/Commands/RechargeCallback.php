@@ -40,7 +40,7 @@ class RechargeCallback extends Command
             $url = $user->callback_url . "?request_order_id=" . $res[$i]->request_order_id . "&status=" . $res[$i]->status . "&amount=" . $res[$i]->total_amount . "&order_id=" . $res[$i]->order_id . "&operator_id=" . $res[$i]->operator_id . "&balance=" . round((float) ($user->wallet_balance ?? 0), 2);
             $order_id = $res[$i]->order_id;
             $header = [];
-            $result = helpers::curl($url, "GET", "", $header, "yes", "USER_RECHARGE_CALLBACK", $order_id);
+            $result = helpers::curl($url, "GET", "", $header, "no", "USER_RECHARGE_CALLBACK", $order_id);
             //echo "<pre>";print_r($result);
             DB::table('reports')->where('id', $res[$i]->id)->update([
                 'api_partner_call_back_url' =>  $url,
