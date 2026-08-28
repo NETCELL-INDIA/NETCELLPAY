@@ -190,14 +190,6 @@ use App\Http\Controllers\Admin\OperatorRoutingController;
 
 //Clear route cache
 
-Route::get('/send-mail', function() {
-    $subject = "Shiba";
-    $message = "hii";
-    //\Artisan::call('make:mail SendEmail');
-    //\Artisan::call('queue:work');
-   Mail::to('shibatechnology@gmail.com')->queue(new SendEmail($subject,$message));
-});
-
 Route::get('/optimize', function () {
     \Artisan::call('route:clear');
     \Artisan::call('config:clear');
