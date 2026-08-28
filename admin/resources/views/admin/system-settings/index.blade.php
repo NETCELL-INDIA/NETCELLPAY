@@ -147,23 +147,12 @@
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">
                             <div class="ss-field">
-                                <label>Portal / App login</label>
-                                <select class="form-select" name="user_login_method">
-                                    <option value="USER" {{ strtoupper($settings['user_login_method'] ?? 'USER') === 'USER' ? 'selected' : '' }}>As per user (Login Type)</option>
-                                    <option value="PASSWORD" {{ strtoupper($settings['user_login_method'] ?? '') === 'PASSWORD' ? 'selected' : '' }}>Password</option>
-                                    <option value="OTP" {{ strtoupper($settings['user_login_method'] ?? '') === 'OTP' ? 'selected' : '' }}>OTP</option>
-                                </select>
-                                <small class="text-muted">Password = wallet password only. OTP = password then mobile/email OTP. As per user uses each account’s Login Type.</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="ss-field">
                                 <label>Admin login</label>
                                 <select class="form-select" name="admin_login_method">
                                     <option value="PASSWORD" {{ strtoupper($settings['admin_login_method'] ?? 'OTP') === 'PASSWORD' ? 'selected' : '' }}>Password</option>
                                     <option value="OTP" {{ strtoupper($settings['admin_login_method'] ?? 'OTP') !== 'PASSWORD' ? 'selected' : '' }}>OTP</option>
                                 </select>
-                                <small class="text-muted">Password = admin logs in after password. OTP = password then email/mobile OTP (current).</small>
+                                <small class="text-muted">Password = admin logs in after password. OTP = password then email/mobile OTP. Portal users still use each account’s Login Type.</small>
                             </div>
                         </div>
                         <div class="col-md-6">

@@ -201,14 +201,6 @@ class SystemSettingService
 
     public static function userLoginRequiresOtp($user): bool
     {
-        $mode = strtoupper((string) self::get('user_login_method', 'USER'));
-        if ($mode === 'PASSWORD') {
-            return false;
-        }
-        if ($mode === 'OTP') {
-            return true;
-        }
-
         return strtoupper((string) ($user->login_type ?? '')) === 'OTP';
     }
 

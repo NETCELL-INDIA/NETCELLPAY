@@ -76,9 +76,7 @@ class SystemSettingController extends Controller
                 'max_payout_account' => (int) $post->max_payout_account,
                 'stop_all_transactions' => $post->boolean('stop_all_transactions') ? '1' : '0',
                 'app_without_login' => $post->boolean('app_without_login') ? '1' : '0',
-                'user_login_method' => in_array(strtoupper((string) $post->user_login_method), ['USER', 'PASSWORD', 'OTP'], true)
-                    ? strtoupper((string) $post->user_login_method)
-                    : 'USER',
+                'user_login_method' => 'USER',
                 'admin_login_method' => strtoupper((string) $post->admin_login_method) === 'PASSWORD' ? 'PASSWORD' : 'OTP',
             ]);
         } elseif ($page === 'service') {
