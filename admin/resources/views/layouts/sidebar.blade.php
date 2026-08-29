@@ -372,6 +372,7 @@
                             <li class="nav-item"><a href="{{ route('whatsappApiPage') }}" class="nav-link">WhatsApp API</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>
                             <li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>
+                            <li class="nav-item"><a href="{{ route('notificationSendReport') }}" class="nav-link">Notification Send Report</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/company/email-template') }}" class="nav-link">Email Templates</a></li>
                             <li class="nav-item"><a href="{{ URL::asset('admin/profile/my-profile') }}" class="nav-link">My Profile</a></li>

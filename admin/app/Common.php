@@ -798,12 +798,14 @@ use Illuminate\Http\Request;
             return false;
         }
 
+        $msgId = 0;
+        $storedSubject = trim($title) !== '' ? $title : $subject;
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('messages')) {
-                DB::table('messages')->insert([
+                $msgId = (int) DB::table('messages')->insertGetId([
                     'user_id' => 1,
                     'to_user_id' => $userId,
-                    'subject' => $subject,
+                    'subject' => $storedSubject,
                     'msg_source' => 'PUSH',
                     'template_id' => 0,
                     'content' => $body,
@@ -815,21 +817,36 @@ use Illuminate\Http\Request;
         } catch (\Throwable $e) {
         }
 
+        $setStatus = function (int $status) use ($msgId) {
+            if ($msgId <= 0) {
+                return;
+            }
+            try {
+                DB::table('messages')->where('id', $msgId)->update([
+                    'status' => $status,
+                    'updated_at' => Carbon::now(),
+                ]);
+            } catch (\Throwable $e) {
+            }
+        };
+
         try {
             foreach (['fcm_token', 'device_token'] as $column) {
                 if (! \Illuminate\Support\Facades\Schema::hasColumn('users', $column)) {
-                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` VARCHAR(255) NULL");
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` TEXT NULL");
                 }
             }
 
             $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
             $token = trim((string) ($user->fcm_token ?? ($user->device_token ?? '')));
             if ($token === '') {
+                $setStatus(2);
                 return 'no_token';
             }
 
             $serverKey = self::fcmServerKey();
             if (! $serverKey) {
+                $setStatus(3);
                 return false;
             }
 
@@ -862,9 +879,11 @@ use Illuminate\Http\Request;
                 (string) time()
             );
 
+            $setStatus(1);
             return true;
         } catch (\Throwable $e) {
             \Log::warning('pushNotifyUser failed: '.$e->getMessage());
+            $setStatus(3);
 
             return false;
         }

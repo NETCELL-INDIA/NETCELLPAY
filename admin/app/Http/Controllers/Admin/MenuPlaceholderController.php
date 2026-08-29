@@ -69,6 +69,7 @@ class MenuPlaceholderController extends Controller
         'extras/slab-settings' => 'admin/system/scheme',
         'extras/messages-logs' => 'admin/extras/send-sms-report',
         'extras/send-sms-report' => 'admin/extras/send-sms-report',
+        'extras/notification-send-report' => 'admin/extras/notification-send-report',
 
         // Routings (legacy placeholder keys)
         'routings/general-routings' => 'admin/routings/general',

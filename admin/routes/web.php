@@ -85,6 +85,7 @@ use App\Http\Controllers\Admin\ApiReportController;
 use App\Http\Controllers\Admin\RefundReportController;
 use App\Http\Controllers\Admin\RechargeLogsController;
 use App\Http\Controllers\Admin\SendSmsReportController;
+use App\Http\Controllers\Admin\NotificationSendReportController;
 use App\Http\Controllers\Admin\SupplierFail2SuccessController;
 use App\Http\Controllers\Admin\RehitRechargeHistoryController;
 use App\Http\Controllers\Admin\AmountwiseReportController;
@@ -755,6 +756,8 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::get('admin/extras/send-sms-report', [SendSmsReportController::class, 'index'])->name('sendSmsReport');
     Route::post('admin/extras/send-sms-report/list', [SendSmsReportController::class, 'list'])->name('sendSmsReportList');
+    Route::get('admin/extras/notification-send-report', [NotificationSendReportController::class, 'index'])->name('notificationSendReport');
+    Route::post('admin/extras/notification-send-report/list', [NotificationSendReportController::class, 'list'])->name('notificationSendReportList');
 
 
 

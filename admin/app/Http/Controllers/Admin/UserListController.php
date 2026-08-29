@@ -50,26 +50,25 @@ class UserListController extends Controller
 
         
 
-        if($post->user_id != 0){
+        if ((int) $post->user_id !== 0) {
             $users = DB::table('users')
             ->where('status', 1)
             ->where('deleted_at',0)
+            ->whereNotIn('role_id', [1, 2])
             ->where('id',$post->user_id)
             ->get(['id','first_name','email_address','mobile_number']);
-        }else{
-            if($post->user_id == 0){
-                $users = DB::table('users')
-                ->where('status', 1)
-                ->where('deleted_at',0)
-                ->get(['id','first_name','email_address','mobile_number']);
-            }else{
-                $users = DB::table('users')
-                ->where('status', 1)
-                ->where('deleted_at',0)
-                ->where('role_id',$post->role_id)
-                ->get(['id','first_name','email_address','mobile_number']);
-            }
-            
+        } elseif ((int) $post->role_id !== 0) {
+            $users = DB::table('users')
+            ->where('status', 1)
+            ->where('deleted_at',0)
+            ->where('role_id',$post->role_id)
+            ->get(['id','first_name','email_address','mobile_number']);
+        } else {
+            $users = DB::table('users')
+            ->where('status', 1)
+            ->where('deleted_at',0)
+            ->whereNotIn('role_id', [1, 2])
+            ->get(['id','first_name','email_address','mobile_number']);
         }
 
         if($users){
@@ -101,7 +100,7 @@ class UserListController extends Controller
                 $title = trim((string) $post->subject);
                 $body = trim(strip_tags((string) $post->message_text));
                 foreach ($users as $user) {
-                    $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_broadcast');
+                    $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], $title);
                     if ($result === true) {
                         $sent++;
                     } elseif ($result === 'no_token') {
@@ -113,7 +112,7 @@ class UserListController extends Controller
 
                 $parts = ["Push sent to {$sent} user(s)"];
                 if ($noToken) {
-                    $parts[] = "{$noToken} have no app login token (user must open Netcell Pay app and login again)";
+                    $parts[] = "{$noToken} have no app notification token. User must open the Netcell Pay Android app once (after this update) so FCM token is saved";
                 }
                 if ($failed) {
                     $parts[] = "{$failed} failed to send";

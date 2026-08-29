@@ -1115,12 +1115,14 @@ class helpers
     public static function ensureUserPushColumns(): void
     {
         foreach ([
-            'fcm_token' => 'VARCHAR(255) NULL',
-            'device_token' => 'VARCHAR(255) NULL',
+            'fcm_token' => 'TEXT NULL',
+            'device_token' => 'TEXT NULL',
         ] as $column => $definition) {
             try {
                 if (! Schema::hasColumn('users', $column)) {
                     DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` {$definition}");
+                } else {
+                    DB::statement("ALTER TABLE `users` MODIFY COLUMN `{$column}` TEXT NULL");
                 }
             } catch (\Throwable $e) {
             }
@@ -1129,14 +1131,30 @@ class helpers
 
     public static function extractPushTokenFromRequest(Request $request): ?string
     {
-        foreach (['fcm_token', 'device_token', 'firebase_token', 'notification_token', 'push_token'] as $key) {
+        $keys = [
+            'fcm_token', 'device_token', 'firebase_token', 'notification_token',
+            'push_token', 'gcm_token', 'registration_id', 'firebaseToken', 'fcmToken',
+        ];
+        foreach ($keys as $key) {
             $value = trim((string) $request->input($key, ''));
-            if ($value !== '') {
+            if (self::isLikelyPushToken($value)) {
+                return $value;
+            }
+        }
+
+        foreach (['HTTP_FCM_TOKEN', 'HTTP_DEVICE_TOKEN', 'HTTP_X_FCM_TOKEN', 'HTTP_X_DEVICE_TOKEN'] as $header) {
+            $value = trim((string) ($request->server($header) ?? ''));
+            if (self::isLikelyPushToken($value)) {
                 return $value;
             }
         }
 
         return null;
+    }
+
+    private static function isLikelyPushToken(string $value): bool
+    {
+        return $value !== '' && strlen($value) >= 40 && ! preg_match('/\s/', $value);
     }
 
     public static function saveUserPushToken(int $userId, ?string $token): void

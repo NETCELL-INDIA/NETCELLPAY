@@ -30,6 +30,7 @@ class AuthController extends Controller
        // }
 
         $userId = (int) $post->user_id;
+        $this->syncPushTokenFromRequest($post, $userId);
         $agg = DB::table('reports')
             ->where('user_id', $userId)
             ->whereBetween('created_at', [$from_date, $to_date])
