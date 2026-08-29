@@ -87,20 +87,16 @@ class UserListController extends Controller
                 }
                 return $mobiles;
             }else if($post->msg_source == "NOTIFICATION"){
-                if (! Common::fcmServerKey()) {
-                    return response()->json([
-                        'message' => 'FCM Server Key missing. Save it in System Setting → Pusher setting → FCM Server Key, then try again.',
-                        'type' => 'error',
-                    ]);
-                }
-
                 $sent = 0;
                 $noToken = 0;
                 $failed = 0;
+                $inbox = 0;
                 $title = trim((string) $post->subject);
                 $body = trim(strip_tags((string) $post->message_text));
+                $hasFcmKey = (bool) Common::fcmServerKey();
                 foreach ($users as $user) {
                     $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], $title);
+                    $inbox++;
                     if ($result === true) {
                         $sent++;
                     } elseif ($result === 'no_token') {
@@ -110,17 +106,20 @@ class UserListController extends Controller
                     }
                 }
 
-                $parts = ["Push sent to {$sent} user(s)"];
+                $reportUrl = route('notificationSendReport');
+                $parts = ["Notification saved for {$inbox} user(s). See Notification Send Report"];
+                $parts[] = "Phone push: {$sent}";
                 if ($noToken) {
-                    $parts[] = "{$noToken} have no app notification token. User must open the Netcell Pay Android app once (after this update) so FCM token is saved";
+                    $parts[] = "{$noToken} have no Android FCM token yet";
                 }
                 if ($failed) {
-                    $parts[] = "{$failed} failed to send";
+                    $parts[] = "{$failed} push failed".($hasFcmKey ? '' : ' (FCM Server Key missing in Pusher setting)');
                 }
 
                 return response()->json([
                     'message' => implode('. ', $parts).'.',
-                    'type' => $sent > 0 ? 'success' : 'error',
+                    'type' => $inbox > 0 ? 'success' : 'error',
+                    'report_url' => $reportUrl,
                 ]);
             }else if($post->msg_source == "WHATSAPP"){
                 $mobiles = '';

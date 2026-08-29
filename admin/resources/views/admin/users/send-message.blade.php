@@ -24,11 +24,10 @@
             <div class="card">
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Send Message Text</h4>
-                <div class="flex-shrink-0">
-                    <div class="form-check form-switch form-switch-right form-switch-md">
-                        <button type="button" class="btn btn-info waves-effect waves-light" onclick="update()" id="edit_details_btn" >Send Message</button>
-                        </div>
-                    </div>
+                <div class="flex-shrink-0 d-flex gap-2">
+                    <a href="{{ route('notificationSendReport') }}" class="btn btn-outline-secondary waves-effect">Notification Report</a>
+                    <button type="button" class="btn btn-info waves-effect waves-light" onclick="update()" id="edit_details_btn" >Send Message</button>
+                </div>
                 </div>
 
                 <div class="card-body">
@@ -155,7 +154,24 @@
                 $("#edit_details_btn").text('Send Message');
                 $('#edit_details_btn').prop('disabled', false);
             }else if(data.type=="success"){  
-                Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
+                Swal.fire({
+                    title: 'Success',
+                    text: data.message,
+                    icon: 'success',
+                    showCancelButton: !!data.report_url,
+                    confirmButtonText: data.report_url ? 'View Report' : 'OK',
+                    cancelButtonText: 'OK',
+                    customClass: {
+                        confirmButton: 'btn btn-primary w-xs mt-2',
+                        cancelButton: 'btn btn-light w-xs mt-2 ms-2',
+                    },
+                    buttonsStyling: false,
+                    showCloseButton: true
+                }).then(function (result) {
+                    if (result.isConfirmed && data.report_url) {
+                        window.location.href = data.report_url;
+                    }
+                });
                 $("#edit_details_btn").text('Send Message');
                 $('#edit_details_btn').prop('disabled', false);
             }else{

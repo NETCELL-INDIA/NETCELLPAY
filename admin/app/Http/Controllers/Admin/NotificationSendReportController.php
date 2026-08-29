@@ -90,6 +90,9 @@ class NotificationSendReportController extends Controller
 
                 $rows .= '<tr>
                     <td>'.$i.'</td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'">Delete</button>
+                    </td>
                     <td>'.e($name).'<br><small>'.e($row->outlet_name ?: '-').'</small></td>
                     <td>'.e($row->mobile_number ?: '-').'</td>
                     <td>'.e($row->subject ?: '-').'</td>
@@ -100,7 +103,7 @@ class NotificationSendReportController extends Controller
                 $i++;
             }
         } else {
-            $rows = '<tr><td colspan="7" class="text-center text-muted py-3">No notification records found</td></tr>';
+            $rows = '<tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>';
         }
 
         return response()->json([
@@ -132,11 +135,43 @@ class NotificationSendReportController extends Controller
         return '<span class="badge bg-secondary">Inbox saved</span>';
     }
 
+    public function destroy(Request $request)
+    {
+        $id = (int) $request->id;
+        if ($id <= 0 || ! Schema::hasTable('messages')) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid notification']);
+        }
+
+        $row = DB::table('messages')
+            ->where('id', $id)
+            ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->first();
+
+        if (! $row) {
+            return response()->json(['type' => 'error', 'message' => 'Notification not found']);
+        }
+
+        $from = Carbon::parse($row->created_at)->subMinutes(2);
+        $to = Carbon::parse($row->created_at)->addMinutes(2);
+
+        $deleted = DB::table('messages')
+            ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->where('subject', $row->subject)
+            ->where('content', $row->content)
+            ->whereBetween('created_at', [$from, $to])
+            ->delete();
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Wrong notification deleted ('.$deleted.' row'.($deleted === 1 ? '' : 's').').',
+        ]);
+    }
+
     private function emptyResponse()
     {
         return response()->json([
             'type' => 'success',
-            'rows' => '<tr><td colspan="7" class="text-center text-muted py-3">No notification records found</td></tr>',
+            'rows' => '<tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>',
             'pagination' => [
                 'page' => 1,
                 'show' => 10,

@@ -758,6 +758,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/extras/send-sms-report/list', [SendSmsReportController::class, 'list'])->name('sendSmsReportList');
     Route::get('admin/extras/notification-send-report', [NotificationSendReportController::class, 'index'])->name('notificationSendReport');
     Route::post('admin/extras/notification-send-report/list', [NotificationSendReportController::class, 'list'])->name('notificationSendReportList');
+    Route::post('admin/extras/notification-send-report/delete', [NotificationSendReportController::class, 'destroy'])->name('notificationSendReportDelete');
 
 
 

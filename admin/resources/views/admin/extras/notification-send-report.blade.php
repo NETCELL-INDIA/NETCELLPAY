@@ -70,6 +70,7 @@
                 <thead>
                     <tr>
                         <th>#</th>
+                        <th>Action</th>
                         <th>User</th>
                         <th>Mobile</th>
                         <th>Subject</th>
@@ -79,7 +80,7 @@
                     </tr>
                 </thead>
                 <tbody id="notifyBody">
-                    <tr><td colspan="7" class="text-center text-muted py-3">No notification records found</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>
                 </tbody>
             </table>
         </div>
@@ -104,7 +105,7 @@ var currentPage = 1;
 var lastPage = 1;
 
 function fetchNotifyReport() {
-    $('#notifyBody').html('<tr><td colspan="7" class="text-center text-muted py-3">Loading...</td></tr>');
+    $('#notifyBody').html('<tr><td colspan="8" class="text-center text-muted py-3">Loading...</td></tr>');
     $.ajax({
         url: '{{ route('notificationSendReportList') }}',
         method: 'POST',
@@ -120,7 +121,7 @@ function fetchNotifyReport() {
         },
         success: function (res) {
             if (!res || res.type !== 'success') {
-                $('#notifyBody').html('<tr><td colspan="7" class="text-center text-danger py-3">Failed to load</td></tr>');
+                $('#notifyBody').html('<tr><td colspan="8" class="text-center text-danger py-3">Failed to load</td></tr>');
                 return;
             }
             $('#notifyBody').html(res.rows);
@@ -132,7 +133,7 @@ function fetchNotifyReport() {
             $('#btnNext').prop('disabled', currentPage >= lastPage);
         },
         error: function () {
-            $('#notifyBody').html('<tr><td colspan="7" class="text-center text-danger py-3">Failed to load</td></tr>');
+            $('#notifyBody').html('<tr><td colspan="8" class="text-center text-danger py-3">Failed to load</td></tr>');
         }
     });
 }
@@ -164,6 +165,57 @@ $(function () {
             fetchNotifyReport();
         }
     });
+    $(document).on('click', '.btn-del-notify', function () {
+        var id = $(this).data('id');
+        if (!id) {
+            return;
+        }
+        Swal.fire({
+            title: 'Delete this notification?',
+            text: 'This removes the same wrong APP NOTIFICATION for all users in that send.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            customClass: {
+                confirmButton: 'btn btn-danger w-xs mt-2',
+                cancelButton: 'btn btn-light w-xs mt-2 ms-2',
+            },
+            buttonsStyling: false
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            $.ajax({
+                url: '{{ route('notificationSendReportDelete') }}',
+                method: 'POST',
+                dataType: 'json',
+                data: { _token: csrf, id: id },
+                success: function (res) {
+                    Swal.fire({
+                        title: res.type === 'success' ? 'Deleted' : 'Error',
+                        text: res.message || 'Done',
+                        icon: res.type === 'success' ? 'success' : 'error',
+                        customClass: { confirmButton: 'btn btn-primary w-xs mt-2' },
+                        buttonsStyling: false
+                    });
+                    if (res.type === 'success') {
+                        fetchNotifyReport();
+                    }
+                },
+                error: function () {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'Unable to delete',
+                        icon: 'error',
+                        customClass: { confirmButton: 'btn btn-primary w-xs mt-2' },
+                        buttonsStyling: false
+                    });
+                }
+            });
+        });
+    });
+
     fetchNotifyReport();
 });
 </script>
