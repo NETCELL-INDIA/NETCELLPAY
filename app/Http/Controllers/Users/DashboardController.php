@@ -117,7 +117,11 @@ class DashboardController extends Controller
             WHERE r.created_at between '$from_date' AND '$to_date' AND transaction_type IN ('Recharge', 'Bill Pay') AND r.user_id = '".$user->id."'
             group by p.provider_name,s.service_name";
         //echo "<pre>";print_r($provider_sale_query);//die;
-        $provider_sale_reports = DB::select($provider_sale_query);
+        try {
+            $provider_sale_reports = DB::select($provider_sale_query);
+        } catch (\Throwable $e) {
+            $provider_sale_reports = [];
+        }
         //echo "<pre>";print_r($provider_sale_reports);die;
         $provider_list_output = '';
 		if (count($provider_sale_reports) > 0) {

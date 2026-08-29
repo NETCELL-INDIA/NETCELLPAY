@@ -100,8 +100,6 @@ class DashboardController extends Controller
 
     public function topbarCount()
     {
-        \helpers::ensureHotIndexes();
-
         try {
             $payload = \Illuminate\Support\Facades\Cache::remember('admin_topbar_counts', 20, function () {
                 $pending = DB::table('reports')
@@ -139,7 +137,6 @@ class DashboardController extends Controller
         }
 
         try {
-            \helpers::ensureHotIndexes();
             $cacheKey = 'admin_dashboard_'.md5($from_date.'|'.$to_date);
             $payload = \Illuminate\Support\Facades\Cache::remember($cacheKey, 15, function () use ($from_date, $to_date) {
                 return [
