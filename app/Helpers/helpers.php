@@ -2154,7 +2154,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260903-WEB-006';
+        return '20260903-WEB-007';
     }
 }
 
