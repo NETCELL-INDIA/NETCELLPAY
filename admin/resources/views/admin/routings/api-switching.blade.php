@@ -174,7 +174,7 @@
 <script>
 var csrf = '{{ csrf_token() }}';
 var mappings = {};
-var defaultLogo = @json(asset('assets/images/users/user-dummy-img.jpg'));
+var defaultLogo = @json(admin_asset('assets/images/users/user-dummy-img.jpg'));
 
 function esc(value) {
     return String(value == null ? '' : value)

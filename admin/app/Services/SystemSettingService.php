@@ -37,6 +37,8 @@ class SystemSettingService
             'pusher_secret' => '',
             'pusher_cluster' => 'ap2',
             'fcm_server_key' => '',
+            'bbps_fetch_api_id' => '7',
+            'bbps_params_api_id' => '22',
         ];
     }
 

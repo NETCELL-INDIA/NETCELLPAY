@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 
 use Illuminate\Http\Request;
 
@@ -203,7 +204,7 @@ class RechargeReportsController extends Controller
 
                 $action = '<div class="recharge-action-btns">'
                     . '<a href="javascript:void(0)" class="btn btn-soft-primary" title="Edit Status" onclick="editStatus(\'' . e($list->id) . '\',\'' . $st . '\',\'' . e($list->operator_id ?: '') . '\')"><i class="ri-pencil-line"></i></a>'
-                    . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>';
+                    . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" data-report-id="' . e($list->id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>';
 
                 if ($hasComplaint && !empty($list->complaint_id)) {
                     $action .= '<a id="' . e($list->complaint_id) . '" class="btn btn-soft-danger editComplaint" title="Complaint"><i class="ri-customer-service-2-line"></i></a>';
@@ -1736,6 +1737,13 @@ class RechargeReportsController extends Controller
                 }
             }
 
+            AdminAudit::log('recharge_status', 'report_status', [
+                'ref_type' => 'report',
+                'ref_id' => $report->id,
+                'old' => $current,
+                'new' => $requested,
+            ]);
+
             return response()->json([
                 'message' => 'Status updated to '.$requested.'.',
                 'type' => 'success',
@@ -2296,32 +2304,99 @@ class RechargeReportsController extends Controller
 
         }
 
-        $api_logs = DB::table('apilogs')->where('txnid', $post->id)->get();
-
-        if($api_logs){
-
-            return response()->json([
-
-                'data' => $api_logs,
-
-                'message' => 'Fatch Successfuly.',
-
-                'type' => 'success',
-
-            ]);
-
-        }else{
-
-            return response()->json([
-
-                'message' => 'api logs record not found.',
-
-                'type' => 'error',
-
-            ]);
-
+        $key = trim((string) ($post->id ?? ''));
+        if ($key === '') {
+            return response()->json(['type' => 'error', 'message' => 'Invalid transaction.']);
         }
 
+        $report = DB::table('reports')->where('order_id', $key)->first();
+        if (! $report && ctype_digit($key)) {
+            $report = DB::table('reports')->where('id', (int) $key)->first();
+        }
+        if (! $report && Schema::hasTable('backup_reports')) {
+            $report = DB::table('backup_reports')->where('order_id', $key)->first();
+            if (! $report && ctype_digit($key)) {
+                $report = DB::table('backup_reports')->where('id', (int) $key)->first();
+            }
+        }
+
+        $txnids = array_values(array_unique(array_filter([
+            $key,
+            $report->order_id ?? null,
+            isset($report->id) ? (string) $report->id : null,
+            $report->request_order_id ?? null,
+            $report->operator_id ?? null,
+        ], function ($v) {
+            return $v !== null && $v !== '' && $v !== 'none';
+        })));
+
+        $logs = collect();
+        if (Schema::hasTable('apilogs') && $txnids) {
+            $logs = DB::table('apilogs')
+                ->where(function ($q) use ($txnids, $report) {
+                    $q->whereIn('txnid', $txnids);
+                    if ($report && ! empty($report->order_id)) {
+                        $q->orWhere('url', 'like', '%'.$report->order_id.'%');
+                    }
+                    if ($report && ! empty($report->number)) {
+                        $q->orWhere('url', 'like', '%'.$report->number.'%');
+                    }
+                })
+                ->orderByDesc('id')
+                ->limit(40)
+                ->get();
+        }
+
+        if ($logs->isEmpty()) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'API log not found for this recharge.',
+            ]);
+        }
+
+        $html = '';
+        $n = 1;
+        foreach ($logs as $log) {
+            $html .= $this->apiLogCardHtml($n++, $log);
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Fetched successfully.',
+            'data' => $logs,
+            'html' => $html,
+        ]);
+    }
+
+    private function apiLogCardHtml(int $index, object $log): string
+    {
+        $pretty = function ($value): string {
+            $raw = is_string($value) ? $value : json_encode($value);
+            $raw = (string) $raw;
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded) || is_object($decoded)) {
+                return json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            }
+
+            return $raw !== '' ? $raw : '-';
+        };
+
+        $pre = function ($label, $value) use ($pretty): string {
+            return '<div class="mb-2"><div class="fw-semibold text-muted small">'.e($label).'</div>'
+                .'<pre class="bg-light border rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto;">'
+                .e($pretty($value)).'</pre></div>';
+        };
+
+        return '<div class="border rounded p-3 mb-3" style="border-color:#865ce2 !important;">'
+            .'<h6 class="text-primary mb-3">API LOG : '.$index.'</h6>'
+            .$pre('Order / Txn ID', $log->txnid ?? '-')
+            .$pre('Date & Time', $log->created_at ?? '-')
+            .$pre('Type', $log->modal ?? '-')
+            .$pre('Request URL', $log->url ?? '-')
+            .$pre('Header', $log->header ?? '-')
+            .$pre('Post Data', $log->request ?? '-')
+            .$pre('Response Data', $log->response ?? '-')
+            .'</div>';
     }
 
 

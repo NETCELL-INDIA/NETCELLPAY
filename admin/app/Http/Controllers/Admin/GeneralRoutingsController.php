@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -182,11 +183,21 @@ class GeneralRoutingsController extends Controller
 
         if ($request->id) {
             DB::table('general_routings')->where('id', (int) $request->id)->update($payload);
+            AdminAudit::log('routing', 'general_routing_update', [
+                'ref_type' => 'general_routing',
+                'ref_id' => $request->id,
+                'new' => $payload,
+            ]);
             return response()->json(['type' => 'success', 'message' => 'Routing updated successfully']);
         }
 
         $payload['created_at'] = Carbon::now();
-        DB::table('general_routings')->insert($payload);
+        $newId = DB::table('general_routings')->insertGetId($payload);
+        AdminAudit::log('routing', 'general_routing_create', [
+            'ref_type' => 'general_routing',
+            'ref_id' => $newId,
+            'new' => $payload,
+        ]);
 
         return response()->json(['type' => 'success', 'message' => 'Routing added successfully']);
     }
@@ -198,6 +209,7 @@ class GeneralRoutingsController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Invalid id']);
         }
         DB::table('general_routings')->where('id', $id)->delete();
+        AdminAudit::log('routing', 'general_routing_delete', ['ref_type' => 'general_routing', 'ref_id' => $id]);
         return response()->json(['type' => 'success', 'message' => 'Routing deleted']);
     }
 
@@ -217,6 +229,7 @@ class GeneralRoutingsController extends Controller
         }
 
         DB::table('general_routings')->where('id', $id)->update($data);
+        AdminAudit::log('routing', 'general_routing_field', ['ref_type' => 'general_routing', 'ref_id' => $id, 'new' => $data]);
         return response()->json(['type' => 'success', 'message' => 'Updated']);
     }
 

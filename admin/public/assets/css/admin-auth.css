@@ -50,25 +50,30 @@
 .np-login-brand-inner {
     position: relative;
     z-index: 1;
-    max-width: 420px;
+    max-width: 520px;
 }
 
 .np-login-brand-logo {
-    width: 72px;
-    height: 72px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.12);
-    display: flex;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+    background: transparent;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 0;
+    overflow: visible;
 }
 
 .np-login-brand-logo img {
-    max-width: 52px;
-    max-height: 52px;
+    max-width: min(100%, 480px);
+    max-height: 110px;
+    width: auto;
+    height: auto;
     object-fit: contain;
+    display: block;
 }
 
 .np-login-brand-mark {

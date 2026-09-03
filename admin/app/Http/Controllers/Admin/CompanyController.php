@@ -117,7 +117,7 @@ class CompanyController extends Controller
                 }
 				$output .= '<tr>
                 <td>' . $i . '</td>
-                <td><img src="'.admin_company_logo($list->company_icon).'" class="avatar-xs rounded-3 me-2"></td>
+                <td><img src="'.admin_company_logo($list->company_icon).'" alt="" class="rounded-circle" style="width:40px;height:40px;object-fit:contain;background:transparent;"></td>
                 <td>' . $list->company_name . '</td>
                 <td>' . $list->domain . '</td>
                 <td>' . $list->support_number . '</td>

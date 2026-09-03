@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +85,12 @@ class DashboardController extends Controller
             ]);
             DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $newBalance]);
             DB::commit();
+            AdminAudit::log('fund', 'admin_load_wallet', [
+                'ref_type' => 'user',
+                'ref_id' => $user->id,
+                'new' => ['amount' => $post->amount],
+                'remark' => $post->remark,
+            ]);
             return response()->json(array(
                 'type' => 'success',
                 'message' => "Wallet loaded successfully.",

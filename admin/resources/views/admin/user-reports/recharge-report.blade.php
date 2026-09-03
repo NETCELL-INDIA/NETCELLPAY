@@ -502,23 +502,13 @@ $(function () {
             data: { _token: csrf, id: id },
             success: function (res) {
                 if (res.type == 'success') {
-                    var html = '';
-                    for (var i = 0; i < res.data.length; i++) {
-                        html += '<div style="border:2px solid #865ce2;padding:5px;border-radius:11px;margin-bottom:10px;">' +
-                            '<h6 style="color:blue;">API LOG : ' + (i + 1) + '</h6>' +
-                            '<span>Order Id :</span><p class="text-info">' + res.data[i].txnid + '</p>' +
-                            '<span>Date & Time :</span><p class="text-info">' + res.data[i].created_at + '</p>' +
-                            '<span>Header :</span><p class="text-info">' + res.data[i].header + '</p>' +
-                            '<span>Type :</span><p class="text-info">' + res.data[i].modal + '</p>' +
-                            '<span>Post Data :</span><p class="text-info">' + res.data[i].request + '</p>' +
-                            '<span>Request URL :</span><p class="text-info">' + res.data[i].url + '</p>' +
-                            '<span>Response Data :</span><p class="text-info">' + res.data[i].response + '</p></div>';
-                    }
-                    $('#api_log_data').html(html || '<p class="text-muted">No logs</p>');
-                    $('#checkApiLogModalLabel').text('Api Logs');
+                    $('#api_log_data').html(res.html || '<p class="text-muted">No logs</p>');
+                    $('#checkApiLogModalLabel').text('API Log');
                     $('#checkApiLogModal').modal('show');
                 } else if (typeof Error_Msg === 'function') {
-                    Error_Msg('Oops...', res.message || 'No logs', 'error');
+                    Error_Msg('API Log', res.message || 'No logs', 'error');
+                } else {
+                    alert(res.message || 'No logs');
                 }
             }
         });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Illuminate\Http\Request;
 use Redirect;
 use Validator;
@@ -321,6 +322,7 @@ class FundController extends Controller
         }
         $user = DB::table('users')->where('id', Session::get('user_id'))->first();
         $report = DB::table('fund_requests')->where('id', $post->edit_id)->first();
+        $requestAmount = $report->amount ?? null;
         $isAdmin = (int) ($user->role_id ?? 0) === 1;
         if($post->status == "Approved"){
             if (!$isAdmin && (float) $user->wallet_balance < (float) $report->amount){
@@ -416,6 +418,12 @@ class FundController extends Controller
                 $report = DB::table('fund_requests')->where('id', $post->edit_id)->update($update);
                 ///Status Update in Fund Request End
                 DB::commit();
+                AdminAudit::log('fund', 'fund_request_approved', [
+                    'ref_type' => 'fund_request',
+                    'ref_id' => $post->edit_id,
+                    'new' => ['amount' => $requestAmount],
+                    'remark' => $post->remark,
+                ]);
                 return response()->json(array(
                     'type' => 'success',  
                     'message' => "Fund Request Approved Successfully"
@@ -433,6 +441,11 @@ class FundController extends Controller
             $update['decision_remark'] = $post->remark;
             $update['decision_date'] = Carbon::now();
             $report = DB::table('fund_requests')->where('id', $post->edit_id)->update($update);
+            AdminAudit::log('fund', 'fund_request_rejected', [
+                'ref_type' => 'fund_request',
+                'ref_id' => $post->edit_id,
+                'remark' => $post->remark,
+            ]);
             return response()->json(array(
                 'type' => 'success',  
                 'message' => "Fund Request Rejected Successfully"

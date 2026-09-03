@@ -5,12 +5,20 @@
                 <div class="navbar-brand-box horizontal-logo">
                     @php
                         $tbBrand = $company?->company_name ?? 'NETCELL PAY';
+                        $tbLogo = admin_company_logo($company?->company_logo ?? $company?->company_icon ?? null);
                     @endphp
                     <a href="{{ URL::asset('admin/dashboard') }}" class="np-h-brand logo logo-dark logo-light" title="{{ $tbBrand }}">
-                        <span class="np-h-text">
-                            <strong>{{ $tbBrand }}</strong>
-                            <span>Admin Panel</span>
-                        </span>
+                        @if($tbLogo)
+                            <img src="{{ $tbLogo }}" alt="{{ $tbBrand }}" class="np-h-logo">
+                            <span class="np-h-text">
+                                <span>Admin Panel</span>
+                            </span>
+                        @else
+                            <span class="np-h-text">
+                                <strong>{{ $tbBrand }}</strong>
+                                <span>Admin Panel</span>
+                            </span>
+                        @endif
                     </a>
                 </div>
 
@@ -188,8 +196,10 @@
                     }
                     $topUserMobile = $topUser->mobile_number ?? '';
                     $topUserWallet = round($topUser->wallet_balance ?? 0, 2);
-                    $topUserAvatar = admin_company_logo($company?->company_icon ?? null)
-                        ?? admin_asset('assets/images/users/avatar-1.jpg');
+                    $topUserAvatar = admin_asset('assets/images/users/avatar-1.jpg');
+                    if (! empty($topUser->profile_pic) && is_file(public_path('profile_pic/'.$topUser->profile_pic))) {
+                        $topUserAvatar = admin_asset('profile_pic/'.$topUser->profile_pic);
+                    }
                 @endphp
                 <div class="dropdown ms-1">
                     <button type="button" class="btn rb-user-btn" id="page-header-user-dropdown"

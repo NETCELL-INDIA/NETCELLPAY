@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -77,34 +78,22 @@ class OperatorRoutingController extends Controller
 
     private function defaultLogoUrl(): string
     {
-        return asset('assets/images/users/user-dummy-img.jpg');
+        return function_exists('admin_asset')
+            ? admin_asset('assets/images/users/user-dummy-img.jpg')
+            : asset('assets/images/users/user-dummy-img.jpg');
     }
 
     private function logoUrl($logo): string
     {
-        $logo = basename((string) $logo);
-        if ($logo !== '' && is_file(public_path('provider_logo/' . $logo))) {
-            return asset('provider_logo/' . $logo);
-        }
-        if ($logo !== '' && is_file(public_path('bank_logo/' . $logo))) {
-            return asset('bank_logo/' . $logo);
-        }
-
-        return $this->defaultLogoUrl();
+        return function_exists('admin_provider_logo_url')
+            ? admin_provider_logo_url((string) $logo)
+            : $this->defaultLogoUrl();
     }
 
     private function deleteLogoFile($logo): void
     {
-        $logo = basename((string) $logo);
-        if ($logo === '') {
-            return;
-        }
-
-        foreach (['provider_logo', 'bank_logo'] as $directory) {
-            $path = public_path($directory . '/' . $logo);
-            if (is_file($path)) {
-                @unlink($path);
-            }
+        if (function_exists('admin_provider_logo_delete')) {
+            admin_provider_logo_delete((string) $logo);
         }
     }
 
@@ -217,7 +206,7 @@ class OperatorRoutingController extends Controller
             'backup_api2_id' => 'nullable|numeric|min:0',
             'backup_api3_id' => 'nullable|numeric|min:0',
             'status' => 'required|in:0,1',
-            'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'remove_logo' => 'nullable|boolean',
         ]);
 
@@ -256,19 +245,16 @@ class OperatorRoutingController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Please select valid recharge APIs.']);
         }
 
-        $logoName = $operator->provider_logo ?? '';
-        if ($request->hasFile('logo')) {
-            $logoDirectory = public_path('provider_logo');
-            if (!is_dir($logoDirectory)) {
-                mkdir($logoDirectory, 0755, true);
+        $logoName = $operator?->provider_logo ?? '';
+        $upload = $request->file('logo') ?: $request->file('provider_logo');
+        if ($upload) {
+            if (! $upload->isValid()) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Logo upload failed: '.$upload->getErrorMessage(),
+                ]);
             }
-
-            $logoName = time() . '_' . bin2hex(random_bytes(6)) . '.' . $request->file('logo')->extension();
-            $request->file('logo')->move($logoDirectory, $logoName);
-
-            if ($operator && !empty($operator->provider_logo)) {
-                $this->deleteLogoFile($operator->provider_logo);
-            }
+            $logoName = admin_provider_logo_store($upload, $operator?->provider_logo);
         } elseif ($request->boolean('remove_logo')) {
             if ($operator && !empty($operator->provider_logo)) {
                 $this->deleteLogoFile($operator->provider_logo);
@@ -313,9 +299,16 @@ class OperatorRoutingController extends Controller
             $this->syncRoutingTable($serviceId, $operatorId, $apiIds);
         }
 
+        AdminAudit::log('routing', $operator ? 'operator_update' : 'operator_create', [
+            'ref_type' => 'provider',
+            'ref_id' => $operatorId,
+            'new' => $apiIds,
+        ]);
+
         return response()->json([
             'type' => 'success',
             'message' => $message,
+            'logo_url' => $this->logoUrl($logoName),
         ]);
     }
 
@@ -428,6 +421,11 @@ class OperatorRoutingController extends Controller
 
         DB::table('providers')->where('id', (int) $request->operator_id)->update($payload);
         $this->syncRoutingTable((int) $operator->service_id, (int) $request->operator_id, $apiIds);
+        AdminAudit::log('routing', 'api_switching', [
+            'ref_type' => 'provider',
+            'ref_id' => $request->operator_id,
+            'new' => $apiIds,
+        ]);
 
         return response()->json(['type' => 'success', 'message' => 'API switching saved successfully.']);
     }
@@ -609,6 +607,12 @@ class OperatorRoutingController extends Controller
         if (!$updated) {
             return response()->json(['type' => 'error', 'message' => 'Operator not found.']);
         }
+
+        AdminAudit::log('routing', 'operator_status', [
+            'ref_type' => 'provider',
+            'ref_id' => $request->operator_id,
+            'new' => (int) $request->status,
+        ]);
 
         return response()->json([
             'type' => 'success',

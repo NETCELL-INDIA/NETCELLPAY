@@ -11,4 +11,4 @@
 <!-- custom Css-->
 <link href="{{ admin_asset('assets/css/custom.min.css') }}" id="custom-style" rel="stylesheet" type="text/css" />
 <!-- Rambhiya / Netcell global UI -->
-<link href="{{ admin_asset('assets/css/netcell-rambhiya.css') }}?v=20260823-empmenu1" id="rambhiya-style" rel="stylesheet" type="text/css" />
+<link href="{{ admin_asset('assets/css/netcell-rambhiya.css') }}?v=20260903-logohd1" id="rambhiya-style" rel="stylesheet" type="text/css" />

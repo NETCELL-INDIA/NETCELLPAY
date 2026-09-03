@@ -30,7 +30,7 @@
 
 .modal-lg, .modal-xl {
 
-    --vz-modal-width: 1500px;
+    --vz-modal-width: min(1100px, 96vw);
 
 }
 
@@ -84,7 +84,7 @@
 
 <div id="detailsModal" class="modal bs-example-modal-lg" tabindex="-1" aria-labelledby="detailsModalLabel" data-bs-backdrop="static"  aria-hidden="true" style="display: none;">
 
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
 
         <div class="modal-content">
 
@@ -238,50 +238,11 @@
 
 
 
-                            <div class="col-xxl-3 col-md-6">
-
-                                <div>
-
-                                    <label for="company_logo" class="form-label">Company Logo: <a style="color: red">*</a></label>
-
-                                    <input type="file" class="form-control" name="company_logo" id="company_logo" accept="image/png, image/gif, image/jpeg">
-
-                                    
-
+                            <div class="col-12">
+                                <div class="alert alert-info py-2 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                    <span>Company Logo, Icon and Invoice Logo are managed on the <strong>Company Logos</strong> page (size + where each is used).</span>
+                                    <a href="{{ route('companyLogosPage') }}" class="btn btn-sm btn-primary">Open Company Logos</a>
                                 </div>
-
-                            </div>
-
-
-
-                            <div class="col-xxl-3 col-md-6">
-
-                                <div>
-
-                                    <label for="company_icon" class="form-label">Company Icon: <a style="color: red">*</a></label>
-
-                                    <input type="file" class="form-control" name="company_icon" id="company_icon" accept="image/png, image/gif, image/jpeg">
-
-                                    
-
-                                </div>
-
-                            </div>
-
-
-
-                            <div class="col-xxl-3 col-md-6">
-
-                                <div>
-
-                                    <label for="invoice_logo" class="form-label">Invoice Logo: <a style="color: red">*</a></label>
-
-                                    <input type="file" class="form-control" name="invoice_logo" id="invoice_logo" accept="image/png, image/gif, image/jpeg">
-
-                                    
-
-                                </div>
-
                             </div>
 
 
@@ -297,44 +258,6 @@
                                 </div>
 
                             </div>
-
-
-
-                            <div class="col-xxl-4 col-md-6">
-
-                                <div>
-
-                                    <img src="" style="height: 60px;" id="company_logo_file">
-
-                                </div>
-
-                            </div>
-
-
-
-                            <div class="col-xxl-4 col-md-6">
-
-                                <div>
-
-                                    <img src=""  style="height: 60px;" id="company_icon_file">
-
-                                </div>
-
-                            </div>
-
-
-
-                            <div class="col-xxl-4 col-md-6">
-
-                                <div>
-
-                                    <img src="" style="height: 60px;" id="invoice_logo_file">
-
-                                </div>
-
-                            </div>
-
-
 
 
 
@@ -528,6 +451,7 @@
                                 <div>
 
                                     <label for="whatsapp_request_url" class="form-label">Request URL (Whatsapp): <a style="color: red">*</a></label>
+                                    <div class="small text-muted mb-1">Same URL is also on <a href="{{ route('whatsappApiPage') }}">Extras → WhatsApp API</a></div>
 
                                     <input type="text" class="form-control" name="whatsapp_request_url" id="whatsapp_request_url" required="required">
 

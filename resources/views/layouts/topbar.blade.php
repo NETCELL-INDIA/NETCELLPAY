@@ -25,8 +25,8 @@
                         $adminHost = 'http://127.0.0.1:8001';
                     }
                     $brandName = $company->company_name ?? config('app.name', 'NETCELL PAY');
-                    $brandLogoFile = $company->company_icon ?? $company->company_logo ?? null;
-                    $brandLogo = $brandLogoFile ? $adminHost . '/company_logo/' . $brandLogoFile : null;
+                    $brandLogoFile = $company->company_logo ?? $company->company_icon ?? null;
+                    $brandLogo = $brandLogoFile ? $adminHost . '/company_logo/' . $brandLogoFile . '?v=hd2' : null;
                 @endphp
                 <div class="navbar-brand-box horizontal-logo">
                     <a href="{{ URL::asset('users/dashboard') }}" class="nc-brand-link" title="{{ $brandName }}">
@@ -34,10 +34,10 @@
                             <img src="{{ $brandLogo }}" alt="{{ $brandName }}" class="nc-brand-logo">
                         @else
                             <span class="nc-brand-mark">{{ strtoupper(substr($brandName, 0, 2)) }}</span>
+                            <span class="nc-brand-text">
+                                <strong>{{ $brandName }}</strong>
+                            </span>
                         @endif
-                        <span class="nc-brand-text">
-                            <strong>{{ $brandName }}</strong>
-                        </span>
                     </a>
                 </div>
 

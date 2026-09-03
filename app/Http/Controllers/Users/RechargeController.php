@@ -358,6 +358,14 @@ class RechargeController extends Controller
 
         }
 
+        if (\helpers::isUserServiceLocked($user->id, $provider->service_id)) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => 'This service is locked for your account. Contact admin.'
+            ));
+        }
+
         $serviceOff = \App\Services\SystemSettingService::serviceDisabledMessage($provider);
         if ($serviceOff) {
             return response()->json(array(
@@ -663,7 +671,7 @@ class RechargeController extends Controller
 
                         if ($api_result['status'] == "Success") {
 
-                            $api_result['callback_status'] = 1;
+                            $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                             DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -677,7 +685,7 @@ class RechargeController extends Controller
 
                             if ($provider->backup_api_id == 0) {
 
-                                $api_result['callback_status'] = 1;
+                                $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                 DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -693,7 +701,7 @@ class RechargeController extends Controller
 
                                     if ($api_result['status'] == "Success") {
 
-                                        $api_result['callback_status'] = 1;
+                                        $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                         DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -705,7 +713,7 @@ class RechargeController extends Controller
 
                                         if ($provider->backup_api2_id == 0) {
 
-                                            $api_result['callback_status'] = 1;
+                                            $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                             DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -721,7 +729,7 @@ class RechargeController extends Controller
 
                                                 if ($api_result['status'] == "Success") {
 
-                                                    $api_result['callback_status'] = 1;
+                                                    $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                                     DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -739,7 +747,7 @@ class RechargeController extends Controller
 
                                                     if ($provider->backup_api3_id == 0) {
 
-                                                        $api_result['callback_status'] = 1;
+                                                        $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                                         DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -755,7 +763,7 @@ class RechargeController extends Controller
 
                                                             if ($api_result['status'] == "Success") {
 
-                                                                $api_result['callback_status'] = 1;
+                                                                $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                                                 DB::table('reports')->where('id', $report)->update($api_result);
 
@@ -765,7 +773,7 @@ class RechargeController extends Controller
 
                                                             } else if ($api_result['status'] == "Failed") {
 
-                                                                $api_result['callback_status'] = 1;
+                                                                $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
                                                                 //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
 
@@ -2227,7 +2235,7 @@ class RechargeController extends Controller
 
             'provider_name' => $provider_data->provider_name,
 
-            'provider_logo' => $provider_data->provider_logo,
+            'provider_logo' => \helpers::providerLogoUrl($provider_data->provider_logo ?? ''),
 
             'state_id' => $state->id,
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Common;
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Illuminate\Http\Request;
 use Redirect;
 use Validator;
@@ -1056,6 +1057,12 @@ class UserListController extends Controller
                 }
                 //////Send Sms By Cron Job End
                 DB::commit();
+                AdminAudit::log('fund', 'fund_transfer', [
+                    'ref_type' => 'user',
+                    'ref_id' => $post->id,
+                    'new' => ['amount' => $post->amount, 'type' => 'Transfer'],
+                    'remark' => $post->remark,
+                ]);
                 return response()->json(array(
                     'type' => 'success',  
                     'message' => "Fund Transfer Successfully"
@@ -1164,6 +1171,12 @@ class UserListController extends Controller
                 ]);
                 $user = DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance + $post->amount]);
                 DB::commit();
+                AdminAudit::log('fund', 'fund_reverse', [
+                    'ref_type' => 'user',
+                    'ref_id' => $post->id,
+                    'new' => ['amount' => $post->amount, 'type' => 'Reverse'],
+                    'remark' => $post->remark,
+                ]);
                 return response()->json(array(
                     'type' => 'success',  
                     'message' => "Fund Reverse Successfully"

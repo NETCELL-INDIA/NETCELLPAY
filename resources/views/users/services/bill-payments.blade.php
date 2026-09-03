@@ -26,7 +26,7 @@
                     @foreach($bbps_categories as $cat)
                     <div class="col-6 col-md-4 col-lg-3 pointer" onclick="selectService({{ $cat['id'] }}, '{{ $cat['name'] }}')">
                         <div class="card-body text-center br_ui {{ (int)$service_id === (int)$cat['id'] ? 'active' : '' }}">
-                            <img src="{{ URL::asset($cat['logo']) }}" alt="{{ $cat['name'] }}" style="height:56px" onerror="this.src='{{ URL::asset('service_logo/10.png') }}'">
+                            <img src="{{ $cat['logo_url'] ?? URL::asset($cat['logo']) }}" alt="{{ $cat['name'] }}" style="height:56px" onerror="this.src='{{ URL::asset('service_logo/10.png') }}'">
                             <h6 class="mt-2 mb-0">{{ $cat['name'] }}</h6>
                         </div>
                     </div>

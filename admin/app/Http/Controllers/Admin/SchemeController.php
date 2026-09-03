@@ -334,6 +334,7 @@ class SchemeController extends Controller
                 </td>
                 <td>
                     <button class="btn btn-primary waves-effect waves-light updateCommission" id="' . $list->id . '">Update</button>
+                    <a href="' . url('admin/commission/denomination') . '?scheme_id=' . $post->id . '&provider_id=' . $list->id . '&service_id=' . $post->service . '" class="btn btn-outline-info waves-effect waves-light mt-1">Denom</a>
                 </td>   
               </tr>';
                 $i++;

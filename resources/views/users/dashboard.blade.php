@@ -37,7 +37,7 @@ Dashboard
             @foreach($recharge_services as $svc)
             <a class="dash-recharge-card" href="{{ url($svc['route']) }}">
                 <span class="dash-recharge-icon">
-                    <img src="{{ URL::asset($svc['icon']) }}" alt="{{ $svc['name'] }}" onerror="this.src='{{ URL::asset('service_icon/mobile_1.png') }}'">
+                    <img src="{{ $svc['icon_url'] ?? URL::asset($svc['icon']) }}" alt="{{ $svc['name'] }}" onerror="this.src='{{ URL::asset('service_icon/mobile_1.png') }}'">
                 </span>
                 <strong>{{ $svc['name'] }}</strong>
                 <span>Tap to recharge</span>

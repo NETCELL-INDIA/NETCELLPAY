@@ -19,7 +19,7 @@ class DashboardController extends Controller
         $data['slider_list'] = $slider_list;
         $data['role_id'] = (int) Session::get('role_id');
         $data['is_retailer'] = $data['role_id'] === 6;
-        $data['recharge_services'] = config('recharge_services.recharge', []);
+        $data['recharge_services'] = \helpers::serviceCatalogItems('recharge');
         $walletUser = DB::table('users')->where('id', Session::get('user_id'))->first();
         $data['balance_alert'] = (float) \App\Services\SystemSettingService::get('balance_alert_below', 500);
         $data['show_balance_alert'] = $walletUser && $data['balance_alert'] > 0

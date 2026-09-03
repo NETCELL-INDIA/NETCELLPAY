@@ -788,5 +788,28 @@ class ApiController extends Controller
             } catch (\Throwable $e) {
             }
         }
+
+        $this->ensureApiTypeColumn();
+    }
+
+    protected function ensureApiTypeColumn(): void
+    {
+        if (! Schema::hasTable('apis')) {
+            return;
+        }
+
+        try {
+            if (! Schema::hasColumn('apis', 'api_type')) {
+                DB::statement("ALTER TABLE `apis` ADD COLUMN `api_type` VARCHAR(32) NULL DEFAULT 'recharge'");
+                return;
+            }
+
+            $col = DB::select("SHOW COLUMNS FROM `apis` LIKE 'api_type'");
+            $type = strtolower((string) ($col[0]->Type ?? ''));
+            if (str_starts_with($type, 'enum') || (preg_match('/^(var)?char\((\d+)\)/', $type, $m) && (int) ($m[2] ?? 0) < 32)) {
+                DB::statement("ALTER TABLE `apis` MODIFY `api_type` VARCHAR(32) NULL DEFAULT 'recharge'");
+            }
+        } catch (\Throwable $e) {
+        }
     }
 }

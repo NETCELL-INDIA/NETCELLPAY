@@ -9,8 +9,8 @@ class RechargeMenuController extends Controller
 {
     private array $pages = [
         'rehit-recharge-history' => [
-            'title' => 'Rehit Recharge History',
-            'description' => 'Retry/rehit attempt history',
+            'title' => 'Resend Report',
+            'description' => 'Pending Report Resend / Rehit list',
         ],
         'amountwise-report' => [
             'title' => 'Amountwise Report',

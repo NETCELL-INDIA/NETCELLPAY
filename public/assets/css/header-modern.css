@@ -46,22 +46,24 @@
     display: inline-flex;
     gap: 10px;
     align-items: center;
-    max-width: min(240px, 42vw);
-    padding: 5px 10px 5px 5px;
+    max-width: min(280px, 52vw);
+    padding: 2px 4px;
     text-decoration: none;
-    background: rgba(255, 255, 255, .08);
-    border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
 }
 
 .nc-brand-logo {
     flex-shrink: 0;
-    width: 34px;
-    height: 34px;
-    padding: 3px;
+    width: auto;
+    height: 48px;
+    max-width: 280px;
+    padding: 0;
     object-fit: contain;
-    background: #fff;
-    border-radius: 8px;
+    image-rendering: auto;
+    background: transparent;
+    border-radius: 0;
 }
 
 .nc-brand-mark {
@@ -286,8 +288,13 @@
     }
 
     .nc-brand-link {
-        max-width: min(160px, 38vw);
-        padding: 4px 8px 4px 4px;
+        max-width: min(200px, 52vw);
+        padding: 3px;
+    }
+
+    .nc-brand-logo {
+        height: 32px;
+        max-width: 168px;
     }
 
     .nc-topbar .user-name-text,

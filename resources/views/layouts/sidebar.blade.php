@@ -5,19 +5,19 @@
         <!-- Dark Logo-->
         <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-dark">
             <span class="logo-sm">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="22">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="32">
             </span>
             <span class="logo-lg">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="17">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="40">
             </span>
         </a>
         <!-- Light Logo-->
         <a href="{{ URL::asset('users/dashboard') }}" class="logo logo-light">
             <span class="logo-sm">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="22">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="32">
             </span>
             <span class="logo-lg">
-                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="17">
+                <img src="{{env('ADMIN_HOST')}}/company_logo/{{ $company->company_logo ?? '' }}" alt="" height="40">
             </span>
         </a>
         <button type="button" class="btn btn-sm p-0 fs-20 header-item float-end btn-vertical-sm-hover" id="vertical-hover">
@@ -46,15 +46,11 @@
                     </a>
                     <div class="collapse menu-dropdown {{ (int) Session::get('role_id') === 6 ? 'show' : '' }}" id="sidebarServices">
                         <ul class="nav nav-sm flex-column">
+                            @foreach(\helpers::serviceCatalogItems('recharge') as $svc)
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/mobile') }}" class="nav-link">Mobile Recharge</a>
+                                <a href="{{ url($svc['route']) }}" class="nav-link">{{ $svc['name'] }}</a>
                             </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/postpaid') }}" class="nav-link">Postpaid</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ URL::asset('users/services/dth') }}" class="nav-link">DTH Recharge</a>
-                            </li>
+                            @endforeach
                             @if((int) Session::get('role_id') !== 6)
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/services/bill-payments') }}" class="nav-link">Bill Payments (BBPS)</a>
@@ -109,7 +105,7 @@
                         <ul class="nav nav-sm flex-column">
                             
                             <li class="nav-item">
-                                <a href="{{ URL::asset('users/users/fund-request') }}" class="nav-link"> Fund Request</a>
+                                <a href="{{ URL::asset('users/users/fund-request') }}" class="nav-link"> Downline Fund Requests</a>
                             </li>
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/users/list') }}" class="nav-link"> User List</a>

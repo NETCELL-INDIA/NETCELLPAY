@@ -14,8 +14,8 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">
-                    Use placeholders in Request URL: <code>{MOB}</code>, <code>{MSG}</code>, <code>{TMP_ID}</code>.
-                    This same API is used for login OTP / user messages.
+                    Use placeholders in Request URL: <code>{MOB}</code>, <code>{MSG}</code>, <code>{TMP_ID}</code>, <code>{LOGO}</code> / <code>{IMG}</code>.
+                    This same API is used for login OTP / user messages. Manage templates under <a href="{{ route('whatsappTemplatePage') }}">WhatsApp Template List</a>.
                 </p>
                 <form id="whatsappApiForm">
                     @csrf
@@ -56,6 +56,10 @@
                 <div class="mb-3">
                     <label class="form-label">Message</label>
                     <textarea class="form-control" id="test_message" rows="3" placeholder="Netcell Pay WhatsApp API test message"></textarea>
+                </div>
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="test_attach_logo" value="1">
+                    <label class="form-check-label" for="test_attach_logo">Send with company logo</label>
                 </div>
                 <button type="button" class="btn btn-success" id="btnTestSend">
                     <i class="ri-whatsapp-line"></i> Send Test
@@ -115,7 +119,8 @@ $('#btnTestSend').on('click', function () {
             _token: '{{ csrf_token() }}',
             mobile: mobile,
             tmp_id: $('#test_tmp_id').val(),
-            message: $('#test_message').val()
+            message: $('#test_message').val(),
+            attach_logo: $('#test_attach_logo').is(':checked') ? 1 : 0
         },
         success: function (data) {
             btn.prop('disabled', false).html('<i class="ri-whatsapp-line"></i> Send Test');

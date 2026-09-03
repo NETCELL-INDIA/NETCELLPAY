@@ -141,13 +141,17 @@ class helpers
 
     public static function mapApiCallbackStatus($api, $actual): string
     {
-        if (self::apiValueMatches($actual, $api->callback_success_value ?? '')) {
+        if (self::apiValueMatches($actual, $api->callback_success_value ?? '')
+            || self::apiValueMatches($actual, $api->success_value ?? '')) {
             return 'Success';
         }
-        if (self::apiValueMatches($actual, $api->callback_failed_value ?? '')) {
+        if (self::apiValueMatches($actual, $api->callback_failed_value ?? '')
+            || self::apiValueMatches($actual, $api->failed_value ?? '')
+            || self::apiValueMatches($actual, $api->error_value_response ?? '')) {
             return 'Failed';
         }
-        if (self::apiValueMatches($actual, $api->callback_refund_value ?? '')) {
+        if (self::apiValueMatches($actual, $api->callback_refund_value ?? '')
+            || self::apiValueMatches($actual, $api->refund_value ?? '')) {
             return 'Refunded';
         }
         if (self::apiValueMatches($actual, $api->callback_pending_value ?? $api->pending_value ?? '')) {
@@ -155,6 +159,64 @@ class helpers
         }
 
         return 'Pending';
+    }
+
+    public static function isApiPartnerPath($path): bool
+    {
+        return strcasecmp(trim((string) $path), 'Api') === 0;
+    }
+
+    public static function sendApiPartnerRechargeCallback($report): bool
+    {
+        if (is_numeric($report) || is_string($report)) {
+            $report = DB::table('reports')->where('id', $report)->first();
+        }
+        if (!$report) {
+            return false;
+        }
+        if (! self::isApiPartnerPath($report->path ?? '')) {
+            return false;
+        }
+        if (in_array((string) $report->status, self::rechargePendingStatuses(), true)) {
+            return false;
+        }
+        if ((int) ($report->callback_status ?? 0) === 1) {
+            return false;
+        }
+
+        $user = DB::table('users')->where('id', $report->user_id)->first(['callback_url', 'wallet_balance']);
+        $base = trim((string) ($user->callback_url ?? ''));
+        if ($base === '' || ! filter_var($base, FILTER_VALIDATE_URL)) {
+            DB::table('reports')->where('id', $report->id)->update(['callback_status' => 1]);
+
+            return false;
+        }
+
+        $query = http_build_query([
+            'request_order_id' => (string) ($report->request_order_id ?? ''),
+            'status' => (string) $report->status,
+            'amount' => (string) ($report->total_amount ?? $report->amount),
+            'order_id' => (string) ($report->order_id ?? ''),
+            'operator_id' => (string) ($report->operator_id ?? ''),
+            'balance' => round((float) ($user->wallet_balance ?? 0), 2),
+        ]);
+        $sep = str_contains($base, '?') ? '&' : '?';
+        $url = $base.$sep.$query;
+        $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id));
+
+        $payload = [
+            'callback_status' => 1,
+            'updated_at' => Carbon::now(),
+        ];
+        if (Schema::hasColumn('reports', 'api_partner_call_back_url')) {
+            $payload['api_partner_call_back_url'] = $url;
+        }
+        if (Schema::hasColumn('reports', 'api_partner_callback_response')) {
+            $payload['api_partner_callback_response'] = (string) ($result['response'] ?? $result['error'] ?? '');
+        }
+        DB::table('reports')->where('id', $report->id)->update($payload);
+
+        return true;
     }
 
     public static function loginCoordinatesFromRequest($request = null): array
@@ -325,6 +387,11 @@ class helpers
         $refund['updated_at'] = Carbon::now();                  
 
         $report = DB::table('reports')->insertGetId(self::filterReportColumns($refund));
+
+        try {
+            self::sendApiPartnerRechargeCallback((int) ($refund['parent__Id'] ?? 0) ?: $report);
+        } catch (\Throwable $e) {
+        }
 
         return $report;
 
@@ -646,9 +713,58 @@ class helpers
 
          }
 
+         try {
+             self::sendApiPartnerRechargeCallback($report_id_com);
+         } catch (\Throwable $e) {
+         }
+
      }
 
+    public static function ensureDenominationCommissionTable(): void
+    {
+        try {
+            if (Schema::hasTable('scheme_commission_denominations')) {
+                return;
+            }
+            Schema::create('scheme_commission_denominations', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('scheme_id')->index();
+                $table->unsignedBigInteger('provider_id')->index();
+                $table->decimal('min_amount', 12, 2)->default(0);
+                $table->decimal('max_amount', 12, 2)->default(0);
+                $table->string('md_amount_type', 50)->nullable();
+                $table->decimal('md_amount_value', 12, 4)->default(0);
+                $table->string('dt_amount_type', 50)->nullable();
+                $table->decimal('dt_amount_value', 12, 4)->default(0);
+                $table->string('rt_amount_type', 50)->nullable();
+                $table->decimal('rt_amount_value', 12, 4)->default(0);
+                $table->string('ap_amount_type', 50)->nullable();
+                $table->decimal('ap_amount_value', 12, 4)->default(0);
+                $table->timestamps();
+                $table->index(['scheme_id', 'provider_id']);
+            });
+        } catch (\Throwable $e) {
+        }
+    }
 
+    public static function denominationCommissionRow($scheme, $provider_id, $amount)
+    {
+        self::ensureDenominationCommissionTable();
+        if (! Schema::hasTable('scheme_commission_denominations')) {
+            return null;
+        }
+
+        $amount = (float) $amount;
+
+        return DB::table('scheme_commission_denominations')
+            ->where('scheme_id', $scheme)
+            ->where('provider_id', $provider_id)
+            ->where('min_amount', '<=', $amount)
+            ->where('max_amount', '>=', $amount)
+            ->orderByRaw('(max_amount - min_amount) asc')
+            ->orderByDesc('id')
+            ->first();
+    }
 
     public static function getCommission($amount, $scheme, $provider_id, $role_id)
 
@@ -667,7 +783,13 @@ class helpers
 
             if($myscheme && $myscheme->status == "1"){
 
-                $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
+                $comdata = null;
+                if (in_array((int) $role_id, [3, 4, 5, 6], true)) {
+                    $comdata = self::denominationCommissionRow($scheme, $provider_id, $amount);
+                }
+                if (! $comdata) {
+                    $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
+                }
 
                 if ($comdata) {
 
@@ -1056,23 +1178,107 @@ class helpers
 
 
 
+    public static function companyWhatsappLogoUrl(): string
+    {
+        $company = DB::table('companies')->where('id', 1)->first(['company_logo', 'company_icon']);
+        $file = (string) ($company->company_icon ?? $company->company_logo ?? '');
+        if ($file === '') {
+            return '';
+        }
+        $host = rtrim((string) (env('ADMIN_HOST') ?: env('APP_URL') ?: ''), '/');
+
+        return $host.'/company_logo/'.ltrim($file, '/');
+    }
+
+    public static function whatsappTemplateImageUrl(string $filename): string
+    {
+        $filename = ltrim(basename($filename), '/');
+        if ($filename === '') {
+            return '';
+        }
+        $host = rtrim((string) (env('ADMIN_HOST') ?: env('APP_URL') ?: ''), '/');
+
+        return $host.'/whatsapp_template/'.$filename;
+    }
+
     public static function sendWhatasappMsg($data){
 
-        //return $data['mobile_number'];
-
-        //user_id,msg_slug,
-
         $w_api = DB::table('companies')->where('id', 1)->first(['whatsapp_request_url','whatsapp_api_method']);
+
+        if (!$w_api) {
+            return 1;
+        }
 
         $url = $w_api->whatsapp_request_url;
 
         if($url !=0 || $url !=""){
 
+            $content = (string) ($data['content'] ?? '');
+            $templateId = (string) ($data['template_id'] ?? '');
+            $slug = (string) ($data['slug'] ?? '');
+            $attach = !empty($data['attach_logo']);
+            $attachImage = array_key_exists('attach_image', $data) ? !empty($data['attach_image']) : null;
+            $imageUrl = (string) ($data['image_url'] ?? '');
+            $tpl = null;
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('whatsapp_templates')) {
+                if ($slug !== '') {
+                    $tpl = DB::table('whatsapp_templates')->where('slug', $slug)->first();
+                }
+                if (!$tpl && $templateId !== '') {
+                    $tpl = DB::table('whatsapp_templates')->where('template_id', $templateId)->first();
+                }
+                if ($tpl && !array_key_exists('attach_logo', $data)) {
+                    $attach = (int) ($tpl->attach_logo ?? 0) === 1;
+                }
+                if ($tpl && $attachImage === null) {
+                    $attachImage = (int) ($tpl->attach_image ?? 0) === 1;
+                }
+                if ($imageUrl === '' && $tpl && !empty($tpl->image)) {
+                    $imageUrl = self::whatsappTemplateImageUrl((string) $tpl->image);
+                }
+            }
+            if ($imageUrl === '' && !empty($data['image'])) {
+                $imageUrl = self::whatsappTemplateImageUrl((string) $data['image']);
+            }
+            $attachImage = (bool) $attachImage;
+
+            $logoUrl = self::companyWhatsappLogoUrl();
+            if ($attach && $logoUrl !== '') {
+                if (str_contains($content, '{LOGO}') || str_contains($content, '{LOGO_URL}')) {
+                    $content = str_replace(['{LOGO}', '{LOGO_URL}'], $logoUrl, $content);
+                } else {
+                    $content = $logoUrl."\n\n".$content;
+                }
+            } else {
+                $content = str_replace(['{LOGO}', '{LOGO_URL}'], '', $content);
+            }
+
+            if ($attachImage && $imageUrl !== '') {
+                if (str_contains($content, '{IMG}') || str_contains($content, '{IMAGE}') || str_contains($content, '{TEMPLATE_IMAGE}')) {
+                    $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], $imageUrl, $content);
+                } else {
+                    $content = $imageUrl."\n\n".$content;
+                }
+            } else {
+                $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
+            }
+
+            $apiImage = ($attachImage && $imageUrl !== '') ? $imageUrl : (($attach && $logoUrl !== '') ? $logoUrl : '');
+
             $url = str_replace('{MOB}', '' . $data['mobile_number'] . '', $url);
 
-            $url = str_replace('{MSG}', '' . urlencode($data['content']) . '', $url);
+            $url = str_replace('{MSG}', '' . urlencode($content) . '', $url);
 
-            $url = str_replace('{TMP_ID}', '' . $data['template_id'] . '', $url);
+            $url = str_replace('{TMP_ID}', '' . $templateId . '', $url);
+
+            $url = str_replace('{TMPID}', '' . $templateId . '', $url);
+
+            $url = str_replace('{LOGO}', urlencode($logoUrl), $url);
+
+            $url = str_replace('{IMG}', urlencode($apiImage), $url);
+
+            $url = str_replace('{IMAGE}', urlencode($apiImage), $url);
 
             $method = $w_api->whatsapp_api_method;
 
@@ -1362,9 +1568,16 @@ class helpers
 
         curl_close($curl);
 
-        if($log != "no" && self::shouldStoreSupplierApiLog($url)){
+        if($log != "no"){
 
             try {
+                $body = $response;
+                if (($body === false || $body === null || $body === '') && $err) {
+                    $body = json_encode(['curl_error' => $err, 'http_code' => $code], JSON_UNESCAPED_SLASHES);
+                } elseif (is_string($body)) {
+                    $body = mb_substr($body, 0, 20000);
+                }
+
                 DB::table('apilogs')->insert([
 
                     "url" => self::redactUrlSecrets($url),
@@ -1375,9 +1588,11 @@ class helpers
 
                     "header" => json_encode($header),
 
-                    "request" => json_encode($parameters),
+                    "request" => is_string($parameters) || $parameters === null || $parameters === ''
+                        ? (string) $parameters
+                        : json_encode($parameters),
 
-                    "response" => is_string($response) ? mb_substr($response, 0, 4000) : $response,
+                    "response" => is_string($body) ? $body : json_encode($body),
 
                     'created_at' => Carbon::now(),
 
@@ -1603,6 +1818,228 @@ class helpers
         }
     }
 
+    public static function ensureServiceIconColumn(): void
+    {
+        try {
+            if (! Schema::hasTable('services')) {
+                return;
+            }
+            if (! Schema::hasColumn('services', 'service_icon')) {
+                Schema::table('services', function ($table) {
+                    $table->string('service_icon', 255)->nullable();
+                });
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function serviceIconRelativePath(?string $icon, string $fallback = 'service_icon/mobile_1.png'): string
+    {
+        $icon = trim((string) $icon);
+        if ($icon === '') {
+            return $fallback;
+        }
+        if (preg_match('#^https?://#i', $icon)) {
+            $path = parse_url($icon, PHP_URL_PATH) ?: '';
+            $path = ltrim((string) $path, '/');
+            if (strpos($path, 'admin/') === 0) {
+                $path = substr($path, 6);
+            }
+
+            return $path !== '' ? $path : $fallback;
+        }
+
+        return str_contains($icon, '/') ? ltrim($icon, '/') : 'service_icon/'.$icon;
+    }
+
+    public static function syncServiceIconFile(string $relative): void
+    {
+        $relative = str_replace(['\\', '..'], ['/', ''], ltrim($relative, '/'));
+        if ($relative === '') {
+            return;
+        }
+        $userFile = public_path($relative);
+        if (is_file($userFile)) {
+            return;
+        }
+        $adminFile = base_path('admin'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relative));
+        if (! is_file($adminFile)) {
+            return;
+        }
+        $dir = dirname($userFile);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        @copy($adminFile, $userFile);
+    }
+
+    public static function servicePublicUrl(?string $icon, string $fallback = 'service_icon/mobile_1.png'): string
+    {
+        $relative = self::serviceIconRelativePath($icon, $fallback);
+        self::syncServiceIconFile($relative);
+
+        $version = '';
+        $local = public_path($relative);
+        if (is_file($local)) {
+            $version = (string) filemtime($local);
+
+            return asset($relative).($version !== '' ? '?v='.$version : '');
+        }
+
+        $adminHost = rtrim((string) env('ADMIN_HOST', ''), '/');
+        if ($adminHost !== '') {
+            return $adminHost.'/'.$relative;
+        }
+
+        return asset($relative);
+    }
+
+    public static function serviceCatalogItems(string $group = 'recharge', bool $absoluteUrls = false): array
+    {
+        $items = config('recharge_services.'.$group, []);
+        $fallback = $group === 'bbps' ? 'service_logo/10.png' : 'service_icon/mobile_1.png';
+
+        try {
+            self::ensureServiceIconColumn();
+            $query = DB::table('services');
+            if (Schema::hasColumn('services', 'deleted_at')) {
+                $query->where(function ($q) {
+                    $q->whereNull('deleted_at')->orWhere('deleted_at', '!=', 1);
+                });
+            }
+            $cols = ['id', 'service_name', 'service_icon'];
+            if (Schema::hasColumn('services', 'status')) {
+                $cols[] = 'status';
+            }
+            $rows = [];
+            foreach ($query->get($cols) as $row) {
+                $rows[(int) $row->id] = $row;
+            }
+        } catch (\Throwable $e) {
+            return $items;
+        }
+
+        $out = [];
+        $seen = [];
+        foreach ($items as $item) {
+            $id = (int) ($item['id'] ?? 0);
+            $row = $rows[$id] ?? null;
+            if ($row && isset($row->status) && (int) $row->status !== 1) {
+                continue;
+            }
+            $out[] = self::mergeServiceCatalogItem($item, $row, $group, $fallback, $absoluteUrls);
+            $seen[$id] = true;
+        }
+
+        if ($group === 'bbps') {
+            $rechargeIds = [];
+            foreach (config('recharge_services.recharge', []) as $item) {
+                $rechargeIds[(int) $item['id']] = true;
+            }
+            foreach ($rows as $id => $row) {
+                if (isset($seen[$id]) || isset($rechargeIds[$id])) {
+                    continue;
+                }
+                if (isset($row->status) && (int) $row->status !== 1) {
+                    continue;
+                }
+                $out[] = self::mergeServiceCatalogItem([
+                    'id' => $id,
+                    'name' => (string) ($row->service_name ?? 'Service'),
+                    'logo' => $fallback,
+                ], $row, $group, $fallback, $absoluteUrls);
+            }
+        }
+
+        return self::excludeLockedServices($out);
+    }
+
+    public static function isUserServiceLocked($userId, $serviceId): bool
+    {
+        try {
+            if (! Schema::hasTable('user_service_locks')) {
+                return false;
+            }
+
+            return DB::table('user_service_locks')
+                ->where('user_id', (int) $userId)
+                ->where('service_id', (int) $serviceId)
+                ->where('is_locked', 1)
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public static function lockedServiceIds($userId): array
+    {
+        try {
+            if (! $userId || ! Schema::hasTable('user_service_locks')) {
+                return [];
+            }
+
+            return DB::table('user_service_locks')
+                ->where('user_id', (int) $userId)
+                ->where('is_locked', 1)
+                ->pluck('service_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    private static function excludeLockedServices(array $out): array
+    {
+        $uid = \Session::get('user_id');
+        if (! $uid) {
+            return $out;
+        }
+        $locked = self::lockedServiceIds($uid);
+        if ($locked === []) {
+            return $out;
+        }
+
+        return array_values(array_filter($out, function ($item) use ($locked) {
+            return ! in_array((int) ($item['id'] ?? 0), $locked, true);
+        }));
+    }
+
+    private static function mergeServiceCatalogItem(array $item, $row, string $group, string $fallback, bool $absoluteUrls): array
+    {
+        if ($row) {
+            $name = trim((string) ($row->service_name ?? ''));
+            if ($name !== '') {
+                $item['name'] = $name;
+            }
+            $icon = trim((string) ($row->service_icon ?? ''));
+            if ($icon !== '') {
+                $path = self::serviceIconRelativePath($icon, $fallback);
+                if ($group === 'bbps') {
+                    $item['logo'] = $path;
+                } else {
+                    $item['icon'] = $path;
+                }
+            }
+        }
+
+        $relative = $group === 'bbps'
+            ? self::serviceIconRelativePath($item['logo'] ?? '', $fallback)
+            : self::serviceIconRelativePath($item['icon'] ?? '', $fallback);
+        $url = self::servicePublicUrl($relative, $fallback);
+        $item['icon_url'] = $url;
+        $item['logo_url'] = $url;
+        if ($absoluteUrls) {
+            if ($group === 'bbps') {
+                $item['logo'] = $url;
+            } else {
+                $item['icon'] = $url;
+            }
+        }
+
+        return $item;
+    }
+
     public static function commissionFieldsForRole($row, $roleId): array
     {
         $roleId = (int) $roleId;
@@ -1640,6 +2077,29 @@ class helpers
         }
 
         return ['', ''];
+    }
+
+    public static function providerLogoUrl(?string $logo): string
+    {
+        return function_exists('provider_logo_url')
+            ? provider_logo_url($logo)
+            : (string) $logo;
+    }
+
+    public static function decorateProviderLogos($rows)
+    {
+        return collect($rows)->map(function ($row) {
+            $obj = is_object($row) ? clone $row : (object) $row;
+            $file = (string) ($obj->provider_logo ?? $obj->p_logo ?? '');
+            $url = self::providerLogoUrl($file);
+            $obj->provider_logo = $url;
+            if (isset($obj->p_logo)) {
+                $obj->p_logo = $url;
+            }
+            $obj->provider_logo_url = $url;
+
+            return $obj;
+        })->values();
     }
 
 }
@@ -1694,7 +2154,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260813-WEB-005';
+        return '20260903-WEB-006';
     }
 }
 
@@ -1803,6 +2263,46 @@ if (! function_exists('report_status_html')) {
         $html .= '</div>';
 
         return $html;
+    }
+}
+
+if (! function_exists('provider_logo_filename')) {
+    function provider_logo_filename(?string $logo): string
+    {
+        $logo = trim(str_replace('\\', '/', (string) $logo));
+        if ($logo === '') {
+            return '';
+        }
+        if (preg_match('#^https?://#i', $logo)) {
+            $path = parse_url($logo, PHP_URL_PATH) ?: '';
+
+            return basename($path);
+        }
+
+        return basename($logo);
+    }
+}
+
+if (! function_exists('provider_logo_url')) {
+    function provider_logo_url(?string $logo): string
+    {
+        $file = provider_logo_filename($logo);
+        if ($file === '') {
+            return asset('service_icon/mobile_1.png');
+        }
+
+        foreach (['provider_logo', 'bank_logo'] as $folder) {
+            if (is_file(public_path($folder.'/'.$file))) {
+                return asset($folder.'/'.$file);
+            }
+        }
+
+        $adminHost = rtrim((string) env('ADMIN_HOST', ''), '/');
+        if ($adminHost !== '') {
+            return $adminHost.'/provider_logo/'.$file;
+        }
+
+        return asset('provider_logo/'.$file);
     }
 }
 

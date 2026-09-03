@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminAudit;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,9 +76,13 @@ class PendingReportController extends Controller
             $q->where(function ($w) use ($term) {
                 $w->where('r.number', 'like', "%{$term}%")
                     ->orWhere('r.order_id', 'like', "%{$term}%")
-                    ->orWhere('r.request_order_id', 'like', "%{$term}%")
-                    ->orWhere('r.operator_id', 'like', "%{$term}%")
                     ->orWhere('r.id', $term);
+                if (Schema::hasColumn('reports', 'request_order_id')) {
+                    $w->orWhere('r.request_order_id', 'like', "%{$term}%");
+                }
+                if (Schema::hasColumn('reports', 'operator_id')) {
+                    $w->orWhere('r.operator_id', 'like', "%{$term}%");
+                }
             });
         }
 
@@ -94,7 +99,7 @@ class PendingReportController extends Controller
         $offset = ($page - 1) * $limit;
 
         $base = $this->baseQuery($request);
-        $total = (clone $base)->count();
+        $total = (clone $base)->count('r.id');
 
         $reports = (clone $base)
             ->select(
@@ -137,8 +142,16 @@ class PendingReportController extends Controller
             $rows = '<tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
-        $apiStats = $this->apiWiseStats($request);
-        $operatorStats = $this->operatorWiseStats($request);
+        $apiStats = '<tr><td colspan="4" class="text-center text-muted">No data</td></tr>';
+        $operatorStats = '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+        try {
+            $apiStats = $this->apiWiseStats($request);
+        } catch (\Throwable $e) {
+        }
+        try {
+            $operatorStats = $this->operatorWiseStats($request);
+        } catch (\Throwable $e) {
+        }
 
         return response()->json([
             'type' => 'success',
@@ -158,11 +171,20 @@ class PendingReportController extends Controller
 
     private function apiWiseStats(Request $request): string
     {
-        $rows = $this->baseQuery($request)
-            ->select('a.api_name', DB::raw('COUNT(r.id) as total'))
-            ->groupBy('a.api_name')
-            ->orderByDesc('total')
-            ->get();
+        try {
+            $rows = $this->baseQuery($request)
+                ->select(
+                    'r.api_id',
+                    DB::raw('MAX(a.api_name) as api_name'),
+                    DB::raw('COUNT(r.id) as total'),
+                    DB::raw('COALESCE(SUM(r.total_amount), 0) as amount')
+                )
+                ->groupBy('r.api_id')
+                ->orderByDesc('total')
+                ->get();
+        } catch (\Throwable $e) {
+            return '<tr><td colspan="4" class="text-center text-danger">Could not load API stats</td></tr>';
+        }
 
         if ($rows->isEmpty()) {
             return '<tr><td colspan="4" class="text-center text-muted">No data</td></tr>';
@@ -171,24 +193,34 @@ class PendingReportController extends Controller
         $html = '';
         $i = 1;
         foreach ($rows as $row) {
+            $apiId = (int) ($row->api_id ?? 0);
             $name = $row->api_name ?: 'NO API';
-            $html .= '<tr>
-                <td>' . $i++ . '</td>
-                <td>' . e($name) . '</td>
+            $html .= '<tr class="api-stat-row" data-api-id="'.$apiId.'" style="cursor:pointer">
+                <td>'.$i++.'</td>
+                <td>'.e($name).'</td>
                 <td>Pending</td>
-                <td>' . (int) $row->total . '</td>
+                <td>'.(int) $row->total.'</td>
             </tr>';
         }
+
         return $html;
     }
 
     private function operatorWiseStats(Request $request): string
     {
-        $rows = $this->baseQuery($request)
-            ->select('p.provider_name', DB::raw('COUNT(r.id) as pending'))
-            ->groupBy('p.provider_name')
-            ->orderByDesc('pending')
-            ->get();
+        try {
+            $rows = $this->baseQuery($request)
+                ->select(
+                    'r.provider_id',
+                    DB::raw('MAX(p.provider_name) as provider_name'),
+                    DB::raw('COUNT(r.id) as pending')
+                )
+                ->groupBy('r.provider_id')
+                ->orderByDesc('pending')
+                ->get();
+        } catch (\Throwable $e) {
+            return '<tr><td colspan="3" class="text-center text-danger">Could not load operator stats</td></tr>';
+        }
 
         if ($rows->isEmpty()) {
             return '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
@@ -198,11 +230,12 @@ class PendingReportController extends Controller
         $i = 1;
         foreach ($rows as $row) {
             $html .= '<tr>
-                <td>' . $i++ . '</td>
-                <td>' . e($row->provider_name ?: 'NO OPERATOR') . '</td>
-                <td>' . (int) $row->pending . '</td>
+                <td>'.$i++.'</td>
+                <td>'.e($row->provider_name ?: 'NO OPERATOR').'</td>
+                <td>'.(int) $row->pending.'</td>
             </tr>';
         }
+
         return $html;
     }
 
@@ -228,10 +261,42 @@ class PendingReportController extends Controller
         }
         $payload['is_manual'] = 1;
 
-        $updated = DB::table('reports')
+        $pending = ['Pending', 'Under Proces', 'Under Process', 'Processing'];
+        $reports = DB::table('reports')
             ->whereIn('id', array_map('intval', $ids))
-            ->whereIn('status', ['Pending', 'Under Proces', 'Under Process'])
-            ->update($payload);
+            ->whereIn('status', $pending)
+            ->get();
+
+        $updated = 0;
+        foreach ($reports as $row) {
+            $ok = DB::table('reports')->where('id', $row->id)->whereIn('status', $pending)->update($payload);
+            if (! $ok) {
+                continue;
+            }
+            $updated++;
+            if ($status === 'Success') {
+                try {
+                    \Helper::SetCommission($row->id);
+                } catch (\Throwable $e) {
+                }
+            }
+            if ($status === 'Failed') {
+                try {
+                    \Helper::refund_row($row->id);
+                } catch (\Throwable $e) {
+                }
+            }
+            try {
+                \Helper::sendApiPartnerRechargeCallback($row->id);
+            } catch (\Throwable $e) {
+            }
+            AdminAudit::log('recharge_status', 'pending_'.$status, [
+                'ref_type' => 'report',
+                'ref_id' => $row->id,
+                'old' => $row->status,
+                'new' => $status,
+            ]);
+        }
 
         return response()->json([
             'type' => 'success',
@@ -247,27 +312,97 @@ class PendingReportController extends Controller
         }
 
         $report = DB::table('reports')->where('id', $id)->first();
-        if (!$report) {
+        if (! $report) {
             return response()->json(['type' => 'error', 'message' => 'Transaction not found']);
         }
-        if (!in_array($report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+        if (! in_array($report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
             return response()->json(['type' => 'error', 'message' => 'Only pending transactions can be resent']);
         }
 
-        $api = DB::table('apis')->where('id', $report->api_id)->first();
-        if (!$api || (int) $api->status !== 1) {
-            return response()->json(['type' => 'error', 'message' => 'Active API not found for this transaction']);
+        $result = $this->sendToApi($report, (int) $report->api_id);
+        if (empty($result['ok'])) {
+            return response()->json(['type' => 'error', 'message' => $result['message'] ?? 'Resend failed']);
         }
-        $apiType = strtolower((string) ($api->api_type ?? 'recharge'));
+
+        return response()->json([
+            'type' => 'success',
+            'message' => $result['message'],
+        ]);
+    }
+
+    public function rehit(Request $request)
+    {
+        $ids = $request->ids;
+        $apiId = (int) $request->rehit_api_id;
+        if (! is_array($ids) || empty($ids)) {
+            return response()->json(['type' => 'error', 'message' => 'Select at least one transaction']);
+        }
+        if ($apiId <= 0) {
+            return response()->json(['type' => 'error', 'message' => 'Select Rehit API']);
+        }
+
+        $api = DB::table('apis')->where('id', $apiId)->first();
+        if (! $api) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid Rehit API']);
+        }
+        $apiType = strtolower(trim((string) ($api->api_type ?? 'recharge')));
         if ($apiType !== '' && $apiType !== 'recharge') {
-            return response()->json(['type' => 'error', 'message' => 'Only Recharge API can be resent']);
+            return response()->json(['type' => 'error', 'message' => 'Only Recharge API can be used for resend/rehit']);
+        }
+
+        $ok = 0;
+        $fail = 0;
+        $lastMessage = '';
+        foreach (array_map('intval', $ids) as $id) {
+            if ($id <= 0) {
+                continue;
+            }
+            $report = DB::table('reports')->where('id', $id)->first();
+            if (! $report || ! in_array($report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+                $fail++;
+                continue;
+            }
+            DB::table('reports')->where('id', $id)->update([
+                'api_id' => $apiId,
+                'remark' => 'Rehit via '.($api->api_name ?? $apiId),
+                'updated_at' => Carbon::now(),
+            ]);
+            $report->api_id = $apiId;
+            $sent = $this->sendToApi($report, $apiId, 'REHIT');
+            if (! empty($sent['ok'])) {
+                $ok++;
+                $lastMessage = $sent['message'] ?? '';
+            } else {
+                $fail++;
+                $lastMessage = $sent['message'] ?? 'Failed';
+            }
+        }
+
+        return response()->json([
+            'type' => $ok > 0 ? 'success' : 'error',
+            'message' => "Rehit sent for {$ok} transaction(s) on {$api->api_name}".($fail ? ", {$fail} failed" : '').($lastMessage ? ' — '.$lastMessage : ''),
+        ]);
+    }
+
+    private function sendToApi(object $report, int $apiId, string $mode = 'RESEND'): array
+    {
+        $api = DB::table('apis')->where('id', $apiId)->first();
+        if (! $api || (int) $api->status !== 1) {
+            return ['ok' => false, 'message' => 'Active API not found for this transaction'];
+        }
+        $apiType = strtolower(trim((string) ($api->api_type ?? 'recharge')));
+        if ($apiType !== '' && $apiType !== 'recharge') {
+            return ['ok' => false, 'message' => 'Only Recharge API can be resent'];
+        }
+        $url = trim((string) ($api->api_url ?? ''));
+        if ($url === '') {
+            return ['ok' => false, 'message' => 'API URL is empty'];
         }
 
         try {
-            $providerCode = \helpers::ApiProviderCode($api->id, $report->provider_id);
-            $stateCode = \helpers::ApiStateCode($api->id, $report->state_id);
+            $providerCode = \Helper::ApiProviderCode($api->id, $report->provider_id);
+            $stateCode = \Helper::ApiStateCode($api->id, $report->state_id ?? 0);
 
-            $url = (string) $api->api_url;
             $url = str_replace('{API_USERNAME}', (string) $api->api_username, $url);
             $url = str_replace('{API_PASSWORD}', (string) $api->api_password, $url);
             $url = str_replace('{API_KEY}', (string) $api->api_key, $url);
@@ -279,30 +414,48 @@ class PendingReportController extends Controller
 
             $method = strtoupper(trim($api->api_method ?: 'GET'));
             $logFlag = ((int) ($api->store_log ?? 0) === 1) ? 'yes' : 'no';
-            $result = \helpers::curl($url, $method, '', [], $logFlag, $report->transaction_type ?: 'RECHARGE', $report->order_id);
+            $result = \Helper::curl($url, $method, '', [], $logFlag, $report->transaction_type ?: 'RECHARGE', $report->order_id);
 
             $response = (string) ($result['response'] ?? '');
+            $curlError = (string) ($result['error'] ?? '');
+            if ($response === '' && $curlError !== '') {
+                return ['ok' => false, 'message' => 'API error: '.$curlError];
+            }
+
             $status = 'Pending';
             $operatorId = '';
-            $remark = 'Resent to ' . ($api->api_name ?? 'API');
+            $apiOperatorId = '';
+            $remark = 'Resent to '.($api->api_name ?? 'API');
 
-            if ($response !== '' && $api->api_format === 'JSON') {
+            if ($response !== '' && strtoupper((string) ($api->api_format ?? '')) === 'JSON') {
                 $data = json_decode($response, true);
                 if (is_array($data)) {
-                    $statusKey = $api->status_value;
-                    if ($statusKey && isset($data[$statusKey])) {
-                        $mapped = \helpers::mapApiLiveStatus($api, $data[$statusKey]);
-                        if ($mapped) {
-                            $status = $mapped;
-                        }
+                    $actual = \Helper::apiArrayGet($data, $api->status_value ?? '');
+                    if ($actual === null && isset($data['Response'])) {
+                        $actual = $data['Response'];
                     }
-                    if (!empty($api->operator_id_value) && isset($data[$api->operator_id_value])) {
-                        $operatorId = (string) $data[$api->operator_id_value];
+                    if ($actual === null) {
+                        $actual = \Helper::apiArrayGet($data, $api->error_value ?? '');
+                    }
+                    $mapped = \Helper::mapApiLiveStatus($api, $actual);
+                    if ($mapped) {
+                        $status = $mapped;
+                    }
+                    $operatorId = (string) (\Helper::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
+                    $apiOperatorId = (string) (\Helper::apiArrayGet($data, $api->order_id_value ?? '') ?? '');
+                    $msg = $data['Message'] ?? $data['message'] ?? '';
+                    if ($status === 'Success') {
+                        $remark = 'Resend successful'.($msg ? ' - '.$msg : '');
+                    } elseif ($status === 'Failed') {
+                        $remark = 'Resend failed'.($msg ? ' - '.$msg : '');
+                    } else {
+                        $remark = 'Resent to '.($api->api_name ?? 'API').' — Pending'.($msg ? ' - '.$msg : '');
                     }
                 }
             }
 
             $update = [
+                'api_id' => $api->id,
                 'status' => $status,
                 'remark' => $remark,
                 'updated_at' => Carbon::now(),
@@ -310,53 +463,31 @@ class PendingReportController extends Controller
             if ($operatorId !== '' && Schema::hasColumn('reports', 'operator_id')) {
                 $update['operator_id'] = $operatorId;
             }
+            if ($apiOperatorId !== '' && Schema::hasColumn('reports', 'api_operator_id')) {
+                $update['api_operator_id'] = $apiOperatorId;
+            }
             DB::table('reports')->where('id', $report->id)->update($update);
+            RehitRechargeHistoryController::logAttempt($report, (int) $api->id, $mode);
 
-            return response()->json([
-                'type' => 'success',
-                'message' => 'Resent to ' . ($api->api_name ?? 'API') . ' — ' . $status,
-            ]);
+            if ($status === 'Success') {
+                try {
+                    \Helper::SetCommission($report->id);
+                } catch (\Throwable $e) {
+                }
+            }
+            if ($status === 'Failed') {
+                try {
+                    \Helper::refund_row($report->id);
+                } catch (\Throwable $e) {
+                }
+            }
+
+            return [
+                'ok' => true,
+                'message' => 'Resent to '.($api->api_name ?? 'API').' — '.$status,
+            ];
         } catch (\Throwable $e) {
-            return response()->json(['type' => 'error', 'message' => $e->getMessage()]);
+            return ['ok' => false, 'message' => $e->getMessage()];
         }
-    }
-
-    public function rehit(Request $request)
-    {
-        $ids = $request->ids;
-        $apiId = (int) $request->rehit_api_id;
-        if (!is_array($ids) || empty($ids)) {
-            return response()->json(['type' => 'error', 'message' => 'Select at least one transaction']);
-        }
-        if ($apiId <= 0) {
-            return response()->json(['type' => 'error', 'message' => 'Select Rehit API']);
-        }
-
-        $api = DB::table('apis')->where('id', $apiId)->first();
-        if (!$api) {
-            return response()->json(['type' => 'error', 'message' => 'Invalid Rehit API']);
-        }
-        $apiType = strtolower((string) ($api->api_type ?? 'recharge'));
-        if ($apiType !== '' && $apiType !== 'recharge') {
-            return response()->json(['type' => 'error', 'message' => 'Only Recharge API can be used for resend/rehit']);
-        }
-
-        $data = [
-            'api_id' => $apiId,
-            'updated_at' => Carbon::now(),
-        ];
-        if (Schema::hasColumn('reports', 'remark')) {
-            $data['remark'] = 'Rehit via ' . ($api->api_name ?? $apiId);
-        }
-
-        $updated = DB::table('reports')
-            ->whereIn('id', array_map('intval', $ids))
-            ->whereIn('status', ['Pending', 'Under Proces', 'Under Process'])
-            ->update($data);
-
-        return response()->json([
-            'type' => 'success',
-            'message' => "Rehit queued for {$updated} transaction(s) on {$api->api_name}",
-        ]);
     }
 }

@@ -262,6 +262,23 @@ class ProfileController extends Controller
         ->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
+        $denomByProvider = [];
+        try {
+            \helpers::ensureDenominationCommissionTable();
+            if (\Illuminate\Support\Facades\Schema::hasTable('scheme_commission_denominations') && $list_count > 0) {
+                $providerIds = $list->pluck('provider_id')->filter()->unique()->values()->all();
+                if (count($providerIds) > 0) {
+                    $denomByProvider = DB::table('scheme_commission_denominations')
+                        ->where('scheme_id', $user->scheme_id)
+                        ->whereIn('provider_id', $providerIds)
+                        ->orderBy('min_amount')
+                        ->get()
+                        ->groupBy('provider_id');
+                }
+            }
+        } catch (\Throwable $e) {
+            $denomByProvider = [];
+        }
         $output = '';
         if(($list->count() > 0)){
             $output .= '<div class="table-responsive">';
@@ -329,6 +346,22 @@ class ProfileController extends Controller
                     </td>
                 </tr>';
                 $i++;
+                $denomRows = collect($denomByProvider)->get((string) $list->provider_id, collect($denomByProvider)->get((int) $list->provider_id, []));
+                foreach ($denomRows as $denom) {
+                    [$dType, $dValue] = \helpers::commissionFieldsForRole($denom, $user->role_id);
+                    $output .= '<tr>
+                        <td>' . $i . '</td>
+                        <td>' . $list->service_name . ' <br>' . $list->provider_name . ' <small class="text-muted">(Denomination)</small></td>
+                        <td>' . $list->provider_id . '</td>
+                        <td>' . ($dType !== '' ? e($dType) : '-') . '</td>
+                        <td>' . ($dValue !== '' ? e($dValue) : '0') . '</td>
+                        <td>' . $denom->min_amount . ' - ' . $denom->max_amount . '</td>
+                        <td>
+                            <span class="badge rounded-pill text-bg-info">DENOM</span>
+                        </td>
+                    </tr>';
+                    $i++;
+                }
             }
             $output .= '</tbody></table>';
 			$output .= '<div class="row">

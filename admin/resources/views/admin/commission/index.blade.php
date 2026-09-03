@@ -11,6 +11,7 @@
         <div class="card">
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Commission</h4>
+                <a href="{{ url('admin/commission/denomination') }}" class="btn btn-sm btn-info">Denomination Commission</a>
             </div>
             <form id="bulkUpdateForm" method="post">
                 @csrf

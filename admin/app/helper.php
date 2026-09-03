@@ -631,6 +631,64 @@ class Helper {
         }        
     }
 
+    public static function isApiPartnerPath($path): bool
+    {
+        return strcasecmp(trim((string) $path), 'Api') === 0;
+    }
+
+    public static function rechargePendingStatuses(): array
+    {
+        return ['Pending', 'Under Process', 'Under Proces', 'Processing'];
+    }
+
+    public static function sendApiPartnerRechargeCallback($report): bool
+    {
+        if (is_numeric($report) || is_string($report)) {
+            $report = DB::table('reports')->where('id', $report)->first();
+        }
+        if (! $report || ! self::isApiPartnerPath($report->path ?? '')) {
+            return false;
+        }
+        if (in_array((string) $report->status, self::rechargePendingStatuses(), true)) {
+            return false;
+        }
+        if ((int) ($report->callback_status ?? 0) === 1) {
+            return false;
+        }
+
+        $user = DB::table('users')->where('id', $report->user_id)->first(['callback_url', 'wallet_balance']);
+        $base = trim((string) ($user->callback_url ?? ''));
+        if ($base === '' || ! filter_var($base, FILTER_VALIDATE_URL)) {
+            DB::table('reports')->where('id', $report->id)->update(['callback_status' => 1]);
+
+            return false;
+        }
+
+        $query = http_build_query([
+            'request_order_id' => (string) ($report->request_order_id ?? ''),
+            'status' => (string) $report->status,
+            'amount' => (string) ($report->total_amount ?? $report->amount),
+            'order_id' => (string) ($report->order_id ?? ''),
+            'operator_id' => (string) ($report->operator_id ?? ''),
+            'balance' => round((float) ($user->wallet_balance ?? 0), 2),
+        ]);
+        $url = $base.(str_contains($base, '?') ? '&' : '?').$query;
+        $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id));
+        $payload = [
+            'callback_status' => 1,
+            'updated_at' => Carbon::now(),
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_call_back_url')) {
+            $payload['api_partner_call_back_url'] = $url;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_callback_response')) {
+            $payload['api_partner_callback_response'] = (string) ($result['response'] ?? $result['error'] ?? '');
+        }
+        DB::table('reports')->where('id', $report->id)->update($payload);
+
+        return true;
+    }
+
     public static function curl($url, $method = 'GET', $parameters = null, $header = [], $log = "no", $modal = "none", $txnid = "none")
     {   
         $curl = curl_init();
@@ -691,9 +749,96 @@ class Helper {
         
         return $provider_code;
     }
-    
-    
 
+    public static function ApiStateCode($api_id, $state_id)
+    {
+        $api = DB::table('apis')->where('id', $api_id)->first();
+        if ($api && (int) $api->status === 1) {
+            $row = DB::table('api_state_codes')->where('state_id', $state_id)->where('api_id', $api_id)->first();
+            if ($row && $row->state_code !== null && $row->state_code !== '') {
+                return $row->state_code;
+            }
+        }
+
+        return 0;
+    }
+
+    public static function apiArrayGet($data, $path)
+    {
+        if (! is_array($data) || $path === null || $path === '') {
+            return null;
+        }
+        $path = (string) $path;
+        if (array_key_exists($path, $data)) {
+            return $data[$path];
+        }
+        $cur = $data;
+        foreach (explode('.', $path) as $seg) {
+            if ($seg === '' || ! is_array($cur) || ! array_key_exists($seg, $cur)) {
+                return null;
+            }
+            $cur = $cur[$seg];
+        }
+
+        return $cur;
+    }
+
+    public static function apiValueMatches($actual, $configured): bool
+    {
+        if ($actual === null || $configured === null || $configured === '') {
+            return false;
+        }
+        $actual = trim((string) $actual);
+        if ($actual === '') {
+            return false;
+        }
+        foreach (preg_split('/\s*,\s*/', (string) $configured) as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+            if (strcasecmp($actual, $part) === 0) {
+                return true;
+            }
+            if (is_numeric($actual) && is_numeric($part) && (float) $actual == (float) $part) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function apiSwitchOn($api, string $column): bool
+    {
+        if (! $api) {
+            return true;
+        }
+        if (! isset($api->{$column})) {
+            return true;
+        }
+
+        return (int) $api->{$column} === 1;
+    }
+
+    public static function mapApiLiveStatus($api, $actual): ?string
+    {
+        if (self::apiValueMatches($actual, $api->success_value ?? '')) {
+            return self::apiSwitchOn($api, 'success_switch') ? 'Success' : 'Pending';
+        }
+        if (self::apiValueMatches($actual, $api->failed_value ?? '')
+            || self::apiValueMatches($actual, $api->error_value_response ?? '')) {
+            return self::apiSwitchOn($api, 'failure_switch') ? 'Failed' : 'Pending';
+        }
+        if (self::apiValueMatches($actual, $api->refund_value ?? '')) {
+            return self::apiSwitchOn($api, 'failure_switch') ? 'Failed' : 'Pending';
+        }
+        if (self::apiSwitchOn($api, 'pending_switch') && self::apiValueMatches($actual, $api->pending_value ?? '')) {
+            return 'Pending';
+        }
+
+        return null;
+    }
+    
     public static function getTds($amount)
     {
         return $amount*5/100;
@@ -793,7 +938,118 @@ if (! function_exists('admin_company_logo')) {
             return null;
         }
 
-        return admin_asset('company_logo/'.ltrim($filename, '/'));
+        $filename = ltrim($filename, '/');
+        $path = public_path('company_logo/'.$filename);
+        $url = admin_asset('company_logo/'.$filename);
+        if (is_file($path)) {
+            $url .= '?v='.filemtime($path);
+        }
+
+        return $url;
+    }
+}
+
+if (! function_exists('admin_provider_logo_filename')) {
+    function admin_provider_logo_filename(?string $logo): string
+    {
+        $logo = trim(str_replace('\\', '/', (string) $logo));
+        if ($logo === '') {
+            return '';
+        }
+        if (preg_match('#^https?://#i', $logo)) {
+            $path = parse_url($logo, PHP_URL_PATH) ?: '';
+
+            return basename($path);
+        }
+
+        return basename($logo);
+    }
+}
+
+if (! function_exists('admin_provider_logo_directories')) {
+    function admin_provider_logo_directories(): array
+    {
+        $dirs = [public_path('provider_logo')];
+        $userDir = dirname(base_path()).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'provider_logo';
+        if ($userDir !== $dirs[0]) {
+            $dirs[] = $userDir;
+        }
+
+        return array_values(array_unique($dirs));
+    }
+}
+
+if (! function_exists('admin_provider_logo_delete')) {
+    function admin_provider_logo_delete(?string $logo): void
+    {
+        $file = admin_provider_logo_filename($logo);
+        if ($file === '' || $file === 'provider_logo.png') {
+            return;
+        }
+
+        foreach (admin_provider_logo_directories() as $dir) {
+            $path = $dir.DIRECTORY_SEPARATOR.$file;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+
+        $legacy = public_path('bank_logo'.DIRECTORY_SEPARATOR.$file);
+        if (is_file($legacy)) {
+            @unlink($legacy);
+        }
+    }
+}
+
+if (! function_exists('admin_provider_logo_store')) {
+    function admin_provider_logo_store(\Illuminate\Http\UploadedFile $file, ?string $oldLogo = null): string
+    {
+        $ext = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'png'));
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            $ext = 'png';
+        }
+
+        $name = time().'_'.bin2hex(random_bytes(6)).'.'.$ext;
+        $bytes = (string) file_get_contents($file->getRealPath());
+
+        foreach (admin_provider_logo_directories() as $dir) {
+            if (! is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            file_put_contents($dir.DIRECTORY_SEPARATOR.$name, $bytes);
+        }
+
+        if (! empty($oldLogo)) {
+            admin_provider_logo_delete($oldLogo);
+        }
+
+        return $name;
+    }
+}
+
+if (! function_exists('admin_provider_logo_url')) {
+    function admin_provider_logo_url(?string $logo): string
+    {
+        $file = admin_provider_logo_filename($logo);
+        if ($file === '') {
+            return admin_asset('assets/images/users/user-dummy-img.jpg');
+        }
+
+        foreach (['provider_logo', 'bank_logo'] as $folder) {
+            if (is_file(public_path($folder.'/'.$file))) {
+                return admin_asset($folder.'/'.$file);
+            }
+        }
+
+        $userPath = dirname(base_path()).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'provider_logo'.DIRECTORY_SEPARATOR.$file;
+        if (is_file($userPath)) {
+            $userHost = rtrim((string) env('USER_HOST', ''), '/');
+            if ($userHost !== '') {
+                return $userHost.'/provider_logo/'.$file;
+            }
+        }
+
+        return admin_asset('provider_logo/'.$file);
     }
 }
 
@@ -1121,5 +1377,12 @@ if (! function_exists('recharge_report_money')) {
         }
 
         return rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
+    }
+}
+
+if (! function_exists('admin_can')) {
+    function admin_can(string $key): bool
+    {
+        return \App\Services\AdminMenuService::can($key);
     }
 }

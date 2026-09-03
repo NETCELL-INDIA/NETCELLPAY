@@ -173,9 +173,11 @@
         }
 
         .company-logo img {
-            max-width: 180px;
-            max-height: 58px;
+            max-width: 320px;
+            max-height: 86px;
             object-fit: contain;
+            background: transparent;
+            border-radius: 0;
         }
 
         .login-heading {

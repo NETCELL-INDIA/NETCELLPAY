@@ -177,7 +177,7 @@ Dashboard
         </a>
     </div>
     <div class="col-md col-6">
-        <a class="pending-card blue" href="{{ URL::asset('admin/users/list?kyc=Pending') }}">
+        <a class="pending-card blue" href="{{ URL::asset('admin/users/kyc') }}">
             <div class="label">KYC Requests</div>
             <div class="value" id="pending_kyc">0</div>
         </a>

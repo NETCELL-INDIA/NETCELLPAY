@@ -239,11 +239,11 @@ class AuthController extends Controller
                             'user_id' =>  $user->id,
                             'role_id' => $user->role_id,
                             'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
-                            'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
-                            'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'bbps_services' => config('recharge_services.bbps', []),
-                            'recharge_services' => config('recharge_services.recharge', []),
+                            'mobile_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                            'postpaid_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id'])),
+                            'dth_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                            'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
+                            'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -526,11 +526,11 @@ class AuthController extends Controller
                             'user_id' =>  $user->id,
                             'role_id' => $user->role_id,
                             'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
-                            'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
-                            'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                            'bbps_services' => config('recharge_services.bbps', []),
-                            'recharge_services' => config('recharge_services.recharge', []),
+                            'mobile_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                            'postpaid_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id'])),
+                            'dth_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                            'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
+                            'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -719,11 +719,11 @@ class AuthController extends Controller
                         'user_id' =>  $user->id,
                         'role_id' => $user->role_id,
                         'states' =>   DB::table('states')->where('status',1)->get(['id','state_name']),
-                        'mobile_provider' =>   DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                        'postpaid_provider' =>   DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id']),
-                        'dth_provider' =>   DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo']),
-                        'bbps_services' => config('recharge_services.bbps', []),
-                        'recharge_services' => config('recharge_services.recharge', []),
+                        'mobile_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',1)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                        'postpaid_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->whereIn('service_id',[4,15])->where('deleted_at',0)->get(['id','provider_name','provider_logo','service_id'])),
+                        'dth_provider' =>   \helpers::decorateProviderLogos(DB::table('providers')->where('status',1)->where('service_id',2)->where('deleted_at',0)->get(['id','provider_name','provider_logo'])),
+                        'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
+                        'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                     ];
                     // 
                     \helpers::recordLoginHistory((int) $user->id, 'APP');
@@ -849,10 +849,39 @@ class AuthController extends Controller
             ->where('s.scheme_id','=', $user->scheme_id)
             ->get($select);
 
-            foreach ($rows as $row) {
-                [$row->amount_type, $row->amount_value] = \helpers::commissionFieldsForRole($row, $user->role_id);
+            $denomByProvider = collect();
+            try {
+                \helpers::ensureDenominationCommissionTable();
+                if (Schema::hasTable('scheme_commission_denominations') && $rows->count() > 0) {
+                    $providerIds = $rows->pluck('p_id')->filter()->unique()->values()->all();
+                    if (count($providerIds) > 0) {
+                        $denomByProvider = DB::table('scheme_commission_denominations')
+                            ->where('scheme_id', $user->scheme_id)
+                            ->whereIn('provider_id', $providerIds)
+                            ->orderBy('min_amount')
+                            ->get()
+                            ->groupBy('provider_id');
+                    }
+                }
+            } catch (\Throwable $e) {
+                $denomByProvider = collect();
             }
-            $list[$s_list->service_name] = $rows;
+
+            $outRows = [];
+            foreach ($rows as $row) {
+                $row->p_logo = \helpers::providerLogoUrl($row->p_logo ?? '');
+                [$row->amount_type, $row->amount_value] = \helpers::commissionFieldsForRole($row, $user->role_id);
+                $outRows[] = $row;
+                foreach (collect($denomByProvider)->get((string) $row->p_id, collect($denomByProvider)->get((int) $row->p_id, [])) as $denom) {
+                    $clone = clone $row;
+                    $clone->p_name = $row->p_name . ' (' . $denom->min_amount . '-' . $denom->max_amount . ')';
+                    [$clone->amount_type, $clone->amount_value] = \helpers::commissionFieldsForRole($denom, $user->role_id);
+                    $clone->min_amount = $denom->min_amount;
+                    $clone->max_amount = $denom->max_amount;
+                    $outRows[] = $clone;
+                }
+            }
+            $list[$s_list->service_name] = $outRows;
         }
         return response()->json(array(
             'type' => "success",

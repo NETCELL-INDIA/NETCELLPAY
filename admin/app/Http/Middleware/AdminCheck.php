@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Services\AdminMenuService;
 class AdminCheck
 {
     /**
@@ -24,7 +25,7 @@ class AdminCheck
 
         $query = DB::table('users')->where('id', $userId);
         if (Schema::hasColumn('users', 'role_id')) {
-            $query->where('role_id', 1);
+            $query->whereIn('role_id', AdminMenuService::adminRoleIds());
         }
         $user = $query->first();
 
@@ -41,6 +42,19 @@ class AdminCheck
         ) {
             $request->session()->flush();
             return redirect()->route('loginPage');
+        }
+
+        if (! session()->has('role_id')) {
+            session()->put('role_id', (int) $user->role_id);
+        } else {
+            session()->put('role_id', (int) $user->role_id);
+        }
+
+        if (! AdminMenuService::canAccessPath($request->path())) {
+            if ($request->ajax() || $request->expectsJson() || $request->wantsJson()) {
+                return response()->json(['type' => 'error', 'message' => 'You are not allowed to access this page.'], 403);
+            }
+            abort(403, 'You are not allowed to access this page.');
         }
 
         return $next($request);

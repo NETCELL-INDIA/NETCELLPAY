@@ -6,6 +6,7 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 use Illuminate\Http\Request;
 
@@ -71,6 +72,52 @@ use Illuminate\Http\Request;
         }
     }
 
+    public static function ensureDenominationCommissionTable(): void
+    {
+        try {
+            if (Schema::hasTable('scheme_commission_denominations')) {
+                return;
+            }
+            Schema::create('scheme_commission_denominations', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('scheme_id')->index();
+                $table->unsignedBigInteger('provider_id')->index();
+                $table->decimal('min_amount', 12, 2)->default(0);
+                $table->decimal('max_amount', 12, 2)->default(0);
+                $table->string('md_amount_type', 50)->nullable();
+                $table->decimal('md_amount_value', 12, 4)->default(0);
+                $table->string('dt_amount_type', 50)->nullable();
+                $table->decimal('dt_amount_value', 12, 4)->default(0);
+                $table->string('rt_amount_type', 50)->nullable();
+                $table->decimal('rt_amount_value', 12, 4)->default(0);
+                $table->string('ap_amount_type', 50)->nullable();
+                $table->decimal('ap_amount_value', 12, 4)->default(0);
+                $table->timestamps();
+                $table->index(['scheme_id', 'provider_id']);
+            });
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function denominationCommissionRow($scheme, $provider_id, $amount)
+    {
+        self::ensureDenominationCommissionTable();
+        if (! Schema::hasTable('scheme_commission_denominations')) {
+            return null;
+        }
+
+        $amount = (float) $amount;
+
+        return DB::table('scheme_commission_denominations')
+            ->where('scheme_id', $scheme)
+            ->where('provider_id', $provider_id)
+            ->where('min_amount', '<=', $amount)
+            ->where('max_amount', '>=', $amount)
+            ->orderByRaw('(max_amount - min_amount) asc')
+            ->orderByDesc('id')
+            ->first();
+    }
+
      public static function getCommission($amount, $scheme, $provider_id, $role_id)
 
      {
@@ -81,7 +128,13 @@ use Illuminate\Http\Request;
  
          if($myscheme && $myscheme->status == "1"){
  
-             $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
+             $comdata = null;
+             if (in_array((int) $role_id, [3, 4, 5, 6], true)) {
+                 $comdata = self::denominationCommissionRow($scheme, $provider_id, $amount);
+             }
+             if (! $comdata) {
+                 $comdata = DB::table('scheme_commissions')->where('provider_id', $provider_id)->where('scheme_id', $scheme)->first();
+             }
  
              if ($comdata) {
  
@@ -181,11 +234,40 @@ use Illuminate\Http\Request;
 
 
 
+        public static function companyWhatsappLogoUrl(): string
+        {
+            $company = DB::table('companies')->where('id', 1)->first(['company_logo', 'company_icon']);
+            $file = (string) ($company->company_icon ?? $company->company_logo ?? '');
+            if ($file === '') {
+                return '';
+            }
+            if (function_exists('admin_company_logo')) {
+                return (string) admin_company_logo($file);
+            }
+
+            return rtrim((string) (env('APP_URL') ?: ''), '/').'/company_logo/'.ltrim($file, '/');
+        }
+
+        public static function whatsappTemplateImageUrl(string $filename): string
+        {
+            $filename = ltrim(basename($filename), '/');
+            if ($filename === '') {
+                return '';
+            }
+            if (function_exists('admin_asset')) {
+                $url = (string) admin_asset('whatsapp_template/'.$filename);
+                $path = public_path('whatsapp_template/'.$filename);
+                if (is_file($path)) {
+                    $url .= (str_contains($url, '?') ? '&' : '?').'v='.filemtime($path);
+                }
+
+                return $url;
+            }
+
+            return rtrim((string) (env('APP_URL') ?: ''), '/').'/whatsapp_template/'.$filename;
+        }
+
         public static function sendWhatasappMsg($data){
-
-            //return $data['mobile_number'];
-
-            //user_id,msg_slug,
 
             $w_api = DB::table('companies')->where('id', 1)->first(['whatsapp_request_url','whatsapp_api_method']);
 
@@ -197,11 +279,76 @@ use Illuminate\Http\Request;
 
             if($url !=0 && $url !=""){
 
+                $content = (string) ($data['content'] ?? '');
+                $templateId = (string) ($data['template_id'] ?? '');
+                $slug = (string) ($data['slug'] ?? '');
+                $attach = !empty($data['attach_logo']);
+                $attachImage = array_key_exists('attach_image', $data) ? !empty($data['attach_image']) : null;
+                $imageUrl = (string) ($data['image_url'] ?? '');
+                $tpl = null;
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('whatsapp_templates')) {
+                    if ($slug !== '') {
+                        $tpl = DB::table('whatsapp_templates')->where('slug', $slug)->first();
+                    }
+                    if (!$tpl && $templateId !== '') {
+                        $tpl = DB::table('whatsapp_templates')->where('template_id', $templateId)->first();
+                    }
+                    if ($tpl && !array_key_exists('attach_logo', $data)) {
+                        $attach = (int) ($tpl->attach_logo ?? 0) === 1;
+                    }
+                    if ($tpl && $attachImage === null) {
+                        $attachImage = (int) ($tpl->attach_image ?? 0) === 1;
+                    }
+                    if ($tpl && $content === '' && (int) ($tpl->status ?? 0) === 1) {
+                        $content = (string) $tpl->content;
+                        $templateId = (string) ($tpl->template_id ?: $templateId);
+                    }
+                    if ($imageUrl === '' && $tpl && !empty($tpl->image)) {
+                        $imageUrl = self::whatsappTemplateImageUrl((string) $tpl->image);
+                    }
+                }
+                if ($imageUrl === '' && !empty($data['image'])) {
+                    $imageUrl = self::whatsappTemplateImageUrl((string) $data['image']);
+                }
+                $attachImage = (bool) $attachImage;
+
+                $logoUrl = self::companyWhatsappLogoUrl();
+                if ($attach && $logoUrl !== '') {
+                    if (str_contains($content, '{LOGO}') || str_contains($content, '{LOGO_URL}')) {
+                        $content = str_replace(['{LOGO}', '{LOGO_URL}'], $logoUrl, $content);
+                    } else {
+                        $content = $logoUrl."\n\n".$content;
+                    }
+                } else {
+                    $content = str_replace(['{LOGO}', '{LOGO_URL}'], '', $content);
+                }
+
+                if ($attachImage && $imageUrl !== '') {
+                    if (str_contains($content, '{IMG}') || str_contains($content, '{IMAGE}') || str_contains($content, '{TEMPLATE_IMAGE}')) {
+                        $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], $imageUrl, $content);
+                    } else {
+                        $content = $imageUrl."\n\n".$content;
+                    }
+                } else {
+                    $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
+                }
+
+                $apiImage = ($attachImage && $imageUrl !== '') ? $imageUrl : (($attach && $logoUrl !== '') ? $logoUrl : '');
+
                 $url = str_replace('{MOB}', '' . $data['mobile_number'] . '', $url);
 
-                $url = str_replace('{MSG}', '' . urlencode($data['content']) . '', $url);
+                $url = str_replace('{MSG}', '' . urlencode($content) . '', $url);
 
-                $url = str_replace('{TMP_ID}', '' . $data['template_id'] . '', $url);
+                $url = str_replace('{TMP_ID}', '' . $templateId . '', $url);
+
+                $url = str_replace('{TMPID}', '' . $templateId . '', $url);
+
+                $url = str_replace('{LOGO}', urlencode($logoUrl), $url);
+
+                $url = str_replace('{IMG}', urlencode($apiImage), $url);
+
+                $url = str_replace('{IMAGE}', urlencode($apiImage), $url);
 
                 $method = $w_api->whatsapp_api_method;
 

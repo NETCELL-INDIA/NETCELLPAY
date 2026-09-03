@@ -151,7 +151,7 @@
                         </div>
                         <div class="col-md-6">
                             <label for="logo" class="form-label">Operator Logo</label>
-                            <input type="file" class="form-control" name="logo" id="logo" accept="image/png,image/jpeg,image/jpg,image/webp">
+                            <input type="file" class="form-control" name="logo" id="logo" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
                         </div>
                         <div class="col-12">
                             <div class="d-flex align-items-center gap-3">
@@ -160,7 +160,7 @@
                                     <button type="button" class="btn btn-outline-danger btn-sm" id="removeLogoBtn" style="display:none;">
                                         <i class="ri-delete-bin-line align-bottom me-1"></i> Remove Logo
                                     </button>
-                                    <div class="text-muted small mt-2">PNG, JPG, WEBP. Maximum 2 MB.</div>
+                                    <div class="text-muted small mt-2">PNG, JPG, WEBP, GIF. Maximum 4 MB.</div>
                                 </div>
                             </div>
                         </div>
@@ -234,7 +234,7 @@
 @section('script')
 <script>
 var csrf = '{{ csrf_token() }}';
-var defaultLogo = '{{ asset('assets/images/users/user-dummy-img.jpg') }}';
+var defaultLogo = '{{ admin_asset('assets/images/users/user-dummy-img.jpg') }}';
 var operators = {};
 var currentDownOperatorId = 0;
 
@@ -543,6 +543,12 @@ $('#operatorForm').on('submit', function (e) {
     e.preventDefault();
 
     var formData = new FormData(this);
+    var logoInput = document.getElementById('logo');
+    if (logoInput && logoInput.files && logoInput.files[0]) {
+        formData.set('logo', logoInput.files[0]);
+    } else {
+        formData.delete('logo');
+    }
     $('#operatorSaveBtn').prop('disabled', true).text('Please wait...');
 
     $.ajax({

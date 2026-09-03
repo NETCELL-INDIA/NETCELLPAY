@@ -147,7 +147,7 @@ class ProviderController extends Controller
                 
 				$output .= '<tr>
                 <td>' . $i . '</td>
-                <td><img src="'.asset("provider_logo/".$list->provider_logo).'" class="avatar-xs rounded-3 me-2"></td>
+                <td><img src="'.admin_provider_logo_url($list->provider_logo ?? '').'" class="avatar-xs rounded-3 me-2"></td>
                 <td>' . $list->provider_name . '</td>
                 <td>' . DB::table('services')->where('id', $list->service_id)->first()->service_name . '</td>
                 <td>' . $api_name . '</td>
@@ -260,7 +260,7 @@ class ProviderController extends Controller
             'provider_down'  => 'required|numeric',
             'amount_type'  => 'required',
             'amount_value'  => 'required',
-            'provider_logo' => 'mimes:jpeg,jpg,png|max:10000',
+            'provider_logo' => 'nullable|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'status' => 'required|numeric|digits:1',
         );
 
@@ -276,13 +276,9 @@ class ProviderController extends Controller
         }
         //return $post->amount_type;
         if($post->edit_id==0){
-            if($post->provider_logo){
-                $provider_logo = csrf_token().time().'.'.$post->provider_logo->extension();  
-                $post->provider_logo->move(public_path('bank_logo'), $provider_logo);
-                //$post->bank_logo->storeAs('public/bank_logo', $bankLogo);
-                //return $bankLogo;
-            }else{
-                $provider_logo = "provider_logo.png";
+            $provider_logo = '';
+            if ($post->hasFile('provider_logo')) {
+                $provider_logo = admin_provider_logo_store($post->file('provider_logo'));
             }
             $update = DB::table('providers')->insert([
                 'provider_name' => $post->provider_name,
@@ -304,13 +300,12 @@ class ProviderController extends Controller
             //return $update;
             $message = "Create sucessfuly";
         }else{
-            if($post->provider_logo){
-                $provider_logo = csrf_token().time().'.'.$post->provider_logo->extension();  
-                $post->provider_logo->move(public_path('provider_logo'), $provider_logo);
-               // $post->bank_logo->storeAs('public/bank_logo', $bankLogo);
-                //return $bankLogo;
-            }else{
-                $provider_logo = $post->old_provider_logo;
+            $provider_logo = $post->old_provider_logo;
+            if ($post->hasFile('provider_logo')) {
+                $provider_logo = admin_provider_logo_store(
+                    $post->file('provider_logo'),
+                    $post->old_provider_logo
+                );
             }
             $update = DB::table('providers')->where('id', $post->edit_id)->update([
                 'provider_name' => $post->provider_name,

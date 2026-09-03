@@ -20,7 +20,9 @@
                 @endif
             </div>
 
-            <h1>{{ $companyName }}</h1>
+            @if(!$companyLogo)
+                <h1>{{ $companyName }}</h1>
+            @endif
             <p>Secure admin portal for recharge, users, reports and fund management — all in one place.</p>
 
             <ul class="np-login-features">
@@ -48,6 +50,7 @@
             </div>
 
             <form name="form_login" class="form" id="form_login" autocomplete="off">
+                @csrf
                 <div class="mb-3 np-login-field" id="mobile_number_div">
                     <label for="mobile_number" class="form-label">Mobile Number</label>
                     <div class="np-login-input-wrap">
@@ -167,6 +170,12 @@
             }
         }
 
+        function csrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                || document.querySelector('input[name="_token"]')?.value
+                || '';
+        }
+
         function login() {
             var mobile_number = $("#mobile_number").val();
             var password = $("#password-input").val();
@@ -184,7 +193,7 @@
                         password: password,
                         latitude: loginLat,
                         longitude: loginLng,
-                        _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+                        _token: csrfToken()
                     },
                     success: function(data) {
                         if (data.type === "error") {
@@ -197,6 +206,10 @@
                         }
                     },
                     error: function(jqXhr) {
+                        if (jqXhr.status === 419) {
+                            Error_Msg("Oops...", "Session expired. Refresh the page and try again.", "error");
+                            return;
+                        }
                         var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message)
                             ? jqXhr.responseJSON.message
                             : "Something went wrong!";
@@ -231,7 +244,7 @@
                         mobile_otp: mobile_otp,
                         latitude: loginLat,
                         longitude: loginLng,
-                        _token: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+                        _token: csrfToken()
                     },
                     success: function(data) {
                         if (data.type === "error") {
@@ -244,6 +257,10 @@
                         }
                     },
                     error: function(jqXhr) {
+                        if (jqXhr.status === 419) {
+                            Error_Msg("Oops...", "Session expired. Refresh the page and try again.", "error");
+                            return;
+                        }
                         var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message)
                             ? jqXhr.responseJSON.message
                             : "Something went wrong!";

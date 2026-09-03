@@ -235,6 +235,8 @@ function fetchPending() {
         },
         error: function () {
             $('#pendingBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
+            $('#apiStatsBody').html('<tr><td colspan="4" class="text-center text-danger">Failed to load</td></tr>');
+            $('#operatorStatsBody').html('<tr><td colspan="3" class="text-center text-danger">Failed to load</td></tr>');
         }
     });
 }
@@ -342,6 +344,13 @@ $(function () {
     });
 
     fetchPending();
+
+    $(document).on('click', '.api-stat-row', function () {
+        var apiId = $(this).data('api-id');
+        $('#api_id').val(apiId || '');
+        currentPage = 1;
+        fetchPending();
+    });
 });
 </script>
 @endsection

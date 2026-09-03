@@ -15,9 +15,16 @@ class BbpsService
         }
 
         $apiId = (int) ($provider->api_id ?: config('recharge_services.plan_api_id', 7));
+        try {
+            $configured = (int) \App\Services\SystemSettingService::get('bbps_fetch_api_id', config('recharge_services.plan_api_id', 7));
+            if ($configured > 0 && ! $provider->api_id) {
+                $apiId = $configured;
+            }
+        } catch (\Throwable $e) {
+        }
         $api = DB::table('apis')->where('id', $apiId)->where('status', '1')->first();
         if (!$api) {
-            $api = DB::table('apis')->where('id', config('recharge_services.plan_api_id', 7))->first();
+            $api = DB::table('apis')->where('id', $apiId)->first();
         }
 
         return $api;
@@ -35,8 +42,8 @@ class BbpsService
             return ['type' => 'error', 'message' => 'Bill fetch API not configured. Contact admin.'];
         }
 
-        $apiId = (int) ($provider->api_id ?: config('recharge_services.plan_api_id', 7));
-        $operatorCode = \helpers::ApiProviderCode($apiId, $providerId);
+        $paramsApi = (int) ($provider->api_id ?: \App\Services\SystemSettingService::get('bbps_params_api_id', config('recharge_services.bbps_params_api_id', 22)));
+        $operatorCode = \helpers::ApiProviderCode($paramsApi, $providerId);
         if (!$operatorCode) {
             return ['type' => 'error', 'message' => 'Operator code not mapped for this biller.'];
         }
@@ -132,7 +139,10 @@ class BbpsService
 
     public static function servicesWithProviders(): array
     {
-        $catalog = config('recharge_services', []);
+        $catalog = [
+            'recharge' => \helpers::serviceCatalogItems('recharge', true),
+            'bbps' => \helpers::serviceCatalogItems('bbps', true),
+        ];
         $out = ['recharge' => [], 'bbps' => []];
 
         foreach ($catalog['recharge'] ?? [] as $svc) {
@@ -144,7 +154,7 @@ class BbpsService
                 ->get(['id', 'provider_name', 'provider_logo', 'service_id']);
 
             $out['recharge'][] = array_merge($svc, [
-                'providers' => $providers,
+                'providers' => \helpers::decorateProviderLogos($providers),
                 'provider_count' => $providers->count(),
             ]);
         }
@@ -158,7 +168,7 @@ class BbpsService
                 ->get(['id', 'provider_name', 'provider_logo', 'service_id']);
 
             $out['bbps'][] = array_merge($svc, [
-                'providers' => $providers,
+                'providers' => \helpers::decorateProviderLogos($providers),
                 'provider_count' => $providers->count(),
             ]);
         }

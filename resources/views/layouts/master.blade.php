@@ -23,9 +23,7 @@
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
     <!-- Bootstrap Css -->
     <link href="{{ URL::asset('assets/css/bootstrap.min.css') }}" rel="stylesheet" type="text/css" />
-    @if($company && !empty($company->company_icon))
-    <link rel="shortcut icon" href="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_icon }}">
-    @endif
+    @include('layouts.favicon')
     @include('layouts.head-css')
 </head>
 

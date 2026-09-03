@@ -27,11 +27,7 @@
     </script>
     <!-- Sweet Alert css-->
     <link href="{{ URL::asset('assets/libs/sweetalert2/sweetalert2.min.css') }}" rel="stylesheet" type="text/css" />
-    @if(!empty($company?->company_icon))
-        <link rel="shortcut icon" href="{{ admin_company_logo($company->company_icon ?? null) ?? admin_asset('assets/images/favicon.ico') }}">
-    @else
-        <link rel="shortcut icon" href="{{ URL::asset('assets/images/favicon.ico') }}">
-    @endif
+    @include('layouts.favicon')
     @include('layouts.head-css')
 </head>
 

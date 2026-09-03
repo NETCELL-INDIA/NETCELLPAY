@@ -9,9 +9,7 @@
 
     <title>{{ $company->company_name }} | Digital Payments for Every Business</title>
 
-    @if(!empty($company->company_icon))
-        <link rel="shortcut icon" href="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_icon }}" type="image/x-icon">
-    @endif
+    @include('layouts.favicon')
 
     <link href="{{ URL::asset('web_template/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ URL::asset('web_template/css/font-awesome.min.css') }}" rel="stylesheet">

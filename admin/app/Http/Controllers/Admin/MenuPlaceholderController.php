@@ -18,13 +18,13 @@ class MenuPlaceholderController extends Controller
         'users/default-margins' => 'admin/system/scheme',
         'users/default-cashback' => 'admin/system/scheme',
         'users/special-margins' => 'admin/system/scheme',
-        'users/manage-kyc' => 'admin/users/list',
+        'users/manage-kyc' => 'admin/users/kyc',
         'users/deleted-users' => 'admin/users/list',
 
         // Payments
-        'payments/fund-transfer' => 'admin/users/list',
+        'payments/fund-transfer' => 'admin/fund/credit-debit',
+        'payments/credit-debit' => 'admin/fund/credit-debit',
         'payments/list-fund-transfers' => 'admin/fund/fund-report',
-        'payments/credit-debit' => 'admin/users/list',
         'payments/bank-details' => 'admin/system/banks',
         'payments/online-fund-report' => 'admin/fund/fund-report',
 
@@ -38,10 +38,10 @@ class MenuPlaceholderController extends Controller
         // APIs
         'apis/quick-add' => 'admin/system/apis',
         'apis/add-api' => 'admin/system/apis',
-        'apis/bill-fetch-settings' => 'admin/system/apis',
+        'apis/balance-status-check' => 'admin/apis/balance-check',
+        'apis/bill-fetch-settings' => 'admin/apis/bbps',
         'apis/plan-circle-dth-api' => 'admin/apis/plan-circle-dth-api',
         'apis/plan_circle_fetch_api_settings' => 'admin/apis/plan_circle_fetch_api_settings',
-        'apis/balance-status-check' => 'admin/system/apis',
         'apis/special-inward-margins' => 'admin/system/scheme',
 
         // Complains / Operators

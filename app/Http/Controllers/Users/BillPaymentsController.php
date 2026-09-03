@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\BbpsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Session;
 
 class BillPaymentsController extends Controller
 {
@@ -21,7 +22,7 @@ class BillPaymentsController extends Controller
             ->get();
 
         $service = DB::table('services')->where('id', $serviceId)->where('deleted_at', 0)->first();
-        $bbpsCategories = config('recharge_services.bbps', []);
+        $bbpsCategories = \helpers::serviceCatalogItems('bbps');
 
         return view('users.services.bill-payments', [
             'providers' => $providers,
@@ -43,7 +44,12 @@ class BillPaymentsController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Provider not found.']);
         }
 
-        $apiId = (int) ($provider->api_id ?: config('recharge_services.bbps_params_api_id', 22));
+        $userId = Session::get('user_id');
+        if ($userId && \helpers::isUserServiceLocked($userId, $provider->service_id)) {
+            return response()->json(['type' => 'error', 'message' => 'This service is locked for your account. Contact admin.']);
+        }
+
+        $apiId = (int) ($provider->api_id ?: \App\Services\SystemSettingService::get('bbps_params_api_id', config('recharge_services.bbps_params_api_id', 22)));
         $providerCode = \helpers::ApiProviderCode($apiId, (int) $post->id);
 
         if (!$providerCode) {
@@ -76,6 +82,10 @@ class BillPaymentsController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['type' => 'error', 'message' => $validator->errors()->first()]);
+        }
+
+        if (Session::get('user_id') && \helpers::isUserServiceLocked(Session::get('user_id'), (int) $post->service_id)) {
+            return response()->json(['type' => 'error', 'message' => 'This service is locked for your account. Contact admin.']);
         }
 
         $fields = $post->except(['_token', 'provider_id', 'service_id', 'login_key', 'user_id', 'api_key']);

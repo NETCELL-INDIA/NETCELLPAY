@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Common;
+use App\Services\AdminMenuService;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SendEmail;
 class AuthController extends Controller
@@ -20,7 +21,7 @@ class AuthController extends Controller
     {
         $userId = session('user_id');
         $user = $userId
-            ? DB::table('users')->where('id', $userId)->where('role_id', 1)->first()
+            ? DB::table('users')->where('id', $userId)->whereIn('role_id', AdminMenuService::adminRoleIds())->first()
             : null;
 
         if (
@@ -42,7 +43,12 @@ class AuthController extends Controller
 
         $data['name'] = "shiba";
         $data['company'] = $company;
-        return view('admin.auth.login', $data);
+
+        return response()
+            ->view('admin.auth.login', $data)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function LoginCheck(Request $post)
@@ -64,7 +70,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->where("role_id",1)->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
             if(Hash::check($post->password, $user->password)){
 
@@ -81,6 +87,7 @@ class AuthController extends Controller
                         ]);
                         $post->session()->put('user_id', $user->id);
                         $post->session()->put('login_key', $loginKey);
+                        $post->session()->put('role_id', (int) $user->role_id);
                         Common::recordLoginHistory((int) $user->id, 'WEB');
                     } else {
                     $otpLimit = (int) $user->otp_limit;
@@ -195,7 +202,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->where("role_id",1)->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
             if(Hash::check($post->password, $user->password)){
 
@@ -214,6 +221,7 @@ class AuthController extends Controller
                         ]);
                         $post->session()->put('user_id', $user->id);
                         $post->session()->put('login_key', $loginKey);
+                        $post->session()->put('role_id', (int) $user->role_id);
                         Common::recordLoginHistory((int) $user->id, 'WEB');
                     }else{
                         $data['type'] = 'error';
@@ -241,7 +249,11 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request)
     {
-        return view('admin.auth.forgot-password', ['company' => Common::getCompanyByHost()]);
+        return response()
+            ->view('admin.auth.forgot-password', ['company' => Common::getCompanyByHost()])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
 
@@ -263,7 +275,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->where("role_id",1)->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
             if($user->status==1){
                 if($user->otp_limit == 5){
@@ -359,7 +371,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->where("role_id",1)->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
             if($user->status==1){
                 $otpValid = $this->verifyUnifiedLoginOtp($post, $user);

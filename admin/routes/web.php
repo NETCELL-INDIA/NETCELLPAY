@@ -65,6 +65,12 @@ use App\Http\Middleware\AdminCheck;
 
 
 use App\Http\Controllers\Admin\FundController;
+use App\Http\Controllers\Admin\FundCreditDebitController;
+use App\Http\Controllers\Admin\KycController;
+use App\Http\Controllers\Admin\UserServiceLockController;
+use App\Http\Controllers\Admin\ApiBalanceController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\BbpsAdminController;
 
 
 
@@ -104,6 +110,7 @@ use App\Http\Controllers\Admin\SmsTemplateController;
 
 use App\Http\Controllers\Admin\SmsApiController;
 use App\Http\Controllers\Admin\WhatsappApiController;
+use App\Http\Controllers\Admin\WhatsappTemplateController;
 
 
 
@@ -120,6 +127,7 @@ use App\Http\Controllers\Admin\ProfileController;
 
 
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CompanyLogoController;
 use App\Http\Controllers\Admin\WebsiteCmsController;
 use App\Http\Controllers\Admin\QueueController;
 use App\Http\Controllers\Admin\LogsController;
@@ -338,9 +346,17 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/recharge-reports/supplier-fail-2-success', [SupplierFail2SuccessController::class, 'index'])->name('supplierFail2Success');
     Route::post('admin/recharge-reports/supplier-fail-2-success/list', [SupplierFail2SuccessController::class, 'list'])->name('supplierFail2SuccessList');
 
-    // Rehit Recharge History
-    Route::get('admin/recharge-reports/rehit-recharge-history', [RehitRechargeHistoryController::class, 'index'])->name('rehitHistory');
-    Route::post('admin/recharge-reports/rehit-recharge-history/list', [RehitRechargeHistoryController::class, 'list'])->name('rehitHistoryList');
+    // Resend Report (Pending Report Resend / Rehit list)
+    Route::get('admin/recharge-reports/resend-report', [RehitRechargeHistoryController::class, 'index'])->name('rehitHistory');
+    Route::post('admin/recharge-reports/resend-report/list', [RehitRechargeHistoryController::class, 'list'])->name('rehitHistoryList');
+    Route::get('admin/recharge-reports/retry-log', function () {
+        return redirect()->route('rehitHistory');
+    });
+    Route::get('admin/recharge-reports/rehit-recharge-history', function () {
+        return redirect()->route('rehitHistory');
+    });
+    Route::post('admin/recharge-reports/retry-log/list', [RehitRechargeHistoryController::class, 'list']);
+    Route::post('admin/recharge-reports/rehit-recharge-history/list', [RehitRechargeHistoryController::class, 'list']);
 
     // Amountwise Report
     Route::get('admin/recharge-reports/amountwise-report', [AmountwiseReportController::class, 'index'])->name('amountwiseReport');
@@ -416,6 +432,11 @@ Route::group(['middleware' => AdminCheck::class], function () {
     //Commission Route
 
     Route::get('admin/commission',[CommissionController::class,'index'])->name('adminCommission');
+    Route::get('admin/commission/denomination',[CommissionController::class,'denomination'])->name('adminDenominationCommission');
+    Route::post('admin/commission/denomination/providers',[CommissionController::class,'denominationProviders'])->name('adminDenominationProviders');
+    Route::post('admin/commission/denomination/list',[CommissionController::class,'denominationList'])->name('adminDenominationList');
+    Route::post('admin/commission/denomination/save',[CommissionController::class,'denominationSave'])->name('adminDenominationSave');
+    Route::post('admin/commission/denomination/delete',[CommissionController::class,'denominationDelete'])->name('adminDenominationDelete');
 
     //Scheme Routes 
 
@@ -552,10 +573,12 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::get('admin/system/role',[RoleController::class,'index']);
-
-
-
     Route::post('admin/system/role/list',[RoleController::class,'fetchAll'])->name('roleList');
+    Route::post('admin/system/role/get',[RoleController::class,'getData'])->name('roleGet');
+    Route::post('admin/system/role/update',[RoleController::class,'updateData'])->name('roleUpdate');
+    Route::post('admin/system/role/delete',[RoleController::class,'deleteData'])->name('roleDelete');
+    Route::post('admin/system/role/permissions',[RoleController::class,'getPermissions'])->name('rolePermissionsGet');
+    Route::post('admin/system/role/permissions/save',[RoleController::class,'savePermissions'])->name('rolePermissionsSave');
 
 
 
@@ -568,10 +591,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::get('admin/system/services',[ServiceController::class,'index']);
-
-
-
     Route::post('admin/system/services/list',[ServiceController::class,'fetchAll'])->name('servicesList');
+    Route::post('admin/system/services/get',[ServiceController::class,'getData'])->name('servicesGet');
+    Route::post('admin/system/services/update',[ServiceController::class,'updateData'])->name('servicesUpdate');
 
 
 
@@ -780,6 +802,33 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/fund/fund-request/update',[FundController::class,'updateData'])->name('fundRequestUpdate');
 
+    Route::get('admin/fund/credit-debit', [FundCreditDebitController::class, 'index'])->name('fundCreditDebit');
+    Route::post('admin/fund/credit-debit/search', [FundCreditDebitController::class, 'search'])->name('fundCreditDebitSearch');
+
+    Route::get('admin/users/kyc', [KycController::class, 'index'])->name('adminKyc');
+    Route::post('admin/users/kyc/list', [KycController::class, 'list'])->name('adminKycList');
+    Route::post('admin/users/kyc/detail', [KycController::class, 'detail'])->name('adminKycDetail');
+    Route::post('admin/users/kyc/decide', [KycController::class, 'decide'])->name('adminKycDecide');
+    Route::post('admin/users/kyc/upload', [KycController::class, 'upload'])->name('adminKycUpload');
+
+    Route::get('admin/users/service-lock', [UserServiceLockController::class, 'index'])->name('userServiceLock');
+    Route::post('admin/users/service-lock/load', [UserServiceLockController::class, 'load'])->name('userServiceLockLoad');
+    Route::post('admin/users/service-lock/save', [UserServiceLockController::class, 'save'])->name('userServiceLockSave');
+
+    Route::get('admin/apis/balance-check', [ApiBalanceController::class, 'index'])->name('apiBalancePage');
+    Route::post('admin/apis/balance-check/list', [ApiBalanceController::class, 'list'])->name('apiBalanceList');
+    Route::post('admin/apis/balance-check/check', [ApiBalanceController::class, 'check'])->name('apiBalanceCheck');
+
+    Route::get('admin/system/audit-log', [AuditLogController::class, 'index'])->name('adminAudit');
+    Route::post('admin/system/audit-log/list', [AuditLogController::class, 'list'])->name('adminAuditList');
+
+    Route::get('admin/apis/bbps', [BbpsAdminController::class, 'index'])->name('adminBbps');
+    Route::post('admin/apis/bbps/settings', [BbpsAdminController::class, 'saveSettings'])->name('adminBbpsSaveSettings');
+    Route::post('admin/apis/bbps/list', [BbpsAdminController::class, 'list'])->name('adminBbpsList');
+    Route::post('admin/apis/bbps/biller', [BbpsAdminController::class, 'getBiller'])->name('adminBbpsGetBiller');
+    Route::post('admin/apis/bbps/biller/save', [BbpsAdminController::class, 'saveBiller'])->name('adminBbpsSaveBiller');
+
+
 
 
     //Fund Reports Routes 
@@ -880,6 +929,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/company/manage-company/update',[CompanyController::class,'updateData'])->name('manageCompanyUpdate');
 
+    Route::get('admin/company/logos', [CompanyLogoController::class, 'index'])->name('companyLogosPage');
+    Route::post('admin/company/logos/update', [CompanyLogoController::class, 'update'])->name('companyLogosUpdate');
+
     Route::get('admin/website/ads', [WebsiteCmsController::class, 'ads']);
     Route::get('admin/website/pages', [WebsiteCmsController::class, 'pages']);
     Route::post('admin/website/pages/get', [WebsiteCmsController::class, 'pageGet'])->name('websitePageGet');
@@ -955,6 +1007,13 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/extras/whatsapp-api', [WhatsappApiController::class, 'index'])->name('whatsappApiPage');
     Route::post('admin/extras/whatsapp-api/save', [WhatsappApiController::class, 'save'])->name('whatsappApiSave');
     Route::post('admin/extras/whatsapp-api/test', [WhatsappApiController::class, 'test'])->name('whatsappApiTest');
+
+    Route::get('admin/company/whatsapp-template', [WhatsappTemplateController::class, 'index'])->name('whatsappTemplatePage');
+    Route::post('admin/company/whatsapp-template/list', [WhatsappTemplateController::class, 'fetchAll'])->name('whatsappTemplateList');
+    Route::post('admin/company/whatsapp-template/delete', [WhatsappTemplateController::class, 'deleteData'])->name('whatsappTemplateDelete');
+    Route::post('admin/company/whatsapp-template/get', [WhatsappTemplateController::class, 'getData'])->name('whatsappTemplateGet');
+    Route::post('admin/company/whatsapp-template/update', [WhatsappTemplateController::class, 'updateData'])->name('whatsappTemplateUpdate');
+    Route::post('admin/company/whatsapp-template/send', [WhatsappTemplateController::class, 'send'])->name('whatsappTemplateSend');
 
     ///Routes Settings
 

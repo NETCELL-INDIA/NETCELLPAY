@@ -26,9 +26,7 @@
             ->first();
         $company = $company ?: DB::table('companies')->where('status', '1')->first();
     @endphp
-    @if($company && !empty($company->company_icon))
-        <link rel="shortcut icon" href="{{ rtrim(env('ADMIN_HOST'), '/') }}/company_logo/{{ $company->company_icon }}">
-    @endif
+    @include('layouts.favicon')
         @include('layouts.head-css')
     <link href="{{ URL::asset('assets/css/auth-modern.css') }}" rel="stylesheet" type="text/css" />
   </head>

@@ -112,7 +112,7 @@ class ProcessRecharge implements ShouldQueue
                 $header = [];
                 $parameters = '';
 
-                $logFlag = ((int) ($api_details->store_log ?? 0) === 1) ? 'yes' : 'no';
+                $logFlag = 'yes';
                 $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
 
                 if ((empty($result['response']) && !empty($result['error'])) || empty($result['response']) || (isset($result['code']) && $result['code'] >= 500)) {

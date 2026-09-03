@@ -18,11 +18,7 @@
     <link href="{{ admin_asset('assets/css/bootstrap.min.css') }}" id="bootstrap-style" rel="stylesheet" type="text/css" />
     <link href="{{ admin_asset('assets/css/icons.min.css') }}" rel="stylesheet" type="text/css" />
     <link href="{{ admin_asset('assets/css/admin-auth.css') }}?v={{ admin_build_serial() }}" rel="stylesheet" type="text/css" />
-    @if(!empty($company?->company_icon))
-        <link rel="shortcut icon" href="{{ admin_company_logo($company->company_icon ?? null) ?? admin_asset('assets/images/favicon.ico') }}">
-    @else
-        <link rel="shortcut icon" href="{{ admin_asset('assets/images/favicon.ico') }}">
-    @endif
+    @include('layouts.favicon')
     @yield('css')
   </head>
 
@@ -30,6 +26,6 @@
 
     @yield('content')
 
-    @include('layouts.vendor-scripts')
+    @include('layouts.vendor-scripts', ['disableAppJs' => true])
     </body>
 </html>

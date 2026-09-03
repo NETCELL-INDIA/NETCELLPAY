@@ -989,7 +989,7 @@ class RechargeControllerV2 extends Controller
             'message' => 'Get Successfully',
             'provider_id' => $provider_data->id,
             'provider_name' => $provider_data->provider_name,
-            'provider_logo' => $provider_data->provider_logo,
+            'provider_logo' => \helpers::providerLogoUrl($provider_data->provider_logo ?? ''),
             'state_id' => $state->id,
             'state_name' => $state->state_name
         ]);

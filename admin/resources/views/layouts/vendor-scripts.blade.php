@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 @yield('script')
 @yield('script-bottom')
+@unless(!empty($disableAppJs))
 <script src="{{ admin_asset('assets/js/app.min.js') }}"></script>
 <script>
 /* After page app.min.js: keep horizontal top menu intact */
@@ -69,8 +70,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     function syncHMenuOffset() {
+        var topbar = document.getElementById('page-topbar');
         var menu = document.querySelector('.app-menu.navbar-menu');
         if (!menu) return;
+        var th = topbar ? Math.round(topbar.getBoundingClientRect().height) : 56;
+        if (th < 48) th = 56;
+        menu.style.setProperty('margin-top', th + 'px', 'important');
+        document.documentElement.style.setProperty('--np-topbar-h', th + 'px');
         document.documentElement.style.setProperty('--np-hmenu-h', menu.offsetHeight + 'px');
     }
     function markActiveMenu() {
@@ -143,6 +149,18 @@ document.addEventListener('DOMContentLoaded', function () {
         flattenMoreMenu();
         setupHorizontalMenus();
         setTimeout(function () { unwrapNavbarSimpleBar(); flattenMoreMenu(); setupHorizontalMenus(); }, 200);
+    });
+})();
+</script>
+@endunless
+<script>
+(function () {
+    document.addEventListener('show.bs.modal', function (e) {
+        var modal = e.target;
+        if (!modal || !modal.classList || !modal.classList.contains('modal')) return;
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
     });
 })();
 </script>

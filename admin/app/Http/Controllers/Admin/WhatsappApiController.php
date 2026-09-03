@@ -62,45 +62,20 @@ class WhatsappApiController extends Controller
             $message = 'Netcell Pay WhatsApp API test message';
         }
 
-        $company = DB::table('companies')->where('id', 1)->first([
-            'whatsapp_api_method',
-            'whatsapp_request_url',
+        $sent = Common::sendWhatasappMsg([
+            'mobile_number' => $mobile,
+            'content' => $message,
+            'template_id' => trim((string) ($post->tmp_id ?? '')),
+            'attach_logo' => $post->boolean('attach_logo'),
         ]);
-        $url = trim((string) ($company->whatsapp_request_url ?? ''));
-        if ($url === '' || $url === '0') {
+
+        if ($sent === 1) {
             return response()->json(['type' => 'error', 'message' => 'WhatsApp Request URL is not configured']);
-        }
-
-        $url = str_replace('{MOB}', $mobile, $url);
-        $url = str_replace('{MSG}', urlencode($message), $url);
-        $url = str_replace('{TMP_ID}', trim((string) ($post->tmp_id ?? '')), $url);
-        $url = str_replace('{TMPID}', trim((string) ($post->tmp_id ?? '')), $url);
-
-        $method = $company->whatsapp_api_method ?: 'GET';
-        $requestId = 'WTEST'.date('YmdHis').rand(1111, 9999);
-        $result = Common::curl($url, $method, '', [], 'yes', 'WHATSAPP_URL', $requestId);
-
-        $code = (int) ($result['code'] ?? 0);
-        $err = (string) ($result['error'] ?? '');
-        $response = (string) ($result['response'] ?? '');
-        if (strlen($response) > 800) {
-            $response = substr($response, 0, 800).'...';
-        }
-
-        if ($err !== '') {
-            return response()->json([
-                'type' => 'error',
-                'message' => 'WhatsApp test failed: '.$err,
-                'http_code' => $code,
-                'response' => $response,
-            ]);
         }
 
         return response()->json([
             'type' => 'success',
-            'message' => 'Test message sent to '.$mobile,
-            'http_code' => $code,
-            'response' => $response !== '' ? $response : 'No response body',
+            'message' => 'Test message sent to '.$mobile.($post->boolean('attach_logo') ? ' (with logo)' : ''),
         ]);
     }
 
