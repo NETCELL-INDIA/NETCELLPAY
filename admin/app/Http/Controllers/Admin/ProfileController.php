@@ -234,7 +234,8 @@ class ProfileController extends Controller
                 $data['message'] = 'Local dev OTP generated. Use the code shown on screen.';
             } else {
                 try {
-                    $sms_tmp = DB::table('sms_templates')->where('slug', 'otp')->first(['template_id','content','status']);
+                    $slug = 'otp';
+                    $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
                     if ($sms_tmp) {
                         $content = $sms_tmp->content;
                         $content = str_replace('{NAME}', '' . $user->first_name . '', $content);
@@ -242,11 +243,12 @@ class ProfileController extends Controller
                         $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                         $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                         $content = str_replace('{OTP}', $otp, $content);
-                        if ($sms_tmp->status == 1) {
+                        if (Common::whatsappEnabled($slug, $sms_tmp)) {
                             Common::sendWhatasappMsg([
                                 'mobile_number' => $user->mobile_number,
                                 'content' => $content,
                                 'template_id' => $sms_tmp->template_id,
+                                'slug' => $slug,
                             ]);
                         }
                     }

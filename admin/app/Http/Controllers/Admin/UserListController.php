@@ -810,11 +810,12 @@ class UserListController extends Controller
                     $content = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content);
                     $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
                     $content = str_replace('{PIN}', '' . $user->t_pin . '', $content);
-                    if ($sms_tmp->status == 1) {
+                    if (Common::whatsappEnabled($slug, $sms_tmp)) {
                         $msg_data = [
                             'mobile_number' => $user->mobile_number,
                             'content' => $content,
                             'template_id' => $sms_tmp->template_id,
+                            'slug' => $slug,
                         ];
                         Common::sendWhatasappMsg($msg_data);
                     }
@@ -886,11 +887,12 @@ class UserListController extends Controller
                 $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                 $content = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content);
                 $content = str_replace('{PIN}', '' . $pin . '', $content);
-                if ($sms_tmp->status == 1) {
+                if (Common::whatsappEnabled($slug, $sms_tmp)) {
                     $msg_data = [
                         'mobile_number' => $user->mobile_number,
                         'content' => $content,
                         'template_id' => $sms_tmp->template_id,
+                        'slug' => $slug,
                     ];
                     Common::sendWhatasappMsg($msg_data);
                 }
@@ -1036,19 +1038,7 @@ class UserListController extends Controller
                             $content = str_replace('{AMOUNT}', '' . $post->amount . '', $content);
                             $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
                             $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                            if ($sms_tmp->status == 1) {
-                                DB::table('messages')->insert([
-                                    'user_id' => 1,
-                                    'to_user_id' => $user_data->id,
-                                    'subject' => $slug,
-                                    'msg_source' => "SMS",
-                                    'template_id' => $sms_tmp->template_id,
-                                    'content' => $content,
-                                    'status' => 0,
-                                    'created_at' => Carbon::now(),
-                                    'updated_at' => Carbon::now()
-                                ]);
-                            }
+                            Common::sendQueuedWhatsapp($slug, $user_data->id, (string) $user_data->mobile_number, $content, $sms_tmp);
                         }
                     }
                 } catch (\Throwable $smsError) {
@@ -1130,19 +1120,7 @@ class UserListController extends Controller
                             $content = str_replace('{AMOUNT}', '' . $post->amount . '', $content);
                             $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
                             $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                            if ($sms_tmp->status == 1) {
-                                DB::table('messages')->insert([
-                                    'user_id' => 1,
-                                    'to_user_id' => $user_data->id,
-                                    'subject' => $slug,
-                                    'msg_source' => "SMS",
-                                    'template_id' => $sms_tmp->template_id,
-                                    'content' => $content,
-                                    'status' => 0,
-                                    'created_at' => Carbon::now(),
-                                    'updated_at' => Carbon::now()
-                                ]);
-                            }
+                            Common::sendQueuedWhatsapp($slug, $user_data->id, (string) $user_data->mobile_number, $content, $sms_tmp);
                         }
                     }
                 } catch (\Throwable $smsError) {
@@ -1474,11 +1452,12 @@ class UserListController extends Controller
             $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
             $content = str_replace('{PASSWORD}', '' . $password . '', $content);
             $content = str_replace('{PIN}', '' . $pin . '', $content);
-            if ((int) $sms_tmp->status === 1) {
+            if (Common::whatsappEnabled($slug, $sms_tmp)) {
                 Common::sendWhatasappMsg([
                     'mobile_number' => $post->mobile_number,
                     'content' => $content,
                     'template_id' => $sms_tmp->template_id,
+                    'slug' => $slug,
                 ]);
                 $sent = true;
             }

@@ -261,19 +261,7 @@ class addMoneyController extends Controller
                         $content = str_replace('{AMOUNT}', '' . $report->amount . '', $content);
                         $content = str_replace('{BY}', 'Payment Gateway', $content);
                         $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                        if($sms_tmp->status == 1){
-                            DB::table('messages')->insert([
-                                'user_id' => 1,
-                                'to_user_id' => $user_data->id,
-                                'subject' => $slug,
-                                'msg_source' => "SMS",
-                                'template_id' => $sms_tmp->template_id,
-                                'content' => $content,
-                                'status' => 0,
-                                'created_at' => Carbon::now(),
-                                'updated_at' => Carbon::now()
-                            ]);
-                        }
+                        \helpers::sendQueuedWhatsapp($slug, $user_data->id, (string) $user_data->mobile_number, $content, $sms_tmp);
                         //////Send Sms By Cron Job End
                         ///Status Update in Fund Request Start
                         $update['status'] = "Transferred";

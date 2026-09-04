@@ -1201,6 +1201,68 @@ class helpers
         return $host.'/whatsapp_template/'.$filename;
     }
 
+    public static function whatsappPlainMediaUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        $parts = parse_url($url);
+        if (! is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            $cut = strtok($url, '?');
+
+            return $cut !== false ? $cut : $url;
+        }
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+        return $parts['scheme'].'://'.$parts['host'].$port.($parts['path'] ?? '');
+    }
+
+    public static function whatsappEnabled(string $slug, $smsTmp = null): bool
+    {
+        try {
+            if ($slug !== '' && \Illuminate\Support\Facades\Schema::hasTable('whatsapp_templates')) {
+                $status = DB::table('whatsapp_templates')->where('slug', $slug)->value('status');
+                if ((int) $status === 1) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+            return $smsTmp && (int) $smsTmp->status === 1;
+        }
+
+    public static function sendQueuedWhatsapp(string $slug, $toUserId, string $mobile, string $content, $smsTmp = null): void
+    {
+        if ($mobile === '' || ! self::whatsappEnabled($slug, $smsTmp)) {
+            return;
+        }
+        self::sendWhatasappMsg([
+            'mobile_number' => $mobile,
+            'content' => $content,
+            'template_id' => (string) ($smsTmp->template_id ?? ''),
+            'slug' => $slug,
+        ]);
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('messages') || ! $toUserId) {
+                return;
+            }
+            DB::table('messages')->insert([
+                'user_id' => 1,
+                'to_user_id' => $toUserId,
+                'subject' => $slug,
+                'msg_source' => 'WHATSAPP',
+                'template_id' => (string) ($smsTmp->template_id ?? ''),
+                'content' => $content,
+                'status' => 1,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
     public static function sendWhatasappMsg($data){
 
         $w_api = DB::table('companies')->where('id', 1)->first(['whatsapp_request_url','whatsapp_api_method']);
@@ -1209,9 +1271,11 @@ class helpers
             return 1;
         }
 
-        $url = $w_api->whatsapp_request_url;
+        $rawUrl = trim((string) ($w_api->whatsapp_request_url ?? ''));
 
-        if($url !=0 || $url !=""){
+        if ($rawUrl === '' || $rawUrl === '0') {
+            return 1;
+        }
 
             $content = (string) ($data['content'] ?? '');
             $templateId = (string) ($data['template_id'] ?? '');
@@ -1234,6 +1298,10 @@ class helpers
                 if ($tpl && $attachImage === null) {
                     $attachImage = (int) ($tpl->attach_image ?? 0) === 1;
                 }
+                if ($tpl && $content === '' && (int) ($tpl->status ?? 0) === 1) {
+                    $content = (string) $tpl->content;
+                    $templateId = (string) ($tpl->template_id ?: $templateId);
+                }
                 if ($imageUrl === '' && $tpl && !empty($tpl->image)) {
                     $imageUrl = self::whatsappTemplateImageUrl((string) $tpl->image);
                 }
@@ -1243,61 +1311,54 @@ class helpers
             }
             $attachImage = (bool) $attachImage;
 
-            $logoUrl = self::companyWhatsappLogoUrl();
-            if ($attach && $logoUrl !== '') {
-                if (str_contains($content, '{LOGO}') || str_contains($content, '{LOGO_URL}')) {
-                    $content = str_replace(['{LOGO}', '{LOGO_URL}'], $logoUrl, $content);
-                } else {
-                    $content = $logoUrl."\n\n".$content;
-                }
-            } else {
-                $content = str_replace(['{LOGO}', '{LOGO_URL}'], '', $content);
-            }
-
-            if ($attachImage && $imageUrl !== '') {
-                if (str_contains($content, '{IMG}') || str_contains($content, '{IMAGE}') || str_contains($content, '{TEMPLATE_IMAGE}')) {
-                    $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], $imageUrl, $content);
-                } else {
-                    $content = $imageUrl."\n\n".$content;
-                }
-            } else {
-                $content = str_replace(['{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
-            }
+            $logoUrl = self::whatsappPlainMediaUrl(self::companyWhatsappLogoUrl());
+            $imageUrl = self::whatsappPlainMediaUrl($imageUrl);
+            $content = str_replace(['{LOGO}', '{LOGO_URL}', '{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
+            $content = trim($content);
 
             $apiImage = ($attachImage && $imageUrl !== '') ? $imageUrl : (($attach && $logoUrl !== '') ? $logoUrl : '');
 
-            $url = str_replace('{MOB}', '' . $data['mobile_number'] . '', $url);
+            $method = $w_api->whatsapp_api_method ?: 'GET';
+            $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
+                || str_contains($rawUrl, '{IMAGE}')
+                || str_contains($rawUrl, '{MEDIA}')
+                || str_contains($rawUrl, '{MEDIA_URL}')
+                || str_contains($rawUrl, '{FILE}')
+                || str_contains($rawUrl, '{LOGO}');
 
-            $url = str_replace('{MSG}', '' . urlencode($content) . '', $url);
+            $buildUrl = function (string $message, string $image, bool $asMedia) use ($rawUrl, $data, $templateId, $logoUrl, $hasMediaPlaceholder) {
+                $u = $rawUrl;
+                $u = str_replace('{MOB}', (string) ($data['mobile_number'] ?? ''), $u);
+                $u = str_replace('{MSG}', urlencode($message), $u);
+                $u = str_replace('{TMP_ID}', $templateId, $u);
+                $u = str_replace('{TMPID}', $templateId, $u);
+                $u = str_replace('{LOGO}', urlencode($logoUrl), $u);
+                $u = str_replace('{IMG}', urlencode($image), $u);
+                $u = str_replace('{IMAGE}', urlencode($image), $u);
+                $u = str_replace('{MEDIA}', urlencode($image), $u);
+                $u = str_replace('{MEDIA_URL}', urlencode($image), $u);
+                $u = str_replace('{FILE}', urlencode($image), $u);
+                if ($asMedia && $image !== '' && ! $hasMediaPlaceholder) {
+                    if (preg_match('/([?&])type=text\b/i', $u)) {
+                        $u = preg_replace('/([?&])type=text\b/i', '$1type=media', $u);
+                    }
+                    $sep = str_contains($u, '?') ? '&' : '?';
+                    $u .= $sep.'img='.urlencode($image).'&image='.urlencode($image).'&media_url='.urlencode($image).'&filename=netcell.png';
+                }
 
-            $url = str_replace('{TMP_ID}', '' . $templateId . '', $url);
-
-            $url = str_replace('{TMPID}', '' . $templateId . '', $url);
-
-            $url = str_replace('{LOGO}', urlencode($logoUrl), $url);
-
-            $url = str_replace('{IMG}', urlencode($apiImage), $url);
-
-            $url = str_replace('{IMAGE}', urlencode($apiImage), $url);
-
-            $method = $w_api->whatsapp_api_method;
+                return $u;
+            };
 
             $header = [];
+            $parameters = '';
+            $request_id = 'WAS'.date('YmdHis').rand(11111, 999999);
+            $sendUrl = $apiImage !== ''
+                ? $buildUrl($content, $apiImage, true)
+                : $buildUrl($content, '', false);
 
-            $parameters = "";
-
-            $request_id = "WAS".date("YmdHis").rand(11111, 999999);
-
-            $curl = \helpers::curl($url, $method, $parameters, $header, "yes", "WHATSAPP_URL", $request_id);
+            \helpers::curl($sendUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', $request_id);
 
             return 0;
-
-        }else{
-
-            return 1;
-
-        }
-
     }
 
 
@@ -2154,7 +2215,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260903-WEB-007';
+        return '20260904-WEB-008';
     }
 }
 

@@ -41,6 +41,7 @@ class SendSms extends Command
                 'mobile_number' => $user->mobile_number,
                 'content' => $res[$i]->content,
                 'template_id' => $res[$i]->template_id,
+                'slug' => (string) ($res[$i]->subject ?? ''),
             ];
             $email_tmp = DB::table('email_templates')->where('slug', $res[$i]->subject)->first(['subject','content','status']);
             

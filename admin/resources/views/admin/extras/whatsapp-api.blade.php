@@ -14,7 +14,9 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">
-                    Use placeholders in Request URL: <code>{MOB}</code>, <code>{MSG}</code>, <code>{TMP_ID}</code>, <code>{LOGO}</code> / <code>{IMG}</code>.
+                    Use placeholders in Request URL: <code>{MOB}</code>, <code>{MSG}</code>, <code>{TMP_ID}</code>, <code>{IMG}</code> / <code>{MEDIA_URL}</code>.
+                    Put the image in the URL, not inside the message text. Example:
+                    <code>https://example.com/wa?mobile={MOB}&amp;message={MSG}&amp;media_url={IMG}</code>.
                     This same API is used for login OTP / user messages. Manage templates under <a href="{{ route('whatsappTemplatePage') }}">WhatsApp Template List</a>.
                 </p>
                 <form id="whatsappApiForm">

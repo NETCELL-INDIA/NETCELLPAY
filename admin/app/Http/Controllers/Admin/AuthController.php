@@ -127,11 +127,12 @@ class AuthController extends Controller
                                         $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                                         $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                                         $content = str_replace('{OTP}', $otp, $content);
-                                        if($sms_tmp->status == 1){
+                                        if(Common::whatsappEnabled($slug, $sms_tmp)){
                                             Common::sendWhatasappMsg([
                                                 'mobile_number' => $user->mobile_number,
                                                 'content' => $content,
                                                 'template_id' => $sms_tmp->template_id,
+                                                'slug' => $slug,
                                             ]);
                                         }
                                     }
@@ -308,11 +309,12 @@ class AuthController extends Controller
                     $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                     $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                     $content = str_replace('{OTP}', $otp, $content);
-                    if($sms_tmp->status == 1){
+                    if(Common::whatsappEnabled($slug, $sms_tmp)){
                         $msg_data = [
                             'mobile_number' => $user->mobile_number,
                             'content' => $content,
                             'template_id' => $sms_tmp->template_id,
+                            'slug' => $slug,
                         ];
                         $sms = Common::sendWhatasappMsg($msg_data);
                     }
@@ -397,11 +399,12 @@ class AuthController extends Controller
                             $content = str_replace('{MOBILE}', '' . $user->mobile_number . '', $content);
                             $content = str_replace('{PASSWORD}', '' . $pass_g . '', $content);
                             $content = str_replace('{PIN}', '' . $user->t_pin . '', $content);
-                            if ($sms_tmp->status == 1) {
+                            if (Common::whatsappEnabled($slug, $sms_tmp)) {
                                 $msg_data = [
                                     'mobile_number' => $post->mobile_number,
                                     'content' => $content,
                                     'template_id' => $sms_tmp->template_id,
+                                    'slug' => $slug,
                                 ];
                                 $sms = Common::sendWhatasappMsg($msg_data);
                             }

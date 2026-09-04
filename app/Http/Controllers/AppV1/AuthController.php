@@ -192,11 +192,12 @@ class AuthController extends Controller
                                     $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                                     $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                                     $content = str_replace('{OTP}', $otp, $content);
-                                    if($sms_tmp->status == 1){
+                                    if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                                         $msg_data = [
                                             'mobile_number' => $user->mobile_number,
                                             'content' => $content,
                                             'template_id' => $sms_tmp->template_id,
+                                            'slug' => $slug,
                                         ];
                                         \helpers::sendWhatasappMsg($msg_data);
                                     }
@@ -327,7 +328,7 @@ class AuthController extends Controller
                                 $content = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content);
                                 $content = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content);
                                 $content = str_replace('{OTP}', $otp, $content);
-                                if($sms_tmp->status == 1){
+                                if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                                     $msg_data = [
                                         'mobile_number' => $user->mobile_number,
                                         'content' => $content,
@@ -419,7 +420,7 @@ class AuthController extends Controller
                              $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
                              $content = str_replace('{PASSWORD}', '' . $password_g . '', $content);
                              $content = str_replace('{PIN}', '' . $user_data->t_pin . '', $content);
-                             if($sms_tmp->status == 1){
+                             if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                                  $msg_data = [
                                      'mobile_number' => $post->mobile_number,
                                      'content' => $content,
@@ -614,11 +615,12 @@ class AuthController extends Controller
             $content = str_replace('{LAST_NAME}', '' . $post->last_name . '', $content);
             $content = str_replace('{OUTLET_NAME}', '' . $post->outlet_name . '', $content);
             $content = str_replace('{OTP}', '' . $g_otp . '', $content);
-            if($sms_tmp->status == 1){
+            if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                 $msg_data = [
                     'mobile_number' => $post->mobile_number,
                     'content' => $content,
                     'template_id' => $sms_tmp->template_id,
+                    'slug' => $slug,
                 ];
                 $sms = \helpers::sendWhatasappMsg($msg_data);
             }
@@ -735,11 +737,12 @@ class AuthController extends Controller
                     $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
                     $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
                     $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                    if($sms_tmp->status == 1){
+                    if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                         $msg_data = [
                             'mobile_number' => $post->mobile_number,
                             'content' => $content,
                             'template_id' => $sms_tmp->template_id,
+                            'slug' => $slug,
                         ];
                         $sms = \helpers::sendWhatasappMsg($msg_data);
                     }
@@ -948,11 +951,12 @@ class AuthController extends Controller
                 $content = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content);
                 $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
                 $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                if($sms_tmp->status == 1){
+                if(\helpers::whatsappEnabled($slug, $sms_tmp)){
                     $msg_data = [
                         'mobile_number' => $user_data->mobile_number,
                         'content' => $content,
                         'template_id' => $sms_tmp->template_id,
+                        'slug' => $slug,
                     ];
                     $sms = \helpers::sendWhatasappMsg($msg_data);
                     //return $sms;
