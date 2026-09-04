@@ -71,6 +71,7 @@ class SystemSettingController extends Controller
                 'balance_alert_below' => (float) $post->balance_alert_below,
                 'wrong_login_attempt' => (int) $post->wrong_login_attempt,
                 'interval_recharge_minute' => (int) $post->interval_recharge_minute,
+                'recharge_api_timeout' => min(120, max(8, (int) $post->recharge_api_timeout)),
                 'max_fund_transfer' => (float) $post->max_fund_transfer,
                 'referral_amount' => (float) $post->referral_amount,
                 'max_payout_account' => (int) $post->max_payout_account,

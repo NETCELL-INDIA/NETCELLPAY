@@ -137,12 +137,15 @@
                     <div class="ss-grid">
                         @include('admin.system-settings._field', ['name' => 'fund_interval_minute', 'label' => 'Fund Interval(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['fund_interval_minute'] ?? '15'])
                         @include('admin.system-settings._field', ['name' => 'interval_recharge_minute', 'label' => 'Interval Recharge(Minute)', 'icon' => 'ri-time-line', 'value' => $settings['interval_recharge_minute'] ?? '30'])
+                        @include('admin.system-settings._field', ['name' => 'recharge_api_timeout', 'label' => 'Recharge API Timeout (Seconds)', 'icon' => 'ri-timer-flash-line', 'value' => $settings['recharge_api_timeout'] ?? '30'])
                         @include('admin.system-settings._field', ['name' => 'min_fund_transfer', 'label' => 'Minimum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['min_fund_transfer'] ?? '500'])
                         @include('admin.system-settings._field', ['name' => 'max_fund_transfer', 'label' => 'Maximum Fund Transfer', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['max_fund_transfer'] ?? '50000'])
                         @include('admin.system-settings._field', ['name' => 'balance_alert_below', 'label' => 'Balance Alert Below Then', 'icon' => 'ri-alarm-warning-line', 'value' => $settings['balance_alert_below'] ?? '500'])
                         @include('admin.system-settings._field', ['name' => 'referral_amount', 'label' => 'Referral Amount', 'icon' => 'ri-gift-line', 'value' => $settings['referral_amount'] ?? '0'])
                         @include('admin.system-settings._field', ['name' => 'wrong_login_attempt', 'label' => 'Wrong Login Attempt', 'icon' => 'ri-error-warning-line', 'value' => $settings['wrong_login_attempt'] ?? '3'])
                         @include('admin.system-settings._field', ['name' => 'max_payout_account', 'label' => 'Add maximum payout account', 'icon' => 'ri-bank-line', 'value' => $settings['max_payout_account'] ?? '20'])
+                    </div>
+                    <p class="text-muted mt-2 mb-0" style="font-size:.8rem">Recharge API Timeout: how long to wait for Mitrahub / API (8–120 seconds). Use 30 or 45 if logs show “Operation timed out”.</p>
                     </div>
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">

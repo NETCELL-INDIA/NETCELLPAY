@@ -17,6 +17,7 @@ class SystemSettingService
             'balance_alert_below' => '500',
             'wrong_login_attempt' => '3',
             'interval_recharge_minute' => '30',
+            'recharge_api_timeout' => '30',
             'max_fund_transfer' => '50000',
             'referral_amount' => '0',
             'max_payout_account' => '20',
@@ -190,6 +191,21 @@ class SystemSettingService
         }
 
         return $default ?? (self::defaults()[$key] ?? null);
+    }
+
+    public static function rechargeApiTimeout(): int
+    {
+        $connect = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 5));
+        $timeout = (int) env('RECHARGE_API_TIMEOUT', 30);
+        try {
+            $saved = (int) self::get('recharge_api_timeout', 0);
+            if ($saved > 0) {
+                $timeout = $saved;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return min(120, max($connect, $timeout, 8));
     }
 
     public static function isOn(string $key): bool

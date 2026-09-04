@@ -100,6 +100,10 @@ class AuthController extends Controller
                         }
                     }
                     if($otpLimit !== 5){
+                        if (Common::loginOtpRecentlySent($user)) {
+                            $data['type'] = 'otp_verify';
+                            $data['message'] = 'OTP already sent. Please check WhatsApp.';
+                        } else {
                         try {
                             $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                             $otpHash = Hash::make($otp);
@@ -159,6 +163,7 @@ class AuthController extends Controller
                                 'type' => 'error',
                                 'message' => 'Unable to process login OTP. Please try again.',
                             ]);
+                        }
                         }
                     }else{
                         $data['type'] = 'error';

@@ -483,6 +483,9 @@
 
 
        function login() {
+            if (window.__npLoginBusy) {
+                return;
+            }
             mobile_number = $("#mobile_number").val();
             password = $("#password-input").val();
 
@@ -491,6 +494,7 @@
             } else if(password==""){
                 Error_Msg("Error","please enter password","error");
             } else {
+                window.__npLoginBusy = true;
                 $.ajax({
                     url: "{{ route('LoginCheck') }}",
                     type: 'post',
@@ -519,6 +523,9 @@
                     error: function( jqXhr, textStatus, errorThrown ){
                         var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message) ? jqXhr.responseJSON.message : "Something went wrong!";
                         Error_Msg("Oops...", msg, "error");
+                    },
+                    complete: function() {
+                        window.__npLoginBusy = false;
                     }
                 });
             } 

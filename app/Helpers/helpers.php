@@ -1252,6 +1252,18 @@ class helpers
             return $smsTmp && (int) $smsTmp->status === 1;
         }
 
+    public static function loginOtpRecentlySent($user, int $seconds = 60): bool
+    {
+        if (! $user || empty($user->otp) || empty($user->otp_created_at)) {
+            return false;
+        }
+        try {
+            return Carbon::parse($user->otp_created_at)->gt(Carbon::now()->subSeconds($seconds));
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public static function sendQueuedWhatsapp(string $slug, $toUserId, string $mobile, string $content, $smsTmp = null): void
     {
         if ($mobile === '' || ! self::whatsappEnabled($slug, $smsTmp)) {
@@ -1342,6 +1354,11 @@ class helpers
             if ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
                 $mediaFiles[] = $logoUrl;
             }
+            $isOtp = strtolower($slug) === 'otp';
+            if ($isOtp && count($mediaFiles) > 1) {
+                $mediaFiles = array_slice($mediaFiles, 0, 1);
+            }
+            $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
 
             $method = $w_api->whatsapp_api_method ?: 'GET';
             $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
@@ -1384,7 +1401,7 @@ class helpers
             $header = [];
             $parameters = '';
             foreach ($mediaFiles as $idx => $img) {
-                $mediaUrl = $buildUrl($content, $img, true);
+                $mediaUrl = $buildUrl($mediaCaption, $img, true);
                 \helpers::curl($mediaUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
             }
             $textUrl = $buildUrl($content, '', false);
@@ -1627,7 +1644,12 @@ class helpers
         curl_setopt($curl, CURLOPT_ENCODING, "");
 
         $connectTimeout = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 5));
-        $timeout = max($connectTimeout, (int) env('RECHARGE_API_TIMEOUT', 18));
+        try {
+            $timeout = \App\Services\SystemSettingService::rechargeApiTimeout();
+        } catch (\Throwable $e) {
+            $timeout = max($connectTimeout, (int) env('RECHARGE_API_TIMEOUT', 30));
+        }
+        $timeout = max($connectTimeout, $timeout);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $connectTimeout);
         curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
 
@@ -2247,7 +2269,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260904-WEB-009';
+        return '20260904-WEB-010';
     }
 }
 

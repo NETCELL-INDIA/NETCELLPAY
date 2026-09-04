@@ -167,6 +167,10 @@ class AuthController extends Controller
                             }
                         }
                         if($user->otp_limit!=5){
+                            if (\helpers::loginOtpRecentlySent($user)) {
+                                $data['type'] = 'otp_verify';
+                                $data['message'] = 'OTP already sent. Please check WhatsApp.';
+                            } else {
                             $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                             $otpHash = Hash::make($otp);
                             $data['type'] = 'otp_verify';
@@ -221,6 +225,7 @@ class AuthController extends Controller
                                 ////Send Email End
                             } catch (\Throwable $e) {
                                 // OTP is already saved; delivery failures should not block login.
+                            }
                             }
                         }else{
                             $data['type'] = 'error';
@@ -303,6 +308,10 @@ class AuthController extends Controller
                         }
                     }
                     if($user->otp_limit != 5){
+                        if (\helpers::loginOtpRecentlySent($user)) {
+                            $data['type'] = 'otp_verify';
+                            $data['message'] = 'OTP already sent. Please check WhatsApp.';
+                        } else {
                         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                         $otpHash = Hash::make($otp);
                         $data['type'] = 'otp_verify';
@@ -356,6 +365,7 @@ class AuthController extends Controller
                             ////Send Email End
                         } catch (\Throwable $e) {
                             // OTP is already saved; delivery failures should not block recovery.
+                        }
                         }
                     }else{
                         $data['type'] = 'error';

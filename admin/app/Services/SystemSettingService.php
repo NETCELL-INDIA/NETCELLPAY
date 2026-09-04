@@ -18,6 +18,7 @@ class SystemSettingService
             'balance_alert_below' => '500',
             'wrong_login_attempt' => '3',
             'interval_recharge_minute' => '30',
+            'recharge_api_timeout' => '30',
             'max_fund_transfer' => '50000',
             'referral_amount' => '0',
             'max_payout_account' => '20',

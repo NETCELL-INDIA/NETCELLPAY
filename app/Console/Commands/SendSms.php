@@ -29,7 +29,14 @@ class SendSms extends Command
      */
     public function handle()
     {
-       DB::table('users')->update(['otp_limit'=>0]); 
+       try {
+            DB::table('users')
+                ->whereNotNull('otp_created_at')
+                ->where('otp_created_at', '<=', \Carbon\Carbon::now()->subMinutes(10))
+                ->where('otp_limit', '>', 0)
+                ->update(['otp_limit' => 0]);
+       } catch (\Throwable $e) {
+       }
        $res = DB::table('messages')
                 ->where('status', 0)
                 ->take(100)->get();

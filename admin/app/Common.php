@@ -316,6 +316,18 @@ use Illuminate\Http\Request;
             return $smsTmp && (int) $smsTmp->status === 1;
         }
 
+        public static function loginOtpRecentlySent($user, int $seconds = 60): bool
+        {
+            if (! $user || empty($user->otp) || empty($user->otp_created_at)) {
+                return false;
+            }
+            try {
+                return \Carbon\Carbon::parse($user->otp_created_at)->gt(\Carbon\Carbon::now()->subSeconds($seconds));
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
         public static function sendQueuedWhatsapp(string $slug, $toUserId, string $mobile, string $content, $smsTmp = null): void
         {
             if ($mobile === '' || ! self::whatsappEnabled($slug, $smsTmp)) {
@@ -406,6 +418,11 @@ use Illuminate\Http\Request;
                 if ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
                     $mediaFiles[] = $logoUrl;
                 }
+                $isOtp = strtolower($slug) === 'otp';
+                if ($isOtp && count($mediaFiles) > 1) {
+                    $mediaFiles = array_slice($mediaFiles, 0, 1);
+                }
+                $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
 
                 $method = $w_api->whatsapp_api_method ?: 'GET';
                 $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
@@ -448,7 +465,7 @@ use Illuminate\Http\Request;
                 $header = [];
                 $parameters = '';
                 foreach ($mediaFiles as $idx => $img) {
-                    Common::curl($buildUrl($content, $img, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+                    Common::curl($buildUrl($mediaCaption, $img, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
                 }
                 Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
 
