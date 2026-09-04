@@ -1350,14 +1350,10 @@ class helpers
             $mediaFiles = [];
             if ($attachImage && $imageUrl !== '') {
                 $mediaFiles[] = $imageUrl;
-            }
-            if ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
+            } elseif ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
                 $mediaFiles[] = $logoUrl;
             }
             $isOtp = strtolower($slug) === 'otp';
-            if ($isOtp && count($mediaFiles) > 1) {
-                $mediaFiles = array_slice($mediaFiles, 0, 1);
-            }
             $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
 
             $method = $w_api->whatsapp_api_method ?: 'GET';
@@ -1400,12 +1396,18 @@ class helpers
 
             $header = [];
             $parameters = '';
+            $sentMedia = false;
             foreach ($mediaFiles as $idx => $img) {
                 $mediaUrl = $buildUrl($mediaCaption, $img, true);
                 \helpers::curl($mediaUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+                $sentMedia = true;
             }
-            $textUrl = $buildUrl($content, '', false);
-            \helpers::curl($textUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
+            // Image caption already has the message. A second text call duplicated every WhatsApp.
+            // OTP still needs a separate text because the image caption is not the OTP.
+            if ($content !== '' && (!$sentMedia || $isOtp)) {
+                $textUrl = $buildUrl($content, '', false);
+                \helpers::curl($textUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
+            }
 
             return 0;
     }
@@ -2269,7 +2271,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20260904-WEB-010';
+        return '20260904-WEB-015';
     }
 }
 

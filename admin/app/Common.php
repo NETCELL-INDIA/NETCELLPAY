@@ -415,14 +415,10 @@ use Illuminate\Http\Request;
                 $mediaFiles = [];
                 if ($attachImage && $imageUrl !== '') {
                     $mediaFiles[] = $imageUrl;
-                }
-                if ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
+                } elseif ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
                     $mediaFiles[] = $logoUrl;
                 }
                 $isOtp = strtolower($slug) === 'otp';
-                if ($isOtp && count($mediaFiles) > 1) {
-                    $mediaFiles = array_slice($mediaFiles, 0, 1);
-                }
                 $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
 
                 $method = $w_api->whatsapp_api_method ?: 'GET';
@@ -465,10 +461,14 @@ use Illuminate\Http\Request;
 
                 $header = [];
                 $parameters = '';
+                $sentMedia = false;
                 foreach ($mediaFiles as $idx => $img) {
                     Common::curl($buildUrl($mediaCaption, $img, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+                    $sentMedia = true;
                 }
-                Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
+                if ($content !== '' && (!$sentMedia || $isOtp)) {
+                    Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
+                }
 
                 return 0;
         }

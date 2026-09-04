@@ -39,6 +39,10 @@ class SendSms extends Command
        }
        $res = DB::table('messages')
                 ->where('status', 0)
+                ->where(function ($q) {
+                    $q->whereNull('msg_source')
+                        ->orWhereIn('msg_source', ['WHATSAPP', 'Sms', 'SMS']);
+                })
                 ->take(100)->get();
        $rows =  $res->count();
        //echo "<pre>";print_r($rows);
