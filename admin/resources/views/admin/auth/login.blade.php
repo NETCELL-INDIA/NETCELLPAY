@@ -201,6 +201,9 @@
                         } else if (data.type === "otp_verify") {
                             Error_Msg("OTP Sent", data.message, "info");
                             showOtpStep(data.local_otp || "");
+                        } else if (data.type === "success") {
+                            Error_Msg("Success", data.message, "success");
+                            window.location.replace("{{ url('admin/dashboard') }}");
                         } else {
                             Error_Msg("Oops...", "Something went wrong!", "error");
                         }

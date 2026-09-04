@@ -29,8 +29,11 @@
 @endcomponent
 
 <div class="alert alert-info py-2 mb-3">
-    <strong>Account Reports</strong> lists every wallet transaction: Credit, Debit and Fund (transfer / receive / UPI / self).
-    Opening and closing balance are shown on each row. Recharge here is the wallet cut; operator status is in
+    <strong>Account Reports</strong> is one page for admin wallet entries:
+    <strong>Credit</strong> (Receive / Money Reverse),
+    <strong>Debit</strong> (Transfer / Reverse), and
+    <strong>Add</strong> (Self Money / UPI Add).
+    Default filter shows these together. Recharge operator status is in
     <a href="{{ URL::asset('admin/user-reports/recharge-report') }}">Recharge Report</a>.
 </div>
 
@@ -66,7 +69,7 @@
 
                                 <label class="form-label mb-0">From Date</label>
 
-                                <input type="date" class="form-control" name="from_date" value="{{\Carbon\Carbon::today()->format('Y-m-d')}}" id="from_date">
+                                <input type="date" class="form-control" name="from_date" value="{{\Carbon\Carbon::today()->subDays(29)->format('Y-m-d')}}" id="from_date">
 
                             </div>
 
@@ -124,19 +127,21 @@
 
                             <select class="form-select mb-3" name="tr_type"  id="tr_type">
 
-                                <option selected value="All">All types</option>
+                                <option selected value="Admin Fund">Admin Credit / Debit / Add</option>
 
-                                <option value="Transfer Money">Fund — Transfer Money</option>
+                                <option value="All">All types</option>
 
-                                <option value="Receive Money">Fund — Receive Money</option>
+                                <option value="Transfer Money">Fund — Transfer Money (Debit)</option>
 
-                                <option value="Self Money">Fund — Self Money</option>
+                                <option value="Receive Money">Fund — Receive Money (Credit)</option>
 
-                                <option value="Upi Add Money">Fund — UPI Add Money</option>
+                                <option value="Self Money">Fund — Self Money (Add)</option>
 
-                                <option value="Reverse Money">Fund — Reverse Money</option>
+                                <option value="Upi Add Money">Fund — UPI Add Money (Add)</option>
 
-                                <option value="Money Reverse">Fund — Money Reverse</option>
+                                <option value="Reverse Money">Fund — Reverse Money (Debit)</option>
+
+                                <option value="Money Reverse">Fund — Money Reverse (Credit)</option>
 
                                 <option value="Recharge">Recharge (Debit)</option>
 
@@ -216,7 +221,7 @@
 
             <div class="card-header align-items-center d-flex">
 
-                <h4 class="card-title mb-0 flex-grow-1">Account Reports — All Transactions</h4>
+                <h4 class="card-title mb-0 flex-grow-1">Account Reports — Admin Credit, Debit &amp; Add</h4>
 
                 <div class="flex-shrink-0">
                     <div class="form-check form-switch form-switch-right form-switch-md">

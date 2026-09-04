@@ -1,4 +1,46 @@
 <header id="page-topbar" class="rb-topbar">
+<script>
+window.openLiveRechargeReport = function (url) {
+    url = url || '';
+    var availLeft = (typeof screen.availLeft === 'number') ? screen.availLeft : 0;
+    var availTop = (typeof screen.availTop === 'number') ? screen.availTop : 0;
+    var availW = screen.availWidth || screen.width || 1200;
+    var availH = screen.availHeight || screen.height || 800;
+    var adminW = Math.max(720, Math.floor(availW * 0.52));
+    if (adminW > availW - 640) {
+        adminW = Math.floor(availW * 0.5);
+    }
+    var liveW = Math.max(640, availW - adminW);
+    try {
+        window.moveTo(availLeft, availTop);
+        window.resizeTo(adminW, availH);
+    } catch (e) {}
+    var features = [
+        'popup=yes',
+        'resizable=yes',
+        'scrollbars=yes',
+        'toolbar=no',
+        'menubar=no',
+        'location=no',
+        'status=no',
+        'width=' + liveW,
+        'height=' + availH,
+        'left=' + (availLeft + adminW),
+        'top=' + availTop
+    ].join(',');
+    var w = window.open(url, 'liveRechargeReport', features);
+    if (w) {
+        try { w.focus(); } catch (e) {}
+        try {
+            w.moveTo(availLeft + adminW, availTop);
+            w.resizeTo(liveW, availH);
+        } catch (e) {}
+    } else {
+        window.open(url, '_blank');
+    }
+    return false;
+};
+</script>
     <div class="layout-width">
         <div class="navbar-header rb-navbar">
             <div class="d-flex align-items-center">
@@ -39,7 +81,7 @@
 
             <div class="d-flex align-items-center rb-top-actions">
                 <button type="button" class="btn rb-icon-btn" title="Live Recharge Report"
-                    onclick="window.open('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}','liveRechargeReport','width='+(screen.width-80)+',height='+(screen.height-120)+',left=40,top=40,resizable=yes,scrollbars=yes')">
+                    onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">
                     <i class="ri-pulse-line"></i>
                 </button>
 
@@ -252,7 +294,7 @@
                             <span class="rb-dd-badge" id="DropComplaintCount"></span>
                         </a>
                         <a class="dropdown-item" href="javascript:void(0);"
-                            onclick="window.open('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}','liveRechargeReport','width='+(screen.width-80)+',height='+(screen.height-120)+',left=40,top=40,resizable=yes,scrollbars=yes')">
+                            onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">
                             <i class="ri-pulse-line me-2"></i> Live Recharge Report
                         </a>
                         <a class="dropdown-item" href="{{ URL::asset('admin/fund/fund-request') }}">

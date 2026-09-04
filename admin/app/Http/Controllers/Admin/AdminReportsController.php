@@ -17,7 +17,7 @@ class AdminReportsController extends Controller
         return view('admin.admin-reports.live-recharge-report');
     }
 
-    private function liveRechargeBaseQuery(Request $post)
+    private function liveRechargeBaseQuery(Request $post, bool $applyStatus = true)
     {
         $q = DB::table('reports as r')
             ->leftJoin('users as u', 'u.id', '=', 'r.user_id')
@@ -27,12 +27,15 @@ class AdminReportsController extends Controller
             ->leftJoin('states as st', 'st.id', '=', 'r.state_id')
             ->whereIn('r.transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment']);
 
-        $from = $post->from_date ?: Carbon::today()->format('Y-m-d');
-        $to = $post->to_date ?: Carbon::today()->format('Y-m-d');
-        $q->where(function ($w) use ($from, $to) {
-            $w->whereBetween('r.created_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
-                ->orWhereBetween('r.transaction_date', [$from . ' 00:00:00', $to . ' 23:59:59']);
-        });
+        $last50 = $post->last50 == 1 || $post->last50 === '1' || $post->last50 === true;
+        if (!$last50) {
+            $from = $post->from_date ?: Carbon::today()->format('Y-m-d');
+            $to = $post->to_date ?: Carbon::today()->format('Y-m-d');
+            $q->where(function ($w) use ($from, $to) {
+                $w->whereBetween('r.created_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
+                    ->orWhereBetween('r.transaction_date', [$from . ' 00:00:00', $to . ' 23:59:59']);
+            });
+        }
 
         if ($post->api_id) {
             $q->where('r.api_id', (int) $post->api_id);
@@ -46,12 +49,14 @@ class AdminReportsController extends Controller
         if ($post->circle_id) {
             $q->where('r.state_id', (int) $post->circle_id);
         }
-        if ($post->status && $post->status !== 'All') {
+        if ($applyStatus && $post->status && $post->status !== 'All') {
             $status = $post->status;
             if ($status === 'Failure' || $status === 'Failed') {
                 $q->whereIn('r.status', ['Failed', 'Failure']);
             } elseif ($status === 'Refunded') {
                 $q->whereIn('r.status', ['Refunded', 'Refund']);
+            } elseif ($status === 'Pending') {
+                $q->whereIn('r.status', ['Pending', 'Under Proces', 'Under Process', 'Processing']);
             } else {
                 $q->where('r.status', $status);
             }
@@ -95,30 +100,22 @@ class AdminReportsController extends Controller
 
     public function liveRechargeReportsList(Request $post)
     {
-        $limit = (int) ($post->show ?: 10);
-        if (!in_array($limit, [10, 25, 50, 100], true)) {
-            $limit = 10;
-        }
-        $page = max(1, (int) ($post->page ?: 1));
-        $offset = ($page - 1) * $limit;
+        $post->merge(['last50' => 1]);
+        $limit = 50;
+        $page = 1;
+        $offset = 0;
 
-        $base = $this->liveRechargeBaseQuery($post);
-        $total = (clone $base)->count();
+        $listBase = $this->liveRechargeBaseQuery($post, true);
+        $summaryBase = $this->liveRechargeBaseQuery($post, false);
 
-        $summaryRows = (clone $base)
-            ->selectRaw("
-                SUM(CASE WHEN r.status = 'Success' THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as success_amt,
-                SUM(CASE WHEN r.status = 'Success' THEN 1 ELSE 0 END) as success_cnt,
-                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as pending_amt,
-                SUM(CASE WHEN r.status IN ('Pending','Under Proces','Under Process','Processing') THEN 1 ELSE 0 END) as pending_cnt,
-                SUM(CASE WHEN r.status IN ('Failed','Failure') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as failure_amt,
-                SUM(CASE WHEN r.status IN ('Failed','Failure') THEN 1 ELSE 0 END) as failure_cnt,
-                SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN COALESCE(r.total_amount, r.amount) ELSE 0 END) as refunded_amt,
-                SUM(CASE WHEN r.status IN ('Refunded','Refund') THEN 1 ELSE 0 END) as refunded_cnt
-            ")
-            ->first();
+        $summarySource = (clone $summaryBase)
+            ->select('r.status', 'r.amount', 'r.total_amount')
+            ->orderByDesc('r.id')
+            ->limit(50)
+            ->get();
+        $summary = $this->liveSummaryFromRows($summarySource);
 
-        $reports = (clone $base)
+        $reports = (clone $listBase)
             ->select(
                 'r.*',
                 'u.outlet_name',
@@ -130,9 +127,9 @@ class AdminReportsController extends Controller
                 'st.state_name as circle_name'
             )
             ->orderByDesc('r.id')
-            ->offset($offset)
             ->limit($limit)
             ->get();
+        $total = $reports->count();
 
         $hasPath = Schema::hasColumn('reports', 'path');
         $rows = '';
@@ -163,31 +160,58 @@ class AdminReportsController extends Controller
             $rows = '<tr><td colspan="11" class="text-center text-muted py-4">No data available in table</td></tr>';
         }
 
-        $fromEntry = $total ? ($offset + 1) : 0;
-        $toEntry = min($offset + $limit, $total);
+        $fromEntry = $total ? 1 : 0;
+        $toEntry = $total;
 
         return response()->json([
             'type' => 'success',
             'rows' => $rows,
-            'summary' => [
-                'success_amt' => number_format((float) ($summaryRows->success_amt ?? 0), 2),
-                'success_cnt' => (int) ($summaryRows->success_cnt ?? 0),
-                'pending_amt' => number_format((float) ($summaryRows->pending_amt ?? 0), 2),
-                'pending_cnt' => (int) ($summaryRows->pending_cnt ?? 0),
-                'failure_amt' => number_format((float) ($summaryRows->failure_amt ?? 0), 2),
-                'failure_cnt' => (int) ($summaryRows->failure_cnt ?? 0),
-                'refunded_amt' => number_format((float) ($summaryRows->refunded_amt ?? 0), 2),
-                'refunded_cnt' => (int) ($summaryRows->refunded_cnt ?? 0),
-            ],
+            'summary' => $summary,
             'pagination' => [
                 'page' => $page,
                 'show' => $limit,
                 'total' => $total,
                 'from' => $fromEntry,
                 'to' => $toEntry,
-                'last_page' => max(1, (int) ceil($total / $limit)),
+                'last_page' => 1,
             ],
         ]);
+    }
+
+    private function liveSummaryFromRows($rows): array
+    {
+        $successAmt = $successCnt = $pendingAmt = $pendingCnt = 0;
+        $failureAmt = $failureCnt = $refundedAmt = $refundedCnt = 0;
+        $pendingSt = ['Pending', 'Under Proces', 'Under Process', 'Processing'];
+        $failSt = ['Failed', 'Failure'];
+        $refSt = ['Refunded', 'Refund'];
+        foreach ($rows as $r) {
+            $amt = (float) ($r->total_amount ?: $r->amount);
+            $st = (string) $r->status;
+            if ($st === 'Success') {
+                $successAmt += $amt;
+                $successCnt++;
+            } elseif (in_array($st, $pendingSt, true)) {
+                $pendingAmt += $amt;
+                $pendingCnt++;
+            } elseif (in_array($st, $failSt, true)) {
+                $failureAmt += $amt;
+                $failureCnt++;
+            } elseif (in_array($st, $refSt, true)) {
+                $refundedAmt += $amt;
+                $refundedCnt++;
+            }
+        }
+        return [
+            'success_amt' => number_format($successAmt, 2),
+            'success_cnt' => $successCnt,
+            'pending_amt' => number_format($pendingAmt, 2),
+            'pending_cnt' => $pendingCnt,
+            'failure_amt' => number_format($failureAmt, 2),
+            'failure_cnt' => $failureCnt,
+            'refunded_amt' => number_format($refundedAmt, 2),
+            'refunded_cnt' => $refundedCnt,
+        ];
     }
 
     public function liveRechargeReportsDownload(Request $post)

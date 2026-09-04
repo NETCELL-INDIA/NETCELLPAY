@@ -72,7 +72,7 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
-            if(Hash::check($post->password, $user->password)){
+            if(Common::verifyUserPassword(trim((string) $post->password), $user)){
 
                 if($user->status==1){
                     if (!\App\Services\SystemSettingService::adminLoginRequiresOtp()) {
@@ -210,7 +210,7 @@ class AuthController extends Controller
 
         $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
         if($user){
-            if(Hash::check($post->password, $user->password)){
+            if(Common::verifyUserPassword(trim((string) $post->password), $user)){
 
                 if($user->status==1){
                     $otpValid = $this->verifyUnifiedLoginOtp($post, $user);

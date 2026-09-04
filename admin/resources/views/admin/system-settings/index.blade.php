@@ -145,7 +145,7 @@
                         @include('admin.system-settings._field', ['name' => 'wrong_login_attempt', 'label' => 'Wrong Login Attempt', 'icon' => 'ri-error-warning-line', 'value' => $settings['wrong_login_attempt'] ?? '3'])
                         @include('admin.system-settings._field', ['name' => 'max_payout_account', 'label' => 'Add maximum payout account', 'icon' => 'ri-bank-line', 'value' => $settings['max_payout_account'] ?? '20'])
                     </div>
-                    <p class="text-muted mt-2 mb-0" style="font-size:.8rem">Recharge API Timeout: how long to wait for Mitrahub / API (8–120 seconds). Use 30 or 45 if logs show “Operation timed out”.</p>
+                    <p class="text-muted mt-2 mb-0" style="font-size:.8rem">Recharge API Timeout: how long to wait for the recharge API (8–120 seconds). Use 30 or 45 if logs show “Operation timed out”.</p>
                     </div>
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">

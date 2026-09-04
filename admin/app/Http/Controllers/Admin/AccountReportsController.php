@@ -44,7 +44,7 @@ class AccountReportsController extends Controller
 
             'limit' => 'required|numeric',
 
-            'tr_type' => 'required|in:All,Transfer Money,Receive Money,Upi Add Money,Self Money,Reverse Money,Money Reverse,Commission,Recharge,Reverse Commission,Refund,Money Transfer',
+            'tr_type' => 'required|in:Admin Fund,All,Transfer Money,Receive Money,Upi Add Money,Self Money,Reverse Money,Money Reverse,Commission,Recharge,Reverse Commission,Refund,Money Transfer',
 
             'fund_type' => 'required|in:All,Credit,Debit',
 
@@ -169,22 +169,19 @@ class AccountReportsController extends Controller
         $start= ($page-1) * $limit;
 
         $filterQuery = function () use ($table, $from_date, $to_date, $post) {
-            return DB::table($table)
-                ->whereBetween('created_at', [$from_date,$to_date])
-                ->where('user_id', 'like', '%' . $post->user_id . '%')
-                ->where('order_id', 'like', '%' . $post->order_id . '%')
-                ->where('fund_type', 'like', '%' . $post->fund_type . '%')
-                ->where('transaction_type', 'like', '%' . $post->tr_type . '%');
+            return $this->accountReportQuery($table, $from_date, $to_date, $post);
         };
 
         $total_row_count = $filterQuery()->count();
 
         $totals = $filterQuery()->selectRaw("
                 COALESCE(SUM(CASE WHEN fund_type = 'Credit' THEN amount ELSE 0 END), 0) as total_credit,
-                COALESCE(SUM(CASE WHEN fund_type = 'Debit' THEN amount ELSE 0 END), 0) as total_debit
+                COALESCE(SUM(CASE WHEN fund_type = 'Debit' THEN amount ELSE 0 END), 0) as total_debit,
+                COALESCE(SUM(CASE WHEN transaction_type IN ('Self Money', 'Upi Add Money') THEN amount ELSE 0 END), 0) as total_add
             ")->first();
         $total_credit = (float) ($totals->total_credit ?? 0);
         $total_debit = (float) ($totals->total_debit ?? 0);
+        $total_add = (float) ($totals->total_add ?? 0);
 
         $total_pages = ceil($total_row_count / $limit);
 
@@ -265,9 +262,10 @@ class AccountReportsController extends Controller
                 </div><br>';
 
             $output .= '<div class="row g-2 mb-3">
-                <div class="col-md-4"><div class="border rounded p-2 bg-success-subtle"><small class="text-muted">Total Credit</small><div class="fw-bold text-success">₹ '.number_format($total_credit, 2).'</div></div></div>
-                <div class="col-md-4"><div class="border rounded p-2 bg-danger-subtle"><small class="text-muted">Total Debit</small><div class="fw-bold text-danger">₹ '.number_format($total_debit, 2).'</div></div></div>
-                <div class="col-md-4"><div class="border rounded p-2"><small class="text-muted">Net (Credit − Debit)</small><div class="fw-bold">₹ '.number_format($total_credit - $total_debit, 2).'</div></div></div>
+                <div class="col-md-3"><div class="border rounded p-2 bg-success-subtle"><small class="text-muted">Total Credit</small><div class="fw-bold text-success">₹ '.number_format($total_credit, 2).'</div></div></div>
+                <div class="col-md-3"><div class="border rounded p-2 bg-danger-subtle"><small class="text-muted">Total Debit</small><div class="fw-bold text-danger">₹ '.number_format($total_debit, 2).'</div></div></div>
+                <div class="col-md-3"><div class="border rounded p-2 bg-primary-subtle"><small class="text-muted">Total Add</small><div class="fw-bold text-primary">₹ '.number_format($total_add, 2).'</div></div></div>
+                <div class="col-md-3"><div class="border rounded p-2"><small class="text-muted">Net (Credit − Debit)</small><div class="fw-bold">₹ '.number_format($total_credit - $total_debit, 2).'</div></div></div>
             </div>';
 
             $output .= '<table class="table table-bordered table-nowrap" id="pagination_table"><thead>
@@ -313,7 +311,8 @@ class AccountReportsController extends Controller
                 <td>' . e($list->transaction_date) . '</td>
                 <td>' . e($list->order_id) . '</td>
                 <td>
-                    <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
+                    <span class="badge ' . $this->adminTxnKindBadge($list->transaction_type, $list->fund_type) . '">' . e($this->adminTxnKindLabel($list->transaction_type, $list->fund_type)) . '</span>
+                    <div><small>' . e($list->transaction_type) . '</small></div>
                 </td>
                 <td>' . e($list->remark) . '</td>
                 <td class="text-end">' . $creditCell . '</td>
@@ -469,17 +468,7 @@ class AccountReportsController extends Controller
                 'Path',
                 'IP Address',
             ]);
-            DB::table($table)
-
-            ->whereBetween('created_at', [$from_date,$to_date])
-
-            ->where('user_id', 'like', '%' . $post->user_id . '%')
-
-            ->where('order_id', 'like', '%' . $post->order_id . '%')
-
-            ->where('transaction_type', 'like', '%' . $post->tr_type . '%')
-
-            ->where('fund_type', 'like', '%' . $post->fund_type . '%')
+            $this->accountReportQuery($table, $from_date, $to_date, $post)
             ->orderBy('id', 'ASC')
             ->chunk(200, function($rows) use ($handle) {
 
@@ -547,7 +536,70 @@ class AccountReportsController extends Controller
 
     }
 
+    private function adminFundTypes(): array
+    {
+        return [
+            'Transfer Money',
+            'Receive Money',
+            'Reverse Money',
+            'Money Reverse',
+            'Self Money',
+            'Upi Add Money',
+        ];
+    }
 
+    private function accountReportQuery(string $table, string $from_date, string $to_date, $post)
+    {
+        $q = DB::table($table)->whereBetween('created_at', [$from_date, $to_date]);
+
+        if ($post->user_id !== '' && $post->user_id !== null) {
+            $q->where('user_id', $post->user_id);
+        }
+        if (!empty($post->order_id)) {
+            $q->where('order_id', 'like', '%' . $post->order_id . '%');
+        }
+        if (!empty($post->fund_type)) {
+            $q->where('fund_type', $post->fund_type);
+        }
+
+        $tr = (string) $post->tr_type;
+        if ($tr === 'Admin Fund') {
+            $q->whereIn('transaction_type', $this->adminFundTypes());
+        } elseif ($tr !== '') {
+            $q->where('transaction_type', $tr);
+        }
+
+        return $q;
+    }
+
+    private function adminTxnKindLabel($transactionType, $fundType): string
+    {
+        if (in_array($transactionType, ['Self Money', 'Upi Add Money'], true)) {
+            return 'Add';
+        }
+        if ($fundType === 'Credit') {
+            return 'Credit';
+        }
+        if ($fundType === 'Debit') {
+            return 'Debit';
+        }
+        return (string) $transactionType;
+    }
+
+    private function adminTxnKindBadge($transactionType, $fundType): string
+    {
+        $kind = $this->adminTxnKindLabel($transactionType, $fundType);
+        if ($kind === 'Add') {
+            return 'badge bg-primary';
+        }
+        if ($kind === 'Credit') {
+            return 'badge bg-success';
+        }
+        if ($kind === 'Debit') {
+            return 'badge bg-danger';
+        }
+        return 'badge badge-gradient-info';
+    }
 
 }
 

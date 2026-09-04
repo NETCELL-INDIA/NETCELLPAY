@@ -6,6 +6,7 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 use Illuminate\Http\Request;
@@ -876,6 +877,41 @@ use Illuminate\Http\Request;
         }
 
         return 'https://www.google.com/maps?q='.rawurlencode($lat.','.$lng);
+    }
+
+    public static function verifyUserPassword(string $plain, object $user): bool
+    {
+        $plain = (string) $plain;
+        $hash = (string) ($user->password ?? '');
+
+        if ($hash !== '' && str_starts_with($hash, '$2y$') && Hash::check($plain, $hash)) {
+            return true;
+        }
+
+        if ($hash !== '' && ! str_starts_with($hash, '$2y$') && hash_equals($hash, $plain)) {
+            DB::table('users')->where('id', $user->id)->update([
+                'password' => Hash::make($plain),
+                'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        $visible = (string) ($user->visible_password ?? '');
+        if ($visible === '' && ! empty($user->id) && Schema::hasColumn('users', 'visible_password')) {
+            $visible = (string) DB::table('users')->where('id', $user->id)->value('visible_password');
+        }
+
+        if ($visible !== '' && hash_equals($visible, $plain)) {
+            DB::table('users')->where('id', $user->id)->update([
+                'password' => Hash::make($plain),
+                'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        return false;
     }
 
     public static function recordLoginHistory(int $userId, string $loginPath = 'WEB'): void

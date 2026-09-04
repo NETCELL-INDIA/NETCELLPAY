@@ -208,14 +208,18 @@
             gap: 6px;
             margin-left: 4px;
         }
-        .live-summary span {
+        .live-summary button {
             font-size: 0.7rem;
             font-weight: 700;
             padding: 4px 9px;
             border-radius: 999px;
             border: 1px solid;
             white-space: nowrap;
+            cursor: pointer;
+            line-height: 1.2;
         }
+        .live-summary button:hover { filter: brightness(0.96); }
+        .live-summary button.is-active { box-shadow: 0 0 0 2px rgba(64,81,137,.28); }
         .sum-success { background: #e8f6ee; color: #146c43; border-color: #198754; }
         .sum-pending { background: #fff8e1; color: #9a7400; border-color: #ffc107; }
         .sum-failure { background: #fdecee; color: #b02a37; border-color: #dc3545; }
@@ -305,10 +309,10 @@
             <h1>Live Recharge Report</h1>
             <span class="live-pulse" id="livePulse"><span class="live-dot"></span><span id="livePulseText">Live</span></span>
             <div class="live-summary" id="summaryPills">
-                <span class="sum-success">SUCCESS: 0.00 (0)</span>
-                <span class="sum-pending">PENDING: 0.00 (0)</span>
-                <span class="sum-failure">FAILURE: 0.00 (0)</span>
-                <span class="sum-refunded">REFUNDED: 0.00 (0)</span>
+                <button type="button" class="sum-success" data-status="Success">SUCCESS: 0.00 (0)</button>
+                <button type="button" class="sum-pending" data-status="Pending">PENDING: 0.00 (0)</button>
+                <button type="button" class="sum-failure" data-status="Failure">FAILURE: 0.00 (0)</button>
+                <button type="button" class="sum-refunded" data-status="Refunded">REFUNDED: 0.00 (0)</button>
             </div>
         </div>
         <div class="live-top-filters">
@@ -363,26 +367,30 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
 var currentPage = 1;
 var lastPage = 1;
 var autoTimer = null;
-var today = '{{ \Carbon\Carbon::today()->format('Y-m-d') }}';
 
 function filterPayload() {
     return {
         _token: csrf,
         show: 50,
-        page: currentPage,
-        from_date: today,
-        to_date: today,
+        last50: 1,
+        page: 1,
         status: $('#status').val()
     };
 }
 
 function renderSummary(s) {
     if (!s) return;
+    var active = $('#status').val() || '';
+    function pill(cls, status, label, amt, cnt) {
+        var on = active === status ? ' is-active' : '';
+        return '<button type="button" class="' + cls + on + '" data-status="' + status + '">' +
+            label + ': ' + amt + ' (' + cnt + ')</button>';
+    }
     $('#summaryPills').html(
-        '<span class="sum-success">SUCCESS: ' + s.success_amt + ' (' + s.success_cnt + ')</span>' +
-        '<span class="sum-pending">PENDING: ' + s.pending_amt + ' (' + s.pending_cnt + ')</span>' +
-        '<span class="sum-failure">FAILURE: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
-        '<span class="sum-refunded">REFUNDED: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
+        pill('sum-success', 'Success', 'SUCCESS', s.success_amt, s.success_cnt) +
+        pill('sum-pending', 'Pending', 'PENDING', s.pending_amt, s.pending_cnt) +
+        pill('sum-failure', 'Failure', 'FAILURE', s.failure_amt, s.failure_cnt) +
+        pill('sum-refunded', 'Refunded', 'REFUNDED', s.refunded_amt, s.refunded_cnt)
     );
 }
 
@@ -403,11 +411,10 @@ function fetchLive(silent) {
             $('#liveBody').html(res.rows);
             renderSummary(res.summary || {});
             var p = res.pagination || {};
-            currentPage = p.page || 1;
-            lastPage = p.last_page || 1;
-            $('#pageInfo').text('Showing ' + (p.from || 0) + ' to ' + (p.to || 0) + ' of ' + (p.total || 0) + ' entries');
-            $('#btnPrev').prop('disabled', currentPage <= 1);
-            $('#btnNext').prop('disabled', currentPage >= lastPage);
+            currentPage = 1;
+            lastPage = 1;
+            $('#pageInfo').text('Last 50 transactions — showing ' + (p.from || 0) + ' to ' + (p.to || 0));
+            $('#btnPrev, #btnNext').prop('disabled', true);
         },
         error: function () {
             $('#liveBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
@@ -416,6 +423,16 @@ function fetchLive(silent) {
 }
 
 $(function () {
+    $(document).on('click', '#summaryPills [data-status]', function () {
+        var st = $(this).attr('data-status') || '';
+        if ($('#status').val() === st) {
+            $('#status').val('');
+        } else {
+            $('#status').val(st);
+        }
+        currentPage = 1;
+        fetchLive(false);
+    });
     $('#status').on('change', function () {
         currentPage = 1;
         fetchLive(false);
