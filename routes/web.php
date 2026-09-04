@@ -41,6 +41,31 @@ Route::get('/cron-job', function() {
     \Artisan::call('queue:work', ['--stop-when-empty' => true]);
     return "done";
 });
+Route::get('/wa-media/{file}', function (string $file) {
+    $file = basename($file);
+    if (! preg_match('/^[A-Za-z0-9._-]+$/', $file)) {
+        abort(404);
+    }
+    $dirs = [
+        public_path('whatsapp_template'),
+        public_path('company_logo'),
+        base_path('admin/public/whatsapp_template'),
+        base_path('admin/public/company_logo'),
+    ];
+    foreach ($dirs as $dir) {
+        $path = $dir.DIRECTORY_SEPARATOR.$file;
+        if (is_file($path)) {
+            $mime = function_exists('mime_content_type') ? (mime_content_type($path) ?: 'image/png') : 'image/png';
+
+            return response()->file($path, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+                'Access-Control-Allow-Origin' => '*',
+            ]);
+        }
+    }
+    abort(404);
+})->where('file', '[A-Za-z0-9._-]+');
 //Route::get('add-list-shiba',[AuthController::class,'add_user_by_arrray']);
 // Route::get('/cron-job', function() {
 //     \Artisan::call('send_sms_every_minutes');

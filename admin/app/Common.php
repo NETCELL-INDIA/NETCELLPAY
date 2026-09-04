@@ -234,6 +234,27 @@ use Illuminate\Http\Request;
 
 
 
+        public static function whatsappPublicOrigin(): string
+        {
+            $origin = rtrim((string) env('APP_URL', ''), '/');
+            $origin = preg_replace('#/admin$#i', '', $origin) ?: $origin;
+            if ($origin === '') {
+                $origin = 'https://netcellpay.in';
+            }
+
+            return $origin;
+        }
+
+        public static function whatsappPublicFileUrl(string $filename): string
+        {
+            $filename = ltrim(basename($filename), '/');
+            if ($filename === '') {
+                return '';
+            }
+
+            return self::whatsappPublicOrigin().'/wa-media/'.$filename;
+        }
+
         public static function companyWhatsappLogoUrl(): string
         {
             $company = DB::table('companies')->where('id', 1)->first(['company_logo', 'company_icon']);
@@ -241,11 +262,8 @@ use Illuminate\Http\Request;
             if ($file === '') {
                 return '';
             }
-            if (function_exists('admin_company_logo')) {
-                return (string) admin_company_logo($file);
-            }
 
-            return rtrim((string) (env('APP_URL') ?: ''), '/').'/company_logo/'.ltrim($file, '/');
+            return self::whatsappPublicFileUrl($file);
         }
 
         public static function whatsappTemplateImageUrl(string $filename): string
@@ -264,7 +282,7 @@ use Illuminate\Http\Request;
                 return $url;
             }
 
-            return rtrim((string) (env('APP_URL') ?: ''), '/').'/whatsapp_template/'.$filename;
+            return self::whatsappPublicFileUrl($filename);
         }
 
         public static function whatsappPlainMediaUrl(string $url): string
@@ -273,15 +291,14 @@ use Illuminate\Http\Request;
             if ($url === '') {
                 return '';
             }
-            $parts = parse_url($url);
-            if (! is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
-                $cut = strtok($url, '?');
-
-                return $cut !== false ? $cut : $url;
+            $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+            $base = ltrim(basename($path), '/');
+            if ($base !== '' && preg_match('/^[A-Za-z0-9._-]+$/', $base)) {
+                return self::whatsappPublicFileUrl($base);
             }
-            $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+            $cut = strtok($url, '?');
 
-            return $parts['scheme'].'://'.$parts['host'].$port.($parts['path'] ?? '');
+            return $cut !== false ? $cut : $url;
         }
 
         public static function whatsappEnabled(string $slug, $smsTmp = null): bool
@@ -382,7 +399,13 @@ use Illuminate\Http\Request;
                 $content = str_replace(['{LOGO}', '{LOGO_URL}', '{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
                 $content = trim($content);
 
-                $apiImage = ($attachImage && $imageUrl !== '') ? $imageUrl : (($attach && $logoUrl !== '') ? $logoUrl : '');
+                $mediaFiles = [];
+                if ($attachImage && $imageUrl !== '') {
+                    $mediaFiles[] = $imageUrl;
+                }
+                if ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
+                    $mediaFiles[] = $logoUrl;
+                }
 
                 $method = $w_api->whatsapp_api_method ?: 'GET';
                 $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
@@ -398,7 +421,7 @@ use Illuminate\Http\Request;
                     $u = str_replace('{MSG}', urlencode($message), $u);
                     $u = str_replace('{TMP_ID}', $templateId, $u);
                     $u = str_replace('{TMPID}', $templateId, $u);
-                    $u = str_replace('{LOGO}', urlencode($logoUrl), $u);
+                    $u = str_replace('{LOGO}', urlencode($asMedia ? $image : $logoUrl), $u);
                     $u = str_replace('{IMG}', urlencode($image), $u);
                     $u = str_replace('{IMAGE}', urlencode($image), $u);
                     $u = str_replace('{MEDIA}', urlencode($image), $u);
@@ -406,10 +429,17 @@ use Illuminate\Http\Request;
                     $u = str_replace('{FILE}', urlencode($image), $u);
                     if ($asMedia && $image !== '' && ! $hasMediaPlaceholder) {
                         if (preg_match('/([?&])type=text\b/i', $u)) {
-                            $u = preg_replace('/([?&])type=text\b/i', '$1type=media', $u);
+                            $u = preg_replace('/([?&])type=text\b/i', '$1type=image', $u);
+                        } elseif (! preg_match('/[?&]type=/i', $u)) {
+                            $u .= (str_contains($u, '?') ? '&' : '?').'type=image';
                         }
+                        $name = basename((string) (parse_url($image, PHP_URL_PATH) ?: 'netcell.png'));
                         $sep = str_contains($u, '?') ? '&' : '?';
-                        $u .= $sep.'img='.urlencode($image).'&image='.urlencode($image).'&media_url='.urlencode($image).'&filename=netcell.png';
+                        $u .= $sep.'file='.rawurlencode($image)
+                            .'&media_url='.rawurlencode($image)
+                            .'&caption='.rawurlencode($message)
+                            .'&filename='.rawurlencode($name)
+                            .'&mediatype=image';
                     }
 
                     return $u;
@@ -417,12 +447,10 @@ use Illuminate\Http\Request;
 
                 $header = [];
                 $parameters = '';
-                $request_id = 'WAS'.date('YmdHis').rand(11111, 999999);
-                $sendUrl = $apiImage !== ''
-                    ? $buildUrl($content, $apiImage, true)
-                    : $buildUrl($content, '', false);
-
-                Common::curl($sendUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', $request_id);
+                foreach ($mediaFiles as $idx => $img) {
+                    Common::curl($buildUrl($content, $img, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+                }
+                Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
 
                 return 0;
         }
