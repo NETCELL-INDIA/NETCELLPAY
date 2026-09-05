@@ -164,7 +164,7 @@ class ParentController extends Controller
             $profilePic = "avatar-2.png";
 
             try {
-                $g_pass = Str::random(8);
+                $g_pass = \helpers::passwordFromMobile($post->mobile_number);
                 $password = Hash::make($g_pass);
                 $t_pin = \helpers::normalizeUserPin(random_int(0, 9999));
                 $update = DB::table('users')->insert([

@@ -641,6 +641,60 @@ class Helper {
         return ['Pending', 'Under Process', 'Under Proces', 'Processing'];
     }
 
+    public static function ensureFailToSuccessTable(): void
+    {
+        if (\Illuminate\Support\Facades\Schema::hasTable('supplier_fail_to_success')) {
+            return;
+        }
+        \Illuminate\Support\Facades\Schema::create('supplier_fail_to_success', function ($table) {
+            $table->id();
+            $table->string('recharge_id', 100)->nullable();
+            $table->unsignedBigInteger('report_id')->nullable()->index();
+            $table->unsignedBigInteger('provider_id')->nullable();
+            $table->string('number', 30)->nullable();
+            $table->decimal('amount', 12, 2)->default(0);
+            $table->unsignedBigInteger('last_api_id')->nullable();
+            $table->unsignedBigInteger('response_api_id')->nullable();
+            $table->text('response')->nullable();
+            $table->string('remark', 255)->nullable();
+            $table->timestamp('recharge_time')->nullable();
+            $table->timestamp('response_time')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public static function recordFailToSuccess($report, string $source = 'manual', string $response = '', string $remark = ''): void
+    {
+        try {
+            self::ensureFailToSuccessTable();
+            if (is_numeric($report) || is_string($report)) {
+                $report = DB::table('reports')->where('id', $report)->first();
+            }
+            if (! $report) {
+                return;
+            }
+            if (DB::table('supplier_fail_to_success')->where('report_id', $report->id)->exists()) {
+                return;
+            }
+            DB::table('supplier_fail_to_success')->insert([
+                'recharge_id' => $report->order_id,
+                'report_id' => $report->id,
+                'provider_id' => $report->provider_id,
+                'number' => $report->number,
+                'amount' => $report->amount,
+                'last_api_id' => $report->api_id,
+                'response_api_id' => $report->api_id,
+                'response' => $response !== '' ? $response : $source,
+                'remark' => $remark !== '' ? $remark : 'Failed/Refunded changed to Success',
+                'recharge_time' => $report->created_at,
+                'response_time' => \Carbon\Carbon::now(),
+                'created_at' => \Carbon\Carbon::now(),
+                'updated_at' => \Carbon\Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
     public static function sendApiPartnerRechargeCallback($report): bool
     {
         if (is_numeric($report) || is_string($report)) {
@@ -820,10 +874,41 @@ class Helper {
         return (int) $api->{$column} === 1;
     }
 
-    public static function mapApiLiveStatus($api, $actual): ?string
+    public static function isHardApiReject($actual, $payload = null): bool
+    {
+        $status = strtolower(trim((string) $actual));
+        $msg = '';
+        if (is_array($payload)) {
+            $msg = strtolower((string) ($payload['message'] ?? $payload['Message'] ?? $payload['msg'] ?? $payload['error'] ?? ''));
+        } elseif (is_string($payload)) {
+            $msg = strtolower($payload);
+        }
+        if ($msg !== '') {
+            foreach ([
+                'insufficient balance',
+                'insufficient fund',
+                'low balance',
+                'not enough balance',
+                'request rejected',
+                'balance is 0',
+                'zero balance',
+            ] as $needle) {
+                if (str_contains($msg, $needle)) {
+                    return true;
+                }
+            }
+        }
+
+        return in_array($status, ['error', 'failed', 'failure', 'fail'], true);
+    }
+
+    public static function mapApiLiveStatus($api, $actual, $payload = null): ?string
     {
         if (self::apiValueMatches($actual, $api->success_value ?? '')) {
             return self::apiSwitchOn($api, 'success_switch') ? 'Success' : 'Pending';
+        }
+        if (self::isHardApiReject($actual, $payload)) {
+            return 'Failed';
         }
         if (self::apiValueMatches($actual, $api->failed_value ?? '')
             || self::apiValueMatches($actual, $api->error_value_response ?? '')) {
@@ -1161,7 +1246,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20260904-WEB-015';
+        return '20260905-WEB-020';
     }
 }
 
@@ -1269,6 +1354,18 @@ if (! function_exists('user_password_update_fields')) {
         }
 
         return $fields;
+    }
+}
+
+if (! function_exists('user_password_from_mobile')) {
+    function user_password_from_mobile($mobile): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $mobile);
+        if (strlen($digits) >= 8) {
+            return substr($digits, -8);
+        }
+
+        return str_pad($digits !== '' ? $digits : '0', 8, '0', STR_PAD_LEFT);
     }
 }
 

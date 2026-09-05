@@ -437,7 +437,7 @@ class PendingReportController extends Controller
                     if ($actual === null) {
                         $actual = \Helper::apiArrayGet($data, $api->error_value ?? '');
                     }
-                    $mapped = \Helper::mapApiLiveStatus($api, $actual);
+                    $mapped = \Helper::mapApiLiveStatus($api, $actual, $data);
                     if ($mapped) {
                         $status = $mapped;
                     }

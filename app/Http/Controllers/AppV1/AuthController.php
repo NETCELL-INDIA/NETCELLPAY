@@ -406,7 +406,7 @@ class AuthController extends Controller
         if($user){
                 if($user->status==1){
                     if($this->verifyMobileLoginOtp($post->otp, $user)){
-                        $password_g = Str::random(8);
+                        $password_g = \helpers::passwordFromMobile($user->mobile_number);
                         $user_data = DB::table('users')->where('id', $user->id)->first();
                         DB::table('users')->where('id', $user->id)->update(array_merge(
                             \helpers::userPasswordUpdateFields($password_g),
@@ -681,7 +681,7 @@ class AuthController extends Controller
         if($user_data){
             if (Hash::check($post->otp, $user_data->otp)) {
                 try {
-                    $g_pass = Str::random(8);
+                    $g_pass = \helpers::passwordFromMobile($user_data->mobile_number);
                     $password = Hash::make($g_pass);
                     $t_pin = \helpers::normalizeUserPin(random_int(0, 9999));
                     $update = DB::table('users')->insertGetId([

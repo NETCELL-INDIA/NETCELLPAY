@@ -92,10 +92,19 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="recharge-filter-field">
+                    <label class="form-label" for="status">Status</label>
+                    <select class="form-select form-select-sm" id="status">
+                        <option value="">All</option>
+                        <option value="Success">SUCCESS</option>
+                        <option value="Pending">PENDING</option>
+                        <option value="Failure">FAILURE</option>
+                        <option value="Refunded">REFUNDED</option>
+                    </select>
+                </div>
             </div>
 
             <div class="recharge-filter-grid recharge-filter-grid--row2">
-                <input type="hidden" id="status" value="">
                 <div class="recharge-filter-field recharge-filter-field--search">
                     <label class="form-label" for="search_text">Search</label>
                     <input type="text" class="form-control form-control-sm" id="search_text" placeholder="Number / Ref / Operator ID / Client ID">
@@ -149,11 +158,11 @@
     </div>
     <div class="card-body py-2 px-3">
         <div class="recharge-summary" id="summaryPills">
-            <span class="recharge-summary__item recharge-summary__item--success">SUCCESS: 0.00 (0)</span>
+            <button type="button" class="recharge-summary__item recharge-summary__item--success" data-status="Success">SUCCESS: 0.00 (0)</button>
             <span class="recharge-summary__item recharge-summary__item--commission">COMMISSION: 0.00</span>
-            <span class="recharge-summary__item recharge-summary__item--pending">PENDING: 0.00 (0)</span>
-            <span class="recharge-summary__item recharge-summary__item--failure">FAILURE: 0.00 (0)</span>
-            <span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: 0.00 (0)</span>
+            <button type="button" class="recharge-summary__item recharge-summary__item--pending" data-status="Pending">PENDING: 0.00 (0)</button>
+            <button type="button" class="recharge-summary__item recharge-summary__item--failure" data-status="Failure">FAILURE: 0.00 (0)</button>
+            <button type="button" class="recharge-summary__item recharge-summary__item--refunded" data-status="Refunded">REFUNDED: 0.00 (0)</button>
         </div>
 
         <div class="table-responsive recharge-list-table-wrap">
@@ -311,12 +320,18 @@ function filterPayload(extra) {
 }
 
 function renderSummary(s) {
+    var active = $('#status').val() || '';
+    function pill(cls, status, label, text) {
+        var on = active === status ? ' is-active' : '';
+        return '<button type="button" class="recharge-summary__item ' + cls + on + '" data-status="' + status + '">' +
+            label + ': ' + text + '</button>';
+    }
     $('#summaryPills').html(
-        '<span class="recharge-summary__item recharge-summary__item--success">SUCCESS: ' + s.success_amt + ' (' + s.success_cnt + ')</span>' +
+        pill('recharge-summary__item--success', 'Success', 'SUCCESS', (s.success_amt || '0.00') + ' (' + (s.success_cnt || 0) + ')') +
         '<span class="recharge-summary__item recharge-summary__item--commission">COMMISSION: ' + (s.success_com || '0.00') + '</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--pending">PENDING: ' + s.pending_amt + ' (' + s.pending_cnt + ')</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--failure">FAILURE: ' + s.failure_amt + ' (' + s.failure_cnt + ')</span>' +
-        '<span class="recharge-summary__item recharge-summary__item--refunded">REFUNDED: ' + s.refunded_amt + ' (' + s.refunded_cnt + ')</span>'
+        pill('recharge-summary__item--pending', 'Pending', 'PENDING', (s.pending_amt || '0.00') + ' (' + (s.pending_cnt || 0) + ')') +
+        pill('recharge-summary__item--failure', 'Failure', 'FAILURE', (s.failure_amt || '0.00') + ' (' + (s.failure_cnt || 0) + ')') +
+        pill('recharge-summary__item--refunded', 'Refunded', 'REFUNDED', (s.refunded_amt || '0.00') + ' (' + (s.refunded_cnt || 0) + ')')
     );
 }
 
@@ -466,6 +481,17 @@ $(function () {
         $('#provider_id').val('');
     });
 
+    $(document).on('click', '#summaryPills [data-status]', function () {
+        var st = $(this).attr('data-status') || '';
+        if ($('#status').val() === st) {
+            $('#status').val('');
+        } else {
+            $('#status').val(st);
+        }
+        currentPage = 1;
+        fetchAllSearch();
+    });
+    $('#status').on('change', function () { currentPage = 1; fetchAllSearch(); });
     $('#btnSearch').on('click', function () { currentPage = 1; fetchAllSearch(); });
     $('#btnDownload').on('click', downloadCsv);
     $('#btnPrev').on('click', function () { if (currentPage > 1) { currentPage--; fetchAllSearch(); } });

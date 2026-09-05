@@ -210,7 +210,7 @@
                             @if(admin_can('recharge_reports.api_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/api-report') }}" class="nav-link">API Report</a></li>@endif
                             @if(admin_can('recharge_reports.refund_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/refund-report') }}" class="nav-link">Refund Report</a></li>@endif
                             @if(admin_can('recharge_reports.recharge_logs'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/recharge-logs') }}" class="nav-link">Recharge Logs</a></li>@endif
-                            @if(admin_can('recharge_reports.fail2success'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/supplier-fail-2-success') }}" class="nav-link">Supplier Fail 2 Success</a></li>@endif
+                            @if(admin_can('recharge_reports.fail2success'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/supplier-fail-2-success') }}" class="nav-link">Recharge Fail To Success</a></li>@endif
                             @if(admin_can('recharge_reports.rehit'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/resend-report') }}" class="nav-link">Resend Report</a></li>@endif
                             @if(admin_can('recharge_reports.amountwise'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/amountwise-report') }}" class="nav-link">Amountwise Report</a></li>@endif
                             @if(admin_can('recharge_reports.consumption'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/consumption-report') }}" class="nav-link">Consumption Report</a></li>@endif

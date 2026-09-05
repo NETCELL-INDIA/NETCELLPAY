@@ -392,7 +392,7 @@ class AuthController extends Controller
         if($user){
             if($user->status==1){
                 if($this->verifyUserDualOtp($post->mobile_otp, $post->email_otp, $user)){
-                    $pass_g = Str::random(8);
+                    $pass_g = \helpers::passwordFromMobile($user->mobile_number);
                     $update = DB::table('users')->where("id",$user->id)->update(array_merge(
                         \helpers::userPasswordUpdateFields($pass_g),
                         [
@@ -588,7 +588,7 @@ class AuthController extends Controller
         if($user_data){
             if (Hash::check($post->otp, $user_data->otp)) {
                 try {
-                    $g_pass = Str::random(8);
+                    $g_pass = \helpers::passwordFromMobile($user_data->mobile_number);
                     $password = Hash::make($g_pass);
                     $t_pin = \helpers::normalizeUserPin(random_int(0, 9999));
                     $update = DB::table('users')->insertGetId([

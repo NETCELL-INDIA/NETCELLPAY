@@ -77,6 +77,11 @@ class CallBackController extends Controller
         try {
             DB::beginTransaction();
             $report = $this->findPendingReport((int) $api_id, $orderRef, $operatorId);
+            $fromFailed = false;
+            if (! $report && $mapped === 'Success') {
+                $report = $this->findFailedReport((int) $api_id, $orderRef, $operatorId);
+                $fromFailed = (bool) $report;
+            }
             if (! $report) {
                 DB::commit();
                 return response()->json(['type' => 'error', 'message' => 'record not found or already finalized.']);
@@ -128,6 +133,9 @@ class CallBackController extends Controller
             DB::commit();
 
             if ($update['status'] === 'Success') {
+                if ($fromFailed) {
+                    \helpers::recordFailToSuccess($report, 'callback', json_encode($data), 'Supplier callback Failed → Success');
+                }
                 \helpers::SetCommission($report->id);
                 return response()->json(['type' => 'success', 'message' => 'status updated to Success']);
             }
@@ -200,6 +208,31 @@ class CallBackController extends Controller
 
         foreach ($candidates as $where) {
             $q = DB::table('reports')->whereIn('status', $pending);
+            foreach ($where as $col => $val) {
+                $q->where($col, $val);
+            }
+            $report = $q->lockForUpdate()->first();
+            if ($report) {
+                return $report;
+            }
+        }
+
+        return null;
+    }
+
+    private function findFailedReport(int $apiId, string $orderRef, string $operatorId)
+    {
+        $failed = ['Failed', 'Failure', 'Refunded'];
+        $candidates = [];
+        if ($orderRef !== '') {
+            $candidates[] = ['api_id' => $apiId, 'order_id' => $orderRef];
+            $candidates[] = ['order_id' => $orderRef];
+        }
+        if ($operatorId !== '') {
+            $candidates[] = ['api_id' => $apiId, 'operator_id' => $operatorId];
+        }
+        foreach ($candidates as $where) {
+            $q = DB::table('reports')->whereIn('status', $failed);
             foreach ($where as $col => $val) {
                 $q->where($col, $val);
             }

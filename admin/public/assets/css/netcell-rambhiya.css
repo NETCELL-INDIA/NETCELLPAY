@@ -1690,6 +1690,12 @@ table thead.table-dark > tr > th {
     background: #fff;
     white-space: nowrap;
 }
+button.recharge-summary__item {
+    cursor: pointer;
+    line-height: 1.2;
+}
+button.recharge-summary__item:hover { filter: brightness(0.96); }
+button.recharge-summary__item.is-active { box-shadow: 0 0 0 2px rgba(64,81,137,.28); }
 
 .recharge-summary__item--success { color: #198754; border-color: #198754; }
 .recharge-summary__item--commission { color: #6f42c1; border-color: #6f42c1; }

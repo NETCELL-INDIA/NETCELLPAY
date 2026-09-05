@@ -55,7 +55,7 @@ class RechargeReportsController extends Controller
         return view('admin.user-reports.recharge-report', compact('apis', 'services', 'providers', 'circles', 'manualOnly'));
     }
 
-    private function rechargeReportBaseQuery(Request $post)
+    private function rechargeReportBaseQuery(Request $post, bool $applyStatus = true)
     {
         $table = ((int) ($post->tbl_type ?? 0) === 1 && Schema::hasTable('backup_reports')) ? 'backup_reports' : 'reports';
 
@@ -86,12 +86,14 @@ class RechargeReportsController extends Controller
         if ($post->circle_id) {
             $q->where('r.state_id', (int) $post->circle_id);
         }
-        if ($post->status && $post->status !== 'All') {
+        if ($applyStatus && $post->status && $post->status !== 'All') {
             $status = $post->status;
             if ($status === 'Failure' || $status === 'Failed') {
                 $q->whereIn('r.status', ['Failed', 'Failure']);
             } elseif ($status === 'Refunded') {
                 $q->whereIn('r.status', ['Refunded', 'Refund']);
+            } elseif ($status === 'Pending') {
+                $q->whereIn('r.status', ['Pending', 'Under Proces', 'Under Process', 'Processing']);
             } else {
                 $q->where('r.status', $status);
             }
@@ -151,10 +153,11 @@ class RechargeReportsController extends Controller
         $page = max(1, (int) ($post->page ?: 1));
         $offset = ($page - 1) * $limit;
 
-        $base = $this->rechargeReportBaseQuery($post);
-        $total = (clone $base)->count();
+        $listBase = $this->rechargeReportBaseQuery($post, true);
+        $summaryBase = $this->rechargeReportBaseQuery($post, false);
+        $total = (clone $listBase)->count();
 
-        $summaryRows = (clone $base)
+        $summaryRows = (clone $summaryBase)
             ->selectRaw("
                 SUM(CASE WHEN r.status = 'Success' THEN r.amount ELSE 0 END) as success_amt,
                 SUM(CASE WHEN r.status = 'Success' THEN 1 ELSE 0 END) as success_cnt,
@@ -168,7 +171,7 @@ class RechargeReportsController extends Controller
             ")
             ->first();
 
-        $reports = (clone $base)
+        $reports = (clone $listBase)
             ->select(
                 'r.*',
                 'u.outlet_name',
@@ -1713,6 +1716,10 @@ class RechargeReportsController extends Controller
                 }
             }
 
+            if ($wasFailed && $requested === 'Success') {
+                \Helper::recordFailToSuccess($report, 'admin_status', $current.' → Success', 'Admin changed '.$current.' to Success');
+            }
+
             AdminAudit::log('recharge_status', 'report_status', [
                 'ref_type' => 'report',
                 'ref_id' => $report->id,
@@ -2314,9 +2321,18 @@ class RechargeReportsController extends Controller
                     if ($report && ! empty($report->order_id)) {
                         $q->orWhere('url', 'like', '%'.$report->order_id.'%');
                     }
-                    if ($report && ! empty($report->number)) {
-                        $q->orWhere('url', 'like', '%'.$report->number.'%');
+                    if ($report && ! empty($report->request_order_id)) {
+                        $q->orWhere('url', 'like', '%'.$report->request_order_id.'%');
                     }
+                })
+                ->where(function ($q) {
+                    $q->whereNotIn('modal', ['Roffer', 'ROFFER', 'ROF', 'DTH INFO', 'PLAN', 'Plan', 'Plans'])
+                        ->where('txnid', 'not like', 'ROF%')
+                        ->where('url', 'not like', '%plans.php%')
+                        ->where('url', 'not like', '%offer=roffer%')
+                        ->where('url', 'not like', '%/plans%')
+                        ->where('url', 'not like', '%Dthinfo%')
+                        ->where('url', 'not like', '%Dthheavy%');
                 })
                 ->orderByDesc('id')
                 ->limit(40)

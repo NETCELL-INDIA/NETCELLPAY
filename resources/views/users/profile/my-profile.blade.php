@@ -278,7 +278,8 @@
                                         <div>
                                             <label for="pt_old_password" class="form-label">Current Password*</label>
                                             <input type="password" class="form-control" id="pt_current_password"
-                                                placeholder="Enter current password">
+                                                placeholder="8-digit password" inputmode="numeric" maxlength="8"
+                                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,8)">
                                         </div>
                                     </div>
                                     <!--end col-->
@@ -286,7 +287,8 @@
                                         <div>
                                             <label for="pt_new_password" class="form-label">New Password*</label>
                                             <input type="password" class="form-control" id="pt_new_password"
-                                                placeholder="Enter new password">
+                                                placeholder="8-digit number" inputmode="numeric" maxlength="8"
+                                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,8)">
                                         </div>
                                     </div>
                                     <!--end col-->
@@ -295,7 +297,8 @@
                                             <label for="pt_confirm_password" class="form-label">Confirm
                                                 Password*</label>
                                             <input type="password" class="form-control" id="pt_confirm_password"
-                                                placeholder="Confirm password">
+                                                placeholder="Confirm 8-digit number" inputmode="numeric" maxlength="8"
+                                                oninput="this.value=this.value.replace(/\D/g,'').slice(0,8)">
                                         </div>
                                     </div>
                                     <!--end col-->

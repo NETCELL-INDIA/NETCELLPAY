@@ -142,7 +142,7 @@ class ProcessRecharge implements ShouldQueue
                             $actual = \helpers::apiArrayGet($data, $error_key);
                         }
 
-                        $mapped = \helpers::mapApiLiveStatus($api_details, $actual);
+                        $mapped = \helpers::mapApiLiveStatus($api_details, $actual, $data);
                         if ($mapped) {
                             $update['status'] = $mapped;
                             $update['operator_id'] = \helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '';
@@ -152,6 +152,9 @@ class ProcessRecharge implements ShouldQueue
                                 $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                             } elseif ($mapped === 'Failed') {
                                 $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
+                                if (\helpers::isApiPartnerPath($report->path ?? '')) {
+                                    $update['callback_status'] = 0;
+                                }
                             }
                         }
                     }
@@ -203,6 +206,7 @@ class ProcessRecharge implements ShouldQueue
                 try {
                     \helpers::closeOpenComplaintsForReport($this->report_id, 'Recharge failed before completion.');
                     \helpers::refund_row($this->report_id);
+                    \helpers::sendApiPartnerRechargeCallback($this->report_id);
                 } catch (\Throwable $e) {
                     DB::table('apilogs')->insert([
                         'url' => 'refund-error',

@@ -380,7 +380,9 @@
                             <div class="login-input-wrap auth-pass-inputgroup">
                                 <i class="ri-lock-2-line"></i>
                                 <input type="password" class="form-control login-input password-input"
-                                    autocomplete="current-password" placeholder="Enter your password" id="password-input">
+                                    autocomplete="current-password" placeholder="8-digit password"
+                                    id="password-input" inputmode="numeric" maxlength="8" pattern="[0-9]*"
+                                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,8)">
                                 <button class="btn btn-link position-absolute text-decoration-none password-addon"
                                     type="button" id="password-addon" aria-label="Show password">
                                     <i class="ri-eye-fill align-middle"></i>

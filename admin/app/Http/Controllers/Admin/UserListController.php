@@ -611,7 +611,7 @@ class UserListController extends Controller
             }
             try {
                 $this->ensureUserSaveColumns();
-                $g_pass = Str::random(4).random_int(1000, 9999).Str::random(2);
+                $g_pass = user_password_from_mobile($post->mobile_number);
                 $t_pin = normalize_user_pin(random_int(0, 9999));
                 $apiKey = ((int) $post->role_id === 3)
                     ? (Str::random(15) . rand(11111111, 9999999) . Str::random(15))
