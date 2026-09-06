@@ -88,6 +88,7 @@ class AdminMenuService
             ]],
             ['key' => 'users', 'label' => 'Users', 'children' => [
                 ['key' => 'users.list', 'label' => 'Create / List Users', 'paths' => ['admin/users/list']],
+                ['key' => 'users.deleted', 'label' => 'User Delete', 'paths' => ['admin/users/deleted']],
                 ['key' => 'users.kyc', 'label' => 'Manage KYC', 'paths' => ['admin/users/kyc']],
                 ['key' => 'users.service_lock', 'label' => 'User Service Lock', 'paths' => ['admin/users/service-lock']],
                 ['key' => 'users.login_history', 'label' => 'Login History', 'paths' => ['admin/users/login-history']],

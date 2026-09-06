@@ -439,17 +439,94 @@ class UserListController extends Controller
 
     public function deleteData(Request $post)
     {
-        $delete = DB::table('users')->where('id', $post->id)->update(['deleted_at' => 1]);
-        if($delete){
-            $data['type'] = 'success';
-            $data['message'] = "Delete sucessfuly";
-        } else {
-            $data['type'] = 'error';
-            $data['message'] = "Something went wrong!";
+        $user = DB::table('users')->where('id', $post->id)->first();
+        if (!$user) {
+            return ['type' => 'error', 'message' => 'User not found.'];
         }
-        
-        return $data;
+        if ((int) $user->role_id === 1) {
+            return ['type' => 'error', 'message' => 'Admin user cannot be deleted.'];
+        }
 
+        $delete = DB::table('users')->where('id', $post->id)->update(['deleted_at' => 1]);
+        if ($delete) {
+            return ['type' => 'success', 'message' => 'User moved to User Delete page.'];
+        }
+
+        return ['type' => 'error', 'message' => 'Something went wrong!'];
+    }
+
+    public function restoreData(Request $post)
+    {
+        $user = DB::table('users')->where('id', $post->id)->where('deleted_at', 1)->first();
+        if (!$user) {
+            return ['type' => 'error', 'message' => 'Deleted user not found.'];
+        }
+
+        $restore = DB::table('users')->where('id', $post->id)->update(['deleted_at' => 0]);
+        if ($restore) {
+            return ['type' => 'success', 'message' => 'User restored successfully.'];
+        }
+
+        return ['type' => 'error', 'message' => 'Something went wrong!'];
+    }
+
+    public function deletedIndex()
+    {
+        return view('admin.users.deleted-users');
+    }
+
+    public function fetchDeleted(Request $post)
+    {
+        $page = max(1, (int) $post->input('page', 1));
+        $limit = (int) $post->input('limit', 10);
+        if ($limit < 5 || $limit > 50) {
+            $limit = 10;
+        }
+        $keyword = trim((string) $post->input('keyword', ''));
+
+        $query = DB::table('users as u')
+            ->leftJoin('roles as r', 'r.id', '=', 'u.role_id')
+            ->where('u.deleted_at', 1)
+            ->where('u.role_id', '!=', 1);
+
+        if ($keyword !== '') {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('u.mobile_number', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('u.email_address', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('u.outlet_name', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('u.first_name', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('u.last_name', 'LIKE', '%' . $keyword . '%');
+                if (ctype_digit($keyword)) {
+                    $q->orWhere('u.id', (int) $keyword);
+                }
+            });
+        }
+
+        $total = (clone $query)->count();
+        $start = ($page - 1) * $limit;
+        $list = $query->orderBy('u.id', 'DESC')
+            ->offset($start)
+            ->limit($limit)
+            ->get([
+                'u.id',
+                'u.first_name',
+                'u.last_name',
+                'u.outlet_name',
+                'u.mobile_number',
+                'u.email_address',
+                'u.role_id',
+                'u.wallet_balance',
+                'u.created_at',
+                'r.role_name',
+            ]);
+
+        return view('admin.users._deleted-users-rows', [
+            'list' => $list,
+            'page' => $page,
+            'limit' => $limit,
+            'start' => $start,
+            'total' => $total,
+        ]);
     }
 
     public function getData(Request $post)

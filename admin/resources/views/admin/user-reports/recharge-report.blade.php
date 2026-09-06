@@ -15,10 +15,6 @@
 @slot('title') {{ $manualOnly ? 'Manual Recharge Report' : 'Recharge Report' }} @endslot
 @endcomponent
 
-@unless($manualOnly)
-<p class="text-muted mb-3" style="font-size:.9rem">Recharge Report = operator, number, MRP, status. Credit / Debit / Fund wallet entries are in <a href="{{ URL::asset('admin/user-reports/account-report') }}">Account Reports</a>.</p>
-@endunless
-
 <div class="card recharge-filter-card">
     <div class="card-header align-items-center d-flex">
         <h4 class="card-title mb-0 flex-grow-1">Filters</h4>
@@ -26,7 +22,7 @@
     </div>
     <div class="card-body">
         <form id="rechargeFilterForm" onsubmit="return false;">
-            <div class="recharge-filter-grid recharge-filter-grid--row1">
+            <div class="recharge-filter-grid">
                 <div class="recharge-filter-field recharge-filter-field--xs">
                     <label class="form-label" for="show">Show</label>
                     <select class="form-select form-select-sm" id="show">
@@ -84,17 +80,8 @@
                     </select>
                 </div>
                 <div class="recharge-filter-field">
-                    <label class="form-label" for="circle_id">Circle</label>
-                    <select class="form-select form-select-sm" id="circle_id">
-                        <option value="">All</option>
-                        @foreach($circles as $c)
-                            <option value="{{ $c->id }}">{{ $c->state_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="recharge-filter-field">
-                    <label class="form-label" for="status">Status</label>
-                    <select class="form-select form-select-sm" id="status">
+                    <label class="form-label" for="filter_status">Status</label>
+                    <select class="form-select form-select-sm" id="filter_status">
                         <option value="">All</option>
                         <option value="Success">SUCCESS</option>
                         <option value="Pending">PENDING</option>
@@ -102,39 +89,9 @@
                         <option value="Refunded">REFUNDED</option>
                     </select>
                 </div>
-            </div>
-
-            <div class="recharge-filter-grid recharge-filter-grid--row2">
                 <div class="recharge-filter-field recharge-filter-field--search">
                     <label class="form-label" for="search_text">Search</label>
                     <input type="text" class="form-control form-control-sm" id="search_text" placeholder="Number / Ref / Operator ID / Client ID">
-                </div>
-                <div class="recharge-filter-field recharge-filter-field--xs">
-                    <label class="form-label" for="amount">Amount</label>
-                    <input type="text" class="form-control form-control-sm" id="amount" placeholder="Amt">
-                </div>
-                <div class="recharge-filter-field">
-                    <label class="form-label" for="mode">Mode</label>
-                    <select class="form-select form-select-sm" id="mode" @if($manualOnly) disabled @endif>
-                        @if($manualOnly)
-                            <option value="Manual" selected>MANUAL</option>
-                        @else
-                            <option value="">All</option>
-                            <option value="WEB">WEB</option>
-                            <option value="APP">APP</option>
-                            <option value="API">API</option>
-                            <option value="Manual">MANUAL</option>
-                            <option value="Credit">Credit</option>
-                            <option value="Debit">Debit</option>
-                        @endif
-                    </select>
-                </div>
-                <div class="recharge-filter-field recharge-filter-field--xs">
-                    <label class="form-label" for="tbl_type">Type</label>
-                    <select class="form-select form-select-sm" id="tbl_type">
-                        <option value="0" selected>Current</option>
-                        <option value="1">Backup</option>
-                    </select>
                 </div>
                 <div class="recharge-filter-field recharge-filter-field--actions">
                     <label class="form-label">&nbsp;</label>
@@ -148,6 +105,10 @@
                     </div>
                 </div>
             </div>
+            <input type="hidden" id="circle_id" value="">
+            <input type="hidden" id="amount" value="">
+            <input type="hidden" id="mode" value="{{ $manualOnly ? 'Manual' : '' }}">
+            <input type="hidden" id="tbl_type" value="0">
         </form>
     </div>
 </div>
@@ -310,7 +271,7 @@ function filterPayload(extra) {
         service_id: $('#service_id').val(),
         provider_id: $('#provider_id').val(),
         circle_id: $('#circle_id').val(),
-        status: $('#status').val(),
+        status: $('#filter_status').val(),
         search_text: $('#search_text').val(),
         amount: $('#amount').val(),
         mode: $('#mode').val(),
@@ -320,7 +281,7 @@ function filterPayload(extra) {
 }
 
 function renderSummary(s) {
-    var active = $('#status').val() || '';
+    var active = $('#filter_status').val() || '';
     function pill(cls, status, label, text) {
         var on = active === status ? ' is-active' : '';
         return '<button type="button" class="recharge-summary__item ' + cls + on + '" data-status="' + status + '">' +
@@ -451,7 +412,7 @@ function complaintSubmit() {
 $(function () {
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('status')) {
-        $('#status').val(urlParams.get('status'));
+        $('#filter_status').val(urlParams.get('status'));
     }
 
     $('#user_id').select2({
@@ -483,15 +444,15 @@ $(function () {
 
     $(document).on('click', '#summaryPills [data-status]', function () {
         var st = $(this).attr('data-status') || '';
-        if ($('#status').val() === st) {
-            $('#status').val('');
+        if ($('#filter_status').val() === st) {
+            $('#filter_status').val('');
         } else {
-            $('#status').val(st);
+            $('#filter_status').val(st);
         }
         currentPage = 1;
         fetchAllSearch();
     });
-    $('#status').on('change', function () { currentPage = 1; fetchAllSearch(); });
+    $('#filter_status').on('change', function () { currentPage = 1; fetchAllSearch(); });
     $('#btnSearch').on('click', function () { currentPage = 1; fetchAllSearch(); });
     $('#btnDownload').on('click', downloadCsv);
     $('#btnPrev').on('click', function () { if (currentPage > 1) { currentPage--; fetchAllSearch(); } });

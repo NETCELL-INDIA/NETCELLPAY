@@ -100,13 +100,14 @@
                                 <th>Operator Name</th>
                                 <th>Operator Type</th>
                                 <th style="width: 100px;" class="text-center">Status</th>
+                                <th style="width: 110px;" class="text-center">Operator Down</th>
                                 <th style="width: 150px;" class="text-center">User Wise Down</th>
                                 <th style="width: 130px;" class="text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody id="operatorTableBody">
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">Loading...</td>
+                                <td colspan="7" class="text-center text-muted py-4">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -147,6 +148,13 @@
                             <select class="form-select" name="status" id="status">
                                 <option value="1">ON</option>
                                 <option value="0">OFF</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="provider_down" class="form-label">Operator Down</label>
+                            <select class="form-select" name="provider_down" id="provider_down">
+                                <option value="0">UP</option>
+                                <option value="1">DOWN</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -267,11 +275,17 @@ function statusButton(row) {
         'data-operator-id="' + row.operator_id + '" data-status="' + (isOn ? 0 : 1) + '">' + (isOn ? 'ON' : 'OFF') + '</button>';
 }
 
+function downButton(row) {
+    var isDown = Number(row.provider_down) === 1;
+    return '<button type="button" class="badge rounded-pill border-0 operator-status-btn ' + (isDown ? 'text-bg-danger' : 'text-bg-success') + ' toggleOperatorDown" ' +
+        'data-operator-id="' + row.operator_id + '" data-down="' + (isDown ? 0 : 1) + '">' + (isDown ? 'DOWN' : 'UP') + '</button>';
+}
+
 function renderOperators(rows) {
     operators = {};
 
     if (!rows || !rows.length) {
-        $('#operatorTableBody').html('<tr><td colspan="6" class="text-center text-muted py-4">No operators found</td></tr>');
+        $('#operatorTableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">No operators found</td></tr>');
         return;
     }
 
@@ -283,6 +297,7 @@ function renderOperators(rows) {
             '<td class="fw-semibold">' + esc(row.operator_name) + '</td>' +
             '<td>' + (row.operator_type ? esc(row.operator_type) : '<span class="text-muted">-</span>') + '</td>' +
             '<td class="text-center">' + statusButton(row) + '</td>' +
+            '<td class="text-center">' + downButton(row) + '</td>' +
             '<td class="text-center">' +
                 '<button type="button" class="btn btn-sm btn-outline-primary manageUserDown" data-operator-id="' + row.operator_id + '">' +
                     '<i class="ri-user-settings-line align-bottom me-1"></i> Manage <span class="badge text-bg-danger ms-1">' + (row.user_down_count || 0) + '</span>' +
@@ -303,7 +318,7 @@ function renderOperators(rows) {
 }
 
 function loadOperators() {
-    $('#operatorTableBody').html('<tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>');
+    $('#operatorTableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>');
 
     $.post('{{ route('operatorRoutingList') }}', {
         _token: csrf,
@@ -313,10 +328,10 @@ function loadOperators() {
         if (res && res.type === 'success') {
             renderOperators(res.data);
         } else {
-            $('#operatorTableBody').html('<tr><td colspan="6" class="text-center text-danger py-4">Failed to load</td></tr>');
+            $('#operatorTableBody').html('<tr><td colspan="7" class="text-center text-danger py-4">Failed to load</td></tr>');
         }
     }, 'json').fail(function () {
-        $('#operatorTableBody').html('<tr><td colspan="6" class="text-center text-danger py-4">Failed to load</td></tr>');
+        $('#operatorTableBody').html('<tr><td colspan="7" class="text-center text-danger py-4">Failed to load</td></tr>');
     });
 }
 
@@ -342,6 +357,7 @@ function resetOperatorForm() {
     $('#operator_id').val(0);
     $('#remove_logo').val(0);
     $('#status').val(1);
+    $('#provider_down').val(0);
     $('#logoPreview').attr('src', defaultLogo);
     $('#removeLogoBtn').hide();
     $('#operatorModalTitle').text('Add Operator');
@@ -353,6 +369,7 @@ function setOperatorForm(row) {
     $('#operator_name').val(row.operator_name);
     $('#operator_type').val(row.service_id);
     $('#status').val(String(row.status));
+    $('#provider_down').val(String(Number(row.provider_down) === 1 ? 1 : 0));
     $('#logoPreview').attr('src', row.logo_url || defaultLogo);
     $('#removeLogoBtn').toggle(!!row.provider_logo);
     $('#operatorModalTitle').text('Edit Operator');
@@ -580,6 +597,28 @@ $('#operatorForm').on('submit', function (e) {
         complete: function () {
             $('#operatorSaveBtn').prop('disabled', false).text('Save Operator');
         }
+    });
+});
+
+$(document).on('click', '.toggleOperatorDown', function () {
+    var button = $(this);
+    var operatorId = button.data('operator-id');
+    var providerDown = button.data('down');
+
+    button.prop('disabled', true);
+    $.post('{{ route('operatorRoutingDown') }}', {
+        _token: csrf,
+        operator_id: operatorId,
+        provider_down: providerDown
+    }, function (res) {
+        showMessage(res.type === 'success' ? 'success' : 'error', res.message || 'Operator down updated');
+        if (res.type === 'success') {
+            loadOperators();
+        }
+    }, 'json').fail(function () {
+        showMessage('error', 'Could not update operator down.');
+    }).always(function () {
+        button.prop('disabled', false);
     });
 });
 

@@ -259,6 +259,7 @@
                     <div class="collapse menu-dropdown" id="sidebarUsers">
                         <ul class="nav nav-sm flex-column">
                             @if(admin_can('users.list'))<li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Users</a></li>@endif
+                            @if(admin_can('users.list') || admin_can('users.deleted'))<li class="nav-item"><a href="{{ URL::asset('admin/users/deleted') }}" class="nav-link">User Delete</a></li>@endif
                             @if(admin_can('users.kyc'))<li class="nav-item"><a href="{{ URL::asset('admin/users/kyc') }}" class="nav-link">Manage KYC</a></li>@endif
                             @if(admin_can('users.service_lock'))<li class="nav-item"><a href="{{ URL::asset('admin/users/service-lock') }}" class="nav-link">User Service Lock</a></li>@endif
                             @if(admin_can('users.login_history'))<li class="nav-item"><a href="{{ URL::asset('admin/users/login-history') }}" class="nav-link">Login History</a></li>@endif

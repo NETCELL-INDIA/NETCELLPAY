@@ -21,6 +21,16 @@ class OperatorRoutingController extends Controller
     {
         $this->ensureUserDownTable();
         $this->ensureOperatorTypeColumn();
+        $this->ensureProviderDownColumn();
+    }
+
+    private function ensureProviderDownColumn(): void
+    {
+        if (!Schema::hasColumn('providers', 'provider_down')) {
+            Schema::table('providers', function ($table) {
+                $table->unsignedTinyInteger('provider_down')->default(0);
+            });
+        }
     }
 
     private function ensureOperatorTypeColumn(): void
@@ -178,6 +188,7 @@ class OperatorRoutingController extends Controller
                 'providers.service_id',
                 'providers.provider_logo',
                 'providers.status',
+                'providers.provider_down',
             ])
             ->map(function ($row) {
                 $row->logo_url = $this->logoUrl($row->provider_logo ?? '');
@@ -206,6 +217,7 @@ class OperatorRoutingController extends Controller
             'backup_api2_id' => 'nullable|numeric|min:0',
             'backup_api3_id' => 'nullable|numeric|min:0',
             'status' => 'required|in:0,1',
+            'provider_down' => 'nullable|in:0,1',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'remove_logo' => 'nullable|boolean',
         ]);
@@ -267,6 +279,7 @@ class OperatorRoutingController extends Controller
             'operator_type' => $service->service_name,
             'service_id' => $serviceId,
             'status' => (int) $request->status,
+            'provider_down' => (int) ($request->input('provider_down', $operator?->provider_down ?? 0)),
             'provider_logo' => $logoName,
             'updated_at' => now(),
         ];
@@ -617,6 +630,38 @@ class OperatorRoutingController extends Controller
         return response()->json([
             'type' => 'success',
             'message' => ((int) $request->status === 1) ? 'Operator turned ON.' : 'Operator turned OFF.',
+        ]);
+    }
+
+    public function updateDown(Request $request)
+    {
+        $request->validate([
+            'operator_id' => 'required|numeric|min:1',
+            'provider_down' => 'required|in:0,1',
+        ]);
+
+        $updated = $this->operatorsQuery()
+            ->where('providers.id', (int) $request->operator_id)
+            ->update([
+                'provider_down' => (int) $request->provider_down,
+                'updated_at' => now(),
+            ]);
+
+        if (!$updated) {
+            return response()->json(['type' => 'error', 'message' => 'Operator not found.']);
+        }
+
+        AdminAudit::log('routing', 'operator_down', [
+            'ref_type' => 'provider',
+            'ref_id' => $request->operator_id,
+            'new' => (int) $request->provider_down,
+        ]);
+
+        return response()->json([
+            'type' => 'success',
+            'message' => ((int) $request->provider_down === 1)
+                ? 'Operator marked DOWN. App will show DOWN.'
+                : 'Operator is UP again.',
         ]);
     }
 

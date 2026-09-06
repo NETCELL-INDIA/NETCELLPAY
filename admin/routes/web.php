@@ -403,6 +403,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/routings/operator/list', [OperatorRoutingController::class, 'list'])->name('operatorRoutingList');
     Route::post('admin/routings/operator/save', [OperatorRoutingController::class, 'save'])->name('operatorRoutingSave');
     Route::post('admin/routings/operator/status', [OperatorRoutingController::class, 'updateStatus'])->name('operatorRoutingStatus');
+    Route::post('admin/routings/operator/down', [OperatorRoutingController::class, 'updateDown'])->name('operatorRoutingDown');
     Route::post('admin/routings/operator/delete', [OperatorRoutingController::class, 'delete'])->name('operatorRoutingDelete');
     Route::post('admin/routings/operator/down-users', [OperatorRoutingController::class, 'downUsers'])->name('operatorRoutingDownUsers');
     Route::post('admin/routings/operator/down-users/search', [OperatorRoutingController::class, 'searchUsers'])->name('operatorRoutingDownUsersSearch');
@@ -594,6 +595,10 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/system/services/list',[ServiceController::class,'fetchAll'])->name('servicesList');
     Route::post('admin/system/services/get',[ServiceController::class,'getData'])->name('servicesGet');
     Route::post('admin/system/services/update',[ServiceController::class,'updateData'])->name('servicesUpdate');
+    Route::post('admin/system/services/status',[ServiceController::class,'updateStatus'])->name('servicesStatus');
+    Route::post('admin/system/services/down',[ServiceController::class,'updateDown'])->name('servicesDown');
+    Route::post('admin/system/services/move',[ServiceController::class,'moveItem'])->name('servicesMove');
+    Route::post('admin/system/services/delete',[ServiceController::class,'deleteData'])->name('servicesDelete');
 
 
 
@@ -729,6 +734,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::get('admin/users/list',[UserListController::class,'index']);
+    Route::get('admin/users/deleted',[UserListController::class,'deletedIndex'])->name('userlistDeletedPage');
+    Route::post('admin/users/userlist/deleted-list',[UserListController::class,'fetchDeleted'])->name('userlistDeletedList');
+    Route::post('admin/users/userlist/restore',[UserListController::class,'restoreData'])->name('userlistRestore');
     Route::get('admin/users/login-history', [LoginHistoryReportController::class, 'index'])->name('usersLoginHistory');
 
 

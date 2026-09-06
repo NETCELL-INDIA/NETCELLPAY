@@ -35,12 +35,13 @@ Dashboard
         </div>
         <div class="dash-recharge-grid">
             @foreach($recharge_services as $svc)
-            <a class="dash-recharge-card" href="{{ url($svc['route']) }}">
+            @php $svcDown = !empty($svc['service_down']); @endphp
+            <a class="dash-recharge-card {{ $svcDown ? 'is-down' : '' }}" href="{{ $svcDown ? 'javascript:void(0)' : url($svc['route']) }}">
                 <span class="dash-recharge-icon">
                     <img src="{{ $svc['icon_url'] ?? URL::asset($svc['icon']) }}" alt="{{ $svc['name'] }}" onerror="this.src='{{ URL::asset('service_icon/mobile_1.png') }}'">
                 </span>
-                <strong>{{ $svc['name'] }}</strong>
-                <span>Tap to recharge</span>
+                <strong>{{ $svc['name'] }}@if($svcDown) (DOWN)@endif</strong>
+                <span>{{ $svcDown ? 'Service is down' : 'Tap to recharge' }}</span>
             </a>
             @endforeach
         </div>

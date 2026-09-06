@@ -48,7 +48,11 @@
                         <ul class="nav nav-sm flex-column">
                             @foreach(\helpers::serviceCatalogItems('recharge') as $svc)
                             <li class="nav-item">
-                                <a href="{{ url($svc['route']) }}" class="nav-link">{{ $svc['name'] }}</a>
+                                @if(!empty($svc['service_down']))
+                                    <span class="nav-link text-danger">{{ $svc['name'] }} (DOWN)</span>
+                                @else
+                                    <a href="{{ url($svc['route']) }}" class="nav-link">{{ $svc['name'] }}</a>
+                                @endif
                             </li>
                             @endforeach
                             @if((int) Session::get('role_id') !== 6)

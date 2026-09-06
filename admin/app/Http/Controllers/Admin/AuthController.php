@@ -70,7 +70,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->where('deleted_at', 0)->first();
         if($user){
             if(Common::verifyUserPassword(trim((string) $post->password), $user)){
 
@@ -208,7 +208,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->where('deleted_at', 0)->first();
         if($user){
             if(Common::verifyUserPassword(trim((string) $post->password), $user)){
 
@@ -281,7 +281,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->where('deleted_at', 0)->first();
         if($user){
             if($user->status==1){
                 if($user->otp_limit == 5){
@@ -378,7 +378,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereIn("role_id", AdminMenuService::adminRoleIds())->where('deleted_at', 0)->first();
         if($user){
             if($user->status==1){
                 $otpValid = $this->verifyUnifiedLoginOtp($post, $user);

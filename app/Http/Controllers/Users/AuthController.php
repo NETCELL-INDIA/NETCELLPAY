@@ -60,7 +60,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->where('deleted_at', 0)->first();
         if($user){
             $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
             if ($locked) {
@@ -203,7 +203,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->where('deleted_at', 0)->first();
         if($user){
             $locked = \App\Services\SystemSettingService::failedLoginMessage($user);
             if ($locked) {
@@ -284,7 +284,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->where('deleted_at', 0)->first();
         if($user){
             if($user->status==1){
                 if($user->otp_limit == 5){
@@ -388,7 +388,7 @@ class AuthController extends Controller
             ));
         }
 
-        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->first();
+        $user = DB::table('users')->where("mobile_number",$post->mobile_number)->whereNotIn("role_id",[1,2])->where('deleted_at', 0)->first();
         if($user){
             if($user->status==1){
                 if($this->verifyUserDualOtp($post->mobile_otp, $post->email_otp, $user)){

@@ -5,6 +5,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Session;
 
 use Illuminate\Http\Request;
 
@@ -2045,6 +2046,21 @@ class helpers
         }
     }
 
+    public static function ensureServiceDownColumn(): void
+    {
+        try {
+            if (! Schema::hasTable('services')) {
+                return;
+            }
+            if (! Schema::hasColumn('services', 'service_down')) {
+                Schema::table('services', function ($table) {
+                    $table->unsignedTinyInteger('service_down')->default(0);
+                });
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
     public static function serviceIconRelativePath(?string $icon, string $fallback = 'service_icon/mobile_1.png'): string
     {
         $icon = trim((string) $icon);
@@ -2113,6 +2129,8 @@ class helpers
 
         try {
             self::ensureServiceIconColumn();
+            self::ensureServiceDownColumn();
+            self::ensureCatalogGroupColumn();
             $query = DB::table('services');
             if (Schema::hasColumn('services', 'deleted_at')) {
                 $query->where(function ($q) {
@@ -2122,6 +2140,15 @@ class helpers
             $cols = ['id', 'service_name', 'service_icon'];
             if (Schema::hasColumn('services', 'status')) {
                 $cols[] = 'status';
+            }
+            if (Schema::hasColumn('services', 'service_down')) {
+                $cols[] = 'service_down';
+            }
+            if (Schema::hasColumn('services', 'sort_order')) {
+                $cols[] = 'sort_order';
+            }
+            if (Schema::hasColumn('services', 'catalog_group')) {
+                $cols[] = 'catalog_group';
             }
             $rows = [];
             foreach ($query->get($cols) as $row) {
@@ -2136,34 +2163,126 @@ class helpers
         foreach ($items as $item) {
             $id = (int) ($item['id'] ?? 0);
             $row = $rows[$id] ?? null;
-            if ($row && isset($row->status) && (int) $row->status !== 1) {
+            if (! $row) {
+                continue;
+            }
+            if (isset($row->status) && (int) $row->status !== 1) {
                 continue;
             }
             $out[] = self::mergeServiceCatalogItem($item, $row, $group, $fallback, $absoluteUrls);
             $seen[$id] = true;
         }
 
-        if ($group === 'bbps') {
-            $rechargeIds = [];
-            foreach (config('recharge_services.recharge', []) as $item) {
-                $rechargeIds[(int) $item['id']] = true;
+        foreach ($rows as $id => $row) {
+            if (isset($seen[$id])) {
+                continue;
             }
-            foreach ($rows as $id => $row) {
-                if (isset($seen[$id]) || isset($rechargeIds[$id])) {
-                    continue;
-                }
-                if (isset($row->status) && (int) $row->status !== 1) {
-                    continue;
-                }
-                $out[] = self::mergeServiceCatalogItem([
-                    'id' => $id,
-                    'name' => (string) ($row->service_name ?? 'Service'),
-                    'logo' => $fallback,
-                ], $row, $group, $fallback, $absoluteUrls);
+            if (isset($row->status) && (int) $row->status !== 1) {
+                continue;
+            }
+            if (self::serviceCatalogGroup($row) !== $group) {
+                continue;
+            }
+            $base = [
+                'id' => $id,
+                'name' => (string) ($row->service_name ?? 'Service'),
+                'route' => 'users/services/bill-payments?id='.$id,
+            ];
+            if ($group === 'bbps') {
+                $base['logo'] = $fallback;
+            } else {
+                $base['icon'] = $fallback;
+                $base['type'] = 'prepaid';
+            }
+            $out[] = self::mergeServiceCatalogItem($base, $row, $group, $fallback, $absoluteUrls);
+        }
+
+        $out = self::excludeLockedServices($out);
+        usort($out, function ($a, $b) use ($rows) {
+            $ao = (int) (($rows[(int) ($a['id'] ?? 0)]->sort_order ?? $a['id'] ?? 0));
+            $bo = (int) (($rows[(int) ($b['id'] ?? 0)]->sort_order ?? $b['id'] ?? 0));
+            return $ao <=> $bo;
+        });
+
+        return $out;
+    }
+
+    public static function serviceCatalogGroup($row): string
+    {
+        $group = strtolower(trim((string) ($row->catalog_group ?? '')));
+        if (in_array($group, ['recharge', 'bbps'], true)) {
+            return $group;
+        }
+        foreach (config('recharge_services.recharge', []) as $item) {
+            if ((int) ($item['id'] ?? 0) === (int) ($row->id ?? 0)) {
+                return 'recharge';
             }
         }
 
-        return self::excludeLockedServices($out);
+        return 'bbps';
+    }
+
+    public static function ensureCatalogGroupColumn(): void
+    {
+        try {
+            if (! Schema::hasTable('services')) {
+                return;
+            }
+            if (! Schema::hasColumn('services', 'catalog_group')) {
+                Schema::table('services', function ($table) {
+                    $table->string('catalog_group', 20)->nullable();
+                });
+            }
+            $rechargeIds = [];
+            foreach (config('recharge_services.recharge', []) as $item) {
+                $rechargeIds[] = (int) ($item['id'] ?? 0);
+            }
+            $rechargeIds = array_values(array_filter($rechargeIds));
+            if ($rechargeIds !== []) {
+                DB::table('services')->whereIn('id', $rechargeIds)->where(function ($q) {
+                    $q->whereNull('catalog_group')->orWhere('catalog_group', '');
+                })->update(['catalog_group' => 'recharge']);
+            }
+            DB::table('services')->where(function ($q) {
+                $q->whereNull('catalog_group')->orWhere('catalog_group', '');
+            })->update(['catalog_group' => 'bbps']);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function providersForApp($serviceIds): \Illuminate\Support\Collection
+    {
+        $serviceIds = is_array($serviceIds) ? $serviceIds : [(int) $serviceIds];
+        $activeServiceIds = [];
+        try {
+            $q = DB::table('services')->whereIn('id', $serviceIds)->where('status', 1);
+            if (Schema::hasColumn('services', 'deleted_at')) {
+                $q->where(function ($w) {
+                    $w->whereNull('deleted_at')->orWhere('deleted_at', '!=', 1);
+                });
+            }
+            $activeServiceIds = $q->pluck('id')->map(fn ($id) => (int) $id)->all();
+        } catch (\Throwable $e) {
+            $activeServiceIds = array_map('intval', $serviceIds);
+        }
+
+        if ($activeServiceIds === []) {
+            return collect();
+        }
+
+        $query = DB::table('providers')
+            ->whereIn('service_id', $activeServiceIds)
+            ->where(function ($w) {
+                $w->whereNull('deleted_at')->orWhere('deleted_at', '!=', 1);
+            });
+
+        $cols = ['id', 'provider_name', 'provider_logo', 'service_id', 'status', 'provider_down'];
+        if (Schema::hasColumn('providers', 'sort_order')) {
+            $query->orderBy('providers.sort_order');
+        }
+        $rows = $query->orderByDesc('status')->orderBy('provider_name')->get($cols);
+
+        return self::decorateProviderLogos($rows);
     }
 
     public static function isUserServiceLocked($userId, $serviceId): bool
@@ -2241,6 +2360,9 @@ class helpers
         $url = self::servicePublicUrl($relative, $fallback);
         $item['icon_url'] = $url;
         $item['logo_url'] = $url;
+        $item['status'] = $row ? (int) ($row->status ?? 1) : 1;
+        $item['service_down'] = $row ? (int) ($row->service_down ?? 0) : 0;
+        $item['catalog_group'] = $row ? self::serviceCatalogGroup($row) : $group;
         if ($absoluteUrls) {
             if ($group === 'bbps') {
                 $item['logo'] = $url;
@@ -2309,6 +2431,9 @@ class helpers
                 $obj->p_logo = $url;
             }
             $obj->provider_logo_url = $url;
+            $obj->provider_down = (int) ($obj->provider_down ?? 0);
+            $userId = (int) (Session::get('user_id') ?? 0);
+            $obj->user_down = ($userId > 0 && self::isProviderDownForUser($obj->id ?? 0, $userId)) ? 1 : 0;
 
             return $obj;
         })->values();

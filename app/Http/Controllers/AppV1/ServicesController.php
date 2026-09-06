@@ -20,9 +20,9 @@ class ServicesController extends Controller
             'message' => 'Services loaded.',
             'recharge_services' => $services['recharge'],
             'bbps_services' => $services['bbps'],
-            'mobile_provider' => \helpers::decorateProviderLogos(DB::table('providers')->where('status', 1)->where('service_id', 1)->where('deleted_at', 0)->get(['id', 'provider_name', 'provider_logo'])),
-            'dth_provider' => \helpers::decorateProviderLogos(DB::table('providers')->where('status', 1)->where('service_id', 2)->where('deleted_at', 0)->get(['id', 'provider_name', 'provider_logo'])),
-            'postpaid_provider' => \helpers::decorateProviderLogos(DB::table('providers')->where('status', 1)->whereIn('service_id', [4, 15])->where('deleted_at', 0)->get(['id', 'provider_name', 'provider_logo', 'service_id'])),
+            'mobile_provider' => \helpers::providersForApp(1),
+            'dth_provider' => \helpers::providersForApp(2),
+            'postpaid_provider' => \helpers::providersForApp([4, 15]),
         ]);
     }
 

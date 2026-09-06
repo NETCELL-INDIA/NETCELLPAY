@@ -399,16 +399,7 @@ class RechargeControllerV2 extends Controller
                 'message' => $error
             ));
         }
-        $provider = DB::table('providers')->select('id','provider_name','status','provider_down')
-            ->where('service_id',$post->service)
-            ->where('deleted_at', '!=' , 1)
-            ->orderByDesc('status')
-            ->orderBy('provider_name')
-            ->get()
-            ->map(function ($row) {
-                $row->user_down = \helpers::isProviderDownForUser($row->id, Session::get('user_id')) ? 1 : 0;
-                return $row;
-            });
+        $provider = \helpers::providersForApp((int) $post->service);
         $states = DB::table('states')->select('id','state_name')->where('status',1)->get();
         if($provider){
             $data['type'] = 'success';

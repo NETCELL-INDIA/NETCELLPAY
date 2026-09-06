@@ -1770,7 +1770,7 @@
 
           title: 'Are you sure?',
 
-          text: "You won't be able to revert this!",
+          text: "User will move to User Delete page. You can restore later.",
 
           icon: 'warning',
 
@@ -1810,7 +1810,7 @@
 
                    Swal.fire(
 
-                        'Deleted!',
+                        'Moved to User Delete',
 
                         data.message,
 

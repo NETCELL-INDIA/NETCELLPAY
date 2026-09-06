@@ -265,8 +265,15 @@ class SystemSettingService
         }
 
         $service = DB::table('services')->where('id', $provider->service_id)->first();
-        if ($service && (int) $service->status !== 1) {
-            return ($service->service_name ?? 'This service').' is currently deactivated.';
+        if (!$service) {
+            return null;
+        }
+        $name = $service->service_name ?? 'This service';
+        if ((int) ($service->status ?? 1) !== 1) {
+            return $name.' is currently OFF.';
+        }
+        if ((int) ($service->service_down ?? 0) === 1) {
+            return $name.' is currently DOWN. Please try again.';
         }
 
         return null;

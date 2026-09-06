@@ -13,15 +13,12 @@ class BillPaymentsController extends Controller
     public function index(Request $post)
     {
         $serviceId = (int) ($post->id ?: 3);
-        $providers = DB::table('providers')
-            ->select('id', 'provider_name')
-            ->where('service_id', $serviceId)
-            ->where('deleted_at', '!=', 1)
-            ->where('status', 1)
-            ->orderBy('provider_name')
-            ->get();
+        $providers = \helpers::providersForApp($serviceId)->where('status', 1)->where('provider_down', 0)->values();
 
         $service = DB::table('services')->where('id', $serviceId)->where('deleted_at', 0)->first();
+        if ($service && ((int) ($service->status ?? 1) !== 1 || (int) ($service->service_down ?? 0) === 1)) {
+            $providers = collect();
+        }
         $bbpsCategories = \helpers::serviceCatalogItems('bbps');
 
         return view('users.services.bill-payments', [

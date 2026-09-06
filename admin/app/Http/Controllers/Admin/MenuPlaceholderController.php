@@ -19,7 +19,7 @@ class MenuPlaceholderController extends Controller
         'users/default-cashback' => 'admin/system/scheme',
         'users/special-margins' => 'admin/system/scheme',
         'users/manage-kyc' => 'admin/users/kyc',
-        'users/deleted-users' => 'admin/users/list',
+        'users/deleted-users' => 'admin/users/deleted',
 
         // Payments
         'payments/fund-transfer' => 'admin/fund/credit-debit',
