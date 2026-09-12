@@ -323,12 +323,11 @@ class FundController extends Controller
         $user = DB::table('users')->where('id', Session::get('user_id'))->first();
         $report = DB::table('fund_requests')->where('id', $post->edit_id)->first();
         $requestAmount = $report->amount ?? null;
-        $isAdmin = (int) ($user->role_id ?? 0) === 1;
         if($post->status == "Approved"){
-            if (!$isAdmin && (float) $user->wallet_balance < (float) $report->amount){
+            if ((float) $user->wallet_balance < (float) $report->amount){
                 return response()->json(array(
                     'type' => 'error',
-                    'message' => 'Insufficient wallet balance. Available: ₹ ' . number_format((float) $user->wallet_balance, 2),
+                    'message' => 'Insufficient main balance. Available: ₹ ' . number_format((float) $user->wallet_balance, 2),
                 ));
             }
             DB::beginTransaction();
@@ -349,14 +348,12 @@ class FundController extends Controller
                     'order_id' => $order_id,
                     'status' => "Success",
                     'opening_balance' => $user->wallet_balance,
-                    'closing_balance' => $isAdmin ? $user->wallet_balance : $user->wallet_balance - $report->amount,
+                    'closing_balance' => $user->wallet_balance - $report->amount,
                     'transaction_date' => Carbon::now().":".rand(111,999),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now()
                 ]);
-                if (!$isAdmin) {
-                    DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance - $report->amount]);
-                }
+                DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance - $report->amount]);
                 
                 ///Report by first reciver by
                 $user = DB::table('users')->where('id', $report->user_id)->first();     

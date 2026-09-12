@@ -205,6 +205,7 @@
                             @if(admin_can('recharge_reports.manual_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/manual-report') }}" class="nav-link">Manual Recharge Report</a></li>@endif
                             @if(admin_can('recharge_reports.pending_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/pending-report') }}" class="nav-link">Pending Report</a></li>@endif
                             @if(admin_can('recharge_reports.live_report'))<li class="nav-item"><a href="javascript:void(0)" class="nav-link" onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">Live Recharge Report</a></li>@endif
+                            @if(admin_can('users.kyc'))<li class="nav-item"><a href="{{ URL::asset('admin/users/kyc') }}" class="nav-link">KYC Requests</a></li>@endif
                             @if(admin_can('recharge_reports.margin_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/margin-report') }}" class="nav-link">Margin Report</a></li>@endif
                             @if(admin_can('recharge_reports.cashback_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/cashback-report') }}" class="nav-link">Cashback Report</a></li>@endif
                             @if(admin_can('recharge_reports.api_report'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/api-report') }}" class="nav-link">API Report</a></li>@endif

@@ -47,6 +47,7 @@ Dashboard
     .pending-card.green::after { background: #22c55e; }
     .pending-card.red::after { background: #ef4444; }
     .pending-card.blue::after { background: #2563eb; }
+    .pending-card.purple::after { background: #7c3aed; }
     .pending-card .label {
         color: #64748b;
         font-size: 0.85rem;
@@ -174,6 +175,12 @@ Dashboard
         <a class="pending-card red" href="{{ URL::asset('admin/recharge-reports/refund-report') }}">
             <div class="label">Pending Refunds</div>
             <div class="value" id="pending_refunds">0</div>
+        </a>
+    </div>
+    <div class="col-md col-6">
+        <a class="pending-card purple" href="javascript:void(0)" onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">
+            <div class="label">Live Recharge</div>
+            <div class="value"><i class="ri-pulse-line"></i></div>
         </a>
     </div>
     <div class="col-md col-6">

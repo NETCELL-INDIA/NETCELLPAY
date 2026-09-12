@@ -85,6 +85,13 @@ window.openLiveRechargeReport = function (url) {
                     <i class="ri-pulse-line"></i>
                 </button>
 
+                @if(admin_can('users.kyc'))
+                <button type="button" class="btn rb-icon-btn" title="KYC Requests"
+                    onclick="location.href='{{ URL::asset('admin/users/kyc') }}'">
+                    <i class="ri-shield-user-line"></i>
+                </button>
+                @endif
+
                 <button type="button" class="btn rb-icon-btn" title="Complaints"
                     onclick="location.href='{{ URL::asset('admin/support/complaint') }}'">
                     <i class="ri-customer-service-2-line"></i>
@@ -297,6 +304,11 @@ window.openLiveRechargeReport = function (url) {
                             onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">
                             <i class="ri-pulse-line me-2"></i> Live Recharge Report
                         </a>
+                        @if(admin_can('users.kyc'))
+                        <a class="dropdown-item" href="{{ URL::asset('admin/users/kyc') }}">
+                            <i class="ri-shield-user-line me-2"></i> KYC Requests
+                        </a>
+                        @endif
                         <a class="dropdown-item" href="{{ URL::asset('admin/fund/fund-request') }}">
                             <i class="ri-wallet-3-line me-2"></i> Fund Requests
                         </a>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Common;
 use App\Http\Controllers\Controller;
 use App\Services\AdminAudit;
+use App\Services\AdminMenuService;
 use Illuminate\Http\Request;
 use Redirect;
 use Validator;
@@ -405,7 +406,7 @@ class UserListController extends Controller
                     <div class="users-action-btns">
                     <a id="' . $row->id . '" class="btn btn-soft-info editDetails" title="View"><i class="ri-eye-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-primary editDetails" title="Edit"><i class="ri-pencil-line"></i></a>
-                    <a id="' . $row->id . '" class="btn btn-soft-success fundTransfer" title="Fund"><i class="ri-wallet-3-line"></i></a>
+                    ' . (AdminMenuService::can('payments.fund') ? '<a id="' . $row->id . '" class="btn btn-soft-success fundTransfer" title="Fund"><i class="ri-wallet-3-line"></i></a>' : '') . '
                     <a id="' . $row->id . '" class="btn btn-soft-warning resetPassword" title="Reset Password" data-user-name="' . e($fullName) . '" data-user-mobile="' . e($row->mobile_number) . '" data-user-pin="' . e($row->t_pin ?? '') . '"><i class="ri-lock-password-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-danger deleteData" title="Delete"><i class="ri-delete-bin-line"></i></a>
                     </div>
@@ -1009,6 +1010,12 @@ class UserListController extends Controller
 
     public function fundUpdate(Request $post)
     {
+        if (! AdminMenuService::can('payments.fund')) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'You do not have permission to transfer or reverse funds.',
+            ]);
+        }
         $rules = array(
             'id'  => 'required|numeric',
             'type'  => 'required|in:Transfer,Reverse',
@@ -1040,13 +1047,11 @@ class UserListController extends Controller
                 'message' => 'Invalid PIN.',
             ]);
         }
-        $isAdmin = (int) ($user->role_id ?? 0) === 1;
-
         if($post->type == "Transfer"){
-            if (!$isAdmin && (float) $user->wallet_balance < (float) $post->amount){
+            if ((float) $user->wallet_balance < (float) $post->amount){
                 return response()->json(array(
                     'type' => 'error',
-                    'message' => 'Insufficient wallet balance. Available: ₹ ' . number_format((float) $user->wallet_balance, 2),
+                    'message' => 'Insufficient main balance. Available: ₹ ' . number_format((float) $user->wallet_balance, 2),
                 ));
             }
             DB::beginTransaction();
@@ -1068,14 +1073,12 @@ class UserListController extends Controller
                     'order_id' => $order_id,
                     'status' => "Success",
                     'opening_balance' => $user->wallet_balance,
-                    'closing_balance' => $isAdmin ? $user->wallet_balance : $user->wallet_balance - $post->amount,
+                    'closing_balance' => $user->wallet_balance - $post->amount,
                     'transaction_date' => Carbon::now().":".rand(111,999),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now()
                 ]);
-                if (!$isAdmin) {
-                    DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance - $post->amount]);
-                }
+                DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance - $post->amount]);
                 
                 ///Report by first reciver by
                 $user = DB::table('users')->where('id', $post->id)->first();     

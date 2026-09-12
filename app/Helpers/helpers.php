@@ -1212,19 +1212,26 @@ class helpers
 
     public static function whatsappPublicOrigin(): string
     {
-        $origin = rtrim((string) env('APP_URL', ''), '/');
-        $origin = preg_replace('#/admin$#i', '', $origin) ?: $origin;
-        if ($origin === '') {
-            $origin = rtrim((string) env('ADMIN_HOST', ''), '/');
+        $candidates = [
+            env('WHATSAPP_PUBLIC_ORIGIN'),
+            env('ADMIN_HOST'),
+            env('APP_URL'),
+        ];
+        foreach ($candidates as $origin) {
+            $origin = rtrim((string) $origin, '/');
             $origin = preg_replace('#/admin$#i', '', $origin) ?: $origin;
-        }
-        if ($origin === '' && ! empty($_SERVER['HTTP_HOST'])) {
-            $https = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || ((string) ($_SERVER['SERVER_PORT'] ?? '') === '443');
-            $origin = ($https ? 'https://' : 'http://').$_SERVER['HTTP_HOST'];
+            if ($origin === '') {
+                continue;
+            }
+            if (preg_match('#^https?://(127\.0\.0\.1|localhost|0\.0\.0\.0)(:\d+)?#i', $origin)) {
+                continue;
+            }
+            if (preg_match('#^https?://#i', $origin)) {
+                return $origin;
+            }
         }
 
-        return $origin !== '' ? $origin : 'https://netcellpay.in';
+        return 'https://netcellpay.in';
     }
 
     public static function whatsappPublicFileUrl(string $filename): string
@@ -1240,7 +1247,10 @@ class helpers
     public static function companyWhatsappLogoUrl(): string
     {
         $company = DB::table('companies')->where('id', 1)->first(['company_logo', 'company_icon']);
-        $file = (string) ($company->company_icon ?? $company->company_logo ?? '');
+        $file = trim((string) ($company->company_logo ?? ''));
+        if ($file === '') {
+            $file = trim((string) ($company->company_icon ?? ''));
+        }
         if ($file === '') {
             return '';
         }
@@ -1284,7 +1294,7 @@ class helpers
             return $smsTmp && (int) $smsTmp->status === 1;
         }
 
-    public static function loginOtpRecentlySent($user, int $seconds = 60): bool
+    public static function loginOtpRecentlySent($user, int $seconds = 120): bool
     {
         if (! $user || empty($user->otp) || empty($user->otp_created_at)) {
             return false;
@@ -1379,14 +1389,13 @@ class helpers
             $content = str_replace(['{LOGO}', '{LOGO_URL}', '{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
             $content = trim($content);
 
-            $mediaFiles = [];
-            if ($attachImage && $imageUrl !== '') {
-                $mediaFiles[] = $imageUrl;
-            } elseif ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
-                $mediaFiles[] = $logoUrl;
+            $mediaFile = '';
+            if ($imageUrl !== '') {
+                $mediaFile = $imageUrl;
+            } elseif ($logoUrl !== '') {
+                $mediaFile = $logoUrl;
             }
-            $isOtp = strtolower($slug) === 'otp';
-            $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
+            $mediaCaption = $content !== '' ? $content : 'NETCELL PAY';
 
             $method = $w_api->whatsapp_api_method ?: 'GET';
             $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
@@ -1429,14 +1438,11 @@ class helpers
             $header = [];
             $parameters = '';
             $sentMedia = false;
-            foreach ($mediaFiles as $idx => $img) {
-                $mediaUrl = $buildUrl($mediaCaption, $img, true);
-                \helpers::curl($mediaUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+            if ($mediaFile !== '') {
+                \helpers::curl($buildUrl($mediaCaption, $mediaFile, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I0');
                 $sentMedia = true;
             }
-            // Image caption already has the message. A second text call duplicated every WhatsApp.
-            // OTP still needs a separate text because the image caption is not the OTP.
-            if ($content !== '' && (!$sentMedia || $isOtp)) {
+            if ($content !== '' && ! $sentMedia) {
                 $textUrl = $buildUrl($content, '', false);
                 \helpers::curl($textUrl, $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
             }

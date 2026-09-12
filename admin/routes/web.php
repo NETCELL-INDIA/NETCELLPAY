@@ -245,9 +245,33 @@ Route::get('/clear-login', function () {
 
 
 
-//Admin Portal Routes 
+Route::get('/wa-media/{file}', function (string $file) {
+    $file = basename($file);
+    if (! preg_match('/^[A-Za-z0-9._-]+$/', $file)) {
+        abort(404);
+    }
+    $dirs = [
+        public_path('whatsapp_template'),
+        public_path('company_logo'),
+        dirname(base_path()).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'whatsapp_template',
+        dirname(base_path()).DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'company_logo',
+    ];
+    foreach ($dirs as $dir) {
+        $path = $dir.DIRECTORY_SEPARATOR.$file;
+        if (is_file($path)) {
+            $mime = function_exists('mime_content_type') ? (mime_content_type($path) ?: 'image/png') : 'image/png';
 
+            return response()->file($path, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+                'Access-Control-Allow-Origin' => '*',
+            ]);
+        }
+    }
+    abort(404);
+})->where('file', '[A-Za-z0-9._-]+');
 
+//Admin Portal Routes
 
 Route::get('admin',[AuthController::class,'Login'])->name('loginPage');
 Route::get('admin/login', function () {

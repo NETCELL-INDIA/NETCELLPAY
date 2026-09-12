@@ -94,7 +94,7 @@ class AdminMenuService
                 ['key' => 'users.login_history', 'label' => 'Login History', 'paths' => ['admin/users/login-history']],
             ]],
             ['key' => 'payments', 'label' => 'Payments', 'children' => [
-                ['key' => 'payments.fund', 'label' => 'Fund Credit / Debit', 'paths' => ['admin/fund/credit-debit']],
+                ['key' => 'payments.fund', 'label' => 'Fund Credit / Debit', 'paths' => ['admin/fund/credit-debit', 'admin/users/userlist/fundupdate']],
                 ['key' => 'payments.fund_request', 'label' => 'Pending Fund Requests', 'paths' => ['admin/fund/fund-request']],
                 ['key' => 'payments.fund_report', 'label' => 'Fund Transfer History', 'paths' => ['admin/fund/fund-report']],
             ]],

@@ -237,13 +237,26 @@ use Illuminate\Http\Request;
 
         public static function whatsappPublicOrigin(): string
         {
-            $origin = rtrim((string) env('APP_URL', ''), '/');
-            $origin = preg_replace('#/admin$#i', '', $origin) ?: $origin;
-            if ($origin === '') {
-                $origin = 'https://netcellpay.in';
+            $candidates = [
+                env('WHATSAPP_PUBLIC_ORIGIN'),
+                env('ADMIN_HOST'),
+                env('APP_URL'),
+            ];
+            foreach ($candidates as $origin) {
+                $origin = rtrim((string) $origin, '/');
+                $origin = preg_replace('#/admin$#i', '', $origin) ?: $origin;
+                if ($origin === '') {
+                    continue;
+                }
+                if (preg_match('#^https?://(127\.0\.0\.1|localhost|0\.0\.0\.0)(:\d+)?#i', $origin)) {
+                    continue;
+                }
+                if (preg_match('#^https?://#i', $origin)) {
+                    return $origin;
+                }
             }
 
-            return $origin;
+            return 'https://netcellpay.in';
         }
 
         public static function whatsappPublicFileUrl(string $filename): string
@@ -259,7 +272,10 @@ use Illuminate\Http\Request;
         public static function companyWhatsappLogoUrl(): string
         {
             $company = DB::table('companies')->where('id', 1)->first(['company_logo', 'company_icon']);
-            $file = (string) ($company->company_icon ?? $company->company_logo ?? '');
+            $file = trim((string) ($company->company_logo ?? ''));
+            if ($file === '') {
+                $file = trim((string) ($company->company_icon ?? ''));
+            }
             if ($file === '') {
                 return '';
             }
@@ -317,7 +333,7 @@ use Illuminate\Http\Request;
             return $smsTmp && (int) $smsTmp->status === 1;
         }
 
-        public static function loginOtpRecentlySent($user, int $seconds = 60): bool
+        public static function loginOtpRecentlySent($user, int $seconds = 120): bool
         {
             if (! $user || empty($user->otp) || empty($user->otp_created_at)) {
                 return false;
@@ -412,14 +428,13 @@ use Illuminate\Http\Request;
                 $content = str_replace(['{LOGO}', '{LOGO_URL}', '{IMG}', '{IMAGE}', '{TEMPLATE_IMAGE}'], '', $content);
                 $content = trim($content);
 
-                $mediaFiles = [];
-                if ($attachImage && $imageUrl !== '') {
-                    $mediaFiles[] = $imageUrl;
-                } elseif ($attach && $logoUrl !== '' && ! in_array($logoUrl, $mediaFiles, true)) {
-                    $mediaFiles[] = $logoUrl;
+                $mediaFile = '';
+                if ($imageUrl !== '') {
+                    $mediaFile = $imageUrl;
+                } elseif ($logoUrl !== '') {
+                    $mediaFile = $logoUrl;
                 }
-                $isOtp = strtolower($slug) === 'otp';
-                $mediaCaption = $isOtp ? 'NETCELL PAY' : $content;
+                $mediaCaption = $content !== '' ? $content : 'NETCELL PAY';
 
                 $method = $w_api->whatsapp_api_method ?: 'GET';
                 $hasMediaPlaceholder = str_contains($rawUrl, '{IMG}')
@@ -462,11 +477,11 @@ use Illuminate\Http\Request;
                 $header = [];
                 $parameters = '';
                 $sentMedia = false;
-                foreach ($mediaFiles as $idx => $img) {
-                    Common::curl($buildUrl($mediaCaption, $img, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I'.$idx);
+                if ($mediaFile !== '') {
+                    Common::curl($buildUrl($mediaCaption, $mediaFile, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I0');
                     $sentMedia = true;
                 }
-                if ($content !== '' && (!$sentMedia || $isOtp)) {
+                if ($content !== '' && ! $sentMedia) {
                     Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
                 }
 
