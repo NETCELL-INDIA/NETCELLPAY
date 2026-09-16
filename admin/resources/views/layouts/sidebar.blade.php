@@ -269,20 +269,19 @@
                 </li>
                 @endif
 
-                @if(admin_can('payments'))
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarPayments" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarPayments">
                         <i class="bx bxs-wallet"></i> <span>Payments</span>
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarPayments">
                         <ul class="nav nav-sm flex-column">
+                            <li class="nav-item"><a href="javascript:void(0)" class="nav-link LoadWallet" title="Add fund to your own wallet">Self Fund Add</a></li>
                             @if(admin_can('payments.fund'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/credit-debit') }}" class="nav-link">Fund Credit / Debit</a></li>@endif
                             @if(admin_can('payments.fund_request'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-request') }}" class="nav-link">Pending Fund Requests</a></li>@endif
                             @if(admin_can('payments.fund_report'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-report') }}" class="nav-link">Fund Transfer History</a></li>@endif
                         </ul>
                     </div>
                 </li>
-                @endif
 
                 @if(admin_can('accounts'))
                 <li class="nav-item">

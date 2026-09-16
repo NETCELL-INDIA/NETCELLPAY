@@ -50,6 +50,7 @@ function capitalizeFirstLetter(string){
     
     $(document).on('click', '.LoadWallet', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         var modalEl = document.getElementById('LoadWalletModal');
         if (!modalEl) {
             return;
@@ -57,11 +58,20 @@ function capitalizeFirstLetter(string){
         if ($("#admin_load_wallet_form")[0]) {
             $("#admin_load_wallet_form")[0].reset();
         }
-        if (window.bootstrap && bootstrap.Modal) {
-            bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        } else {
-            $("#LoadWalletModal").modal('show');
-        }
+        // Close profile dropdown if open, then show modal
+        try {
+            var dd = document.getElementById('page-header-user-dropdown');
+            if (dd && window.bootstrap && bootstrap.Dropdown) {
+                bootstrap.Dropdown.getOrCreateInstance(dd).hide();
+            }
+        } catch (err) {}
+        setTimeout(function () {
+            if (window.bootstrap && bootstrap.Modal) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                $("#LoadWalletModal").modal('show');
+            }
+        }, 50);
     });
 
     function updateTopbarWallet(balance) {

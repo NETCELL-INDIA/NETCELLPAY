@@ -115,7 +115,7 @@ class UserListController extends Controller
                     $parts[] = "{$noToken} have no Android FCM token yet";
                 }
                 if ($failed) {
-                    $parts[] = "{$failed} push failed".($hasFcmKey ? '' : ' (FCM Server Key missing in Pusher setting)');
+                    $parts[] = "{$failed} push failed".($hasFcmKey ? '' : ' (FCM Server Key missing — set in System Settings or FCM_SERVER_KEY in .env for Firebase project netcellpay-fe31a)');
                 }
 
                 return response()->json([

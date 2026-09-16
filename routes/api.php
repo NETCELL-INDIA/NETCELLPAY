@@ -54,10 +54,21 @@ Route::post('/v1/reset-password-otp',[AuthController::class,'resetPasswordOtp'])
 Route::group(['middleware' => AppUserCheck::class], function () {
     /////
     Route::post('/v1/home',[AuthController::class,'homeData']);
+    // Android FCM token save aliases (app tries several paths after login)
+    Route::post('/v1/save-fcm-token',[AuthController::class,'updateFcmToken']);
     Route::post('/v1/update-fcm-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/store-fcm-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/fcm-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/android-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/update-android-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/save-token',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/update-device',[AuthController::class,'updateFcmToken']);
+    Route::post('/v1/device-token',[AuthController::class,'updateFcmToken']);
     Route::post('/v1/notifications',[AuthController::class,'notificationList']);
     Route::post('/v1/notifications/read',[AuthController::class,'notificationMarkRead']);
     Route::post('/v1/my-profile',[AuthController::class,'myProfile']);
+    Route::post('/v1/profile',[AuthController::class,'myProfile']);
+    Route::post('/v1/update-profile',[AuthController::class,'myProfile']);
     Route::post('/v1/my-commission',[AuthController::class,'myCommission']);
     Route::post('/v1/change-password',[AuthController::class,'myProfilePasswordChange']);
     Route::post('/v1/change-pin',[AuthController::class,'myProfilePinChange']);

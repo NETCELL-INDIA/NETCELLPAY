@@ -259,8 +259,9 @@
                         @include('admin.system-settings._field', ['name' => 'fcm_server_key', 'label' => 'FCM Server Key (App Push)', 'icon' => 'ri-notification-3-line', 'value' => $settings['fcm_server_key']])
                         <div class="col-12">
                             <p class="text-muted mb-0" style="font-size:.82rem">
-                                Paste Firebase Cloud Messaging <strong>Server key</strong> in <strong>FCM Server Key</strong> only (not in Pusher Key).
-                                Pusher fields are optional unless you use Pusher channels.
+                                Paste Firebase Cloud Messaging <strong>Server key</strong> from project <strong>netcellpay-fe31a</strong> only
+                                (project number 366588340995) into <strong>FCM Server Key</strong> — not into Pusher Key.
+                                Wrong Firebase project causes "push failed" / InvalidRegistration. App channel id: <code>high_importance_channel</code>.
                             </p>
                         </div>
                     </div>

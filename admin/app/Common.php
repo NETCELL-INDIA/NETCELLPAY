@@ -1112,6 +1112,65 @@ use Illuminate\Http\Request;
         return $key !== '' ? $key : null;
     }
 
+    public static function ensureUserPushColumns(): void
+    {
+        foreach (['android_fcm_token', 'fcm_token', 'device_token'] as $column) {
+            try {
+                if (! \Illuminate\Support\Facades\Schema::hasColumn('users', $column)) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` TEXT NULL");
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    public static function clearUserPushToken(int $userId, ?string $invalidToken = null): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+        self::ensureUserPushColumns();
+        try {
+            $query = DB::table('users')->where('id', $userId);
+            if ($invalidToken) {
+                $query->where(function ($q) use ($invalidToken) {
+                    $q->where('android_fcm_token', $invalidToken)
+                        ->orWhere('fcm_token', $invalidToken)
+                        ->orWhere('device_token', $invalidToken);
+                });
+            }
+            $query->update([
+                'android_fcm_token' => null,
+                'fcm_token' => null,
+                'device_token' => null,
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function userPushToken(int $userId): ?string
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+        self::ensureUserPushColumns();
+        try {
+            $user = DB::table('users')->where('id', $userId)->first([
+                'android_fcm_token', 'fcm_token', 'device_token',
+            ]);
+            foreach (['android_fcm_token', 'fcm_token', 'device_token'] as $col) {
+                $token = trim((string) ($user->{$col} ?? ''));
+                if ($token !== '') {
+                    return $token;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
     public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification')
     {
         if (! \App\Services\MessageSettingService::channelEnabled($subject, 'push')) {
@@ -1154,15 +1213,8 @@ use Illuminate\Http\Request;
         };
 
         try {
-            foreach (['fcm_token', 'device_token'] as $column) {
-                if (! \Illuminate\Support\Facades\Schema::hasColumn('users', $column)) {
-                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` TEXT NULL");
-                }
-            }
-
-            $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
-            $token = trim((string) ($user->fcm_token ?? ($user->device_token ?? '')));
-            if ($token === '') {
+            $token = self::userPushToken($userId);
+            if ($token === null || $token === '') {
                 $setStatus(2);
                 return 'no_token';
             }
@@ -1173,7 +1225,14 @@ use Illuminate\Http\Request;
                 return false;
             }
 
-            $payloadData = ['title' => (string) $title, 'body' => (string) $body];
+            $title = (string) $title;
+            $body = (string) $body;
+            $payloadData = [
+                'title' => $title,
+                'body' => $body,
+                'message' => $body,
+                'subject' => $title,
+            ];
             foreach ($data as $key => $value) {
                 $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
             }
@@ -1228,6 +1287,20 @@ use Illuminate\Http\Request;
             );
 
             if (! $ok) {
+                $fcmError = '';
+                if (isset($decoded['results'][0]['error'])) {
+                    $fcmError = (string) $decoded['results'][0]['error'];
+                } elseif (isset($decoded['error'])) {
+                    $fcmError = is_string($decoded['error'])
+                        ? $decoded['error']
+                        : (string) ($decoded['error']['status'] ?? '');
+                }
+                foreach (['NotRegistered', 'UNREGISTERED', 'InvalidRegistration', 'MismatchSenderId', 'INVALID_ARGUMENT'] as $needle) {
+                    if ($fcmError !== '' && stripos($fcmError, $needle) !== false) {
+                        self::clearUserPushToken($userId, $token);
+                        break;
+                    }
+                }
                 \Log::warning('FCM send failed', [
                     'user_id' => $userId,
                     'body' => mb_substr($responseBody, 0, 500),

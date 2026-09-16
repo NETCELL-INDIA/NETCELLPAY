@@ -73,9 +73,10 @@ window.openLiveRechargeReport = function (url) {
                     </span>
                 </button>
 
-                <button type="button" class="btn rb-wallet-btn LoadWallet ms-1" id="topbar_wallet_btn">
+                <button type="button" class="btn rb-wallet-btn LoadWallet ms-1" id="topbar_wallet_btn" title="Add Self Fund">
                     <i class="ri-wallet-3-line me-1"></i>
                     <span id="topbar_wallet_amount">₹ {{ number_format(round(optional(DB::table('users')->where('id', Session::get('user_id'))->first())->wallet_balance ?? 0, 2), 2) }}</span>
+                    <span class="rb-wallet-add ms-1">+</span>
                 </button>
             </div>
 
@@ -275,6 +276,9 @@ window.openLiveRechargeReport = function (url) {
                         </div>
 
                         <div class="rb-user-section">Account</div>
+                        <a class="dropdown-item LoadWallet" href="javascript:void(0);">
+                            <i class="ri-add-circle-line me-2"></i> Self Fund Add
+                        </a>
                         <a class="dropdown-item" href="{{ route('myProfile') }}">
                             <i class="ri-user-3-line me-2"></i> My Profile
                         </a>
@@ -333,7 +337,7 @@ window.openLiveRechargeReport = function (url) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="LoadWalletModalLabel">Load Wallet</h5>
+                <h5 class="modal-title" id="LoadWalletModalLabel">Self Fund Add</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">

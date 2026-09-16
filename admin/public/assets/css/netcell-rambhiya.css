@@ -323,6 +323,19 @@
     color: #fff !important;
 }
 
+.rb-wallet-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
 .rb-top-actions {
     gap: 0.15rem;
 }

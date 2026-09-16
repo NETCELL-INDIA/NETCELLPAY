@@ -127,6 +127,7 @@ class AuthController extends Controller
     }
     public function LoginCheck(Request $post)
     {
+        $this->normalizeAppLoginFields($post);
 
         $rules = array(
             'mobile_number'  => 'required|numeric|digits:10',
@@ -488,6 +489,7 @@ class AuthController extends Controller
 
     public function checkLoginOtp(Request $post)
     {
+        $this->normalizeAppLoginFields($post);
 
         $rules = array(
             'mobile_number'  => 'required|numeric|digits:10',
@@ -796,6 +798,7 @@ class AuthController extends Controller
     }
 
     public function myProfile(Request $post) {
+        $this->syncPushTokenFromRequest($post, (int) $post->user_id);
         $user = DB::table('users')->where("id",$post->user_id)->first();
         if($user){
             return response()->json(array(
@@ -1063,11 +1066,14 @@ class AuthController extends Controller
 
     public function updateFcmToken(Request $post)
     {
-        \helpers::saveUserPushToken((int) $post->user_id, \helpers::extractPushTokenFromRequest($post));
+        $token = \helpers::extractPushTokenFromRequest($post);
+        if ($token) {
+            \helpers::saveUserPushToken((int) $post->user_id, $token);
+        }
 
         return response()->json([
             'type' => 'success',
-            'message' => 'Notification token updated.',
+            'message' => 'FCM token saved',
         ]);
     }
 
@@ -1108,6 +1114,20 @@ class AuthController extends Controller
         try {
             \helpers::saveUserPushToken($userId, \helpers::extractPushTokenFromRequest($post));
         } catch (\Throwable $e) {
+        }
+    }
+
+    private function normalizeAppLoginFields(Request $post): void
+    {
+        if (! $post->filled('mobile_number')) {
+            $mobile = $post->input('mobile', $post->input('username', ''));
+            $mobile = preg_replace('/\D+/', '', (string) $mobile);
+            if (strlen($mobile) > 10) {
+                $mobile = substr($mobile, -10);
+            }
+            if ($mobile !== '') {
+                $post->merge(['mobile_number' => $mobile]);
+            }
         }
     }
 

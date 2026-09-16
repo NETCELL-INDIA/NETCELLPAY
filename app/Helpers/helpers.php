@@ -1491,6 +1491,7 @@ class helpers
     public static function ensureUserPushColumns(): void
     {
         foreach ([
+            'android_fcm_token' => 'TEXT NULL',
             'fcm_token' => 'TEXT NULL',
             'device_token' => 'TEXT NULL',
         ] as $column => $definition) {
@@ -1507,20 +1508,27 @@ class helpers
 
     public static function extractPushTokenFromRequest(Request $request): ?string
     {
+        $deviceId = trim((string) $request->input('device_id', ''));
+
         $keys = [
-            'fcm_token', 'device_token', 'firebase_token', 'notification_token',
-            'push_token', 'gcm_token', 'registration_id', 'firebaseToken', 'fcmToken',
+            'android_fcm_token', 'android_token', 'fcm_token', 'device_token', 'firebase_token',
+            'fcm_id', 'gcm_id', 'app_token', 'fcm', 'token',
+            'notification_token', 'push_token', 'gcm_token', 'registration_id',
+            'firebaseToken', 'fcmToken',
         ];
         foreach ($keys as $key) {
             $value = trim((string) $request->input($key, ''));
-            if (self::isLikelyPushToken($value)) {
+            if (self::isLikelyPushToken($value, $deviceId)) {
                 return $value;
             }
         }
 
-        foreach (['HTTP_FCM_TOKEN', 'HTTP_DEVICE_TOKEN', 'HTTP_X_FCM_TOKEN', 'HTTP_X_DEVICE_TOKEN'] as $header) {
+        foreach ([
+            'HTTP_FCM_TOKEN', 'HTTP_DEVICE_TOKEN', 'HTTP_X_FCM_TOKEN', 'HTTP_X_DEVICE_TOKEN',
+            'HTTP_ANDROID_FCM_TOKEN', 'HTTP_X_ANDROID_FCM_TOKEN',
+        ] as $header) {
             $value = trim((string) ($request->server($header) ?? ''));
-            if (self::isLikelyPushToken($value)) {
+            if (self::isLikelyPushToken($value, $deviceId)) {
                 return $value;
             }
         }
@@ -1528,21 +1536,47 @@ class helpers
         return null;
     }
 
-    private static function isLikelyPushToken(string $value): bool
+    private static function isLikelyPushToken(string $value, string $deviceId = ''): bool
     {
-        return $value !== '' && strlen($value) >= 40 && ! preg_match('/\s/', $value);
+        if ($value === '' || preg_match('/\s/', $value)) {
+            return false;
+        }
+        // FCM registration tokens are long; avoid saving device_id / short UUIDs.
+        if (strlen($value) < 80) {
+            return false;
+        }
+        if ($deviceId !== '' && hash_equals($deviceId, $value)) {
+            return false;
+        }
+        // Typical UUID / android id shapes
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+            return false;
+        }
+
+        return true;
     }
 
     public static function saveUserPushToken(int $userId, ?string $token): void
     {
-        if ($userId <= 0 || ! $token) {
+        // Never overwrite a good token with empty/null.
+        if ($userId <= 0 || ! $token || ! self::isLikelyPushToken($token)) {
             return;
         }
 
         self::ensureUserPushColumns();
 
         try {
+            $cols = ['android_fcm_token', 'fcm_token', 'device_token'];
+            $existing = DB::table('users')->where('id', $userId)->first($cols);
+            if ($existing) {
+                $current = trim((string) ($existing->android_fcm_token ?? $existing->fcm_token ?? $existing->device_token ?? ''));
+                if ($current !== '' && hash_equals($current, $token)) {
+                    return;
+                }
+            }
+
             DB::table('users')->where('id', $userId)->update([
+                'android_fcm_token' => $token,
                 'fcm_token' => $token,
                 'device_token' => $token,
                 'updated_at' => Carbon::now(),
@@ -1550,6 +1584,54 @@ class helpers
         } catch (\Throwable $e) {
             \Log::warning('saveUserPushToken failed: '.$e->getMessage());
         }
+    }
+
+    public static function clearUserPushToken(int $userId, ?string $invalidToken = null): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+        self::ensureUserPushColumns();
+        try {
+            $query = DB::table('users')->where('id', $userId);
+            if ($invalidToken) {
+                $query->where(function ($q) use ($invalidToken) {
+                    $q->where('android_fcm_token', $invalidToken)
+                        ->orWhere('fcm_token', $invalidToken)
+                        ->orWhere('device_token', $invalidToken);
+                });
+            }
+            $query->update([
+                'android_fcm_token' => null,
+                'fcm_token' => null,
+                'device_token' => null,
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('clearUserPushToken failed: '.$e->getMessage());
+        }
+    }
+
+    public static function userPushToken(int $userId): ?string
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+        self::ensureUserPushColumns();
+        try {
+            $user = DB::table('users')->where('id', $userId)->first([
+                'android_fcm_token', 'fcm_token', 'device_token',
+            ]);
+            foreach (['android_fcm_token', 'fcm_token', 'device_token'] as $col) {
+                $token = trim((string) ($user->{$col} ?? ''));
+                if ($token !== '') {
+                    return $token;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
     }
 
     public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'app_notification'): bool
@@ -1582,13 +1664,14 @@ class helpers
         }
 
         try {
-            $user = DB::table('users')->where('id', $userId)->first(['fcm_token', 'device_token']);
-            $token = $user->fcm_token ?? ($user->device_token ?? null);
+            $token = self::userPushToken($userId);
             if (! $token) {
                 return false;
             }
 
-            return (bool) self::sendFcmNotification($token, $title, $body, $data);
+            $ok = self::sendFcmNotification($token, $title, $body, $data, $userId);
+
+            return (bool) $ok;
         } catch (\Throwable $e) {
             \Log::warning('pushNotifyUser failed: '.$e->getMessage());
 
@@ -1716,13 +1799,20 @@ class helpers
         }
     }
 
-    public static function sendFcmNotification($token, $title, $body, $data = []){
+    public static function sendFcmNotification($token, $title, $body, $data = [], int $userId = 0){
         try{
             if(!$token) return false;
             $serverKey = self::fcmServerKey();
             if(!$serverKey) return false;
 
-            $payloadData = ['title' => (string) $title, 'body' => (string) $body];
+            $title = (string) $title;
+            $body = (string) $body;
+            $payloadData = [
+                'title' => $title,
+                'body' => $body,
+                'message' => $body,
+                'subject' => $title,
+            ];
             foreach ($data as $key => $value) {
                 $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
             }
@@ -1733,8 +1823,8 @@ class helpers
             }
 
             $notification = [
-                'title' => (string) $title,
-                'body' => (string) $body,
+                'title' => $title,
+                'body' => $body,
                 'sound' => 'default',
                 'android_channel_id' => $channelId,
             ];
@@ -1782,7 +1872,29 @@ class helpers
                 return true;
             }
 
+            $fcmError = '';
+            if (isset($decoded['results'][0]['error'])) {
+                $fcmError = (string) $decoded['results'][0]['error'];
+            } elseif (isset($decoded['error'])) {
+                $fcmError = is_string($decoded['error'])
+                    ? $decoded['error']
+                    : (string) ($decoded['error']['status'] ?? json_encode($decoded['error']));
+            }
+            $invalidErrors = [
+                'NotRegistered', 'UNREGISTERED', 'InvalidRegistration', 'MismatchSenderId',
+                'INVALID_ARGUMENT', 'UNREGISTERED',
+            ];
+            if ($userId > 0 && $fcmError !== '') {
+                foreach ($invalidErrors as $needle) {
+                    if (stripos($fcmError, $needle) !== false) {
+                        self::clearUserPushToken($userId, (string) $token);
+                        break;
+                    }
+                }
+            }
+
             \Log::warning('FCM send failed', [
+                'user_id' => $userId,
                 'body' => mb_substr($responseBody, 0, 500),
                 'results' => $decoded['results'] ?? null,
                 'error' => $decoded['error'] ?? null,
