@@ -1227,7 +1227,10 @@ class PlanInfoFetchService
     }
 
     /**
-     * PlanConnect getDthPlans → group by language into rs/desc/validity rows.
+     * PlanConnect getDthPlans → group into rs/desc/validity rows.
+     * Supports both shapes:
+     * - { name, description, priceList:[{amount,validity}] }
+     * - { name, description, amount, validity }  (flat, one row per item)
      *
      * @param  array<string, mixed>  $data
      * @return array<string, array<int, array{rs: string, desc: string, validity: string}>>
@@ -1239,9 +1242,15 @@ class PlanInfoFetchService
             return [];
         }
 
-        // Must look like PlanConnect pack objects (name/priceList), not already-normalized rows.
         $first = reset($plans);
-        if (! is_array($first) || (! isset($first['priceList']) && ! isset($first['name']))) {
+        if (! is_array($first)) {
+            return [];
+        }
+        $looksLikePlanConnect = isset($first['priceList'])
+            || isset($first['name'])
+            || isset($first['amount'])
+            || isset($first['description']);
+        if (! $looksLikePlanConnect) {
             return [];
         }
 
@@ -1257,26 +1266,30 @@ class PlanInfoFetchService
             $name = trim((string) ($pack['name'] ?? ''));
             $description = trim((string) ($pack['description'] ?? ''));
             $desc = trim($name.($description !== '' ? ' - '.$description : ''));
-            $priceList = $pack['priceList'] ?? $pack['PricingList'] ?? [];
-            if (! is_array($priceList) || $priceList === []) {
-                if ($desc !== '') {
+            $priceList = $pack['priceList'] ?? $pack['PricingList'] ?? null;
+
+            if (is_array($priceList) && $priceList !== []) {
+                foreach ($priceList as $price) {
+                    if (! is_array($price)) {
+                        continue;
+                    }
+                    $amount = preg_replace('/[^\d.]/', '', (string) ($price['amount'] ?? $price['Amount'] ?? $price['rs'] ?? '')) ?? '';
                     $out[$category][] = [
-                        'rs' => '',
-                        'desc' => $desc,
-                        'validity' => '',
+                        'rs' => $amount,
+                        'desc' => $desc !== '' ? $desc : $name,
+                        'validity' => (string) ($price['validity'] ?? $price['Month'] ?? ''),
                     ];
                 }
                 continue;
             }
-            foreach ($priceList as $price) {
-                if (! is_array($price)) {
-                    continue;
-                }
-                $amount = preg_replace('/[^\d.]/', '', (string) ($price['amount'] ?? $price['Amount'] ?? $price['rs'] ?? '')) ?? '';
+
+            // Flat PlanConnect row: amount/validity on the pack itself.
+            if (isset($pack['amount']) || isset($pack['validity']) || $desc !== '') {
+                $amount = preg_replace('/[^\d.]/', '', (string) ($pack['amount'] ?? $pack['rs'] ?? '')) ?? '';
                 $out[$category][] = [
                     'rs' => $amount,
-                    'desc' => $desc,
-                    'validity' => (string) ($price['validity'] ?? $price['Month'] ?? ''),
+                    'desc' => $desc !== '' ? $desc : $name,
+                    'validity' => (string) ($pack['validity'] ?? ''),
                 ];
             }
         }
