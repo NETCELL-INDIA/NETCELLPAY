@@ -2145,13 +2145,9 @@ class RechargeController extends Controller
         }
 
         return response()->json([
-
             'type' => 'success',
-
-            'message' => 'Fatch Successfully',
-
-            'data' => $result['data'] ?? []
-
+            'message' => $result['message'] ?? 'Heavy Refresh Successfully Completed',
+            'data' => $result['data'] ?? [],
         ]);
 
         } catch (\Throwable $e) {

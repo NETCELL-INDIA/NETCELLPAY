@@ -918,22 +918,18 @@ class RechargeControllerV2 extends Controller
             ));
         }
         try {
-        $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
-            return PlanInfoFetchService::buildDthHeavyUrl($api, (int) $post->provider_id, (string) $post->number);
-        }, 'DTH INFO', 'ROF');
-        if($result){
-            $data= json_decode($result['response'],true);
-            $records = is_array($data) ? ($data['records'] ?? $data['data'] ?? $data) : [];
+        $result = PlanInfoFetchService::fetchDthService('dth_heavy_refresh', (int) $post->provider_id, (string) $post->number);
+        if (empty($result['ok'])) {
             return response()->json([
-                'type'=> 'success',
-                'message'=>'Fatch Successfully',
-                'data' => $records
+                'type' => 'error',
+                'message' => $result['message'] ?? 'Unable to refresh DTH info. Please try again.',
             ]);
         }
-        return response()->json(array(
-            'type' => 'error',
-            'message' => "Unable to refresh DTH info. Please try again."
-        ));
+        return response()->json([
+            'type' => 'success',
+            'message' => $result['message'] ?? 'Heavy Refresh Successfully Completed',
+            'data' => $result['data'] ?? [],
+        ]);
         } catch (\Throwable $e) {
             return response()->json([
                 'type' => 'error',

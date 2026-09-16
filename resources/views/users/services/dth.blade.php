@@ -993,7 +993,10 @@
                     $("#get_HeavyRefresh_btn").text('Heavy Refresh');
                     $('#get_HeavyRefresh_btn').prop('disabled', false);
                     if (data.type == "success") {
-                        showDthInfo(data.data);
+                        if (data.data && !$.isEmptyObject(data.data)) {
+                            showDthInfo(data.data);
+                        }
+                        Error_Msg("Heavy Refresh", data.message || "Heavy Refresh Successfully Completed", "success");
                     } else {
                         Error_Msg("Heavy Refresh", data.message || "Unable to refresh DTH info.", "error");
                     }

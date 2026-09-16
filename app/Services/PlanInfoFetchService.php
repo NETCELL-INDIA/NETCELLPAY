@@ -525,12 +525,17 @@ class PlanInfoFetchService
             }
 
             $orderId = 'DTH' . random_int(1111111111, 9999999999);
-            $result = \helpers::curl($url, 'GET', '', [], 'yes', 'DTH INFO', $orderId);
+            $modal = $serviceKey === 'dth_heavy_refresh' ? 'DTH HEAVY' : 'DTH INFO';
+            $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
             $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
             $lastApiId = (int) $api->id;
             $lastMessage = $parsed['message'];
 
             if ($parsed['ok']) {
+                if ($serviceKey === 'dth_heavy_refresh' && trim((string) ($parsed['message'] ?? '')) === '') {
+                    $parsed['message'] = 'Heavy Refresh Successfully Completed';
+                }
+
                 return $parsed;
             }
 
@@ -1713,13 +1718,21 @@ class PlanInfoFetchService
 
         $flat = [];
         foreach ($data as $key => $value) {
-            if (is_scalar($value) && !in_array(strtolower((string) $key), ['error', 'status', 'message'], true)) {
+            if (is_scalar($value) && !in_array(strtolower((string) $key), ['error', 'status', 'message', 'msg'], true)) {
                 $flat[$key] = $value;
             }
         }
 
         if ($flat !== []) {
             return self::hlrResult(true, 'Fatch Successfully', $flat, $apiId, $body);
+        }
+
+        // PlanConnect heavyRefresh: {"status":"Success","message":"...","data":{}}
+        $status = strtolower((string) ($data['status'] ?? $data['Status'] ?? ''));
+        if (in_array($status, ['success', 'ok', '1', 'true'], true)) {
+            $okMessage = trim((string) ($apiMessage ?: ($data['message'] ?? $data['MESSAGE'] ?? 'Heavy Refresh Successfully Completed')));
+
+            return self::hlrResult(true, $okMessage !== '' ? $okMessage : 'Heavy Refresh Successfully Completed', [], $apiId, $body);
         }
 
         return self::hlrResult(
