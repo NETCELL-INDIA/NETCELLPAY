@@ -1929,13 +1929,18 @@ class RechargeController extends Controller
                 return null;
             }
 
-            $key = $api->resolved_api_key ?: $api->api_key;
+            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
 
             if ($key === null || $key === '') {
                 return null;
             }
 
-            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
+            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+            if ($base === '') {
+                return null;
+            }
+
+            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
         }, 'Roffer', 'ROF');
 

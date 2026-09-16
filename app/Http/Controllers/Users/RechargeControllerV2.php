@@ -829,8 +829,15 @@ class RechargeControllerV2 extends Controller
         $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = $api->resolved_api_key ?: $api->api_key;
-            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
+            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
+            if ($key === null || $key === '') {
+                return null;
+            }
+            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+            if ($base === '') {
+                return null;
+            }
+            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
         }, 'Roffer', 'ROF');
         //echo "<pre>";print_r($result);die;
         if($result){
@@ -868,9 +875,7 @@ class RechargeControllerV2 extends Controller
         }
         try {
         $result = PlanInfoFetchService::fetch('dth_customer', function ($api) use ($post) {
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = $api->resolved_api_key ?: $api->api_key;
-            return rtrim($api->api_url, '/') . '/Dthinfo.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
+            return PlanInfoFetchService::buildDthInfoUrl($api, (int) $post->provider_id, (string) $post->number);
         }, 'DTH INFO', 'ROF');
         if($result){
             $data= json_decode($result['response'],true);
@@ -914,9 +919,7 @@ class RechargeControllerV2 extends Controller
         }
         try {
         $result = PlanInfoFetchService::fetch('dth_heavy_refresh', function ($api) use ($post) {
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = $api->resolved_api_key ?: $api->api_key;
-            return rtrim($api->api_url, '/') . '/Dthheavy.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
+            return PlanInfoFetchService::buildDthHeavyUrl($api, (int) $post->provider_id, (string) $post->number);
         }, 'DTH INFO', 'ROF');
         if($result){
             $data= json_decode($result['response'],true);
@@ -1021,8 +1024,15 @@ class RechargeControllerV2 extends Controller
         $state_code = str_replace(" ","%20",$state->mplan_state_code);
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post, $state_code) {
             $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = $api->resolved_api_key ?: $api->api_key;
-            return rtrim($api->api_url, '/') . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
+            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
+            if ($key === null || $key === '' || $provider_code == 0 || $provider_code === '') {
+                return null;
+            }
+            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+            if ($base === '') {
+                return null;
+            }
+            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
         }, 'Plans', 'ROP');
         //echo "<pre>";print_r($result);die;
         if($result){
