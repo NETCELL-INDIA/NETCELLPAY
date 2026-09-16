@@ -215,7 +215,6 @@
                             @if(admin_can('recharge_reports.rehit'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/resend-report') }}" class="nav-link">Resend Report</a></li>@endif
                             @if(admin_can('recharge_reports.amountwise'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/amountwise-report') }}" class="nav-link">Amountwise Report</a></li>@endif
                             @if(admin_can('recharge_reports.consumption'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/consumption-report') }}" class="nav-link">Consumption Report</a></li>@endif
-                            @if(admin_can('recharge_reports.roffer'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/r-offer-report') }}" class="nav-link">R-Offer Report</a></li>@endif
                             @if(admin_can('recharge_reports.plan_logs'))<li class="nav-item"><a href="{{ URL::asset('admin/recharge-reports/plan-logs-report') }}" class="nav-link">Plan Logs Report</a></li>@endif
                         </ul>
                     </div>
@@ -245,6 +244,7 @@
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarCommission">
                         <ul class="nav nav-sm flex-column">
+                            @if(admin_can('commission.scheme'))<li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Scheme</a></li>@endif
                             @if(admin_can('commission.scheme'))<li class="nav-item"><a href="{{ URL::asset('admin/commission') }}" class="nav-link">Scheme Commission</a></li>@endif
                             @if(admin_can('commission.denomination'))<li class="nav-item"><a href="{{ URL::asset('admin/commission/denomination') }}" class="nav-link">Denomination Commission</a></li>@endif
                         </ul>
@@ -340,7 +340,6 @@
                     <div class="collapse menu-dropdown" id="sidebarSystem">
                         <ul class="nav nav-sm flex-column">
                             @if(admin_can('system.settings'))<li class="nav-item"><a href="{{ URL::asset('admin/system-settings/system') }}" class="nav-link">System Setting</a></li>@endif
-                            @if(admin_can('system.scheme'))<li class="nav-item"><a href="{{ URL::asset('admin/system/scheme') }}" class="nav-link">Scheme</a></li>@endif
                             @if(admin_can('system.banks'))<li class="nav-item"><a href="{{ URL::asset('admin/system/banks') }}" class="nav-link">Banks</a></li>@endif
                             @if(admin_can('system.amount_block'))<li class="nav-item"><a href="{{ URL::asset('admin/system/amount-block') }}" class="nav-link">Amount Block</a></li>@endif
                             @if(admin_can('system.amount_switch'))<li class="nav-item"><a href="{{ URL::asset('admin/system/amount-wize-switch') }}" class="nav-link">Amount Wise Switch</a></li>@endif
@@ -386,12 +385,12 @@
                             @if(admin_can('extras.sms_api'))<li class="nav-item"><a href="{{ route('smsApiListPage') }}" class="nav-link">SMS API List</a></li>@endif
                             @if(admin_can('extras.whatsapp'))<li class="nav-item"><a href="{{ route('whatsappApiPage') }}" class="nav-link">WhatsApp API</a></li>@endif
                             @if(admin_can('extras.whatsapp_template'))<li class="nav-item"><a href="{{ route('whatsappTemplatePage') }}" class="nav-link">WhatsApp Template List</a></li>@endif
+                            @if(admin_can('extras.message_settings'))<li class="nav-item"><a href="{{ route('messageSettings') }}" class="nav-link">Notification / Message Settings</a></li>@endif
                             @if(admin_can('extras.send_message'))<li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>@endif
                             @if(admin_can('extras.sms_report'))<li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>@endif
                             @if(admin_can('extras.notification_report'))<li class="nav-item"><a href="{{ route('notificationSendReport') }}" class="nav-link">Notification Send Report</a></li>@endif
                             @if(admin_can('extras.sms_template'))<li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>@endif
                             @if(admin_can('extras.email_template'))<li class="nav-item"><a href="{{ URL::asset('admin/company/email-template') }}" class="nav-link">Email Templates</a></li>@endif
-                            <li class="nav-item"><a href="{{ URL::asset('admin/profile/my-profile') }}" class="nav-link">My Profile</a></li>
                         </ul>
                     </div>
                 </li>

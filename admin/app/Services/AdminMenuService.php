@@ -73,7 +73,6 @@ class AdminMenuService
                 ['key' => 'recharge_reports.rehit', 'label' => 'Resend Report', 'paths' => ['admin/recharge-reports/resend-report', 'admin/recharge-reports/retry-log', 'admin/recharge-reports/rehit-recharge-history']],
                 ['key' => 'recharge_reports.amountwise', 'label' => 'Amountwise Report', 'paths' => ['admin/recharge-reports/amountwise-report']],
                 ['key' => 'recharge_reports.consumption', 'label' => 'Consumption Report', 'paths' => ['admin/recharge-reports/consumption-report']],
-                ['key' => 'recharge_reports.roffer', 'label' => 'R-Offer Report', 'paths' => ['admin/recharge-reports/r-offer-report']],
                 ['key' => 'recharge_reports.plan_logs', 'label' => 'Plan Logs Report', 'paths' => ['admin/recharge-reports/plan-logs-report']],
             ]],
             ['key' => 'routings', 'label' => 'Routings', 'children' => [
@@ -83,7 +82,7 @@ class AdminMenuService
                 ['key' => 'routings.priority', 'label' => 'Routes Priority', 'paths' => ['admin/company/routes-settings']],
             ]],
             ['key' => 'commission', 'label' => 'Commission', 'children' => [
-                ['key' => 'commission.scheme', 'label' => 'Scheme Commission', 'paths' => ['admin/commission', 'admin/system/scheme']],
+                ['key' => 'commission.scheme', 'label' => 'Scheme', 'paths' => ['admin/system/scheme', 'admin/commission']],
                 ['key' => 'commission.denomination', 'label' => 'Denomination Commission', 'paths' => ['admin/commission/denomination']],
             ]],
             ['key' => 'users', 'label' => 'Users', 'children' => [
@@ -117,7 +116,6 @@ class AdminMenuService
             ]],
             ['key' => 'system', 'label' => 'System', 'children' => [
                 ['key' => 'system.settings', 'label' => 'System Setting', 'paths' => ['admin/system-settings']],
-                ['key' => 'system.scheme', 'label' => 'Scheme', 'paths' => ['admin/system/scheme']],
                 ['key' => 'system.banks', 'label' => 'Banks', 'paths' => ['admin/system/banks']],
                 ['key' => 'system.amount_block', 'label' => 'Amount Block', 'paths' => ['admin/system/amount-block']],
                 ['key' => 'system.amount_switch', 'label' => 'Amount Wise Switch', 'paths' => ['admin/system/amount-wize-switch']],
@@ -149,6 +147,7 @@ class AdminMenuService
                 ['key' => 'extras.sms_api', 'label' => 'SMS API List', 'paths' => ['admin/extras/sms-api-list']],
                 ['key' => 'extras.whatsapp', 'label' => 'WhatsApp API', 'paths' => ['admin/extras/whatsapp-api']],
                 ['key' => 'extras.whatsapp_template', 'label' => 'WhatsApp Template List', 'paths' => ['admin/company/whatsapp-template']],
+                ['key' => 'extras.message_settings', 'label' => 'Notification / Message Settings', 'paths' => ['admin/extras/message-settings']],
                 ['key' => 'extras.send_message', 'label' => 'Send SMS / Notification', 'paths' => ['admin/users/send-message']],
                 ['key' => 'extras.sms_report', 'label' => 'Send SMS Report', 'paths' => ['admin/extras/send-sms-report']],
                 ['key' => 'extras.notification_report', 'label' => 'Notification Send Report', 'paths' => ['admin/extras/notification-send-report']],

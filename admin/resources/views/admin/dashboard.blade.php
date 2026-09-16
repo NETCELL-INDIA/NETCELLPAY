@@ -178,12 +178,6 @@ Dashboard
         </a>
     </div>
     <div class="col-md col-6">
-        <a class="pending-card purple" href="javascript:void(0)" onclick="return openLiveRechargeReport('{{ URL::asset('admin/admin-reports/recharge-live-reports') }}')">
-            <div class="label">Live Recharge</div>
-            <div class="value"><i class="ri-pulse-line"></i></div>
-        </a>
-    </div>
-    <div class="col-md col-6">
         <a class="pending-card blue" href="{{ URL::asset('admin/users/kyc') }}">
             <div class="label">KYC Requests</div>
             <div class="value" id="pending_kyc">0</div>

@@ -1282,6 +1282,9 @@ class helpers
     public static function whatsappEnabled(string $slug, $smsTmp = null): bool
     {
         try {
+            if (! \App\Services\MessageSettingService::channelEnabled($slug, 'whatsapp')) {
+                return false;
+            }
             if ($slug !== '' && \Illuminate\Support\Facades\Schema::hasTable('whatsapp_templates')) {
                 $status = DB::table('whatsapp_templates')->where('slug', $slug)->value('status');
                 if ((int) $status === 1) {
@@ -1291,8 +1294,25 @@ class helpers
         } catch (\Throwable $e) {
         }
 
-            return $smsTmp && (int) $smsTmp->status === 1;
+        return $smsTmp && (int) $smsTmp->status === 1;
+    }
+
+    public static function emailTemplateForSend(string $slug)
+    {
+        try {
+            if (! \App\Services\MessageSettingService::emailGloballyEnabled()) {
+                return null;
+            }
+            if (! \App\Services\MessageSettingService::channelEnabled($slug, 'email')) {
+                return null;
+            }
+            $row = DB::table('email_templates')->where('slug', $slug)->first(['subject', 'content', 'status']);
+
+            return ($row && (int) ($row->status ?? 0) === 1) ? $row : null;
+        } catch (\Throwable $e) {
+            return null;
         }
+    }
 
     public static function loginOtpRecentlySent($user, int $seconds = 120): bool
     {
@@ -1534,6 +1554,9 @@ class helpers
 
     public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'app_notification'): bool
     {
+        if (! \App\Services\MessageSettingService::channelEnabled($subject, 'push')) {
+            return false;
+        }
         if ($userId <= 0) {
             return false;
         }
@@ -1606,6 +1629,67 @@ class helpers
         } catch (\Throwable $e) {
             return 0;
         }
+    }
+
+    /**
+     * Active news/announcements (status=1 and not expired).
+     *
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    public static function activeAnnouncements(int $limit = 20, ?int $roleId = null)
+    {
+        if (! Schema::hasTable('announcements')) {
+            return collect();
+        }
+
+        try {
+            $today = Carbon::today()->format('Y-m-d');
+            $q = DB::table('announcements')->orderByDesc('id');
+
+            if (Schema::hasColumn('announcements', 'status')) {
+                $q->where('status', 1);
+            }
+            if (Schema::hasColumn('announcements', 'expiry_date')) {
+                $q->where(function ($w) use ($today) {
+                    $w->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today);
+                });
+            }
+
+            $rows = $q->limit($limit * 3)->get();
+            if ($roleId !== null && Schema::hasColumn('announcements', 'target_roles')) {
+                $rows = $rows->filter(function ($row) use ($roleId) {
+                    if (empty($row->target_roles)) {
+                        return true;
+                    }
+                    $targets = json_decode((string) $row->target_roles, true);
+
+                    return is_array($targets) && in_array($roleId, array_map('intval', $targets), true);
+                })->values();
+            }
+
+            return $rows->take($limit);
+        } catch (\Throwable $e) {
+            return collect();
+        }
+    }
+
+    /** Combined text for app/dashboard (backward compatible string). */
+    public static function activeAnnouncementText(?int $roleId = null): string
+    {
+        $rows = self::activeAnnouncements(10, $roleId);
+        if ($rows->isEmpty()) {
+            return '';
+        }
+
+        return $rows->map(function ($row) {
+            $title = trim((string) ($row->title ?? ''));
+            $message = trim(strip_tags((string) ($row->message ?? '')));
+            if ($title !== '' && $message !== '') {
+                return $title.': '.$message;
+            }
+
+            return $message !== '' ? $message : $title;
+        })->filter()->implode(' | ');
     }
 
     public static function markNotificationsRead(int $userId, ?array $ids = null): void

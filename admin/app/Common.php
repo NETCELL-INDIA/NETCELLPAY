@@ -318,9 +318,29 @@ use Illuminate\Http\Request;
             return $cut !== false ? $cut : $url;
         }
 
+        public static function emailTemplateForSend(string $slug)
+        {
+            try {
+                if (! \App\Services\MessageSettingService::emailGloballyEnabled()) {
+                    return null;
+                }
+                if (! \App\Services\MessageSettingService::channelEnabled($slug, 'email')) {
+                    return null;
+                }
+                $row = DB::table('email_templates')->where('slug', $slug)->first(['subject', 'content', 'status']);
+
+                return ($row && (int) ($row->status ?? 0) === 1) ? $row : null;
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
         public static function whatsappEnabled(string $slug, $smsTmp = null): bool
         {
             try {
+                if (! \App\Services\MessageSettingService::channelEnabled($slug, 'whatsapp')) {
+                    return false;
+                }
                 if ($slug !== '' && \Illuminate\Support\Facades\Schema::hasTable('whatsapp_templates')) {
                     $status = DB::table('whatsapp_templates')->where('slug', $slug)->value('status');
                     if ((int) $status === 1) {
@@ -1094,6 +1114,9 @@ use Illuminate\Http\Request;
 
     public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification')
     {
+        if (! \App\Services\MessageSettingService::channelEnabled($subject, 'push')) {
+            return false;
+        }
         if ($userId <= 0) {
             return false;
         }

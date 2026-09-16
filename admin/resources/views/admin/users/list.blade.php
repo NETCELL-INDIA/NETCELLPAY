@@ -216,6 +216,20 @@
 
                         <div class="row gy-4">
 
+                            <div class="col-xxl-12 col-md-12">
+
+                                <div>
+
+                                    <label for="fund_outlet_display" class="form-label">Shop / Outlet Name</label>
+
+                                    <input type="text" class="form-control" id="fund_outlet_display" readonly>
+
+                                    <div class="form-text" id="fund_user_meta">—</div>
+
+                                </div>
+
+                            </div>
+
                             <div class="col-xxl-6 col-md-12">
 
                                 <div>
@@ -1491,16 +1505,23 @@
         e.preventDefault();
 
         let id = $(this).attr('id');
+        var outlet = $(this).attr('data-outlet') || '';
+        var name = $(this).attr('data-name') || '';
+        var mobile = $(this).attr('data-mobile') || '';
+        var wallet = $(this).attr('data-wallet') || '0';
 
         $("#fund_details_form")[0].reset();
 
         $("#id").val(id);
 
+        $("#fund_outlet_display").val(outlet || name || '—');
+        var walletNum = Number(wallet || 0);
+        var walletText = '₹ ' + walletNum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        $("#fund_user_meta").text([name, mobile, 'Wallet: ' + walletText].filter(Boolean).join(' · '));
+
         $('#fundModal').modal({backdrop: 'static', keyboard: false});
 
         $('#fundModal').modal('show');
-
-        //alert(id);
 
     });
 

@@ -9,7 +9,7 @@
 @endsection
 @section('content')
 @component('components.breadcrumb')
-@slot('li_1') System @endslot
+@slot('li_1') Commission @endslot
 @slot('title')Scheme @endslot
 @endcomponent
 <style>

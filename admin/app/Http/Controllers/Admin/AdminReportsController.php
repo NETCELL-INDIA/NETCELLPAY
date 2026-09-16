@@ -9,6 +9,7 @@ use Validator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Session;
 class AdminReportsController extends Controller
 {
@@ -810,30 +811,49 @@ class AdminReportsController extends Controller
                         <input type="text" class="form-control" id="searchValueTable" placeholder="Enter Search Value">
                     </div>
                 </div><br>';
-            $output .= '<table class="table table-bordered table-nowrap" id="pagination_table"><thead>
+            $output .= '<table class="table table-bordered align-middle api-log-table" id="pagination_table"><thead>
               <tr>
-                <th>ID</th>
-                <th>Order Id</th>
-                <th>Date & Time</th>
-                <th>Req Type</th>
+                <th style="width:50px">ID</th>
+                <th style="width:130px">Order Id</th>
+                <th style="width:140px">Date &amp; Time</th>
+                <th style="width:100px">Req Type</th>
                 <th>Req Url</th>
-                <th>Req Header</th>
-                <th>Req Post</th>
                 <th>Response</th>
+                <th style="width:90px">Action</th>
               </tr>
             </thead>
             <tbody>';
             $i=$start + 1;
-			foreach ($list as $list) {
+			foreach ($list as $row) {
+                $url = (string) ($row->url ?? '');
+                $url = preg_replace('/([?&]apikey=)[^&]+/i', '$1***', $url) ?: $url;
+                $header = (string) ($row->header ?? '');
+                $request = (string) ($row->request ?? '');
+                $response = (string) ($row->response ?? '');
+
+                $urlShort = e(Str::limit($url, 80));
+                $resShort = e(Str::limit(preg_replace('/\s+/', ' ', $response), 100));
+
+                $payload = base64_encode(json_encode([
+                    'txnid' => (string) ($row->txnid ?? ''),
+                    'created_at' => (string) ($row->created_at ?? ''),
+                    'modal' => (string) ($row->modal ?? ''),
+                    'url' => $url,
+                    'header' => $header,
+                    'request' => $request,
+                    'response' => $response,
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
 				$output .= '<tr>
-                <td>' . $i . '</td>
-                <td>' . $list->txnid . '</td>
-                <td>' . $list->created_at . '</td>
-                <td>' . $list->modal . '</td>
-                <td>' . $list->url . '</td>
-                <td>' . $list->header . '</td>
-                <td>' . $list->request . '</td>
-                <td>' . $list->response . '</td>
+                <td>'.$i.'</td>
+                <td><strong>'.e((string) $row->txnid).'</strong></td>
+                <td><small>'.e((string) $row->created_at).'</small></td>
+                <td><span class="badge bg-soft-primary text-primary">'.e((string) $row->modal).'</span></td>
+                <td class="api-log-clip" title="'.e($url).'">'.$urlShort.'</td>
+                <td class="api-log-clip" title="'.e(Str::limit($response, 300)).'">'.$resShort.'</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-view-api-log" data-payload="'.e($payload).'">View</button>
+                </td>
               </tr>';
               $i++;
 			}

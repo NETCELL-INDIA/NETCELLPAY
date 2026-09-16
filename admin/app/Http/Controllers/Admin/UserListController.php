@@ -97,7 +97,7 @@ class UserListController extends Controller
                 $body = trim(strip_tags((string) $post->message_text));
                 $hasFcmKey = (bool) Common::fcmServerKey();
                 foreach ($users as $user) {
-                    $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], $title);
+                    $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_notification');
                     $inbox++;
                     if ($result === true) {
                         $sent++;
@@ -406,7 +406,12 @@ class UserListController extends Controller
                     <div class="users-action-btns">
                     <a id="' . $row->id . '" class="btn btn-soft-info editDetails" title="View"><i class="ri-eye-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-primary editDetails" title="Edit"><i class="ri-pencil-line"></i></a>
-                    ' . (AdminMenuService::can('payments.fund') ? '<a id="' . $row->id . '" class="btn btn-soft-success fundTransfer" title="Fund"><i class="ri-wallet-3-line"></i></a>' : '') . '
+                    ' . (AdminMenuService::can('payments.fund') ? '<a id="' . $row->id . '" class="btn btn-soft-success fundTransfer" title="Fund"'
+                        . ' data-outlet="' . e($row->outlet_name ?? '') . '"'
+                        . ' data-name="' . e($fullName) . '"'
+                        . ' data-mobile="' . e($row->mobile_number ?? '') . '"'
+                        . ' data-wallet="' . e(number_format((float) $row->wallet_balance, 2, '.', '')) . '"'
+                        . '><i class="ri-wallet-3-line"></i></a>' : '') . '
                     <a id="' . $row->id . '" class="btn btn-soft-warning resetPassword" title="Reset Password" data-user-name="' . e($fullName) . '" data-user-mobile="' . e($row->mobile_number) . '" data-user-pin="' . e($row->t_pin ?? '') . '"><i class="ri-lock-password-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-danger deleteData" title="Delete"><i class="ri-delete-bin-line"></i></a>
                     </div>

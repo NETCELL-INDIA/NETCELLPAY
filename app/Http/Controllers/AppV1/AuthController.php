@@ -102,7 +102,7 @@ class AuthController extends Controller
             'mobile' =>  $user->mobile_number,
             'email' =>  $user->email_address,
             'profile' =>  env('ADMIN_HOST')."/profile_pic/".$user->profile_pic,
-            'announcement' => optional(DB::table('announcements')->find(1))->message ?? '',
+            'announcement' => \helpers::activeAnnouncementText((int) ($user->role_id ?? 0)),
             'notifications' => \helpers::fetchUserNotifications((int) $post->user_id, 20)->values()->all(),
             'unread_notifications' => \helpers::countUnreadNotifications((int) $post->user_id),
             'sliders' =>   DB::table('sliders')->where('status',1)->where('deleted_at',0)->get(),

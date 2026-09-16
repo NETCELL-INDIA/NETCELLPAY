@@ -20,10 +20,6 @@ class RechargeMenuController extends Controller
             'title' => 'Consumption Report',
             'description' => 'Service consumption analytics',
         ],
-        'r-offer-report' => [
-            'title' => 'R-Offer Report',
-            'description' => 'Special offer/redemption report',
-        ],
         'plan-logs-report' => [
             'title' => 'Plan Logs Report',
             'description' => 'Mobile/DTH plan fetch logs',

@@ -141,18 +141,15 @@ class AuthController extends Controller
                                         }
                                     }
 
-                                    $company = Common::getCompanyByHost();
-                                    if($company && $company->email_message == 1){
-                                        $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                                        if ($email_tmp && !empty($user->email_address)) {
-                                            $content_email = $email_tmp->content;
-                                            $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
-                                            $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
-                                            $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
-                                            $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
-                                            $content_email = str_replace('{OTP}', $otp, $content_email);
-                                            Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
-                                        }
+                                    $email_tmp = Common::emailTemplateForSend($slug);
+                                    if ($email_tmp && !empty($user->email_address)) {
+                                        $content_email = $email_tmp->content;
+                                        $content_email = str_replace('{NAME}', '' . $user->first_name . '', $content_email);
+                                        $content_email = str_replace('{MIDDLE_NAME}', '' . $user->middle_name . '', $content_email);
+                                        $content_email = str_replace('{LAST_NAME}', '' . $user->last_name . '', $content_email);
+                                        $content_email = str_replace('{OUTLET_NAME}', '' . $user->outlet_name . '', $content_email);
+                                        $content_email = str_replace('{OTP}', $otp, $content_email);
+                                        Mail::to(strtolower($user->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
                                     }
                                 } catch (\Throwable $e) {
                                     // OTP is already saved; delivery failures should not block login.

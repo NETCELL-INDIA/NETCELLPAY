@@ -32,7 +32,8 @@
     background: #fff !important;
     border-bottom: 1px solid #e9ebec !important;
     box-shadow: 0 1px 2px rgba(56, 65, 74, 0.06) !important;
-    z-index: 1040 !important;
+    /* Must sit ABOVE purple horizontal menu (1045) so profile dropdown is not cut */
+    z-index: 1060 !important;
 }
 
 /* Vertical (legacy) page offset */
@@ -427,6 +428,7 @@
     border: 1px solid #e9ebec !important;
     border-radius: 0.6rem !important;
     box-shadow: 0 10px 30px rgba(16, 24, 40, 0.14) !important;
+    z-index: 1070 !important;
 }
 
 .rb-user-menu-head {

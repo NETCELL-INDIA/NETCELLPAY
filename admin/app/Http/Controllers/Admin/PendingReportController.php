@@ -133,7 +133,7 @@ class PendingReportController extends Controller
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td>
                         <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '">Resend</button>
-                        <button type="button" class="btn btn-sm btn-outline-success btn-mark" data-id="' . e($list->id) . '" data-status="Success">Success</button>
+                        <button type="button" class="btn btn-sm btn-outline-success btn-mark-success" data-id="' . e($list->id) . '" data-operator-id="' . e((string) ($list->operator_id ?? '')) . '">Success</button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-mark" data-id="' . e($list->id) . '" data-status="Failed">Fail</button>
                     </td>
                 </tr>';
@@ -250,10 +250,25 @@ class PendingReportController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Invalid status']);
         }
 
+        $operatorId = trim((string) ($request->operator_id ?? ''));
+        if ($status === 'Success' && $operatorId === '') {
+            return response()->json(['type' => 'error', 'message' => 'Operator Id is required for SUCCESS']);
+        }
+
         $payload = [
             'status' => $status,
             'updated_at' => Carbon::now(),
         ];
+        if ($status === 'Success' && Schema::hasColumn('reports', 'operator_id')) {
+            $payload['operator_id'] = $operatorId;
+            $payload['remark'] = 'Manual Success — Operator Id: '.$operatorId;
+        }
+        if ($status === 'Failed') {
+            $payload['remark'] = 'Manual Failed';
+            if ($operatorId !== '' && Schema::hasColumn('reports', 'operator_id')) {
+                $payload['operator_id'] = $operatorId;
+            }
+        }
         if (!Schema::hasColumn('reports', 'is_manual')) {
             Schema::table('reports', function ($table) {
                 $table->unsignedTinyInteger('is_manual')->default(0)->index();
@@ -295,6 +310,7 @@ class PendingReportController extends Controller
                 'ref_id' => $row->id,
                 'old' => $row->status,
                 'new' => $status,
+                'meta' => ['operator_id' => $operatorId],
             ]);
         }
 

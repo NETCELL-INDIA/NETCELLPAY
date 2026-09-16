@@ -278,18 +278,6 @@ window.openLiveRechargeReport = function (url) {
                         <a class="dropdown-item" href="{{ route('myProfile') }}">
                             <i class="ri-user-3-line me-2"></i> My Profile
                         </a>
-                        <a class="dropdown-item" href="{{ route('changePassword') }}">
-                            <i class="ri-lock-password-line me-2"></i> Change Password
-                        </a>
-                        <a class="dropdown-item" href="{{ route('pinReset') }}">
-                            <i class="ri-key-2-line me-2"></i> PIN Reset
-                        </a>
-                        <a class="dropdown-item" href="{{ route('loginHistory') }}">
-                            <i class="ri-history-line me-2"></i> Login History
-                        </a>
-                        <a class="dropdown-item" href="{{ URL::asset('admin/company/manage-company') }}">
-                            <i class="ri-building-line me-2"></i> Company Settings
-                        </a>
 
                         <div class="rb-user-section">Quick Links</div>
                         <a class="dropdown-item" href="{{ URL::asset('admin/user-reports/recharge-report?status=Pending') }}">

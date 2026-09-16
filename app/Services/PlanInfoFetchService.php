@@ -550,7 +550,8 @@ class PlanInfoFetchService
     public static function buildDthInfoUrl(object $api, int $providerId, string $number): ?string
     {
         $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
-        $host = strtolower((string) (parse_url((string) ($api->api_url ?? ''), PHP_URL_HOST) ?? ''));
+        $rawUrl = (string) ($api->api_url ?? '');
+        $host = strtolower((string) (parse_url($rawUrl, PHP_URL_HOST) ?? ''));
 
         if (str_contains($host, 'planapi.in')) {
             [$memberId, $password] = self::resolveHlrCredentials($api);
@@ -565,15 +566,22 @@ class PlanInfoFetchService
                 . '&Opcode=' . urlencode($opcode);
         }
 
-        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $key = self::resolvePlanApiKey($api, false);
         $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
-        if ($key === '' || $opcode === null) {
+        if ($key === null || $key === '' || $opcode === null) {
             return null;
         }
 
-        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        $base = self::normalizePlanApiBaseUrl($rawUrl);
         if ($base === '') {
             return null;
+        }
+
+        // PlanConnect: /api/dthInfo?apiKey=&vcNo=&operatorCode=
+        if (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false) {
+            return $base . '/dthInfo?apiKey=' . urlencode($key)
+                . '&vcNo=' . urlencode($number)
+                . '&operatorCode=' . urlencode($opcode);
         }
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
@@ -584,18 +592,24 @@ class PlanInfoFetchService
     public static function buildDthHeavyUrl(object $api, int $providerId, string $number): ?string
     {
         $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
-        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $key = self::resolvePlanApiKey($api, false);
         $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
-        if ($key === '' || $opcode === null) {
+        if ($key === null || $key === '' || $opcode === null) {
             $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, true);
         }
-        if ($key === '' || $opcode === null) {
+        if ($key === null || $key === '' || $opcode === null) {
             return null;
         }
 
-        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        $base = self::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
         if ($base === '') {
             return null;
+        }
+
+        if (self::isPlanConnectHost($base)) {
+            return $base . '/dthInfo?apiKey=' . urlencode($key)
+                . '&vcNo=' . urlencode($number)
+                . '&operatorCode=' . urlencode($opcode);
         }
 
         return $base . '/Dthheavy.php?apikey=' . urlencode($key)
@@ -691,7 +705,8 @@ class PlanInfoFetchService
     public static function buildDthPlansUrl(object $api, int $providerId): ?string
     {
         $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
-        $host = strtolower((string) (parse_url((string) ($api->api_url ?? ''), PHP_URL_HOST) ?? ''));
+        $rawUrl = (string) ($api->api_url ?? '');
+        $host = strtolower((string) (parse_url($rawUrl, PHP_URL_HOST) ?? ''));
 
         if (str_contains($host, 'planapi.in')) {
             [$memberId, $password] = self::resolveHlrCredentials($api);
@@ -705,13 +720,13 @@ class PlanInfoFetchService
                 . '&operatorcode=' . urlencode($opcode);
         }
 
-        $key = trim((string) ($api->resolved_api_key ?: $api->api_key ?: ''));
+        $key = self::resolvePlanApiKey($api, false);
         $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
-        if ($key === '' || $opcode === null) {
+        if ($key === null || $key === '' || $opcode === null) {
             return null;
         }
 
-        $base = rtrim((string) ($api->api_url ?? ''), '/');
+        $base = self::normalizePlanApiBaseUrl($rawUrl);
         if ($base === '') {
             return null;
         }
@@ -738,11 +753,68 @@ class PlanInfoFetchService
         if ($useEnvOverride) {
             $envBase = trim((string) config('plan_api.base_url', ''));
             if ($envBase !== '') {
-                return $envBase;
+                return rtrim($envBase, '/');
             }
         }
 
-        return rtrim((string) ($api->api_url ?? ''), '/');
+        return self::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+    }
+
+    /**
+     * Turn a full endpoint / template URL into a clean API base (scheme + host + /api).
+     * Prevents: .../dthInfo?apiKey=...[vcNo].../plans.php?...
+     */
+    public static function normalizePlanApiBaseUrl(?string $apiUrl): string
+    {
+        $raw = trim((string) $apiUrl);
+        if ($raw === '') {
+            return '';
+        }
+
+        $parts = parse_url($raw);
+        if (! is_array($parts) || empty($parts['host'])) {
+            return rtrim(preg_replace('/\?.*$/', '', $raw) ?: $raw, '/');
+        }
+
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = strtolower((string) $parts['host']);
+        $path = (string) ($parts['path'] ?? '');
+
+        // Drop endpoint file / action segments.
+        $path = preg_replace(
+            '#/(?:dthInfo|Dthinfo\.php|Dthheavy\.php|plans\.php|roffer\.php|Mobile(?:/[^/]+)*)/?$#i',
+            '',
+            $path
+        ) ?: $path;
+        $path = rtrim($path, '/');
+
+        if ($path === '' || ! preg_match('#/api$#i', $path)) {
+            if (preg_match('#^(.*?/api)(?:/|$)#i', (string) ($parts['path'] ?? ''), $m)) {
+                $path = rtrim($m[1], '/');
+            } elseif (str_contains($host, 'planconnect') || str_contains($host, 'mplan') || str_contains($host, 'planapi')) {
+                $path = '/api';
+            }
+        }
+
+        return rtrim($scheme.'://'.$parts['host'].$path, '/');
+    }
+
+    /** Pull apiKey from a stored template URL when apis.api_key is empty. */
+    public static function extractApiKeyFromUrl(?string $apiUrl): ?string
+    {
+        $query = parse_url((string) $apiUrl, PHP_URL_QUERY);
+        if (! is_string($query) || $query === '') {
+            return null;
+        }
+        parse_str($query, $params);
+        foreach (['apiKey', 'apikey', 'api_key', 'token', 'key'] as $name) {
+            $val = trim((string) ($params[$name] ?? ''));
+            if ($val !== '' && ! preg_match('/^\[[^\]]+\]$/', $val)) {
+                return $val;
+            }
+        }
+
+        return null;
     }
 
     public static function resolvePlanApiKey(object $api, bool $useEnvOverride = true): ?string
@@ -754,9 +826,19 @@ class PlanInfoFetchService
             }
         }
 
-        $key = $api->resolved_api_key ?? $api->api_key ?? null;
+        $key = trim((string) ($api->resolved_api_key ?? $api->api_key ?? ''));
+        if ($key !== '') {
+            return $key;
+        }
 
-        return ($key === null || $key === '') ? null : (string) $key;
+        return self::extractApiKeyFromUrl((string) ($api->api_url ?? ''));
+    }
+
+    private static function isPlanConnectHost(?string $hostOrUrl): bool
+    {
+        $host = strtolower((string) (parse_url((string) $hostOrUrl, PHP_URL_HOST) ?? $hostOrUrl));
+
+        return str_contains($host, 'planconnect');
     }
 
     /**

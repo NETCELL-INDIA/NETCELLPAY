@@ -92,11 +92,11 @@ use App\Http\Controllers\Admin\RefundReportController;
 use App\Http\Controllers\Admin\RechargeLogsController;
 use App\Http\Controllers\Admin\SendSmsReportController;
 use App\Http\Controllers\Admin\NotificationSendReportController;
+use App\Http\Controllers\Admin\MessageSettingController;
 use App\Http\Controllers\Admin\SupplierFail2SuccessController;
 use App\Http\Controllers\Admin\RehitRechargeHistoryController;
 use App\Http\Controllers\Admin\AmountwiseReportController;
 use App\Http\Controllers\Admin\ConsumptionReportController;
-use App\Http\Controllers\Admin\ROfferReportController;
 use App\Http\Controllers\Admin\PlanLogsReportController;
 use App\Http\Controllers\Admin\MenuPlaceholderController;
 
@@ -392,11 +392,6 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/recharge-reports/consumption-report/list', [ConsumptionReportController::class, 'list'])->name('consumptionReportList');
     Route::post('admin/recharge-reports/consumption-report/download', [ConsumptionReportController::class, 'download'])->name('consumptionReportDownload');
 
-    // R-Offer Report
-    Route::get('admin/recharge-reports/r-offer-report', [ROfferReportController::class, 'index'])->name('rOfferReport');
-    Route::post('admin/recharge-reports/r-offer-report/list', [ROfferReportController::class, 'list'])->name('rOfferReportList');
-    Route::post('admin/recharge-reports/r-offer-report/download', [ROfferReportController::class, 'download'])->name('rOfferReportDownload');
-
     // Plan Logs Report
     Route::get('admin/recharge-reports/plan-logs-report', [PlanLogsReportController::class, 'index'])->name('planLogsReport');
     Route::post('admin/recharge-reports/plan-logs-report/list', [PlanLogsReportController::class, 'list'])->name('planLogsReportList');
@@ -447,6 +442,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/profile/login-history',[ProfileController::class,'loginHistory'])->name('loginHistory');
     Route::post('admin/profile/my-profile-data',[ProfileController::class,'myProfileData'])->name('myProfileData');
     Route::post('admin/profile/my-profile-password-change',[ProfileController::class,'myProfilePasswordChange'])->name('myProfilePasswordChange');
+    Route::post('admin/profile/my-profile-photo',[ProfileController::class,'myProfilePhotoUpdate'])->name('myProfilePhotoUpdate');
 
     // Queue monitor and API logs
     Route::get('admin/monitor/queue',[QueueController::class,'index'])->name('adminQueueMonitor');
@@ -654,19 +650,14 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
 
-    //Announcement Routes 
-
-
-
-    Route::get('admin/system/announcement',[AnnouncementController::class,'index']);
-
-
-
-    Route::post('admin/system/announcement/update',[AnnouncementController::class,'updateData'])->name('announcementUpdate');
-
-
-
-    Route::post('admin/system/announcement/get',[AnnouncementController::class,'getData'])->name('announcementGet');
+    // Announcement / News List
+    Route::get('admin/system/announcement', [AnnouncementController::class, 'index'])->name('announcementIndex');
+    Route::post('admin/system/announcement/list', [AnnouncementController::class, 'list'])->name('announcementList');
+    Route::post('admin/system/announcement/get', [AnnouncementController::class, 'getData'])->name('announcementGet');
+    Route::post('admin/system/announcement/save', [AnnouncementController::class, 'save'])->name('announcementSave');
+    Route::post('admin/system/announcement/update', [AnnouncementController::class, 'save'])->name('announcementUpdate');
+    Route::post('admin/system/announcement/toggle', [AnnouncementController::class, 'toggleStatus'])->name('announcementToggle');
+    Route::post('admin/system/announcement/delete', [AnnouncementController::class, 'deleteData'])->name('announcementDelete');
 
     Route::post('admin/system-settings/save', [SystemSettingController::class, 'save'])->name('systemSettingSave');
     Route::get('admin/system-settings/{page?}', [SystemSettingController::class, 'show'])->name('systemSettingPage');
@@ -810,6 +801,8 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::get('admin/extras/send-sms-report', [SendSmsReportController::class, 'index'])->name('sendSmsReport');
     Route::post('admin/extras/send-sms-report/list', [SendSmsReportController::class, 'list'])->name('sendSmsReportList');
+    Route::get('admin/extras/message-settings', [MessageSettingController::class, 'index'])->name('messageSettings');
+    Route::post('admin/extras/message-settings/save', [MessageSettingController::class, 'save'])->name('messageSettingsSave');
     Route::get('admin/extras/notification-send-report', [NotificationSendReportController::class, 'index'])->name('notificationSendReport');
     Route::post('admin/extras/notification-send-report/list', [NotificationSendReportController::class, 'list'])->name('notificationSendReportList');
     Route::post('admin/extras/notification-send-report/delete', [NotificationSendReportController::class, 'destroy'])->name('notificationSendReportDelete');

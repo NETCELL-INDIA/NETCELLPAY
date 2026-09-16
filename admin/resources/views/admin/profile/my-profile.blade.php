@@ -89,40 +89,68 @@
         background: #f8fafc;
         border-color: #e9ebec;
     }
-    .rb-profile-links a {
+    .rb-avatar-upload {
+        position: relative;
+        width: 96px;
+        margin: 0 auto 0.85rem;
+    }
+    .rb-avatar-upload .rb-profile-avatar {
+        width: 96px;
+        height: 96px;
+        margin: 0;
+    }
+    .rb-avatar-upload .rb-photo-btn {
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        background: #405189;
+        color: #fff;
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        margin-right: 0.75rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #405189;
-        text-decoration: none;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(64, 81, 137, 0.35);
+        padding: 0;
     }
-    .rb-profile-links a:hover { color: #0ab39c; }
+    .rb-avatar-upload .rb-photo-btn:hover { background: #364574; }
+    .rb-avatar-upload .rb-photo-btn:disabled {
+        opacity: 0.7;
+        cursor: wait;
+    }
+    .rb-photo-hint {
+        font-size: 0.75rem;
+        color: #878a99;
+        margin-top: 0.35rem;
+    }
 </style>
 @endsection
 
 @section('content')
 <div class="rb-profile-page">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h2 class="rb-page-title mb-0">My Profile</h2>
-        <div class="rb-profile-links">
-            <a href="{{ route('changePassword') }}"><i class="ri-lock-password-line"></i> Change Password</a>
-            <a href="{{ route('loginHistory') }}"><i class="ri-history-line"></i> Login History</a>
-        </div>
-    </div>
+    <h2 class="rb-page-title">My Profile</h2>
+    @include('admin.profile._nav')
 
     <div class="row g-3">
         <div class="col-lg-3">
             <div class="card rb-profile-card">
                 <div class="rb-profile-side">
-                    <div class="rb-profile-avatar" id="side_avatar_wrap">
-                        <img src="" id="side_profile_pic" alt="" style="display:none;" onerror="this.style.display='none'; document.getElementById('side_avatar_initials').style.display='flex';">
-                        <span id="side_avatar_initials">NP</span>
+                    <div class="rb-avatar-upload">
+                        <div class="rb-profile-avatar" id="side_avatar_wrap">
+                            <img src="" id="side_profile_pic" alt="" style="display:none;" onerror="this.style.display='none'; document.getElementById('side_avatar_initials').style.display='flex';">
+                            <span id="side_avatar_initials">NP</span>
+                        </div>
+                        <button type="button" class="rb-photo-btn" id="profile_photo_btn" title="Change photo">
+                            <i class="ri-camera-line"></i>
+                        </button>
+                        <input type="file" id="profile_pic_input" accept="image/jpeg,image/jpg,image/png,image/webp" hidden>
                     </div>
                     <h5 id="side_fullname">—</h5>
                     <div class="rb-role" id="side_destination">—</div>
+                    <div class="rb-photo-hint">JPG / PNG, max 2 MB</div>
                     <div class="rb-profile-meta">
                         <div class="item">
                             <span class="label">Mobile</span>
@@ -209,19 +237,94 @@
         return s || 'NP';
     }
 
-    function setProfileAvatar(pic, initials) {
+    function setProfileAvatar(pic, initials, fullUrl) {
         var img = document.getElementById('side_profile_pic');
         var initEl = document.getElementById('side_avatar_initials');
-        initEl.textContent = initials;
-        if (pic) {
+        initEl.textContent = initials || initEl.textContent || 'NP';
+        var url = fullUrl || (pic ? '{{ admin_asset('profile_pic') }}/' + pic : '');
+        if (url) {
             img.style.display = 'block';
             initEl.style.display = 'none';
-            img.src = '{{ env('APP_URL') }}/profile_pic/' + pic;
+            img.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
         } else {
             img.style.display = 'none';
             initEl.style.display = 'flex';
         }
     }
+
+    function Error_Msg(title, text, icon) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                customClass: { confirmButton: 'btn btn-primary w-xs mt-2' },
+                buttonsStyling: false,
+                showCloseButton: true
+            });
+        } else {
+            alert(text);
+        }
+    }
+
+    function capitalizeFirstLetter(string) {
+        string = String(string || '');
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    $('#profile_photo_btn').on('click', function () {
+        $('#profile_pic_input').trigger('click');
+    });
+
+    $('#profile_pic_input').on('change', function () {
+        var file = this.files && this.files[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            Error_Msg('Error', 'Image must be under 2 MB.', 'error');
+            this.value = '';
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('profile_pic', file);
+        fd.append('_token', '{{ csrf_token() }}');
+
+        var $btn = $('#profile_photo_btn');
+        $btn.prop('disabled', true).html('<i class="ri-loader-4-line"></i>');
+
+        $.ajax({
+            url: '{{ route('myProfilePhotoUpdate') }}',
+            method: 'post',
+            data: fd,
+            processData: false,
+            contentType: false,
+            success: function (data) {
+                $btn.prop('disabled', false).html('<i class="ri-camera-line"></i>');
+                if (data.type === 'success') {
+                    setProfileAvatar(
+                        data.data.profile_pic,
+                        $('#side_avatar_initials').text(),
+                        data.data.profile_pic_url
+                    );
+                    // Refresh topbar avatars if present
+                    if (data.data.profile_pic_url) {
+                        $('.rb-avatar').attr('src', data.data.profile_pic_url + '?t=' + Date.now());
+                    }
+                    Error_Msg('Success', data.message, 'success');
+                } else {
+                    Error_Msg(capitalizeFirstLetter(data.type || 'error'), data.message || 'Upload failed', data.type || 'error');
+                }
+            },
+            error: function (xhr) {
+                $btn.prop('disabled', false).html('<i class="ri-camera-line"></i>');
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Upload failed';
+                Error_Msg('Error', msg, 'error');
+            }
+        });
+
+        this.value = '';
+    });
 
     function ajaxCall() {
         $.ajax({

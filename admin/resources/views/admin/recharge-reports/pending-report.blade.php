@@ -183,6 +183,30 @@
         </div>
     </div>
 </div>
+
+{{-- Mark Success — Operator Id required --}}
+<div id="pendingSuccessModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mark as SUCCESS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="ps_ids" value="">
+                <div class="mb-2 text-muted small" id="ps_count_info"></div>
+                <div class="mb-3">
+                    <label for="ps_operator_id" class="form-label">Operator Id <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ps_operator_id" placeholder="Enter Operator Id / Ref No" maxlength="255" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="ps_submit_btn">Confirm SUCCESS</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('script')
@@ -208,6 +232,55 @@ function filterPayload() {
 
 function selectedIds() {
     return $('.row-check:checked').map(function () { return $(this).val(); }).get();
+}
+
+function openSuccessModal(ids, operatorId) {
+    ids = (ids || []).map(String).filter(Boolean);
+    if (!ids.length) {
+        alert('Select at least one transaction');
+        return;
+    }
+    $('#ps_ids').val(ids.join(','));
+    $('#ps_operator_id').val(operatorId || '');
+    $('#ps_count_info').text(ids.length === 1
+        ? '1 transaction will be marked SUCCESS'
+        : (ids.length + ' transactions will be marked SUCCESS'));
+    $('#pendingSuccessModal').modal('show');
+    setTimeout(function () { $('#ps_operator_id').trigger('focus'); }, 300);
+}
+
+function submitSuccess() {
+    var ids = String($('#ps_ids').val() || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+    var operatorId = String($('#ps_operator_id').val() || '').trim();
+    if (!ids.length) {
+        alert('No transaction selected');
+        return;
+    }
+    if (!operatorId) {
+        alert('Operator Id is required for SUCCESS');
+        $('#ps_operator_id').trigger('focus');
+        return;
+    }
+    var $btn = $('#ps_submit_btn');
+    $btn.prop('disabled', true).text('Please wait...');
+    $.ajax({
+        url: '{{ route("pendingReportBulkStatus") }}',
+        method: 'POST',
+        dataType: 'json',
+        data: { _token: csrf, ids: ids, status: 'Success', operator_id: operatorId },
+        success: function (res) {
+            $btn.prop('disabled', false).text('Confirm SUCCESS');
+            alert(res.message || (res.type === 'success' ? 'Done' : 'Failed'));
+            if (res.type === 'success') {
+                $('#pendingSuccessModal').modal('hide');
+                fetchPending();
+            }
+        },
+        error: function () {
+            $btn.prop('disabled', false).text('Confirm SUCCESS');
+            alert('Failed');
+        }
+    });
 }
 
 function fetchPending() {
@@ -247,6 +320,10 @@ function bulkStatus(status) {
         alert('Select at least one transaction');
         return;
     }
+    if (status === 'Success') {
+        openSuccessModal(ids, '');
+        return;
+    }
     if (!confirm('Mark ' + ids.length + ' transaction(s) as ' + status + '?')) return;
     $.ajax({
         url: '{{ route("pendingReportBulkStatus") }}',
@@ -281,6 +358,13 @@ $(function () {
     $('#btnNext').on('click', function () { if (currentPage < lastPage) { currentPage++; fetchPending(); } });
     $('#btnBulkSuccess').on('click', function () { bulkStatus('Success'); });
     $('#btnBulkFailure').on('click', function () { bulkStatus('Failed'); });
+    $('#ps_submit_btn').on('click', submitSuccess);
+    $('#ps_operator_id').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitSuccess();
+        }
+    });
 
     $('#checkAll').on('change', function () {
         $('.row-check').prop('checked', $(this).is(':checked'));
@@ -325,6 +409,10 @@ $(function () {
                 $btn.prop('disabled', false).text('Resend');
             }
         });
+    });
+
+    $(document).on('click', '.btn-mark-success', function () {
+        openSuccessModal([$(this).data('id')], $(this).attr('data-operator-id') || '');
     });
 
     $(document).on('click', '.btn-mark', function () {

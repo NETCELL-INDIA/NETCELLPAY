@@ -683,8 +683,27 @@ class DashboardController extends Controller
     private function announcementMessage(): string
     {
         try {
-            $row = DB::table('announcements')->where('id', 1)->first(['message']);
-            return $row->message ?? '';
+            $today = Carbon::today()->format('Y-m-d');
+            $q = DB::table('announcements')->orderByDesc('id');
+            if (Schema::hasColumn('announcements', 'status')) {
+                $q->where('status', 1);
+            }
+            if (Schema::hasColumn('announcements', 'expiry_date')) {
+                $q->where(function ($w) use ($today) {
+                    $w->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today);
+                });
+            }
+            $rows = $q->limit(10)->get(['title', 'message']);
+
+            return $rows->map(function ($row) {
+                $title = trim((string) ($row->title ?? ''));
+                $message = trim((string) ($row->message ?? ''));
+                if ($title !== '' && $message !== '') {
+                    return $title.': '.$message;
+                }
+
+                return $message !== '' ? $message : $title;
+            })->filter()->implode(' | ');
         } catch (\Throwable $e) {
             return '';
         }

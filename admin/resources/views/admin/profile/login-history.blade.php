@@ -63,15 +63,13 @@
 @section('content')
 <div class="rb-profile-page">
     <h2 class="rb-page-title">Login History</h2>
+    @include('admin.profile._nav')
 
     <div class="card rb-profile-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h5 class="card-title mb-0">
                 <i class="ri-history-line me-1"></i> Login History
             </h5>
-            <a href="{{ route('myProfile') }}" class="btn btn-sm btn-light">
-                <i class="ri-arrow-left-line me-1"></i> Back to Profile
-            </a>
         </div>
         <div class="card-body p-3">
             <p class="text-muted small mb-3">Latest login sessions with device &amp; browser details</p>

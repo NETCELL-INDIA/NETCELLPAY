@@ -74,11 +74,7 @@ class ProfileController extends Controller
 
         $company = user_company();
 
-        $announcementRow = DB::table('announcements')
-        ->select('message')
-        ->where('id', 1)
-        ->first();
-        $announcements = $announcementRow->message ?? '';
+        $announcements = \helpers::activeAnnouncementText((int) ($user->role_id ?? 0));
 
         if ($user) {
             // MySQL decimal columns are returned as strings; expose a numeric wallet for frontend.

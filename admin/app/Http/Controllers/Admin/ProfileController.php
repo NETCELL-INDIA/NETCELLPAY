@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use App\Mail\SendEmail;
 use Session;
 class ProfileController extends Controller
@@ -117,7 +118,25 @@ class ProfileController extends Controller
 
             $announcements = '';
             try {
-                $announcements = optional(DB::table('announcements')->where('id', 1)->first())->message ?? '';
+                $today = Carbon::today()->format('Y-m-d');
+                $q = DB::table('announcements')->orderByDesc('id');
+                if (Schema::hasColumn('announcements', 'status')) {
+                    $q->where('status', 1);
+                }
+                if (Schema::hasColumn('announcements', 'expiry_date')) {
+                    $q->where(function ($w) use ($today) {
+                        $w->whereNull('expiry_date')->orWhere('expiry_date', '>=', $today);
+                    });
+                }
+                $announcements = $q->limit(10)->get(['title', 'message'])->map(function ($row) {
+                    $title = trim((string) ($row->title ?? ''));
+                    $message = trim((string) ($row->message ?? ''));
+                    if ($title !== '' && $message !== '') {
+                        return $title.': '.$message;
+                    }
+
+                    return $message !== '' ? $message : $title;
+                })->filter()->implode(' | ');
             } catch (\Throwable $e) {
             }
 
@@ -204,6 +223,67 @@ class ProfileController extends Controller
         return response()->json([
             'type' => 'error',
             'message' => 'Something went wrong.',
+        ]);
+    }
+
+    public function myProfilePhotoUpdate(Request $post)
+    {
+        $validator = \Validator::make($post->all(), [
+            'profile_pic' => 'required|image|mimes:jpeg,jpg,png,webp|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            $error = 'Invalid image.';
+            foreach ($validator->errors()->messages() as $messages) {
+                $error = $messages[0];
+                break;
+            }
+
+            return response()->json([
+                'type' => 'error',
+                'message' => $error,
+            ]);
+        }
+
+        $userId = (int) Session::get('user_id');
+        $user = DB::table('users')->where('id', $userId)->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ]);
+        }
+
+        $dir = public_path('profile_pic');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $ext = strtolower($post->file('profile_pic')->getClientOriginalExtension() ?: 'jpg');
+        $fileName = 'u'.$userId.'_'.time().'.'.$ext;
+        $post->file('profile_pic')->move($dir, $fileName);
+
+        $old = (string) ($user->profile_pic ?? '');
+        $defaults = ['avatar-1.jpg', 'avatar-2.png', 'avatar-2.jpg', ''];
+        if ($old !== '' && ! in_array($old, $defaults, true)) {
+            $oldPath = $dir.DIRECTORY_SEPARATOR.$old;
+            if (is_file($oldPath)) {
+                @unlink($oldPath);
+            }
+        }
+
+        DB::table('users')->where('id', $userId)->update([
+            'profile_pic' => $fileName,
+            'updated_at' => Carbon::now(),
+        ]);
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Profile photo updated.',
+            'data' => [
+                'profile_pic' => $fileName,
+                'profile_pic_url' => admin_asset('profile_pic/'.$fileName),
+            ],
         ]);
     }
 

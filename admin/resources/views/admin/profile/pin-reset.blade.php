@@ -38,15 +38,13 @@
 @section('content')
 <div class="rb-profile-page">
     <h2 class="rb-page-title">PIN Reset</h2>
+    @include('admin.profile._nav')
 
     <div class="card rb-profile-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header">
             <h5 class="card-title mb-0">
                 <i class="ri-key-2-line me-1"></i> PIN Reset
             </h5>
-            <a href="{{ route('myProfile') }}" class="btn btn-sm btn-light">
-                <i class="ri-arrow-left-line me-1"></i> Back to Profile
-            </a>
         </div>
         <div class="card-body p-4">
             <form action="javascript:void(0);" class="rb-profile-form" id="password_reset_form">
