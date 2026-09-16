@@ -1727,15 +1727,34 @@ class helpers
                 $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
             }
 
+            $channelId = trim((string) env('FCM_ANDROID_CHANNEL_ID', 'high_importance_channel'));
+            if ($channelId === '') {
+                $channelId = 'high_importance_channel';
+            }
+
+            $notification = [
+                'title' => (string) $title,
+                'body' => (string) $body,
+                'sound' => 'default',
+                'android_channel_id' => $channelId,
+            ];
+
             $payload = [
                 'to' => $token,
                 'priority' => 'high',
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                    'sound' => 'default',
-                ],
+                'content_available' => true,
+                'notification' => $notification,
                 'data' => $payloadData,
+                'android' => [
+                    'priority' => 'high',
+                    'notification' => [
+                        'channel_id' => $channelId,
+                        'sound' => 'default',
+                        'default_sound' => true,
+                        'default_vibrate_timings' => true,
+                        'notification_priority' => 'PRIORITY_HIGH',
+                    ],
+                ],
             ];
             $json = json_encode($payload);
             $headers = [
@@ -1743,8 +1762,35 @@ class helpers
                 'Authorization: key=' . $serverKey
             ];
             $result = \helpers::curl('https://fcm.googleapis.com/fcm/send', 'POST', $json, $headers, 'yes', 'FCM', time());
-            return $result;
+            if (! is_array($result)) {
+                return false;
+            }
+
+            $responseBody = (string) ($result['response'] ?? '');
+            $decoded = json_decode($responseBody, true);
+            if (! is_array($decoded)) {
+                \Log::warning('FCM non-json response', ['body' => mb_substr($responseBody, 0, 500)]);
+
+                return false;
+            }
+
+            // Legacy FCM success shape: { "success": 1, "failure": 0, ... }
+            if (isset($decoded['success']) && (int) $decoded['success'] > 0) {
+                return true;
+            }
+            if (isset($decoded['message_id']) || isset($decoded['name'])) {
+                return true;
+            }
+
+            \Log::warning('FCM send failed', [
+                'body' => mb_substr($responseBody, 0, 500),
+                'results' => $decoded['results'] ?? null,
+                'error' => $decoded['error'] ?? null,
+            ]);
+
+            return false;
         } catch(\Throwable $e){
+            \Log::warning('sendFcmNotification exception: '.$e->getMessage());
             return false;
         }
     }

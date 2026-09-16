@@ -1178,18 +1178,35 @@ use Illuminate\Http\Request;
                 $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
             }
 
+            $channelId = trim((string) env('FCM_ANDROID_CHANNEL_ID', 'high_importance_channel'));
+            if ($channelId === '') {
+                $channelId = 'high_importance_channel';
+            }
+
             $payload = json_encode([
                 'to' => $token,
                 'priority' => 'high',
+                'content_available' => true,
                 'notification' => [
                     'title' => $title,
                     'body' => $body,
                     'sound' => 'default',
+                    'android_channel_id' => $channelId,
                 ],
                 'data' => $payloadData,
+                'android' => [
+                    'priority' => 'high',
+                    'notification' => [
+                        'channel_id' => $channelId,
+                        'sound' => 'default',
+                        'default_sound' => true,
+                        'default_vibrate_timings' => true,
+                        'notification_priority' => 'PRIORITY_HIGH',
+                    ],
+                ],
             ]);
 
-            self::curl(
+            $result = self::curl(
                 'https://fcm.googleapis.com/fcm/send',
                 'POST',
                 $payload,
@@ -1201,6 +1218,25 @@ use Illuminate\Http\Request;
                 'FCM',
                 (string) time()
             );
+
+            $responseBody = is_array($result) ? (string) ($result['response'] ?? '') : '';
+            $decoded = json_decode($responseBody, true);
+            $ok = is_array($decoded) && (
+                ((int) ($decoded['success'] ?? 0)) > 0
+                || isset($decoded['message_id'])
+                || isset($decoded['name'])
+            );
+
+            if (! $ok) {
+                \Log::warning('FCM send failed', [
+                    'user_id' => $userId,
+                    'body' => mb_substr($responseBody, 0, 500),
+                    'results' => is_array($decoded) ? ($decoded['results'] ?? null) : null,
+                ]);
+                $setStatus(3);
+
+                return false;
+            }
 
             $setStatus(1);
             return true;
