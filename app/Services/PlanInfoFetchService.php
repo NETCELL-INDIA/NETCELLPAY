@@ -334,6 +334,18 @@ class PlanInfoFetchService
         }
 
         $base = rtrim(self::resolvePlanApiBaseUrl($api, $useEnvOverride), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        // PlanConnect docs: /api/getMobilePlans?apiKey=&circleCode=&operatorCode=
+        if (self::isPlanConnectHost($base)) {
+            $circle = rawurldecode(str_replace('%20', ' ', $circleCode));
+
+            return $base . '/getMobilePlans?apiKey=' . urlencode($key)
+                . '&circleCode=' . urlencode($circle)
+                . '&operatorCode=' . urlencode($operatorCode);
+        }
 
         return $base . '/plans.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($operatorCode)
@@ -606,8 +618,9 @@ class PlanInfoFetchService
             return null;
         }
 
+        // PlanConnect: /api/heavyRefresh?apiKey=&vcNo=&operatorCode=
         if (self::isPlanConnectHost($base)) {
-            return $base . '/dthInfo?apiKey=' . urlencode($key)
+            return $base . '/heavyRefresh?apiKey=' . urlencode($key)
                 . '&vcNo=' . urlencode($number)
                 . '&operatorCode=' . urlencode($opcode);
         }
@@ -731,6 +744,12 @@ class PlanInfoFetchService
             return null;
         }
 
+        // PlanConnect docs: /api/getDthPlans?apiKey=&operatorCode=
+        if (self::isPlanConnectHost($host) || self::isPlanConnectHost($base)) {
+            return $base . '/getDthPlans?apiKey=' . urlencode($key)
+                . '&operatorCode=' . urlencode($opcode);
+        }
+
         return $base . '/plans.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($opcode)
             . '&cricle=All';
@@ -782,7 +801,7 @@ class PlanInfoFetchService
 
         // Drop endpoint file / action segments.
         $path = preg_replace(
-            '#/(?:dthInfo|Dthinfo\.php|Dthheavy\.php|plans\.php|roffer\.php|Mobile(?:/[^/]+)*)/?$#i',
+            '#/(?:dthInfo|getDthPlans|getMobilePlans|getRoffers|heavyRefresh|operatorCheck|Dthinfo\.php|Dthheavy\.php|plans\.php|roffer\.php|Mobile(?:/[^/]+)*)/?$#i',
             '',
             $path
         ) ?: $path;
@@ -1208,13 +1227,77 @@ class PlanInfoFetchService
     }
 
     /**
+     * PlanConnect getDthPlans → group by language into rs/desc/validity rows.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, array<int, array{rs: string, desc: string, validity: string}>>
+     */
+    private static function normalizePlanConnectDthPlans(array $data): array
+    {
+        $plans = $data['data']['plans'] ?? $data['plans'] ?? null;
+        if (! is_array($plans) || $plans === []) {
+            return [];
+        }
+
+        // Must look like PlanConnect pack objects (name/priceList), not already-normalized rows.
+        $first = reset($plans);
+        if (! is_array($first) || (! isset($first['priceList']) && ! isset($first['name']))) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($plans as $pack) {
+            if (! is_array($pack)) {
+                continue;
+            }
+            $category = trim((string) ($pack['language'] ?? $pack['category'] ?? 'Plans'));
+            if ($category === '') {
+                $category = 'Plans';
+            }
+            $name = trim((string) ($pack['name'] ?? ''));
+            $description = trim((string) ($pack['description'] ?? ''));
+            $desc = trim($name.($description !== '' ? ' - '.$description : ''));
+            $priceList = $pack['priceList'] ?? $pack['PricingList'] ?? [];
+            if (! is_array($priceList) || $priceList === []) {
+                if ($desc !== '') {
+                    $out[$category][] = [
+                        'rs' => '',
+                        'desc' => $desc,
+                        'validity' => '',
+                    ];
+                }
+                continue;
+            }
+            foreach ($priceList as $price) {
+                if (! is_array($price)) {
+                    continue;
+                }
+                $amount = preg_replace('/[^\d.]/', '', (string) ($price['amount'] ?? $price['Amount'] ?? $price['rs'] ?? '')) ?? '';
+                $out[$category][] = [
+                    'rs' => $amount,
+                    'desc' => $desc,
+                    'validity' => (string) ($price['validity'] ?? $price['Month'] ?? ''),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * PlanAPI DthPlans returns RDATA with nested PricingList, not rs/desc/validity.
+     * PlanConnect getDthPlans returns data.plans[{name,description,priceList,language}].
      *
      * @param  array<string, mixed>  $data
      * @return array<string, array<int, array{rs: string, desc: string, validity: string}>>
      */
     private static function normalizeDthPlanRecords(array $data): array
     {
+        $planConnect = self::normalizePlanConnectDthPlans($data);
+        if ($planConnect !== []) {
+            return $planConnect;
+        }
+
         $source = $data['RDATA'] ?? $data['rdata'] ?? null;
         if (!is_array($source) || $source === []) {
             return [];
