@@ -128,7 +128,7 @@ class UserListController extends Controller
                         }
                         $reasonText = ' — '.implode('; ', $bits);
                     } elseif (! $hasFcmKey) {
-                        $reasonText = ' — Firebase not configured (upload service-account.json for netcellpay-fe31a)';
+                        $reasonText = ' — Firebase HTTP v1 not configured (set FIREBASE_CREDENTIALS to a private path outside the web root)';
                     }
                     $parts[] = "{$failed} push failed".$reasonText;
                 }

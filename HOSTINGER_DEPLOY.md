@@ -105,33 +105,79 @@ This is PHP/Laravel. Use File Manager / Git PHP hosting, not Vite build.
 
 ## 10) Firebase HTTP v1 (Android push) — required
 
-Do **not** enable Cloud Messaging API (Legacy). Do **not** paste a Server key into admin.
+Do **not** enable Cloud Messaging API (Legacy). Do **not** use a Server key.  
+Do **not** place the service-account JSON under `public/`, `public_html/`, `admin/public/`, or any web-accessible folder.  
+Do **not** commit the JSON to Git.
 
-1. Firebase Console → project **netcellpay-fe31a** → Project settings → Service accounts → Generate new private key.
-2. On Hostinger upload that JSON with File Manager (not Git) to **both**:
-   - `public_html/storage/app/firebase/service-account.json`
-   - `public_html/admin/storage/app/firebase/service-account.json`
-3. Permissions: PHP-readable only (e.g. `640`). Must be under `storage/`, never under `public/`.
-4. In `public_html/.env`:
+### A) Detect your real Hostinger home (do not invent `/home/USER`)
+
+SSH into Hostinger, then run:
+
+```bash
+echo "$HOME"
+# example output: /home/u123456789
+pwd
+whoami
 ```
+
+Use the printed `$HOME` value in the steps below.
+
+### B) Store the JSON outside the web root
+
+```bash
+mkdir -p "$HOME/private/firebase"
+chmod 700 "$HOME/private/firebase"
+```
+
+Upload the Firebase service account JSON (project **netcellpay-fe31a**) via SFTP/File Manager to:
+
+```text
+$HOME/private/firebase/service-account.json
+```
+
+Example after detecting home:
+
+```bash
+# If echo $HOME printed /home/u123456789 then the file is:
+# /home/u123456789/private/firebase/service-account.json
+chmod 600 "$HOME/private/firebase/service-account.json"
+```
+
+Never put this file under `~/domains/netcellpay.in/public_html/`.
+
+### C) Point both Laravel apps at that private file
+
+In **API** `.env` (site root Laravel) and **admin** `.env`:
+
+```env
 FIREBASE_PROJECT_ID=netcellpay-fe31a
-FIREBASE_CREDENTIALS=/home/USER/domains/netcellpay.in/public_html/storage/app/firebase/service-account.json
+FIREBASE_CREDENTIALS=/ABS/PATH/FROM/HOME/private/firebase/service-account.json
 FCM_ANDROID_CHANNEL_ID=high_importance_channel
 ```
-5. In `public_html/admin/.env`:
-```
-FIREBASE_PROJECT_ID=netcellpay-fe31a
-FIREBASE_CREDENTIALS=/home/USER/domains/netcellpay.in/public_html/admin/storage/app/firebase/service-account.json
-FCM_ANDROID_CHANNEL_ID=high_importance_channel
-```
-Replace `USER` with the Hostinger account name. Empty `FIREBASE_CREDENTIALS` falls back to `storage/app/firebase/service-account.json` of that Laravel root.
-6. SSH:
+
+Replace `/ABS/PATH/FROM/HOME/...` with the real path from `echo "$HOME"` (e.g. `$HOME/private/firebase/service-account.json` expanded).
+
+Empty `FIREBASE_CREDENTIALS` falls back to `storage/app/firebase/service-account.json`, which is **rejected** if that path sits under `public_html`. Prefer the private path above.
+
+### D) Clear config cache + verify (no secrets printed)
+
 ```bash
 cd ~/domains/netcellpay.in/public_html
 php artisan config:clear && php artisan cache:clear
-cd admin
+php artisan fcm:status
+php artisan fcm:status --auth
+
+cd ~/domains/netcellpay.in/public_html/admin
 php artisan config:clear && php artisan cache:clear
+php artisan fcm:status
+php artisan fcm:status --auth
 ```
-7. Admin → System settings → Pusher / FCM push should show **Firebase HTTP v1 is configured**.
-8. Retailer latest APK → Logout → Login, then admin-send to **that user only**. Expect Phone push: 1.
+
+Expect `configured: yes`, `safe_path: yes`, and with `--auth` → `oauth: ok`.
+
+### E) Admin UI + test push
+
+1. Admin → System settings → Pusher / FCM → green “Firebase HTTP v1 ready…”.
+2. Retailer latest APK → Logout → Login (saves `android_fcm_token`).
+3. Admin send notification to **that user only** → Phone push: 1.
 

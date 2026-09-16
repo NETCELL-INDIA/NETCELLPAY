@@ -32,6 +32,7 @@ return [
     ],
 
     'fcm' => [
+        // HTTP v1 only. FIREBASE_CREDENTIALS must point outside public/public_html.
         'project_id' => env('FIREBASE_PROJECT_ID', 'netcellpay-fe31a'),
         'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase/service-account.json')),
         'android_channel_id' => env('FCM_ANDROID_CHANNEL_ID', 'high_importance_channel'),

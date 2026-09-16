@@ -1472,20 +1472,10 @@ class helpers
 
 
 
+    /** @deprecated Legacy FCM Server Key is not used. Use FcmHttpV1Service. */
     public static function fcmServerKey(): ?string
     {
-        $key = trim((string) env('FCM_SERVER_KEY', ''));
-        if ($key !== '' && str_starts_with($key, 'AAAA')) {
-            return $key;
-        }
-
-        try {
-            $key = trim((string) \App\Services\SystemSettingService::get('fcm_server_key', ''));
-        } catch (\Throwable $e) {
-            $key = '';
-        }
-
-        return ($key !== '' && str_starts_with($key, 'AAAA')) ? $key : null;
+        return null;
     }
 
     public static function ensureUserPushColumns(): void

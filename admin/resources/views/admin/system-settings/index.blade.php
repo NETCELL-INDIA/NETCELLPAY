@@ -263,25 +263,21 @@
                         @include('admin.system-settings._field', ['name' => 'pusher_cluster', 'label' => 'Pusher Cluster', 'icon' => 'ri-global-line', 'value' => $settings['pusher_cluster']])
                     </div>
                     <h5 class="mt-4 mb-3">Android app push (Firebase FCM HTTP v1)</h5>
-                    <div class="alert {{ \App\Services\FcmHttpV1Service::isConfigured() ? 'alert-success' : 'alert-danger' }}">
-                        @if(\App\Services\FcmHttpV1Service::isHttpV1Configured())
-                            Firebase HTTP v1 is configured for project <code>{{ \App\Services\FcmHttpV1Service::projectId() }}</code>.
-                            Service account JSON is on the server (not shown here).
-                        @elseif(\App\Services\FcmHttpV1Service::isConfigured())
-                            Using legacy FCM Server Key fallback. Prefer uploading
-                            <code>storage/app/firebase/service-account.json</code> for project <code>netcellpay-fe31a</code>.
+                    @php
+                        $fcmStatus = \App\Services\FcmHttpV1Service::status();
+                    @endphp
+                    <div class="alert {{ !empty($fcmStatus['configured']) ? 'alert-success' : 'alert-danger' }}">
+                        {{ $fcmStatus['message'] ?? '' }}
+                        @if(!empty($fcmStatus['configured']))
+                            <br><span class="small">Project: <code>{{ $fcmStatus['project_id'] ?? '' }}</code>. Credential file path is never shown here.</span>
                         @else
-                            Firebase is <strong>not</strong> configured.
-                            Upload the Firebase service account JSON to
-                            <code>storage/app/firebase/service-account.json</code>
-                            (and the same path under <code>admin/storage/app/firebase/</code>)
-                            then set <code>FIREBASE_CREDENTIALS</code> in <code>.env</code>.
-                            Do not paste private keys into this form.
+                            <br><span class="small">Set <code>FIREBASE_CREDENTIALS</code> in admin <code>.env</code> to a JSON file <strong>outside</strong> <code>public_html</code> / <code>public</code>. Do not paste keys into this form.</span>
                         @endif
                     </div>
                     <p class="text-muted" style="font-size:.82rem">
                         App channel: <code>high_importance_channel</code>.
                         Project must match the Android app: <code>netcellpay-fe31a</code>.
+                        Legacy FCM Server Key is not used.
                     </p>
                 @endif
             </form>

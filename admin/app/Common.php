@@ -1096,27 +1096,16 @@ use Illuminate\Http\Request;
         return $row ? (int) $row->id : null;
     }
 
+    /** @deprecated Legacy FCM Server Key is not used. Use FcmHttpV1Service. */
     public static function fcmServerKey(): ?string
     {
-        $key = trim((string) env('FCM_SERVER_KEY', ''));
-        if (self::isValidFcmServerKey($key)) {
-            return $key;
-        }
-
-        try {
-            $key = trim((string) \App\Services\SystemSettingService::get('fcm_server_key', ''));
-        } catch (\Throwable $e) {
-            $key = '';
-        }
-
-        return self::isValidFcmServerKey($key) ? $key : null;
+        return null;
     }
 
+    /** @deprecated Legacy FCM Server Key is not used. */
     public static function isValidFcmServerKey(?string $key): bool
     {
-        $key = trim((string) $key);
-
-        return $key !== '' && str_starts_with($key, 'AAAA');
+        return false;
     }
 
     public static function ensureUserPushColumns(): void

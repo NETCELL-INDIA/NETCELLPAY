@@ -5,7 +5,17 @@
 /storage/*.key
 /storage/app/firebase/*.json
 /admin/storage/app/firebase/*.json
+**/firebase/*.json
+**/service-account*.json
 /vendor
+/vendor_old/
+/vendor.zip
+/tools/
+/admin/tools/
+/admin/__pycache__/
+**/__pycache__/
+*.py[cod]
+/admin/public/profile_pic/u1_1789548783.png
 .env
 .env.backup
 .env.production

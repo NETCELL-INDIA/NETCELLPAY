@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Firebase Cloud Messaging — HTTP v1 preferred, legacy Server Key fallback.
+ * Firebase Cloud Messaging HTTP v1 only (OAuth2 service account).
+ * Never uses Legacy Server Key. Never exposes private keys in UI/logs.
  * Project must be netcellpay-fe31a (same as Android app).
  */
 class FcmHttpV1Service
@@ -15,7 +16,7 @@ class FcmHttpV1Service
     private const TOKEN_URL = 'https://oauth2.googleapis.com/token';
     private const CACHE_KEY = 'fcm_v1_access_token';
 
-    /** @var string|null Last send failure reason (for admin UI) */
+    /** @var string|null Safe last failure reason (no secrets / no absolute paths) */
     private static ?string $lastError = null;
 
     public static function lastError(): ?string
@@ -44,7 +45,7 @@ class FcmHttpV1Service
 
     public static function isConfigured(): bool
     {
-        return self::isHttpV1Configured() || self::legacyServerKey() !== null;
+        return self::isHttpV1Configured();
     }
 
     public static function isHttpV1Configured(): bool
@@ -54,6 +55,68 @@ class FcmHttpV1Service
         return is_array($sa)
             && ! empty($sa['client_email'])
             && ! empty($sa['private_key']);
+    }
+
+    public static function credentialsPath(): ?string
+    {
+        $configured = trim((string) config('services.fcm.credentials', ''));
+        if ($configured === '') {
+            $configured = storage_path('app/firebase/service-account.json');
+        }
+        $real = realpath($configured);
+        if ($real !== false) {
+            return $real;
+        }
+
+        return $configured !== '' ? $configured : null;
+    }
+
+    public static function isCredentialsPathSafe(?string $path = null): bool
+    {
+        $path = $path ?? self::credentialsPath();
+        if ($path === null || $path === '') {
+            return false;
+        }
+        $normalized = str_replace('\\', '/', strtolower($path));
+        $parts = array_values(array_filter(explode('/', $normalized), static fn ($p) => $p !== '' && $p !== '.'));
+        $banned = ['public', 'public_html', 'httpdocs', 'htdocs'];
+        foreach ($parts as $part) {
+            if (in_array($part, $banned, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array{configured:bool,safe_path:bool,project_id:string,client_email_present:bool,message:string}
+     */
+    public static function status(): array
+    {
+        $path = self::credentialsPath();
+        $safe = self::isCredentialsPathSafe($path);
+        $exists = is_string($path) && is_file($path) && is_readable($path);
+        $sa = ($exists && $safe) ? self::loadServiceAccountArray($path) : null;
+        $configured = is_array($sa) && ! empty($sa['client_email']) && ! empty($sa['private_key']);
+
+        if (! $exists) {
+            $message = 'Service account JSON not found. Set FIREBASE_CREDENTIALS to a private path outside the web root.';
+        } elseif (! $safe) {
+            $message = 'Credentials path is under a web-accessible directory. Move JSON outside public_html/public.';
+        } elseif (! $configured) {
+            $message = 'Service account JSON is invalid (missing client_email/private_key).';
+        } else {
+            $message = 'Firebase HTTP v1 ready for project '.self::projectId().'.';
+        }
+
+        return [
+            'configured' => $configured,
+            'safe_path' => $safe,
+            'project_id' => self::projectId(),
+            'client_email_present' => is_array($sa) && ! empty($sa['client_email']),
+            'message' => $message,
+        ];
     }
 
     public static function send(string $deviceToken, string $title, string $body, array $data = [], int $userId = 0): bool
@@ -66,25 +129,38 @@ class FcmHttpV1Service
             return false;
         }
 
-        if (self::isHttpV1Configured()) {
-            return self::sendHttpV1($deviceToken, $title, $body, $data, $userId);
+        if (! self::isHttpV1Configured()) {
+            self::$lastError = self::status()['message'];
+
+            return false;
         }
 
-        $legacyKey = self::legacyServerKey();
-        if ($legacyKey) {
-            return self::sendLegacy($deviceToken, $title, $body, $data, $userId, $legacyKey);
+        return self::sendHttpV1($deviceToken, $title, $body, $data, $userId);
+    }
+
+    public static function verifyAuth(): bool
+    {
+        self::$lastError = null;
+        if (! self::isHttpV1Configured()) {
+            self::$lastError = self::status()['message'];
+
+            return false;
+        }
+        $token = self::accessToken();
+        if ($token === null) {
+            self::$lastError = 'FCM v1 OAuth failed (check service account JSON and network)';
+
+            return false;
         }
 
-        self::$lastError = 'Firebase not configured (upload service-account.json for netcellpay-fe31a)';
-
-        return false;
+        return true;
     }
 
     private static function sendHttpV1(string $deviceToken, string $title, string $body, array $data, int $userId): bool
     {
         $accessToken = self::accessToken();
         if ($accessToken === null) {
-            self::$lastError = 'FCM v1 OAuth failed (check service-account.json)';
+            self::$lastError = 'FCM v1 OAuth failed (check service account JSON)';
 
             return false;
         }
@@ -145,78 +221,6 @@ class FcmHttpV1Service
         return false;
     }
 
-    private static function sendLegacy(string $deviceToken, string $title, string $body, array $data, int $userId, string $serverKey): bool
-    {
-        $channelId = self::channelId();
-        $payloadData = self::buildDataPayload($title, $body, $data);
-        $payload = [
-            'to' => $deviceToken,
-            'priority' => 'high',
-            'content_available' => true,
-            'notification' => [
-                'title' => $title,
-                'body' => $body,
-                'sound' => 'default',
-                'android_channel_id' => $channelId,
-            ],
-            'data' => $payloadData,
-            'android' => [
-                'priority' => 'high',
-                'notification' => [
-                    'channel_id' => $channelId,
-                    'sound' => 'default',
-                    'default_sound' => true,
-                    'default_vibrate_timings' => true,
-                    'notification_priority' => 'PRIORITY_HIGH',
-                ],
-            ],
-        ];
-
-        $response = self::curl(
-            'https://fcm.googleapis.com/fcm/send',
-            json_encode($payload),
-            [
-                'Content-Type: application/json',
-                'Authorization: key='.$serverKey,
-            ]
-        );
-
-        $raw = (string) ($response['body'] ?? '');
-        $decoded = json_decode($raw, true);
-
-        if (is_array($decoded) && ((int) ($decoded['success'] ?? 0)) > 0) {
-            return true;
-        }
-        if (is_array($decoded) && (isset($decoded['message_id']) || isset($decoded['name']))) {
-            return true;
-        }
-
-        $fcmError = '';
-        if (isset($decoded['results'][0]['error'])) {
-            $fcmError = (string) $decoded['results'][0]['error'];
-        } elseif (isset($decoded['error'])) {
-            $fcmError = is_string($decoded['error']) ? $decoded['error'] : json_encode($decoded['error']);
-        }
-        self::$lastError = 'FCM legacy'.($fcmError !== '' ? ': '.$fcmError : ' send failed');
-
-        Log::warning('FCM legacy send failed', [
-            'user_id' => $userId,
-            'error' => $fcmError,
-            'body' => self::safeLogBody($raw),
-        ]);
-
-        if ($userId > 0 && $fcmError !== '') {
-            foreach (['NotRegistered', 'UNREGISTERED', 'InvalidRegistration', 'MismatchSenderId'] as $needle) {
-                if (stripos($fcmError, $needle) !== false) {
-                    self::clearDeviceToken($userId, $deviceToken);
-                    break;
-                }
-            }
-        }
-
-        return false;
-    }
-
     private static function buildDataPayload(string $title, string $body, array $data): array
     {
         $payloadData = [
@@ -251,21 +255,6 @@ class FcmHttpV1Service
         } elseif (class_exists(\App\Common::class) && method_exists(\App\Common::class, 'clearUserPushToken')) {
             \App\Common::clearUserPushToken($userId, $deviceToken);
         }
-    }
-
-    private static function legacyServerKey(): ?string
-    {
-        $key = trim((string) env('FCM_SERVER_KEY', ''));
-        if ($key !== '' && str_starts_with($key, 'AAAA')) {
-            return $key;
-        }
-        try {
-            $key = trim((string) SystemSettingService::get('fcm_server_key', ''));
-        } catch (\Throwable $e) {
-            $key = '';
-        }
-
-        return ($key !== '' && str_starts_with($key, 'AAAA')) ? $key : null;
     }
 
     private static function isInvalidDeviceToken(int $httpStatus, string $errorStatus, string $raw): bool
@@ -351,24 +340,29 @@ class FcmHttpV1Service
 
     private static function serviceAccount(): ?array
     {
-        $path = (string) config('services.fcm.credentials');
-        if ($path === '') {
-            $path = storage_path('app/firebase/service-account.json');
+        $path = self::credentialsPath();
+        if ($path === null || $path === '') {
+            return null;
+        }
+        if (! self::isCredentialsPathSafe($path)) {
+            Log::warning('FCM credentials path rejected (web-accessible location)');
+
+            return null;
         }
         if (! is_file($path) || ! is_readable($path)) {
             return null;
         }
 
+        return self::loadServiceAccountArray($path);
+    }
+
+    private static function loadServiceAccountArray(string $path): ?array
+    {
         $json = json_decode((string) file_get_contents($path), true);
         if (! is_array($json)) {
             Log::warning('FCM v1 service account JSON is invalid');
 
             return null;
-        }
-
-        // Prefer project_id from JSON when present
-        if (! empty($json['project_id']) && empty(env('FIREBASE_PROJECT_ID'))) {
-            // config already loaded; send() uses config project id — OK if .env set
         }
 
         return $json;
@@ -383,6 +377,7 @@ class FcmHttpV1Service
     {
         $body = preg_replace('/-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----/s', '[redacted]', $body) ?? $body;
         $body = preg_replace('/"private_key"\s*:\s*"[^"]*"/', '"private_key":"[redacted]"', $body) ?? $body;
+        $body = preg_replace('/Bearer\s+[A-Za-z0-9._\-]+/', 'Bearer [redacted]', $body) ?? $body;
 
         return mb_substr($body, 0, 400);
     }

@@ -4,7 +4,14 @@
 /public/storage
 /storage/*.key
 /storage/app/firebase/*.json
+**/firebase/*.json
+**/service-account*.json
 /vendor
+/tools/
+/__pycache__/
+**/__pycache__/
+*.py[cod]
+/public/profile_pic/u1_1789548783.png
 .env
 .env.backup
 .env.production
