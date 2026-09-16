@@ -31,4 +31,10 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'fcm' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', 'netcellpay-fe31a'),
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase/service-account.json')),
+        'android_channel_id' => env('FCM_ANDROID_CHANNEL_ID', 'high_importance_channel'),
+    ],
+
 ];

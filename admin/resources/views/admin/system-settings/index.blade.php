@@ -119,7 +119,7 @@
             <i class="ri-currency-line"></i> Minimum add money &amp; signup
         </a>
         <a href="{{ URL::asset('admin/system-settings/pusher') }}" class="{{ $page === 'pusher' ? 'active' : '' }}">
-            <i class="ri-broadcast-line"></i> Pusher setting
+            <i class="ri-broadcast-line"></i> Pusher / FCM push
         </a>
     </div>
 
@@ -251,20 +251,38 @@
                         @include('admin.system-settings._field', ['name' => 'min_signup_amount', 'label' => 'Minimum Signup Amount', 'icon' => 'ri-user-add-line', 'value' => $settings['min_signup_amount']])
                     </div>
                 @elseif($page === 'pusher')
+                    <div class="alert alert-info">
+                        Pusher is optional (website live updates).
+                        Android push uses Firebase <strong>HTTP v1</strong> with a service account JSON on the server — not Pusher keys, not a Legacy Server key.
+                    </div>
+                    <h5 class="mb-3">Website (Pusher) — optional</h5>
                     <div class="ss-grid">
                         @include('admin.system-settings._field', ['name' => 'pusher_app_id', 'label' => 'Pusher App ID', 'icon' => 'ri-fingerprint-line', 'value' => $settings['pusher_app_id']])
                         @include('admin.system-settings._field', ['name' => 'pusher_key', 'label' => 'Pusher Key', 'icon' => 'ri-key-2-line', 'value' => $settings['pusher_key']])
                         @include('admin.system-settings._field', ['name' => 'pusher_secret', 'label' => 'Pusher Secret', 'icon' => 'ri-lock-password-line', 'value' => $settings['pusher_secret']])
                         @include('admin.system-settings._field', ['name' => 'pusher_cluster', 'label' => 'Pusher Cluster', 'icon' => 'ri-global-line', 'value' => $settings['pusher_cluster']])
-                        @include('admin.system-settings._field', ['name' => 'fcm_server_key', 'label' => 'FCM Server Key (App Push)', 'icon' => 'ri-notification-3-line', 'value' => $settings['fcm_server_key']])
-                        <div class="col-12">
-                            <p class="text-muted mb-0" style="font-size:.82rem">
-                                Paste Firebase Cloud Messaging <strong>Server key</strong> from project <strong>netcellpay-fe31a</strong> only
-                                (project number 366588340995) into <strong>FCM Server Key</strong> — not into Pusher Key.
-                                Wrong Firebase project causes "push failed" / InvalidRegistration. App channel id: <code>high_importance_channel</code>.
-                            </p>
-                        </div>
                     </div>
+                    <h5 class="mt-4 mb-3">Android app push (Firebase FCM HTTP v1)</h5>
+                    <div class="alert {{ \App\Services\FcmHttpV1Service::isConfigured() ? 'alert-success' : 'alert-danger' }}">
+                        @if(\App\Services\FcmHttpV1Service::isHttpV1Configured())
+                            Firebase HTTP v1 is configured for project <code>{{ \App\Services\FcmHttpV1Service::projectId() }}</code>.
+                            Service account JSON is on the server (not shown here).
+                        @elseif(\App\Services\FcmHttpV1Service::isConfigured())
+                            Using legacy FCM Server Key fallback. Prefer uploading
+                            <code>storage/app/firebase/service-account.json</code> for project <code>netcellpay-fe31a</code>.
+                        @else
+                            Firebase is <strong>not</strong> configured.
+                            Upload the Firebase service account JSON to
+                            <code>storage/app/firebase/service-account.json</code>
+                            (and the same path under <code>admin/storage/app/firebase/</code>)
+                            then set <code>FIREBASE_CREDENTIALS</code> in <code>.env</code>.
+                            Do not paste private keys into this form.
+                        @endif
+                    </div>
+                    <p class="text-muted" style="font-size:.82rem">
+                        App channel: <code>high_importance_channel</code>.
+                        Project must match the Android app: <code>netcellpay-fe31a</code>.
+                    </p>
                 @endif
             </form>
         </div>

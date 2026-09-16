@@ -3,6 +3,8 @@
 /public/hot
 /public/storage
 /storage/*.key
+/storage/app/firebase/*.json
+/admin/storage/app/firebase/*.json
 /vendor
 .env
 .env.backup

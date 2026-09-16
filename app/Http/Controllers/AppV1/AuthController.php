@@ -30,6 +30,9 @@ class AuthController extends Controller
        // }
 
         $userId = (int) $post->user_id;
+        if ($userId <= 0 && $post->filled('login_key')) {
+            $userId = (int) DB::table('users')->where('login_key', $post->login_key)->value('id');
+        }
         $this->syncPushTokenFromRequest($post, $userId);
         $agg = DB::table('reports')
             ->where('user_id', $userId)
@@ -127,6 +130,10 @@ class AuthController extends Controller
     }
     public function LoginCheck(Request $post)
     {
+        $json = json_decode($post->getContent(), true);
+        if (is_array($json)) {
+            $post->merge($json);
+        }
         $this->normalizeAppLoginFields($post);
 
         $rules = array(
@@ -489,6 +496,10 @@ class AuthController extends Controller
 
     public function checkLoginOtp(Request $post)
     {
+        $json = json_decode($post->getContent(), true);
+        if (is_array($json)) {
+            $post->merge($json);
+        }
         $this->normalizeAppLoginFields($post);
 
         $rules = array(
@@ -1066,14 +1077,22 @@ class AuthController extends Controller
 
     public function updateFcmToken(Request $post)
     {
+        $json = json_decode($post->getContent(), true);
+        if (is_array($json)) {
+            $post->merge($json);
+        }
+        $userId = (int) $post->user_id;
+        if ($userId <= 0 && $post->filled('login_key')) {
+            $userId = (int) DB::table('users')->where('login_key', $post->login_key)->value('id');
+        }
         $token = \helpers::extractPushTokenFromRequest($post);
-        if ($token) {
-            \helpers::saveUserPushToken((int) $post->user_id, $token);
+        if ($token && $userId > 0) {
+            \helpers::saveUserPushToken($userId, $token);
         }
 
         return response()->json([
-            'type' => 'success',
-            'message' => 'FCM token saved',
+            'type' => $token && $userId > 0 ? 'success' : 'error',
+            'message' => $token && $userId > 0 ? 'FCM token saved' : 'FCM token missing',
         ]);
     }
 
@@ -1112,6 +1131,13 @@ class AuthController extends Controller
     private function syncPushTokenFromRequest(Request $post, int $userId): void
     {
         try {
+            if ($userId <= 0) {
+                return;
+            }
+            $json = json_decode($post->getContent(), true);
+            if (is_array($json)) {
+                $post->merge($json);
+            }
             \helpers::saveUserPushToken($userId, \helpers::extractPushTokenFromRequest($post));
         } catch (\Throwable $e) {
         }

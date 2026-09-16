@@ -102,3 +102,36 @@ If login uses domain check, set `companies.domain` to:
 
 ## 9) Do NOT use Hostinger Vite/Node deploy
 This is PHP/Laravel. Use File Manager / Git PHP hosting, not Vite build.
+
+## 10) Firebase HTTP v1 (Android push) — required
+
+Do **not** enable Cloud Messaging API (Legacy). Do **not** paste a Server key into admin.
+
+1. Firebase Console → project **netcellpay-fe31a** → Project settings → Service accounts → Generate new private key.
+2. On Hostinger upload that JSON with File Manager (not Git) to **both**:
+   - `public_html/storage/app/firebase/service-account.json`
+   - `public_html/admin/storage/app/firebase/service-account.json`
+3. Permissions: PHP-readable only (e.g. `640`). Must be under `storage/`, never under `public/`.
+4. In `public_html/.env`:
+```
+FIREBASE_PROJECT_ID=netcellpay-fe31a
+FIREBASE_CREDENTIALS=/home/USER/domains/netcellpay.in/public_html/storage/app/firebase/service-account.json
+FCM_ANDROID_CHANNEL_ID=high_importance_channel
+```
+5. In `public_html/admin/.env`:
+```
+FIREBASE_PROJECT_ID=netcellpay-fe31a
+FIREBASE_CREDENTIALS=/home/USER/domains/netcellpay.in/public_html/admin/storage/app/firebase/service-account.json
+FCM_ANDROID_CHANNEL_ID=high_importance_channel
+```
+Replace `USER` with the Hostinger account name. Empty `FIREBASE_CREDENTIALS` falls back to `storage/app/firebase/service-account.json` of that Laravel root.
+6. SSH:
+```bash
+cd ~/domains/netcellpay.in/public_html
+php artisan config:clear && php artisan cache:clear
+cd admin
+php artisan config:clear && php artisan cache:clear
+```
+7. Admin → System settings → Pusher / FCM push should show **Firebase HTTP v1 is configured**.
+8. Retailer latest APK → Logout → Login, then admin-send to **that user only**. Expect Phone push: 1.
+

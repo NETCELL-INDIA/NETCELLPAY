@@ -22,6 +22,13 @@ class AppUserCheck
 
     public function handle(Request $post, Closure $next)
     {
+        if (empty($post->all()) || (! $post->filled('login_key') && $post->getContent())) {
+            $json = json_decode($post->getContent(), true);
+            if (is_array($json)) {
+                $post->merge($json);
+            }
+        }
+
         $isGuestPath = in_array(trim($post->path(), '/'), self::GUEST_PATHS, true);
         $hasLogin = $post->filled('login_key') || $post->filled('user_id');
 

@@ -1099,7 +1099,7 @@ use Illuminate\Http\Request;
     public static function fcmServerKey(): ?string
     {
         $key = trim((string) env('FCM_SERVER_KEY', ''));
-        if ($key !== '') {
+        if (self::isValidFcmServerKey($key)) {
             return $key;
         }
 
@@ -1109,7 +1109,14 @@ use Illuminate\Http\Request;
             $key = '';
         }
 
-        return $key !== '' ? $key : null;
+        return self::isValidFcmServerKey($key) ? $key : null;
+    }
+
+    public static function isValidFcmServerKey(?string $key): bool
+    {
+        $key = trim((string) $key);
+
+        return $key !== '' && str_starts_with($key, 'AAAA');
     }
 
     public static function ensureUserPushColumns(): void
@@ -1156,9 +1163,10 @@ use Illuminate\Http\Request;
         }
         self::ensureUserPushColumns();
         try {
-            $user = DB::table('users')->where('id', $userId)->first([
-                'android_fcm_token', 'fcm_token', 'device_token',
-            ]);
+            $user = DB::table('users')->where('id', $userId)->first();
+            if (! $user) {
+                return null;
+            }
             foreach (['android_fcm_token', 'fcm_token', 'device_token'] as $col) {
                 $token = trim((string) ($user->{$col} ?? ''));
                 if ($token !== '') {
@@ -1174,7 +1182,10 @@ use Illuminate\Http\Request;
     public static function pushNotifyUser(int $userId, string $title, string $body, array $data = [], string $subject = 'admin_notification')
     {
         if (! \App\Services\MessageSettingService::channelEnabled($subject, 'push')) {
-            return false;
+            // Admin broadcast must still try FCM; settings slug may not exist.
+            if ($subject !== 'admin_notification') {
+                return false;
+            }
         }
         if ($userId <= 0) {
             return false;
@@ -1219,93 +1230,8 @@ use Illuminate\Http\Request;
                 return 'no_token';
             }
 
-            $serverKey = self::fcmServerKey();
-            if (! $serverKey) {
-                $setStatus(3);
-                return false;
-            }
-
-            $title = (string) $title;
-            $body = (string) $body;
-            $payloadData = [
-                'title' => $title,
-                'body' => $body,
-                'message' => $body,
-                'subject' => $title,
-            ];
-            foreach ($data as $key => $value) {
-                $payloadData[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
-            }
-
-            $channelId = trim((string) env('FCM_ANDROID_CHANNEL_ID', 'high_importance_channel'));
-            if ($channelId === '') {
-                $channelId = 'high_importance_channel';
-            }
-
-            $payload = json_encode([
-                'to' => $token,
-                'priority' => 'high',
-                'content_available' => true,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                    'sound' => 'default',
-                    'android_channel_id' => $channelId,
-                ],
-                'data' => $payloadData,
-                'android' => [
-                    'priority' => 'high',
-                    'notification' => [
-                        'channel_id' => $channelId,
-                        'sound' => 'default',
-                        'default_sound' => true,
-                        'default_vibrate_timings' => true,
-                        'notification_priority' => 'PRIORITY_HIGH',
-                    ],
-                ],
-            ]);
-
-            $result = self::curl(
-                'https://fcm.googleapis.com/fcm/send',
-                'POST',
-                $payload,
-                [
-                    'Content-Type: application/json',
-                    'Authorization: key='.$serverKey,
-                ],
-                'yes',
-                'FCM',
-                (string) time()
-            );
-
-            $responseBody = is_array($result) ? (string) ($result['response'] ?? '') : '';
-            $decoded = json_decode($responseBody, true);
-            $ok = is_array($decoded) && (
-                ((int) ($decoded['success'] ?? 0)) > 0
-                || isset($decoded['message_id'])
-                || isset($decoded['name'])
-            );
-
+            $ok = \App\Services\FcmHttpV1Service::send($token, $title, $body, $data, $userId);
             if (! $ok) {
-                $fcmError = '';
-                if (isset($decoded['results'][0]['error'])) {
-                    $fcmError = (string) $decoded['results'][0]['error'];
-                } elseif (isset($decoded['error'])) {
-                    $fcmError = is_string($decoded['error'])
-                        ? $decoded['error']
-                        : (string) ($decoded['error']['status'] ?? '');
-                }
-                foreach (['NotRegistered', 'UNREGISTERED', 'InvalidRegistration', 'MismatchSenderId', 'INVALID_ARGUMENT'] as $needle) {
-                    if ($fcmError !== '' && stripos($fcmError, $needle) !== false) {
-                        self::clearUserPushToken($userId, $token);
-                        break;
-                    }
-                }
-                \Log::warning('FCM send failed', [
-                    'user_id' => $userId,
-                    'body' => mb_substr($responseBody, 0, 500),
-                    'results' => is_array($decoded) ? ($decoded['results'] ?? null) : null,
-                ]);
                 $setStatus(3);
 
                 return false;

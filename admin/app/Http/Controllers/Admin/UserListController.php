@@ -95,7 +95,8 @@ class UserListController extends Controller
                 $inbox = 0;
                 $title = trim((string) $post->subject);
                 $body = trim(strip_tags((string) $post->message_text));
-                $hasFcmKey = (bool) Common::fcmServerKey();
+                $hasFcmKey = \App\Services\FcmHttpV1Service::isConfigured();
+                $failReasons = [];
                 foreach ($users as $user) {
                     $result = Common::pushNotifyUser((int) $user->id, $title, $body, [], 'admin_notification');
                     $inbox++;
@@ -105,6 +106,10 @@ class UserListController extends Controller
                         $noToken++;
                     } else {
                         $failed++;
+                        $err = \App\Services\FcmHttpV1Service::lastError();
+                        if ($err) {
+                            $failReasons[$err] = ($failReasons[$err] ?? 0) + 1;
+                        }
                     }
                 }
 
@@ -112,10 +117,23 @@ class UserListController extends Controller
                 $parts = ["Notification saved for {$inbox} user(s). See Notification Send Report"];
                 $parts[] = "Phone push: {$sent}";
                 if ($noToken) {
-                    $parts[] = "{$noToken} have no Android FCM token yet";
+                    $parts[] = "{$noToken} have no Android FCM token yet (retailer must open latest Netcell Pay APK and login once)";
                 }
                 if ($failed) {
-                    $parts[] = "{$failed} push failed".($hasFcmKey ? '' : ' (FCM Server Key missing — set in System Settings or FCM_SERVER_KEY in .env for Firebase project netcellpay-fe31a)');
+                    $reasonText = '';
+                    if (! empty($failReasons)) {
+                        $bits = [];
+                        foreach ($failReasons as $msg => $count) {
+                            $bits[] = $msg.($count > 1 ? " x{$count}" : '');
+                        }
+                        $reasonText = ' — '.implode('; ', $bits);
+                    } elseif (! $hasFcmKey) {
+                        $reasonText = ' — Firebase not configured (upload service-account.json for netcellpay-fe31a)';
+                    }
+                    $parts[] = "{$failed} push failed".$reasonText;
+                }
+                if ($sent === 0 && $noToken > 0) {
+                    $parts[] = 'Inbox OK. Phone tray/sound starts only after those users login on the new app';
                 }
 
                 return response()->json([
