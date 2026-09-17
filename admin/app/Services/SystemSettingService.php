@@ -10,6 +10,9 @@ class SystemSettingService
     /** @var array{mode:string,key?:string,value?:string}|null */
     protected static ?array $storage = null;
 
+    /** @var array<string, mixed>|null */
+    protected static ?array $memo = null;
+
     public static function defaults(): array
     {
         return [
@@ -132,25 +135,67 @@ class SystemSettingService
 
     protected static function ensureWideColumns(): void
     {
+        $altered = false;
         foreach (array_keys(self::defaults()) as $settingKey) {
             try {
                 if (! Schema::hasColumn('system_settings', $settingKey)) {
                     DB::statement("ALTER TABLE `system_settings` ADD COLUMN `{$settingKey}` TEXT NULL");
+                    $altered = true;
                 }
             } catch (\Throwable $e) {
+            }
+        }
+        if ($altered) {
+            self::flushSchemaCache();
+        }
+    }
+
+    protected static function flushSchemaCache(): void
+    {
+        try {
+            Schema::getConnection()->getSchemaBuilder()->getColumns('system_settings');
+        } catch (\Throwable $e) {
+        }
+        try {
+            // Drop Laravel's in-memory column cache so new ALTERs are visible.
+            $builder = Schema::getConnection()->getSchemaBuilder();
+            $ref = new \ReflectionClass($builder);
+            foreach (['cache', 'columns'] as $prop) {
+                if ($ref->hasProperty($prop)) {
+                    $p = $ref->getProperty($prop);
+                    $p->setAccessible(true);
+                    $p->setValue($builder, []);
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /** @return list<string> */
+    protected static function liveColumnNames(): array
+    {
+        try {
+            return collect(DB::select('SHOW COLUMNS FROM `system_settings`'))
+                ->pluck('Field')
+                ->map(fn ($f) => (string) $f)
+                ->all();
+        } catch (\Throwable $e) {
+            try {
+                return Schema::getColumnListing('system_settings');
+            } catch (\Throwable $e2) {
+                return [];
             }
         }
     }
 
     public static function all(): array
     {
-        static $memo = null;
-        if (is_array($memo)) {
-            return $memo;
+        if (is_array(self::$memo)) {
+            return self::$memo;
         }
 
         try {
-            $memo = \Illuminate\Support\Facades\Cache::remember('system_settings_all', 60, function () {
+            self::$memo = \Illuminate\Support\Facades\Cache::remember('system_settings_all', 60, function () {
                 self::ensureTable();
                 $storage = self::resolveStorage();
 
@@ -162,12 +207,28 @@ class SystemSettingService
 
                     $saved = [];
                     foreach (array_keys(self::defaults()) as $key) {
-                        if (isset($row->{$key})) {
+                        if (property_exists($row, $key) && $row->{$key} !== null) {
                             $saved[$key] = $row->{$key};
                         }
                     }
 
-                    return array_merge(self::defaults(), $saved);
+                    // Merge any KV rows (new keys saved before wide column existed).
+                    $merged = array_merge(self::defaults(), $saved);
+                    try {
+                        if (Schema::hasColumn('system_settings', 'setting_key') && Schema::hasColumn('system_settings', 'setting_value')) {
+                            $kv = DB::table('system_settings')
+                                ->whereNotNull('setting_key')
+                                ->where('setting_key', '!=', '')
+                                ->pluck('setting_value', 'setting_key')
+                                ->toArray();
+                            if (is_array($kv) && $kv !== []) {
+                                $merged = array_merge($merged, $kv);
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                    }
+
+                    return $merged;
                 }
 
                 $rows = DB::table('system_settings')
@@ -184,14 +245,15 @@ class SystemSettingService
             });
         } catch (\Throwable $e) {
             \Log::warning('system_settings read failed: '.$e->getMessage());
-            $memo = self::defaults();
+            self::$memo = self::defaults();
         }
 
-        return $memo;
+        return self::$memo;
     }
 
     public static function forgetCache(): void
     {
+        self::$memo = null;
         try {
             \Illuminate\Support\Facades\Cache::forget('system_settings_all');
         } catch (\Throwable $e) {
@@ -226,9 +288,11 @@ class SystemSettingService
 
         if ($storage['mode'] === 'wide') {
             self::ensureWideColumns();
+            self::flushSchemaCache();
+            $cols = array_flip(self::liveColumnNames());
             $payload = ['updated_at' => $now];
             foreach ($data as $key => $value) {
-                if (Schema::hasColumn('system_settings', $key)) {
+                if (isset($cols[$key])) {
                     $payload[$key] = (string) $value;
                 }
             }
@@ -241,13 +305,21 @@ class SystemSettingService
                 DB::table('system_settings')->insert(self::withRequiredColumns($payload));
             }
 
+            // Dual-write KV for keys missing as wide columns (or always if KV available).
             foreach ($data as $key => $value) {
-                if (! Schema::hasColumn('system_settings', $key)) {
+                if (! isset($cols[$key]) && isset($cols['setting_key'], $cols['setting_value'])) {
                     self::putKeyValueRow($key, (string) $value, $now);
+                } elseif (isset($cols['setting_key'], $cols['setting_value'])) {
+                    // Keep KV copy in sync when both layouts exist.
+                    try {
+                        self::putKeyValueRow($key, (string) $value, $now);
+                    } catch (\Throwable $e) {
+                    }
                 }
             }
 
             self::forgetCache();
+
             return;
         }
 

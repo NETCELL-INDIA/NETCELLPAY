@@ -72,6 +72,9 @@ class SystemSettingService
     /** @var array{mode:string,key?:string,value?:string}|null */
     protected static ?array $storage = null;
 
+    /** @var array<string, mixed>|null */
+    protected static ?array $memo = null;
+
     /** @return array{mode:string,key?:string,value?:string} */
     protected static function resolveStorage(): array
     {
@@ -132,13 +135,12 @@ class SystemSettingService
 
     public static function all(): array
     {
-        static $memo = null;
-        if (is_array($memo)) {
-            return $memo;
+        if (is_array(self::$memo)) {
+            return self::$memo;
         }
 
         try {
-            $memo = \Illuminate\Support\Facades\Cache::remember('system_settings_all', 60, function () {
+            self::$memo = Cache::remember('system_settings_all', 60, function () {
                 self::ensureTable();
                 $storage = self::resolveStorage();
 
@@ -150,18 +152,35 @@ class SystemSettingService
 
                     $saved = [];
                     foreach (array_keys(self::defaults()) as $key) {
-                        if (isset($row->{$key})) {
+                        if (property_exists($row, $key) && $row->{$key} !== null && $row->{$key} !== '') {
                             $saved[$key] = $row->{$key};
                         }
                     }
 
-                    return array_merge(self::defaults(), $saved);
+                    $merged = array_merge(self::defaults(), $saved);
+                    try {
+                        if (Schema::hasColumn('system_settings', 'setting_key') && Schema::hasColumn('system_settings', 'setting_value')) {
+                            $kv = DB::table('system_settings')
+                                ->whereNotNull('setting_key')
+                                ->where('setting_key', '!=', '')
+                                ->pluck('setting_value', 'setting_key')
+                                ->toArray();
+                            if (is_array($kv) && $kv !== []) {
+                                $merged = array_merge($merged, $kv);
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                    }
+
+                    return $merged;
                 }
 
                 $rows = DB::table('system_settings')
+                    ->whereNotNull($storage['key'])
+                    ->where($storage['key'], '!=', '')
                     ->pluck($storage['value'], $storage['key'])
                     ->toArray();
-                if (!is_array($rows)) {
+                if (! is_array($rows)) {
                     $rows = [];
                 }
 
@@ -169,16 +188,17 @@ class SystemSettingService
             });
         } catch (\Throwable $e) {
             \Log::warning('system_settings read failed: '.$e->getMessage());
-            $memo = self::defaults();
+            self::$memo = self::defaults();
         }
 
-        return $memo;
+        return self::$memo;
     }
 
     public static function forgetCache(): void
     {
+        self::$memo = null;
         try {
-            \Illuminate\Support\Facades\Cache::forget('system_settings_all');
+            Cache::forget('system_settings_all');
         } catch (\Throwable $e) {
         }
     }
@@ -193,12 +213,61 @@ class SystemSettingService
         return $default ?? (self::defaults()[$key] ?? null);
     }
 
+    /**
+     * Read one setting directly from DB (bypasses request/cache memo).
+     * Used for recharge curl timeout so admin saves apply immediately.
+     */
+    public static function readKeyDirect(string $key): ?string
+    {
+        try {
+            self::ensureTable();
+            $storage = self::resolveStorage();
+
+            if ($storage['mode'] === 'wide') {
+                try {
+                    $val = DB::table('system_settings')->orderBy('id')->value($key);
+                    if ($val !== null && $val !== '') {
+                        return (string) $val;
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
+
+            $keyCol = $storage['key'] ?? 'setting_key';
+            $valueCol = $storage['value'] ?? 'setting_value';
+            try {
+                if (Schema::hasColumn('system_settings', $keyCol) && Schema::hasColumn('system_settings', $valueCol)) {
+                    $val = DB::table('system_settings')->where($keyCol, $key)->value($valueCol);
+                    if ($val !== null && $val !== '') {
+                        return (string) $val;
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+
+            // Wide table may still have KV columns for newer keys.
+            try {
+                if (Schema::hasColumn('system_settings', 'setting_key') && Schema::hasColumn('system_settings', 'setting_value')) {
+                    $val = DB::table('system_settings')->where('setting_key', $key)->value('setting_value');
+                    if ($val !== null && $val !== '') {
+                        return (string) $val;
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
     public static function rechargeApiTimeout(): int
     {
         $connect = max(3, (int) env('RECHARGE_API_CONNECT_TIMEOUT', 5));
         $timeout = (int) env('RECHARGE_API_TIMEOUT', 30);
         try {
-            $saved = (int) self::get('recharge_api_timeout', 0);
+            $direct = self::readKeyDirect('recharge_api_timeout');
+            $saved = $direct !== null ? (int) $direct : (int) self::get('recharge_api_timeout', 0);
             if ($saved > 0) {
                 $timeout = $saved;
             }
