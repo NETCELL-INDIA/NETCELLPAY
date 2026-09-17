@@ -218,7 +218,7 @@ class helpers
 
         $user = DB::table('users')->where('id', $report->user_id)->first(['callback_url', 'wallet_balance']);
         $base = trim((string) ($user->callback_url ?? ''));
-        if ($base === '' || ! filter_var($base, FILTER_VALIDATE_URL)) {
+        if ($user === null || $base === '' || ! filter_var($base, FILTER_VALIDATE_URL)) {
             DB::table('reports')->where('id', $report->id)->update(['callback_status' => 1]);
 
             return false;
