@@ -66,9 +66,30 @@ class FcmHttpV1Service
         if ($configured === '') {
             $configured = storage_path('app/firebase/service-account.json');
         }
-        $real = realpath($configured);
-        if ($real !== false) {
-            return $real;
+
+        if (is_file($configured) && is_readable($configured)) {
+            $real = realpath($configured);
+
+            return $real !== false ? $real : $configured;
+        }
+
+        // Firebase Console downloads often use *-firebase-adminsdk-*.json
+        $dir = storage_path('app/firebase');
+        if (is_dir($dir)) {
+            $candidates = glob($dir.DIRECTORY_SEPARATOR.'*.json') ?: [];
+            usort($candidates, static function ($a, $b) {
+                $aScore = str_ends_with(strtolower($a), 'service-account.json') ? 0 : (stripos($a, 'adminsdk') !== false ? 1 : 2);
+                $bScore = str_ends_with(strtolower($b), 'service-account.json') ? 0 : (stripos($b, 'adminsdk') !== false ? 1 : 2);
+
+                return $aScore <=> $bScore;
+            });
+            foreach ($candidates as $candidate) {
+                if (is_file($candidate) && is_readable($candidate) && self::isCredentialsPathSafe($candidate)) {
+                    $real = realpath($candidate);
+
+                    return $real !== false ? $real : $candidate;
+                }
+            }
         }
 
         return $configured !== '' ? $configured : null;
