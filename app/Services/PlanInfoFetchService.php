@@ -338,13 +338,13 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect docs: /api/getMobilePlans?apiKey=&circleCode=&operatorCode=
+        // PlanConnect docs: /api/getMobilePlans?apiKey=&token=&circleCode=&operatorCode=
         if (self::isPlanConnectHost($base)) {
             $circle = rawurldecode(str_replace('%20', ' ', $circleCode));
 
-            return $base . '/getMobilePlans?apiKey=' . urlencode($key)
-                . '&circleCode=' . urlencode($circle)
-                . '&operatorCode=' . urlencode($operatorCode);
+            return $base.'/getMobilePlans?'.self::planConnectAuthQuery($key)
+                .'&circleCode='.urlencode($circle)
+                .'&operatorCode='.urlencode($operatorCode);
         }
 
         return $base . '/plans.php?apikey=' . urlencode($key)
@@ -376,26 +376,87 @@ class PlanInfoFetchService
         return [$memberId, $password];
     }
 
+    /**
+     * PlanConnect expects apiKey/token (not PlanAPI ApiUserID/ApiPassword).
+     */
+    public static function resolvePlanConnectToken(object $api): ?string
+    {
+        $key = self::resolvePlanApiKey($api, false);
+        if ($key !== null && $key !== '') {
+            return $key;
+        }
+
+        foreach ([
+            $api->resolved_api_key ?? null,
+            $api->api_key ?? null,
+            $api->resolved_password ?? null,
+            $api->api_password ?? null,
+        ] as $candidate) {
+            $candidate = trim((string) $candidate);
+            if ($candidate !== '' && strlen($candidate) >= 16 && ! self::isPlanApiMemberId($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return self::extractApiKeyFromUrl((string) ($api->api_url ?? ''));
+    }
+
+    /** Query string fragment: apiKey + token (PlanConnect accepts either/both). */
+    public static function planConnectAuthQuery(string $apiKey): string
+    {
+        $enc = urlencode($apiKey);
+
+        return 'apiKey='.$enc.'&token='.$enc;
+    }
+
+    /** @return list<string> */
+    public static function planConnectAuthHeaders(string $apiKey): array
+    {
+        return [
+            'Authorization: Bearer '.$apiKey,
+            'Accept: application/json',
+        ];
+    }
+
     public static function buildHlrUrl(object $api, string $number): ?string
     {
+        $baseRaw = rtrim((string) ($api->api_url ?? ''), '/');
+        if ($baseRaw === '') {
+            return null;
+        }
+
+        $host = strtolower((string) (parse_url($baseRaw, PHP_URL_HOST) ?? ''));
+        $base = self::normalizePlanApiBaseUrl($baseRaw);
+
+        // PlanConnect: /api/operatorCheck?apiKey=&token=&mobileNo=
+        if (self::isPlanConnectHost($host) || self::isPlanConnectHost($base)) {
+            $token = self::resolvePlanConnectToken($api);
+            if ($token === null || $token === '') {
+                return null;
+            }
+            if ($base === '') {
+                return null;
+            }
+
+            return $base.'/operatorCheck?'.self::planConnectAuthQuery($token)
+                .'&mobileNo='.urlencode($number)
+                .'&mobile='.urlencode($number);
+        }
+
         [$memberId, $password] = self::resolveHlrCredentials($api);
         if ($memberId === '' || $password === '') {
             return null;
         }
 
-        $base = rtrim((string) ($api->api_url ?? ''), '/');
-        if ($base === '') {
-            return null;
-        }
-
-        $host = strtolower((string) (parse_url($base, PHP_URL_HOST) ?? ''));
         if ($host === 'planapi.in' || $host === 'www.planapi.in') {
             $base = 'https://planapi.in/api';
+        } elseif ($base === '') {
+            $base = $baseRaw;
         }
 
-        return $base . '/Mobile/OperatorFetchNew?ApiUserID=' . urlencode($memberId)
-            . '&ApiPassword=' . urlencode($password)
-            . '&Mobileno=' . urlencode($number);
+        return $base.'/Mobile/OperatorFetchNew?ApiUserID='.urlencode($memberId)
+            .'&ApiPassword='.urlencode($password)
+            .'&Mobileno='.urlencode($number);
     }
 
     /**
@@ -435,13 +496,22 @@ class PlanInfoFetchService
 
             $url = self::buildHlrUrl($api, $number);
             if ($url === null) {
-                $lastMessage = 'Operator lookup API credentials are not configured.';
+                $lastMessage = self::isPlanConnectHost((string) ($api->api_url ?? ''))
+                    ? 'Operator lookup API key/token is not configured for PlanConnect.'
+                    : 'Operator lookup API credentials are not configured.';
                 $lastApiId = (int) $api->id;
                 continue;
             }
 
             $orderId = 'CMN' . random_int(1111111111, 9999999999);
-            $result = \helpers::curl($url, 'GET', '', [], 'yes', 'CHECK_MOBILE', $orderId);
+            $headers = [];
+            if (self::isPlanConnectHost($url)) {
+                $token = self::resolvePlanConnectToken($api);
+                if ($token) {
+                    $headers = self::planConnectAuthHeaders($token);
+                }
+            }
+            $result = \helpers::curl($url, 'GET', '', $headers, 'yes', 'CHECK_MOBILE', $orderId);
             $parsed = self::parseHlrResponse(is_array($result) ? $result : [], (int) $api->id);
             $lastApiId = (int) $api->id;
             $lastMessage = $parsed['message'];
@@ -526,7 +596,14 @@ class PlanInfoFetchService
 
             $orderId = 'DTH' . random_int(1111111111, 9999999999);
             $modal = $serviceKey === 'dth_heavy_refresh' ? 'DTH HEAVY' : 'DTH INFO';
-            $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
+            $headers = [];
+            if (self::isPlanConnectHost($url)) {
+                $token = self::resolvePlanConnectToken($api);
+                if ($token) {
+                    $headers = self::planConnectAuthHeaders($token);
+                }
+            }
+            $result = \helpers::curl($url, 'GET', '', $headers, 'yes', $modal, $orderId);
             $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
             $lastApiId = (int) $api->id;
             $lastMessage = $parsed['message'];
@@ -594,11 +671,11 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect: /api/dthInfo?apiKey=&vcNo=&operatorCode=
+        // PlanConnect: /api/dthInfo?apiKey=&token=&vcNo=&operatorCode=
         if (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false) {
-            return $base . '/dthInfo?apiKey=' . urlencode($key)
-                . '&vcNo=' . urlencode($number)
-                . '&operatorCode=' . urlencode($opcode);
+            return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
+                .'&vcNo='.urlencode($number)
+                .'&operatorCode='.urlencode($opcode);
         }
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
@@ -623,11 +700,11 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect: /api/heavyRefresh?apiKey=&vcNo=&operatorCode=
+        // PlanConnect: /api/heavyRefresh?apiKey=&token=&vcNo=&operatorCode=
         if (self::isPlanConnectHost($base)) {
-            return $base . '/heavyRefresh?apiKey=' . urlencode($key)
-                . '&vcNo=' . urlencode($number)
-                . '&operatorCode=' . urlencode($opcode);
+            return $base.'/heavyRefresh?'.self::planConnectAuthQuery($key)
+                .'&vcNo='.urlencode($number)
+                .'&operatorCode='.urlencode($opcode);
         }
 
         return $base . '/Dthheavy.php?apikey=' . urlencode($key)
@@ -749,10 +826,10 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect docs: /api/getDthPlans?apiKey=&operatorCode=
+        // PlanConnect docs: /api/getDthPlans?apiKey=&token=&operatorCode=
         if (self::isPlanConnectHost($host) || self::isPlanConnectHost($base)) {
-            return $base . '/getDthPlans?apiKey=' . urlencode($key)
-                . '&operatorCode=' . urlencode($opcode);
+            return $base.'/getDthPlans?'.self::planConnectAuthQuery($key)
+                .'&operatorCode='.urlencode($opcode);
         }
 
         return $base . '/plans.php?apikey=' . urlencode($key)
@@ -894,6 +971,20 @@ class PlanInfoFetchService
         curl_setopt($curl, CURLOPT_TIMEOUT, (int) config('plan_api.timeout', 30));
         curl_setopt($curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'GET');
+
+        $headers = ['Accept: application/json'];
+        if (self::isPlanConnectHost($url)) {
+            $token = null;
+            $query = parse_url($url, PHP_URL_QUERY);
+            if (is_string($query)) {
+                parse_str($query, $params);
+                $token = trim((string) ($params['token'] ?? $params['apiKey'] ?? $params['apikey'] ?? ''));
+            }
+            if ($token !== '') {
+                $headers = array_merge($headers, self::planConnectAuthHeaders($token));
+            }
+        }
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
         $response = curl_exec($curl);
         $curlError = curl_error($curl);
@@ -1075,6 +1166,7 @@ class PlanInfoFetchService
         return str_contains($message, 'not authorize')
             || str_contains($message, 'unauthorized')
             || str_contains($message, 'authentication')
+            || str_contains($message, 'token missing')
             || str_contains($message, 'invalid api key')
             || str_contains($message, 'invalid apikey')
             || str_contains($message, 'invalid ip');
@@ -1146,7 +1238,14 @@ class PlanInfoFetchService
             }
 
             $orderId = $orderPrefix . random_int(1111111111, 9999999999);
-            $result = \helpers::curl($url, 'GET', '', [], 'yes', $modal, $orderId);
+            $headers = [];
+            if (self::isPlanConnectHost($url)) {
+                $token = self::resolvePlanConnectToken($api);
+                if ($token) {
+                    $headers = self::planConnectAuthHeaders($token);
+                }
+            }
+            $result = \helpers::curl($url, 'GET', '', $headers, 'yes', $modal, $orderId);
 
             if ($result && self::isSuccessfulFetchResponse($result)) {
                 $result['api_id'] = (int) $api->id;
@@ -1507,10 +1606,38 @@ class PlanInfoFetchService
             return self::hlrResult(false, self::formatHlrErrorMessage($apiMessage, $httpCode), [], $apiId, $body);
         }
 
-        $opCode = self::hlrNonEmpty($data['OpCode'] ?? $data['opcode'] ?? $data['OperatorCode'] ?? null);
-        $circleCode = self::hlrNonEmpty($data['CircleCode'] ?? $data['circlecode'] ?? null);
-        $operatorName = self::hlrNonEmpty($data['Operator'] ?? $data['operator'] ?? null);
-        $circleName = self::hlrNonEmpty($data['Circle'] ?? $data['circle'] ?? null);
+        $opCode = self::hlrNonEmpty(
+            $data['OpCode']
+            ?? $data['opcode']
+            ?? $data['OperatorCode']
+            ?? $data['operatorCode']
+            ?? ($data['data']['OpCode'] ?? null)
+            ?? ($data['data']['operatorCode'] ?? null)
+            ?? ($data['data']['OperatorCode'] ?? null)
+        );
+        $circleCode = self::hlrNonEmpty(
+            $data['CircleCode']
+            ?? $data['circlecode']
+            ?? $data['circleCode']
+            ?? ($data['data']['CircleCode'] ?? null)
+            ?? ($data['data']['circleCode'] ?? null)
+        );
+        $operatorName = self::hlrNonEmpty(
+            $data['Operator']
+            ?? $data['operator']
+            ?? $data['operatorName']
+            ?? ($data['data']['Operator'] ?? null)
+            ?? ($data['data']['operator'] ?? null)
+            ?? ($data['data']['operatorName'] ?? null)
+        );
+        $circleName = self::hlrNonEmpty(
+            $data['Circle']
+            ?? $data['circle']
+            ?? $data['circleName']
+            ?? ($data['data']['Circle'] ?? null)
+            ?? ($data['data']['circle'] ?? null)
+            ?? ($data['data']['circleName'] ?? null)
+        );
 
         if ($opCode === null && $operatorName === null) {
             $message = ($apiMessage !== null && $apiMessage !== '')
@@ -1908,15 +2035,40 @@ class PlanInfoFetchService
 
         $api->resolved_username = $username !== null && $username !== '' ? $username : ($api->api_username ?? '');
         $api->resolved_password = $password !== null && $password !== '' ? $password : ($api->api_password ?? '');
-        $api->resolved_api_key = $password !== null && $password !== '' && empty($api->api_key)
-            ? $password
-            : ($api->api_key ?? '');
 
-        if (!empty($username) && empty($api->api_key) && strlen($username) > 20) {
+        // Primary/Backup Username|Password fields can override the API key (PlanConnect token).
+        $api->resolved_api_key = trim((string) ($api->api_key ?? ''));
+        if ($password !== null && $password !== '' && self::looksLikePlanApiKey($password)) {
+            $api->resolved_api_key = $password;
+        }
+        if ($username !== null && $username !== '' && self::looksLikePlanApiKey($username)) {
             $api->resolved_api_key = $username;
+        }
+        if ($api->resolved_api_key === '' && $password !== null && $password !== '' && empty($api->api_key)) {
+            $api->resolved_api_key = $password;
         }
 
         return $api;
+    }
+
+    /** Long token / UUID-style key from Plan/Circle settings (not short PlanAPI member id). */
+    private static function looksLikePlanApiKey(string $value): bool
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return false;
+        }
+
+        if (self::looksLikeUuid($value)) {
+            return true;
+        }
+
+        // Short numeric member IDs (PlanAPI) are not API keys.
+        if (preg_match('/^\d{1,12}$/', $value)) {
+            return false;
+        }
+
+        return strlen($value) >= 16;
     }
 
     public static function apiOptions()

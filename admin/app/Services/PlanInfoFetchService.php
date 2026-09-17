@@ -322,8 +322,11 @@ class PlanInfoFetchService
             ? $password
             : ($api->api_key ?? '');
 
-        if (!empty($username) && empty($api->api_key) && strlen($username) > 20) {
-            $api->resolved_api_key = $username;
+        // Honor Primary/Backup "Username / API Key" override when it looks like a token.
+        if (!empty($username) && (empty($api->api_key) || strlen($username) >= 16) && !preg_match('/^\d{1,12}$/', $username)) {
+            if (empty($api->api_key) || strlen($username) > 20 || preg_match('/^[0-9a-f-]{36}$/i', $username)) {
+                $api->resolved_api_key = $username;
+            }
         }
 
         return $api;

@@ -1940,6 +1940,13 @@ class RechargeController extends Controller
                 return null;
             }
 
+            if (stripos($base, 'planconnect') !== false) {
+                return $base.'/getRoffers?'.PlanInfoFetchService::planConnectAuthQuery($key)
+                    .'&operatorCode='.urlencode((string) $provider_code)
+                    .'&mobileNo='.urlencode($post->number)
+                    .'&mobile='.urlencode($post->number);
+            }
+
             return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
 
         }, 'Roffer', 'ROF');
