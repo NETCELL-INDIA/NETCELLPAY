@@ -695,7 +695,7 @@ class Helper {
         }
     }
 
-    public static function sendApiPartnerRechargeCallback($report): bool
+    public static function sendApiPartnerRechargeCallback($report, bool $force = false): bool
     {
         if (is_numeric($report) || is_string($report)) {
             $report = DB::table('reports')->where('id', $report)->first();
@@ -706,7 +706,7 @@ class Helper {
         if (in_array((string) $report->status, self::rechargePendingStatuses(), true)) {
             return false;
         }
-        if ((int) ($report->callback_status ?? 0) === 1) {
+        if ((int) ($report->callback_status ?? 0) === 1 && ! $force) {
             return false;
         }
 

@@ -933,6 +933,8 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/user-reports/recharge-report/check-api-logs',[RechargeReportsController::class,'checkApiLog'])->name('checkApiLog');
+    Route::post('admin/user-reports/recharge-report/check-callback',[RechargeReportsController::class,'checkCallback'])->name('checkCallback');
+    Route::post('admin/user-reports/recharge-report/resend-partner-callback',[RechargeReportsController::class,'resendPartnerCallback'])->name('resendPartnerCallback');
 
 
 

@@ -133,6 +133,7 @@ class PendingReportController extends Controller
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td>
                         <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '">Resend</button>
+                        <button type="button" class="btn btn-sm btn-outline-warning btn-check-callback" data-id="' . e($list->id) . '" data-order-id="' . e($list->order_id ?: '') . '">Callback</button>
                         <button type="button" class="btn btn-sm btn-outline-success btn-mark-success" data-id="' . e($list->id) . '" data-operator-id="' . e((string) ($list->operator_id ?? '')) . '">Success</button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-mark" data-id="' . e($list->id) . '" data-status="Failed">Fail</button>
                     </td>

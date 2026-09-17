@@ -249,6 +249,25 @@
         </div>
     </div>
 </div>
+
+{{-- Check Callback Modal --}}
+<div id="checkCallbackModal" class="modal" tabindex="-1" aria-hidden="true" style="display: none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Check Callback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="callback_check_data"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning d-none" id="btnResendPartnerCallback">Resend Partner Callback</button>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('script')
@@ -497,6 +516,63 @@ $(function () {
                 } else {
                     alert(res.message || 'No logs');
                 }
+            }
+        });
+    });
+
+    var callbackReportId = 0;
+    $(document).on('click', '.checkCallback', function (e) {
+        e.preventDefault();
+        var reportId = $(this).data('report-id') || $(this).attr('data-report-id');
+        var orderId = $(this).data('order-id') || $(this).attr('id') || '';
+        callbackReportId = reportId || 0;
+        $('#btnResendPartnerCallback').addClass('d-none').prop('disabled', false).text('Resend Partner Callback');
+        $('#callback_check_data').html('<p class="text-muted mb-0">Loading...</p>');
+        $('#checkCallbackModal').modal('show');
+        $.ajax({
+            url: '{{ route("checkCallback") }}',
+            method: 'post',
+            data: { _token: csrf, id: reportId || orderId, report_id: reportId },
+            success: function (res) {
+                if (res.type == 'success') {
+                    $('#callback_check_data').html(res.html || '<p class="text-muted">No callback data</p>');
+                    callbackReportId = res.report_id || callbackReportId;
+                    if (res.can_resend_partner) {
+                        $('#btnResendPartnerCallback').removeClass('d-none');
+                    }
+                } else {
+                    $('#callback_check_data').html('<p class="text-danger">' + (res.message || 'Failed') + '</p>');
+                }
+            },
+            error: function () {
+                $('#callback_check_data').html('<p class="text-danger">Failed to load callback details</p>');
+            }
+        });
+    });
+
+    $('#btnResendPartnerCallback').on('click', function () {
+        if (!callbackReportId) {
+            alert('Invalid transaction');
+            return;
+        }
+        if (!confirm('Resend partner callback for this transaction?')) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true).text('Sending...');
+        $.ajax({
+            url: '{{ route("resendPartnerCallback") }}',
+            method: 'post',
+            data: { _token: csrf, report_id: callbackReportId },
+            success: function (res) {
+                $btn.prop('disabled', false).text('Resend Partner Callback');
+                alert(res.message || (res.type === 'success' ? 'Done' : 'Failed'));
+                if (res.type === 'success') {
+                    $('.checkCallback[data-report-id="' + callbackReportId + '"]').trigger('click');
+                }
+            },
+            error: function (xhr) {
+                $btn.prop('disabled', false).text('Resend Partner Callback');
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Failed';
+                alert(msg);
             }
         });
     });

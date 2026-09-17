@@ -207,7 +207,8 @@ class RechargeReportsController extends Controller
 
                 $action = '<div class="recharge-action-btns">'
                     . '<a href="javascript:void(0)" class="btn btn-soft-primary" title="Edit Status" onclick="editStatus(\'' . e($list->id) . '\',\'' . $st . '\',\'' . e($list->operator_id ?: '') . '\')"><i class="ri-pencil-line"></i></a>'
-                    . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" data-report-id="' . e($list->id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>';
+                    . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" data-report-id="' . e($list->id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>'
+                    . '<a href="javascript:void(0)" data-report-id="' . e($list->id) . '" data-order-id="' . e($list->order_id) . '" class="btn btn-soft-warning checkCallback" title="Check Callback"><i class="ri-broadcast-line"></i></a>';
 
                 if ($hasComplaint && !empty($list->complaint_id)) {
                     $action .= '<a id="' . e($list->complaint_id) . '" class="btn btn-soft-danger editComplaint" title="Complaint"><i class="ri-customer-service-2-line"></i></a>';
@@ -904,6 +905,8 @@ class RechargeReportsController extends Controller
                     <a id="' . $list->id . '" class="badge text-bg-secondary"  onclick="editStatus(`' . $list->id . '`,`' . $list->status . '`,`' . $list->operator_id . '`)"><i class="ri-pencil-fill align-bottom"></i> Edit</a>
 
                     <a id="' . $list->order_id . '" class="badge text-bg-info checkApilog"><i class="ri-file-list-line align-bottom"></i> Api Log</a>
+
+                    <a href="javascript:void(0)" data-report-id="' . e($list->id) . '" data-order-id="' . e($list->order_id) . '" class="badge text-bg-warning checkCallback"><i class="ri-broadcast-line align-bottom"></i> Callback</a>
 
                 </td>
 
@@ -2391,9 +2394,209 @@ class RechargeReportsController extends Controller
             .'</div>';
     }
 
+    public function checkCallback(Request $post)
+    {
+        $key = trim((string) ($post->id ?? $post->report_id ?? ''));
+        if ($key === '') {
+            return response()->json(['type' => 'error', 'message' => 'Invalid transaction.']);
+        }
 
+        $report = null;
+        if (ctype_digit($key)) {
+            $report = DB::table('reports')->where('id', (int) $key)->first();
+        }
+        if (! $report) {
+            $report = DB::table('reports')->where('order_id', $key)->first();
+        }
+        if (! $report && Schema::hasTable('backup_reports')) {
+            if (ctype_digit($key)) {
+                $report = DB::table('backup_reports')->where('id', (int) $key)->first();
+            }
+            if (! $report) {
+                $report = DB::table('backup_reports')->where('order_id', $key)->first();
+            }
+        }
+        if (! $report) {
+            return response()->json(['type' => 'error', 'message' => 'Transaction not found.']);
+        }
 
+        $api = null;
+        if (! empty($report->api_id)) {
+            $api = DB::table('apis')->where('id', (int) $report->api_id)->first(['id', 'api_name', 'callback_switch']);
+        }
+        $user = DB::table('users')->where('id', (int) $report->user_id)->first(['id', 'outlet_name', 'callback_url']);
 
+        $partnerPath = false;
+        try {
+            $partnerPath = \Helper::isApiPartnerPath($report->path ?? '');
+        } catch (\Throwable $e) {
+        }
 
+        $callbackSent = (int) ($report->callback_status ?? 0) === 1;
+        $inboundUrl = $report->api_id
+            ? url('/recharge-callback/'.(int) $report->api_id)
+            : '-';
+        // Admin panel may be on a different host; show path clearly for ops.
+        $inboundPath = $report->api_id ? ('/recharge-callback/'.(int) $report->api_id) : '-';
+
+        $txnids = array_values(array_unique(array_filter([
+            (string) ($report->order_id ?? ''),
+            (string) $report->id,
+            (string) ($report->request_order_id ?? ''),
+            (string) ($report->operator_id ?? ''),
+        ], fn ($v) => $v !== '' && $v !== 'none')));
+
+        $logs = collect();
+        if (Schema::hasTable('apilogs') && $txnids !== []) {
+            $logs = DB::table('apilogs')
+                ->where(function ($q) use ($txnids, $report) {
+                    $q->whereIn('txnid', $txnids);
+                    if (! empty($report->order_id)) {
+                        $q->orWhere('url', 'like', '%'.$report->order_id.'%');
+                    }
+                })
+                ->where(function ($q) {
+                    $q->whereIn('modal', [
+                        'RechargeCallback',
+                        'RechargeCallbackError',
+                        'USER_RECHARGE_CALLBACK',
+                    ])->orWhere('url', 'like', '%recharge-callback%')
+                        ->orWhere('modal', 'like', '%CALLBACK%');
+                })
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get();
+        }
+
+        $row = function (string $label, string $value): string {
+            return '<tr><th style="width:38%;background:#f8f9fa">'.e($label).'</th><td>'.$value.'</td></tr>';
+        };
+
+        $pretty = function ($raw): string {
+            $raw = is_string($raw) ? $raw : json_encode($raw);
+            $decoded = json_decode((string) $raw, true);
+            if (is_array($decoded)) {
+                return (string) json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            }
+
+            return (string) ($raw !== '' ? $raw : '-');
+        };
+
+        $partnerUrl = Schema::hasColumn('reports', 'api_partner_call_back_url')
+            ? (string) ($report->api_partner_call_back_url ?? '')
+            : '';
+        $partnerResp = Schema::hasColumn('reports', 'api_partner_callback_response')
+            ? (string) ($report->api_partner_callback_response ?? '')
+            : '';
+        $inboundBody = (string) ($report->callback_response ?? '');
+
+        $canResend = $partnerPath
+            && ! in_array((string) $report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)
+            && trim((string) ($user->callback_url ?? '')) !== '';
+
+        $html = '<div class="mb-3">'
+            .'<table class="table table-bordered table-sm mb-0">'
+            .$row('Order ID', e((string) ($report->order_id ?: ('R'.$report->id))))
+            .$row('Report ID', e((string) $report->id))
+            .$row('Status', e((string) ($report->status ?? '-')))
+            .$row('API', e((string) ($api->api_name ?? ('#'.($report->api_id ?? '-')))))
+            .$row('API Callback Switch', e(! empty($api) && (int) ($api->callback_switch ?? 0) === 1 ? 'ON' : 'OFF'))
+            .$row('Supplier Callback URL', '<code>'.e($inboundPath).'</code>')
+            .$row('Partner Mode', $partnerPath ? 'Yes (API partner path)' : 'No')
+            .$row('Partner Callback URL', e(trim((string) ($user->callback_url ?? '')) ?: 'Not set'))
+            .$row('Partner Callback Sent', $callbackSent
+                ? '<span class="badge bg-success">Yes (callback_status=1)</span>'
+                : '<span class="badge bg-warning text-dark">No / Pending (callback_status=0)</span>')
+            .'</table></div>';
+
+        $html .= '<div class="mb-3"><h6 class="text-primary">Inbound Supplier Callback (stored on report)</h6>'
+            .'<pre class="bg-light border rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;">'
+            .e($pretty($inboundBody)).'</pre></div>';
+
+        if ($partnerUrl !== '' || $partnerResp !== '') {
+            $html .= '<div class="mb-3"><h6 class="text-primary">Outbound Partner Callback</h6>'
+                .'<div class="small text-muted mb-1">Last URL</div>'
+                .'<pre class="bg-light border rounded p-2 small mb-2" style="white-space:pre-wrap;word-break:break-word;">'
+                .e($partnerUrl !== '' ? $partnerUrl : '-').'</pre>'
+                .'<div class="small text-muted mb-1">Last Response</div>'
+                .'<pre class="bg-light border rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;">'
+                .e($pretty($partnerResp)).'</pre></div>';
+        }
+
+        $html .= '<div class="mb-2"><h6 class="text-primary">Callback API Logs</h6>';
+        if ($logs->isEmpty()) {
+            $html .= '<p class="text-muted mb-0">No RechargeCallback / USER_RECHARGE_CALLBACK logs found for this txn.</p>';
+        } else {
+            $i = 1;
+            foreach ($logs as $log) {
+                $html .= $this->apiLogCardHtml($i++, $log);
+            }
+        }
+        $html .= '</div>';
+
+        if ($canResend) {
+            $html .= '<div class="alert alert-info py-2 mb-0">'
+                .'You can resend the partner callback with the button below.'
+                .'</div>';
+        } elseif ($partnerPath && in_array((string) $report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+            $html .= '<div class="alert alert-warning py-2 mb-0">Partner callback is sent only after Success / Failed / Refunded.</div>';
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'html' => $html,
+            'report_id' => (int) $report->id,
+            'order_id' => (string) ($report->order_id ?? ''),
+            'can_resend_partner' => $canResend,
+            'callback_status' => (int) ($report->callback_status ?? 0),
+        ]);
+    }
+
+    public function resendPartnerCallback(Request $post)
+    {
+        $id = (int) ($post->report_id ?? $post->id ?? 0);
+        if ($id <= 0) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid transaction.']);
+        }
+
+        $report = DB::table('reports')->where('id', $id)->first();
+        if (! $report) {
+            return response()->json(['type' => 'error', 'message' => 'Transaction not found.']);
+        }
+
+        if (in_array((string) $report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Cannot send partner callback while status is Pending.',
+            ]);
+        }
+
+        try {
+            $ok = \Helper::sendApiPartnerRechargeCallback($report->id, true);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Callback send failed: '.$e->getMessage(),
+            ], 500);
+        }
+
+        AdminAudit::log('recharge_callback', 'partner_resend', [
+            'ref_type' => 'report',
+            'ref_id' => $report->id,
+            'meta' => ['ok' => $ok],
+        ]);
+
+        if (! $ok) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Partner callback not sent (not API partner path, or callback URL missing/invalid).',
+            ]);
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Partner callback resent successfully.',
+        ]);
+    }
 }
 
