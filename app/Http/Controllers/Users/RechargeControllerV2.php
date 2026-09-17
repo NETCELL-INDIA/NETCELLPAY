@@ -847,11 +847,18 @@ class RechargeControllerV2 extends Controller
         }, 'Roffer', 'ROF');
         //echo "<pre>";print_r($result);die;
         if($result){
-            $data= json_decode($result['response'],true);
+            $records = PlanInfoFetchService::extractRecords($result['response'] ?? null);
+            if ($records !== []) {
+                return response()->json([
+                    'type'=> 'success',
+                    'message'=>'Fatch Successfully',
+                    'data' => $records
+                ]);
+            }
+            $apiMessage = PlanInfoFetchService::responseErrorMessage($result['response'] ?? null);
             return response()->json([
-                'type'=> 'success',
-                'message'=>'Fatch Successfully',
-                'data' => $data['records']
+                'type' => 'error',
+                'message' => $apiMessage ?: 'No offers found for this number.',
             ]);
         }else{
             return response()->json(array(

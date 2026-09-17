@@ -1325,9 +1325,145 @@ class PlanInfoFetchService
             return $dthPlans;
         }
 
-        $records = $data['records'] ?? $data['data'] ?? $data['Roffer'] ?? $data['Plans'] ?? [];
+        $records = $data['records']
+            ?? $data['Roffer']
+            ?? $data['roffer']
+            ?? $data['Plans']
+            ?? null;
 
-        return is_array($records) ? $records : [];
+        if ($records === null && isset($data['data']) && is_array($data['data'])) {
+            $inner = $data['data'];
+            // PlanConnect ROffer: { data: { rOffers: [ { amount, description } ] } }
+            foreach (['records', 'rOffers', 'ROffers', 'offers', 'Roffer', 'roffer', 'plans'] as $key) {
+                if (isset($inner[$key]) && is_array($inner[$key])) {
+                    $records = $inner[$key];
+                    break;
+                }
+            }
+            if ($records === null) {
+                $records = $inner;
+            }
+        }
+
+        // Single wrapper object → unwrap list (e.g. only key is rOffers).
+        if (is_array($records) && ! self::isListArray($records) && count($records) === 1) {
+            $only = reset($records);
+            if (is_array($only) && self::isListArray($only)) {
+                $records = $only;
+            }
+        }
+
+        if (! is_array($records)) {
+            return [];
+        }
+
+        return self::normalizePlanRecordTree($records);
+    }
+
+    /**
+     * Map PlanConnect/MPlan rows to portal shape: rs / desc / validity.
+     * Supports flat ROffer lists and category maps (FULLTT, TOPUP, …).
+     *
+     * @param  array<mixed>  $records
+     * @return array<mixed>
+     */
+    private static function normalizePlanRecordTree(array $records): array
+    {
+        if ($records === []) {
+            return [];
+        }
+
+        if (self::isListArray($records)) {
+            $out = [];
+            foreach ($records as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $normalized = self::normalizePlanRow($row);
+                if ($normalized !== null) {
+                    $out[] = $normalized;
+                }
+            }
+
+            return $out;
+        }
+
+        $out = [];
+        foreach ($records as $category => $rows) {
+            if (! is_array($rows)) {
+                continue;
+            }
+            $normalizedRows = [];
+            foreach ($rows as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $normalized = self::normalizePlanRow($row);
+                if ($normalized !== null) {
+                    $normalizedRows[] = $normalized;
+                }
+            }
+            if ($normalizedRows !== []) {
+                $label = is_string($category) && $category !== '' ? $category : 'Plans';
+                $out[$label] = $normalizedRows;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @param  array<string, mixed>  $row */
+    private static function normalizePlanRow(array $row): ?array
+    {
+        $rs = $row['rs']
+            ?? $row['amount']
+            ?? $row['Amount']
+            ?? $row['price']
+            ?? $row['Price']
+            ?? $row['recharge_amount']
+            ?? '';
+        $rs = preg_replace('/[^\d.]/', '', (string) $rs) ?? '';
+
+        $desc = $row['desc']
+            ?? $row['description']
+            ?? $row['Description']
+            ?? $row['offer']
+            ?? $row['Offer']
+            ?? $row['plan_name']
+            ?? $row['PlanName']
+            ?? $row['name']
+            ?? '';
+        $desc = trim((string) $desc);
+
+        $validity = $row['validity']
+            ?? $row['Validity']
+            ?? $row['valid']
+            ?? $row['Valid']
+            ?? '';
+
+        if ($rs === '' && $desc === '') {
+            return null;
+        }
+
+        return [
+            'rs' => $rs,
+            'desc' => $desc,
+            'validity' => (string) $validity,
+        ];
+    }
+
+    /** @param  array<mixed>  $arr */
+    private static function isListArray(array $arr): bool
+    {
+        if (function_exists('array_is_list')) {
+            return array_is_list($arr);
+        }
+
+        if ($arr === []) {
+            return true;
+        }
+
+        return array_keys($arr) === range(0, count($arr) - 1);
     }
 
     /**
@@ -1525,7 +1661,13 @@ class PlanInfoFetchService
     private static function isErrorResponse(array $data): bool
     {
         $errorCode = $data['ERROR'] ?? $data['error'] ?? null;
-        $hasPayload = !empty($data['DATA']) || !empty($data['RDATA']) || !empty($data['records']) || !empty($data['Plans']);
+        $hasPayload = ! empty($data['DATA'])
+            || ! empty($data['RDATA'])
+            || ! empty($data['records'])
+            || ! empty($data['Plans'])
+            || ! empty($data['data'])
+            || ! empty($data['Roffer'])
+            || ! empty($data['roffer']);
         if ($errorCode !== null && in_array((string) $errorCode, ['0', '', 'false'], true) && $hasPayload) {
             return false;
         }
