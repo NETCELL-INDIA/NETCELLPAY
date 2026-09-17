@@ -205,7 +205,9 @@ class RechargeReportsController extends Controller
                 $st = e($status);
                 $orderId = e($list->order_id ?: ('R' . $list->id));
 
-                $action = '<div class="recharge-action-btns">'
+                $action = '<div class="recharge-action-cell">'
+                    . $this->actionStageHtml($list)
+                    . '<div class="recharge-action-btns">'
                     . '<a href="javascript:void(0)" class="btn btn-soft-primary" title="Edit Status" onclick="editStatus(\'' . e($list->id) . '\',\'' . $st . '\',\'' . e($list->operator_id ?: '') . '\')"><i class="ri-pencil-line"></i></a>'
                     . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" data-report-id="' . e($list->id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>'
                     . '<a href="javascript:void(0)" data-report-id="' . e($list->id) . '" data-order-id="' . e($list->order_id) . '" class="btn btn-soft-warning checkCallback" title="Check Callback"><i class="ri-broadcast-line"></i></a>';
@@ -214,7 +216,7 @@ class RechargeReportsController extends Controller
                     $action .= '<a id="' . e($list->complaint_id) . '" class="btn btn-soft-danger editComplaint" title="Complaint"><i class="ri-customer-service-2-line"></i></a>';
                 }
 
-                $action .= '</div>';
+                $action .= '</div></div>';
 
                 $rows .= '<tr>
                     <td><span class="recharge-order-id">' . $orderId . '</span><span class="recharge-row-id">#' . e($list->id) . '</span></td>
@@ -901,13 +903,14 @@ class RechargeReportsController extends Controller
                 <td> ₹ ' . $list->closing_balance . '</td>
 
                 <td>
-
+                    ' . $this->actionStageHtml($list) . '
+                    <div class="mt-1">
                     <a id="' . $list->id . '" class="badge text-bg-secondary"  onclick="editStatus(`' . $list->id . '`,`' . $list->status . '`,`' . $list->operator_id . '`)"><i class="ri-pencil-fill align-bottom"></i> Edit</a>
 
                     <a id="' . $list->order_id . '" class="badge text-bg-info checkApilog"><i class="ri-file-list-line align-bottom"></i> Api Log</a>
 
                     <a href="javascript:void(0)" data-report-id="' . e($list->id) . '" data-order-id="' . e($list->order_id) . '" class="badge text-bg-warning checkCallback"><i class="ri-broadcast-line align-bottom"></i> Callback</a>
-
+                    </div>
                 </td>
 
 
@@ -1778,6 +1781,53 @@ class RechargeReportsController extends Controller
         }
 
         return $html;
+    }
+
+    /**
+     * Action column: which number + which stage (status / callback).
+     */
+    private function actionStageHtml($list): string
+    {
+        $number = trim((string) ($list->number ?? ''));
+        $number = $number !== '' ? $number : '-';
+        $statusRaw = trim((string) ($list->status ?? ''));
+        $status = strtolower($statusRaw);
+        $stage = $statusRaw !== '' ? strtoupper($statusRaw) : 'UNKNOWN';
+        $cls = 'recharge-stage--muted';
+
+        if ($status === 'success') {
+            $stage = 'SUCCESS';
+            $cls = 'recharge-stage--success';
+            try {
+                if (\Helper::isApiPartnerPath($list->path ?? '') && (int) ($list->callback_status ?? 0) !== 1) {
+                    $stage = 'SUCCESS · Partner CB Pending';
+                    $cls = 'recharge-stage--warn';
+                }
+            } catch (\Throwable $e) {
+            }
+        } elseif (in_array($status, ['failed', 'failure'], true)) {
+            $stage = 'FAILED';
+            $cls = 'recharge-stage--fail';
+        } elseif (in_array($status, ['refunded', 'refund'], true)) {
+            $stage = 'REFUNDED';
+            $cls = 'recharge-stage--refund';
+        } elseif (in_array($status, ['pending', 'under proces', 'under process', 'processing'], true)) {
+            $hasInboundCb = trim((string) ($list->callback_response ?? '')) !== ''
+                && trim((string) ($list->callback_response ?? '')) !== 'null'
+                && trim((string) ($list->callback_response ?? '')) !== '[]';
+            if ($hasInboundCb) {
+                $stage = 'PENDING · Callback In';
+                $cls = 'recharge-stage--warn';
+            } else {
+                $stage = 'PENDING · Waiting Callback';
+                $cls = 'recharge-stage--pending';
+            }
+        }
+
+        return '<div class="recharge-action-meta">'
+            .'<div class="recharge-action-number" title="Number">'.e($number).'</div>'
+            .'<div class="recharge-action-stage '.e($cls).'" title="Stage">'.e($stage).'</div>'
+            .'</div>';
     }
 
     private function relatedTxnExists($reportId, $type): bool

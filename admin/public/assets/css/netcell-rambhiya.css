@@ -1889,6 +1889,69 @@ button.recharge-summary__item.is-active { box-shadow: 0 0 0 2px rgba(64,81,137,.
     gap: 2px;
 }
 
+.recharge-action-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 118px;
+}
+
+.recharge-action-meta {
+    text-align: center;
+    line-height: 1.15;
+}
+
+.recharge-action-number {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #212529;
+    letter-spacing: 0.02em;
+}
+
+.recharge-action-stage {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recharge-stage--success {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.recharge-stage--pending {
+    background: #fff3cd;
+    color: #664d03;
+}
+
+.recharge-stage--warn {
+    background: #ffe5d0;
+    color: #984c0c;
+}
+
+.recharge-stage--fail {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.recharge-stage--refund {
+    background: #e2e3e5;
+    color: #41464b;
+}
+
+.recharge-stage--muted {
+    background: #eef1f4;
+    color: #495057;
+}
+
 .recharge-action-btns .btn {
     width: 24px;
     height: 24px;
