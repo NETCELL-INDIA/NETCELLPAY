@@ -157,16 +157,27 @@
 
                         <div class="row gy-4">
 
-                            <div class="col-xxl-6 col-md-6">
-
-                                <label class="badge text-bg-secondary">Recharge Callback Url: {{ env('USER_HOST')}}/recharge-callback/<label class="call_id"></label></label>
-
-                            </div>
-
-                            <div class="col-xxl-6 col-md-6">
-
-                                <label class="badge text-bg-secondary">Complaint Callback Url: {{ env('USER_HOST')}}/complaint-callback/<label class="call_id"></label></label>
-
+                            <div class="col-12">
+                                <div class="alert alert-primary py-2 mb-2">
+                                    <div class="fw-semibold mb-2">Supplier Callback URLs (give these to API provider)</div>
+                                    <div class="mb-2">
+                                        <label class="form-label mb-1">Recharge Callback Url</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control" id="recharge_callback_url_display" readonly value="">
+                                            <button type="button" class="btn btn-light border btn-copy-callback" data-target="recharge_callback_url_display">Copy</button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="form-label mb-1">Complaint Callback Url</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control" id="complaint_callback_url_display" readonly value="">
+                                            <button type="button" class="btn btn-light border btn-copy-callback" data-target="complaint_callback_url_display">Copy</button>
+                                        </div>
+                                    </div>
+                                    @if(user_portal_base_url() === '')
+                                        <div class="text-danger small mt-2 mb-0">Set <code>USER_HOST</code> in admin <code>.env</code> (example: <code>https://netcellpay.in</code>) so full callback URLs show here.</div>
+                                    @endif
+                                </div>
                             </div>
 
                                 
@@ -891,6 +902,37 @@
 @section('script')
 
 <script>
+    var portalBaseUrl = @json(user_portal_base_url());
+
+    function setApiCallbackUrlDisplays(apiId) {
+        var id = (apiId === undefined || apiId === null || apiId === '' || apiId === 0 || apiId === '0') ? '{id}' : String(apiId);
+        var base = (portalBaseUrl || '').replace(/\/$/, '');
+        var recharge = (base ? base : '') + '/recharge-callback/' + id;
+        var complaint = (base ? base : '') + '/complaint-callback/' + id;
+        $('#recharge_callback_url_display').val(recharge);
+        $('#complaint_callback_url_display').val(complaint);
+    }
+
+    $(document).on('click', '.btn-copy-callback', function () {
+        var target = $(this).data('target');
+        var el = document.getElementById(target);
+        if (!el) return;
+        var val = el.value || '';
+        if (!val) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(val).then(function () {
+                Error_Msg('Copied', 'Callback URL copied', 'success');
+            }).catch(function () {
+                el.select();
+                document.execCommand('copy');
+                Error_Msg('Copied', 'Callback URL copied', 'success');
+            });
+        } else {
+            el.select();
+            document.execCommand('copy');
+            Error_Msg('Copied', 'Callback URL copied', 'success');
+        }
+    });
 
     fetchAll(1,10);
 
@@ -1685,6 +1727,7 @@
                 $("#edit_id").val(data.data.id);
 
                 $(".call_id").text(data.data.id);
+                setApiCallbackUrlDisplays(data.data.id);
 
 
 
@@ -1903,6 +1946,7 @@
         $("#edit_id").val(0);
         $("#store_log").prop('checked', false);
         $("#success_switch, #failure_switch, #pending_switch, #callback_switch").prop('checked', true);
+        setApiCallbackUrlDisplays(0);
 
         $('#detailsModal').modal('show');
 

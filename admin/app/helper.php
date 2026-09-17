@@ -987,6 +987,26 @@ class Helper {
     }
 }
 
+if (! function_exists('user_portal_base_url')) {
+    /**
+     * Public user/portal base URL for supplier callback links (USER_HOST).
+     */
+    function user_portal_base_url(): string
+    {
+        $host = rtrim((string) env('USER_HOST', ''), '/');
+        if ($host !== '') {
+            return $host;
+        }
+
+        $configHost = rtrim((string) config('app.user_host', ''), '/');
+        if ($configHost !== '') {
+            return $configHost;
+        }
+
+        return rtrim((string) config('app.url', ''), '/');
+    }
+}
+
 if (! function_exists('admin_asset')) {
     /**
      * Build a public asset URL for the admin app, including /admin on Hostinger.

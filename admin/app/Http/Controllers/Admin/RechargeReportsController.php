@@ -2500,7 +2500,11 @@ class RechargeReportsController extends Controller
         }
 
         $callbackSent = (int) ($report->callback_status ?? 0) === 1;
+        $portalBase = function_exists('user_portal_base_url') ? rtrim(user_portal_base_url(), '/') : rtrim((string) env('USER_HOST', ''), '/');
         $inboundPath = ! empty($report->api_id) ? ('/recharge-callback/'.(int) $report->api_id) : '-';
+        $inboundFull = ($portalBase !== '' && $inboundPath !== '-')
+            ? ($portalBase.$inboundPath)
+            : $inboundPath;
 
         $txnids = array_values(array_unique(array_filter([
             (string) ($report->order_id ?? ''),
@@ -2573,7 +2577,7 @@ class RechargeReportsController extends Controller
             .$row('Status', e((string) ($report->status ?? '-')))
             .$row('API', e((string) ($api->api_name ?? ('#'.($report->api_id ?? '-')))))
             .$row('API Callback Switch', e($api && (int) ($api->callback_switch ?? 0) === 1 ? 'ON' : 'OFF'))
-            .$row('Supplier Callback URL', '<code>'.e($inboundPath).'</code>')
+            .$row('Supplier Callback URL', '<code>'.e($inboundFull).'</code>')
             .$row('Partner Mode', $partnerPath ? 'Yes (API partner path)' : 'No')
             .$row('Partner Callback URL', e($partnerCallbackUrl !== '' ? $partnerCallbackUrl : 'Not set'))
             .$row('Partner Callback Sent', $callbackSent
