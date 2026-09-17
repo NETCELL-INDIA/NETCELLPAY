@@ -2402,6 +2402,7 @@ class RechargeReportsController extends Controller
         }
 
         $report = null;
+        $fromBackup = false;
         if (ctype_digit($key)) {
             $report = DB::table('reports')->where('id', (int) $key)->first();
         }
@@ -2415,6 +2416,9 @@ class RechargeReportsController extends Controller
             if (! $report) {
                 $report = DB::table('backup_reports')->where('order_id', $key)->first();
             }
+            if ($report) {
+                $fromBackup = true;
+            }
         }
         if (! $report) {
             return response()->json(['type' => 'error', 'message' => 'Transaction not found.']);
@@ -2422,9 +2426,22 @@ class RechargeReportsController extends Controller
 
         $api = null;
         if (! empty($report->api_id)) {
-            $api = DB::table('apis')->where('id', (int) $report->api_id)->first(['id', 'api_name', 'callback_switch']);
+            try {
+                $apiCols = ['id', 'api_name'];
+                if (Schema::hasColumn('apis', 'callback_switch')) {
+                    $apiCols[] = 'callback_switch';
+                }
+                $api = DB::table('apis')->where('id', (int) $report->api_id)->first($apiCols);
+            } catch (\Throwable $e) {
+                $api = DB::table('apis')->where('id', (int) $report->api_id)->first(['id', 'api_name']);
+            }
         }
-        $user = DB::table('users')->where('id', (int) $report->user_id)->first(['id', 'outlet_name', 'callback_url']);
+
+        $user = null;
+        try {
+            $user = DB::table('users')->where('id', (int) ($report->user_id ?? 0))->first(['id', 'outlet_name', 'callback_url']);
+        } catch (\Throwable $e) {
+        }
 
         $partnerPath = false;
         try {
@@ -2433,39 +2450,41 @@ class RechargeReportsController extends Controller
         }
 
         $callbackSent = (int) ($report->callback_status ?? 0) === 1;
-        $inboundUrl = $report->api_id
-            ? url('/recharge-callback/'.(int) $report->api_id)
-            : '-';
-        // Admin panel may be on a different host; show path clearly for ops.
-        $inboundPath = $report->api_id ? ('/recharge-callback/'.(int) $report->api_id) : '-';
+        $inboundPath = ! empty($report->api_id) ? ('/recharge-callback/'.(int) $report->api_id) : '-';
 
         $txnids = array_values(array_unique(array_filter([
             (string) ($report->order_id ?? ''),
-            (string) $report->id,
+            (string) ($report->id ?? ''),
             (string) ($report->request_order_id ?? ''),
             (string) ($report->operator_id ?? ''),
-        ], fn ($v) => $v !== '' && $v !== 'none')));
+        ], function ($v) {
+            return $v !== '' && $v !== 'none';
+        })));
 
         $logs = collect();
         if (Schema::hasTable('apilogs') && $txnids !== []) {
-            $logs = DB::table('apilogs')
-                ->where(function ($q) use ($txnids, $report) {
-                    $q->whereIn('txnid', $txnids);
-                    if (! empty($report->order_id)) {
-                        $q->orWhere('url', 'like', '%'.$report->order_id.'%');
-                    }
-                })
-                ->where(function ($q) {
-                    $q->whereIn('modal', [
-                        'RechargeCallback',
-                        'RechargeCallbackError',
-                        'USER_RECHARGE_CALLBACK',
-                    ])->orWhere('url', 'like', '%recharge-callback%')
-                        ->orWhere('modal', 'like', '%CALLBACK%');
-                })
-                ->orderByDesc('id')
-                ->limit(20)
-                ->get();
+            try {
+                $logs = DB::table('apilogs')
+                    ->where(function ($q) use ($txnids, $report) {
+                        $q->whereIn('txnid', $txnids);
+                        if (! empty($report->order_id)) {
+                            $q->orWhere('url', 'like', '%'.$report->order_id.'%');
+                        }
+                    })
+                    ->where(function ($q) {
+                        $q->whereIn('modal', [
+                            'RechargeCallback',
+                            'RechargeCallbackError',
+                            'USER_RECHARGE_CALLBACK',
+                        ])->orWhere('url', 'like', '%recharge-callback%')
+                            ->orWhere('modal', 'like', '%CALLBACK%');
+                    })
+                    ->orderByDesc('id')
+                    ->limit(20)
+                    ->get();
+            } catch (\Throwable $e) {
+                $logs = collect();
+            }
         }
 
         $row = function (string $label, string $value): string {
@@ -2479,31 +2498,34 @@ class RechargeReportsController extends Controller
                 return (string) json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             }
 
-            return (string) ($raw !== '' ? $raw : '-');
+            return (string) ($raw !== '' && $raw !== 'null' ? $raw : '-');
         };
 
-        $partnerUrl = Schema::hasColumn('reports', 'api_partner_call_back_url')
+        $partnerUrl = (property_exists($report, 'api_partner_call_back_url') || isset($report->api_partner_call_back_url))
             ? (string) ($report->api_partner_call_back_url ?? '')
             : '';
-        $partnerResp = Schema::hasColumn('reports', 'api_partner_callback_response')
+        $partnerResp = (property_exists($report, 'api_partner_callback_response') || isset($report->api_partner_callback_response))
             ? (string) ($report->api_partner_callback_response ?? '')
             : '';
         $inboundBody = (string) ($report->callback_response ?? '');
+        $partnerCallbackUrl = trim((string) ($user->callback_url ?? ''));
 
-        $canResend = $partnerPath
-            && ! in_array((string) $report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)
-            && trim((string) ($user->callback_url ?? '')) !== '';
+        $canResend = ! $fromBackup
+            && $partnerPath
+            && ! in_array((string) ($report->status ?? ''), ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)
+            && $partnerCallbackUrl !== ''
+            && filter_var($partnerCallbackUrl, FILTER_VALIDATE_URL);
 
         $html = '<div class="mb-3">'
             .'<table class="table table-bordered table-sm mb-0">'
             .$row('Order ID', e((string) ($report->order_id ?: ('R'.$report->id))))
-            .$row('Report ID', e((string) $report->id))
+            .$row('Report ID', e((string) $report->id).($fromBackup ? ' <span class="badge bg-secondary">backup</span>' : ''))
             .$row('Status', e((string) ($report->status ?? '-')))
             .$row('API', e((string) ($api->api_name ?? ('#'.($report->api_id ?? '-')))))
-            .$row('API Callback Switch', e(! empty($api) && (int) ($api->callback_switch ?? 0) === 1 ? 'ON' : 'OFF'))
+            .$row('API Callback Switch', e($api && (int) ($api->callback_switch ?? 0) === 1 ? 'ON' : 'OFF'))
             .$row('Supplier Callback URL', '<code>'.e($inboundPath).'</code>')
             .$row('Partner Mode', $partnerPath ? 'Yes (API partner path)' : 'No')
-            .$row('Partner Callback URL', e(trim((string) ($user->callback_url ?? '')) ?: 'Not set'))
+            .$row('Partner Callback URL', e($partnerCallbackUrl !== '' ? $partnerCallbackUrl : 'Not set'))
             .$row('Partner Callback Sent', $callbackSent
                 ? '<span class="badge bg-success">Yes (callback_status=1)</span>'
                 : '<span class="badge bg-warning text-dark">No / Pending (callback_status=0)</span>')
@@ -2534,11 +2556,13 @@ class RechargeReportsController extends Controller
         }
         $html .= '</div>';
 
-        if ($canResend) {
+        if ($fromBackup) {
+            $html .= '<div class="alert alert-secondary py-2 mb-0">This transaction is in backup archive. Partner callback resend is disabled.</div>';
+        } elseif ($canResend) {
             $html .= '<div class="alert alert-info py-2 mb-0">'
                 .'You can resend the partner callback with the button below.'
                 .'</div>';
-        } elseif ($partnerPath && in_array((string) $report->status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+        } elseif ($partnerPath && in_array((string) ($report->status ?? ''), ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
             $html .= '<div class="alert alert-warning py-2 mb-0">Partner callback is sent only after Success / Failed / Refunded.</div>';
         }
 
@@ -2548,6 +2572,7 @@ class RechargeReportsController extends Controller
             'report_id' => (int) $report->id,
             'order_id' => (string) ($report->order_id ?? ''),
             'can_resend_partner' => $canResend,
+            'from_backup' => $fromBackup,
             'callback_status' => (int) ($report->callback_status ?? 0),
         ]);
     }
@@ -2561,6 +2586,13 @@ class RechargeReportsController extends Controller
 
         $report = DB::table('reports')->where('id', $id)->first();
         if (! $report) {
+            if (Schema::hasTable('backup_reports') && DB::table('backup_reports')->where('id', $id)->exists()) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Cannot resend callback for backup/archive transactions.',
+                ]);
+            }
+
             return response()->json(['type' => 'error', 'message' => 'Transaction not found.']);
         }
 
@@ -2580,11 +2612,14 @@ class RechargeReportsController extends Controller
             ], 500);
         }
 
-        AdminAudit::log('recharge_callback', 'partner_resend', [
-            'ref_type' => 'report',
-            'ref_id' => $report->id,
-            'meta' => ['ok' => $ok],
-        ]);
+        try {
+            AdminAudit::log('recharge_callback', 'partner_resend', [
+                'ref_type' => 'report',
+                'ref_id' => $report->id,
+                'meta' => ['ok' => $ok],
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         if (! $ok) {
             return response()->json([

@@ -305,12 +305,9 @@ class SystemSettingService
                 DB::table('system_settings')->insert(self::withRequiredColumns($payload));
             }
 
-            // Dual-write KV for keys missing as wide columns (or always if KV available).
+            // Dual-write only keys that are missing as wide columns.
             foreach ($data as $key => $value) {
                 if (! isset($cols[$key]) && isset($cols['setting_key'], $cols['setting_value'])) {
-                    self::putKeyValueRow($key, (string) $value, $now);
-                } elseif (isset($cols['setting_key'], $cols['setting_value'])) {
-                    // Keep KV copy in sync when both layouts exist.
                     try {
                         self::putKeyValueRow($key, (string) $value, $now);
                     } catch (\Throwable $e) {
