@@ -274,7 +274,7 @@ class SystemSettingService
         } catch (\Throwable $e) {
         }
 
-        return min(120, max($connect, $timeout, 8));
+        return min(180, max($connect, $timeout, 8));
     }
 
     public static function isOn(string $key): bool
