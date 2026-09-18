@@ -392,6 +392,20 @@ function editStatus(id, status, operator_id, meta) {
     $('#editStatusModal').modal('show');
 }
 
+$(document).on('click', '.btn-edit-status', function (e) {
+    e.preventDefault();
+    var $el = $(this);
+    var metaRaw = $el.attr('data-meta') || '{}';
+    var meta = {};
+    try { meta = JSON.parse(metaRaw); } catch (err) { meta = {}; }
+    editStatus(
+        $el.attr('data-id'),
+        $el.attr('data-status'),
+        $el.attr('data-operator-id'),
+        meta
+    );
+});
+
 function editStatusSubmit() {
     var id = $('#es_id').val();
     var operator_id = $('#es_operator_id').val();
