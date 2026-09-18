@@ -56,6 +56,12 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    /*
+    | Public user/portal origin for supplier callback URLs (no /admin).
+    | Example: https://netcellpay.in
+    */
+    'user_host' => env('USER_HOST', ''),
+
     'asset_url' => env('ASSET_URL'),
 
     /*

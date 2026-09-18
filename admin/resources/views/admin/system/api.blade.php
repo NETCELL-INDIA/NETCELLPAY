@@ -904,11 +904,26 @@
 <script>
     var portalBaseUrl = @json(user_portal_base_url());
 
+    function normalizePortalBase(base) {
+        base = String(base || '').trim();
+        if (!base) return '';
+        try {
+            var u = new URL(base.indexOf('://') === -1 ? ('https://' + base) : base);
+            return u.origin;
+        } catch (e) {
+            return base.replace(/\/$/, '').replace(/\/admin(\/.*)?$/i, '');
+        }
+    }
+
     function setApiCallbackUrlDisplays(apiId) {
         var id = (apiId === undefined || apiId === null || apiId === '' || apiId === 0 || apiId === '0') ? '{id}' : String(apiId);
-        var base = (portalBaseUrl || '').replace(/\/$/, '');
+        var base = normalizePortalBase(portalBaseUrl);
         var recharge = (base ? base : '') + '/recharge-callback/' + id;
         var complaint = (base ? base : '') + '/complaint-callback/' + id;
+        if (/\/admin\//i.test(recharge) || /\/admin\//i.test(complaint)) {
+            recharge = recharge.replace(/\/admin(?=\/recharge-callback)/i, '');
+            complaint = complaint.replace(/\/admin(?=\/complaint-callback)/i, '');
+        }
         $('#recharge_callback_url_display').val(recharge);
         $('#complaint_callback_url_display').val(complaint);
     }

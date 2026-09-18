@@ -989,46 +989,57 @@ class Helper {
 
 if (! function_exists('user_portal_base_url')) {
     /**
-     * Public user/portal base URL for supplier callback links (USER_HOST).
-     * Never returns the admin panel URL (/admin).
+     * Public user/portal origin for supplier callbacks (USER_HOST).
+     * Always strips /admin paths — never returns admin panel URL.
      */
     function user_portal_base_url(): string
     {
-        $candidates = [
+        foreach ([
             (string) env('USER_HOST', ''),
             (string) config('app.user_host', ''),
-        ];
-
-        foreach ($candidates as $raw) {
+        ] as $raw) {
             $host = self_normalize_portal_base_url($raw);
             if ($host !== '') {
                 return $host;
             }
         }
 
-        // Last resort: APP_URL only if it is not an admin URL.
-        $appUrl = self_normalize_portal_base_url((string) config('app.url', ''));
-        if ($appUrl !== '' && ! preg_match('#/admin$#i', $appUrl)) {
-            return $appUrl;
-        }
-
-        return '';
+        // Last resort: APP_URL origin only — normalize drops /admin path.
+        return self_normalize_portal_base_url((string) config('app.url', ''));
     }
 }
 
 if (! function_exists('self_normalize_portal_base_url')) {
+    /**
+     * Keep scheme + host (+ port) only. Drops /admin and any other path.
+     */
     function self_normalize_portal_base_url(string $raw): string
     {
-        $host = trim($raw);
-        if ($host === '') {
+        $raw = trim($raw);
+        if ($raw === '') {
             return '';
         }
-        $host = rtrim($host, '/');
-        // Strip accidental /admin suffix from USER_HOST or APP_URL.
-        $host = preg_replace('#/admin$#i', '', $host) ?? $host;
-        $host = rtrim($host, '/');
 
-        return $host;
+        if (! preg_match('#^https?://#i', $raw)) {
+            $raw = 'https://'.$raw;
+        }
+
+        $parts = parse_url($raw);
+        if (! is_array($parts) || empty($parts['host'])) {
+            return '';
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? 'https'));
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            $scheme = 'https';
+        }
+
+        $base = $scheme.'://'.$parts['host'];
+        if (! empty($parts['port'])) {
+            $base .= ':'.$parts['port'];
+        }
+
+        return $base;
     }
 }
 
@@ -1036,15 +1047,28 @@ if (! function_exists('user_portal_callback_url')) {
     function user_portal_callback_url(string $path, $apiId = null): string
     {
         $base = user_portal_base_url();
+        $path = trim($path);
         $path = '/'.ltrim($path, '/');
+        $path = preg_replace('#^/admin/#i', '/', $path) ?? $path;
+
         if ($apiId !== null && $apiId !== '') {
-            $path = rtrim($path, '/').'/'.$apiId;
-        }
-        if ($base === '') {
-            return $path;
+            $path = rtrim($path, '/').'/'.rawurlencode((string) $apiId);
         }
 
-        return $base.$path;
+        $url = $base === '' ? $path : ($base.$path);
+
+        // Final hard guard — callback URLs must never include /admin/.
+        $url = preg_replace('#/admin(?=/recharge-callback|/complaint-callback)#i', '', $url) ?? $url;
+        $url = preg_replace('#(?<!:)/{2,}#', '/', $url) ?? $url;
+        $url = preg_replace('#^(https?:)/+#i', '$1//', $url) ?? $url;
+
+        if (stripos($url, '/admin/') !== false) {
+            $url = str_ireplace('/admin/', '/', $url);
+            $url = preg_replace('#(?<!:)/{2,}#', '/', $url) ?? $url;
+            $url = preg_replace('#^(https?:)/+#i', '$1//', $url) ?? $url;
+        }
+
+        return $url;
     }
 }
 
