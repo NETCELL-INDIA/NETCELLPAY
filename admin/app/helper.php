@@ -990,20 +990,61 @@ class Helper {
 if (! function_exists('user_portal_base_url')) {
     /**
      * Public user/portal base URL for supplier callback links (USER_HOST).
+     * Never returns the admin panel URL (/admin).
      */
     function user_portal_base_url(): string
     {
-        $host = rtrim((string) env('USER_HOST', ''), '/');
-        if ($host !== '') {
-            return $host;
+        $candidates = [
+            (string) env('USER_HOST', ''),
+            (string) config('app.user_host', ''),
+        ];
+
+        foreach ($candidates as $raw) {
+            $host = self_normalize_portal_base_url($raw);
+            if ($host !== '') {
+                return $host;
+            }
         }
 
-        $configHost = rtrim((string) config('app.user_host', ''), '/');
-        if ($configHost !== '') {
-            return $configHost;
+        // Last resort: APP_URL only if it is not an admin URL.
+        $appUrl = self_normalize_portal_base_url((string) config('app.url', ''));
+        if ($appUrl !== '' && ! preg_match('#/admin$#i', $appUrl)) {
+            return $appUrl;
         }
 
-        return rtrim((string) config('app.url', ''), '/');
+        return '';
+    }
+}
+
+if (! function_exists('self_normalize_portal_base_url')) {
+    function self_normalize_portal_base_url(string $raw): string
+    {
+        $host = trim($raw);
+        if ($host === '') {
+            return '';
+        }
+        $host = rtrim($host, '/');
+        // Strip accidental /admin suffix from USER_HOST or APP_URL.
+        $host = preg_replace('#/admin$#i', '', $host) ?? $host;
+        $host = rtrim($host, '/');
+
+        return $host;
+    }
+}
+
+if (! function_exists('user_portal_callback_url')) {
+    function user_portal_callback_url(string $path, $apiId = null): string
+    {
+        $base = user_portal_base_url();
+        $path = '/'.ltrim($path, '/');
+        if ($apiId !== null && $apiId !== '') {
+            $path = rtrim($path, '/').'/'.$apiId;
+        }
+        if ($base === '') {
+            return $path;
+        }
+
+        return $base.$path;
     }
 }
 

@@ -2500,11 +2500,14 @@ class RechargeReportsController extends Controller
         }
 
         $callbackSent = (int) ($report->callback_status ?? 0) === 1;
-        $portalBase = function_exists('user_portal_base_url') ? rtrim(user_portal_base_url(), '/') : rtrim((string) env('USER_HOST', ''), '/');
-        $inboundPath = ! empty($report->api_id) ? ('/recharge-callback/'.(int) $report->api_id) : '-';
-        $inboundFull = ($portalBase !== '' && $inboundPath !== '-')
-            ? ($portalBase.$inboundPath)
-            : $inboundPath;
+        $inboundFull = ! empty($report->api_id)
+            ? (function_exists('user_portal_callback_url')
+                ? user_portal_callback_url('recharge-callback', (int) $report->api_id)
+                : ('/recharge-callback/'.(int) $report->api_id))
+            : '-';
+        $inboundWarn = (is_string($inboundFull) && str_contains($inboundFull, '/admin/'))
+            ? '<div class="text-danger small mt-1">Wrong URL: must NOT include /admin. Set USER_HOST=https://netcellpay.in in admin .env</div>'
+            : '';
 
         $txnids = array_values(array_unique(array_filter([
             (string) ($report->order_id ?? ''),
@@ -2577,7 +2580,7 @@ class RechargeReportsController extends Controller
             .$row('Status', e((string) ($report->status ?? '-')))
             .$row('API', e((string) ($api->api_name ?? ('#'.($report->api_id ?? '-')))))
             .$row('API Callback Switch', e($api && (int) ($api->callback_switch ?? 0) === 1 ? 'ON' : 'OFF'))
-            .$row('Supplier Callback URL', '<code>'.e($inboundFull).'</code>')
+            .$row('Supplier Callback URL', '<code>'.e($inboundFull).'</code>'.$inboundWarn)
             .$row('Partner Mode', $partnerPath ? 'Yes (API partner path)' : 'No')
             .$row('Partner Callback URL', e($partnerCallbackUrl !== '' ? $partnerCallbackUrl : 'Not set'))
             .$row('Partner Callback Sent', $callbackSent
