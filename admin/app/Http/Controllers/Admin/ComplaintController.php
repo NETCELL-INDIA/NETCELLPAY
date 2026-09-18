@@ -48,7 +48,35 @@ class ComplaintController extends Controller
 
         $query = DB::table($table.' as c')
             ->leftJoin('reports as r', 'r.id', '=', 'c.report_id')
-            ->select('c.*', 'r.status as txn_status', 'r.operator_id as txn_operator_id');
+            ->leftJoin('users as u', function ($join) {
+                $join->whereRaw('u.id = COALESCE(c.user_id, r.user_id)');
+            })
+            ->select(
+                'c.*',
+                'r.status as txn_status',
+                'r.operator_id as txn_operator_id',
+                'r.number as txn_number',
+                'r.user_id as report_user_id',
+                'u.id as retailer_id',
+                'u.outlet_name as retailer_outlet',
+                'u.first_name as retailer_first_name',
+                'u.middle_name as retailer_middle_name',
+                'u.last_name as retailer_last_name',
+                'u.mobile_number as retailer_mobile'
+            );
+
+        $retailerSearch = trim((string) ($post->retailer ?? $post->search_retailer ?? ''));
+        if ($retailerSearch !== '') {
+            $query->where(function ($w) use ($retailerSearch) {
+                $w->where('u.outlet_name', 'like', '%'.$retailerSearch.'%')
+                    ->orWhere('u.first_name', 'like', '%'.$retailerSearch.'%')
+                    ->orWhere('u.last_name', 'like', '%'.$retailerSearch.'%')
+                    ->orWhere('u.mobile_number', 'like', '%'.$retailerSearch.'%')
+                    ->orWhere('u.id', $retailerSearch)
+                    ->orWhere('c.user_id', $retailerSearch)
+                    ->orWhere('r.user_id', $retailerSearch);
+            });
+        }
 
         $from = trim((string) ($post->from_date ?? ''));
         $to = trim((string) ($post->to_date ?? ''));
@@ -127,6 +155,7 @@ class ComplaintController extends Controller
                     <th>ID</th>
                     <th>Request ID</th>
                     <th>Date & Time</th>
+                    <th>Retailer</th>
                     <th>Service</th>
                     <th>Transaction Details</th>
                     <th>Subject</th>
@@ -154,6 +183,25 @@ class ComplaintController extends Controller
                     $d_mobile_number = "-";
                 }
 
+                $retailerId = (int) ($list->retailer_id ?? $list->user_id ?? $list->report_user_id ?? 0);
+                $retailerName = trim(
+                    (string) ($list->retailer_outlet ?: '')
+                );
+                if ($retailerName === '') {
+                    $retailerName = trim(implode(' ', array_filter([
+                        $list->retailer_first_name ?? null,
+                        $list->retailer_middle_name ?? null,
+                        $list->retailer_last_name ?? null,
+                    ])));
+                }
+                if ($retailerName === '') {
+                    $retailerName = '-';
+                }
+                $retailerMobile = trim((string) ($list->retailer_mobile ?? '')) ?: '-';
+                $retailerHtml = '<div class="fw-semibold">'.e($retailerName).'</div>'
+                    .'<div class="text-muted" style="font-size:.75rem">'.e($retailerMobile)
+                    .' · ID:'.e((string) ($retailerId ?: '-')).'</div>';
+
                 $statusHtml = function_exists('report_status_html')
                     ? report_status_html($list->txn_status ?? '')
                     : '<span class="rpt-status">'.e(strtoupper((string) ($list->txn_status ?? '-'))).'</span>';
@@ -164,15 +212,16 @@ class ComplaintController extends Controller
                     : '<span class="text-muted">-</span>';
 				$output .= '<tr>
                     <td>' . $i . '</td>
-                    <td>' . $list->request_id . '</td>
-                    <td>' . $list->created_at . '</td>
-                    <td>' . Str::of(optional($service)->service_name ?: '-')->upper() . '</td>
-                    <td><button type="submit" class="btn btn-secondary" id="report_view_btn" onclick="reportsView(`' . $list->report_id . '`)"><i class="ri-file-list-3-line"></i> Check Transaction</button></td>
-                    <td>' . $list->subject . '</td>
+                    <td>' . e((string) $list->request_id) . '</td>
+                    <td>' . e((string) $list->created_at) . '</td>
+                    <td>' . $retailerHtml . '</td>
+                    <td>' . e(Str::of(optional($service)->service_name ?: '-')->upper()) . '</td>
+                    <td><button type="submit" class="btn btn-secondary" id="report_view_btn" onclick="reportsView(`' . (int) $list->report_id . '`)"><i class="ri-file-list-3-line"></i> Check Transaction</button></td>
+                    <td>' . e((string) $list->subject) . '</td>
                     <td>
-                        Name : '.$d_first_name.' '.$d_middle_name.' '.$d_last_name.' </br>
-                        Date : ' . $list->decision_date . ' </br>
-                        Remark : ' . $list->decision_remark . ' </br>
+                        Name : '.e($d_first_name.' '.$d_middle_name.' '.$d_last_name).' </br>
+                        Date : ' . e((string) $list->decision_date) . ' </br>
+                        Remark : ' . e((string) $list->decision_remark) . ' </br>
                     </td>
                     <td>' . $statusHtml . '</td>
                     <td>' . $clearBtn . '</td>
@@ -237,11 +286,22 @@ class ComplaintController extends Controller
             // $table_bg = 'info';
             // $table_bg = 'danger';
             // $table_bg = 'warning';
+            $retailer = DB::table('users')->where('id', $report->user_id)->first(['id', 'outlet_name', 'first_name', 'last_name', 'mobile_number']);
+            $retailerLabel = '-';
+            if ($retailer) {
+                $retailerLabel = trim((string) ($retailer->outlet_name ?: ($retailer->first_name.' '.$retailer->last_name)));
+                $retailerLabel .= ' / '.($retailer->mobile_number ?: '-').' / ID:'.$retailer->id;
+            }
+
             $output = '<table class="table table-nowrap">
                 <tbody>
                     <tr class="table-'.$table_bg.'">
                         <td>Date & Time : </td>
                         <td>'.$report->transaction_date.'</td>
+                    </tr>
+                    <tr class="table-'.$table_bg.'">
+                        <td>Retailer : </td>
+                        <td>'.e($retailerLabel).'</td>
                     </tr>
                     <tr class="table-'.$table_bg.'">
                         <td>Number : </td>

@@ -45,6 +45,12 @@
                             </div>
                         </div>
                         <div class="col-lg-2">
+                            <div>
+                                <label class="form-label mb-0">Retailer</label>
+                                <input type="text" class="form-control" placeholder="Name / Mobile / ID" name="retailer" value="" id="retailer">
+                            </div>
+                        </div>
+                        <div class="col-lg-2">
                             <label class="form-label mb-0">Status </label>
                             <select class="form-select mb-3" name="status_type" id="status_type">
                                 <option selected value="Pending" style="color:#b78103;font-weight:700">PENDING</option>
@@ -116,6 +122,7 @@
             from_date: $("#from_date").val() || '',
             to_date: $("#to_date").val() || '',
             request_id: $("#request_id").val() || '',
+            retailer: $("#retailer").val() || '',
             status: $("#status_type").val() || 'Pending',
             page: page || 1,
             limit: limit || 10,
