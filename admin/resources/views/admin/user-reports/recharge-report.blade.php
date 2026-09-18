@@ -215,6 +215,10 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="es_id">
+                <div id="es_details" class="border rounded bg-light px-3 py-2 mb-3">
+                    <div class="fw-semibold fs-5 text-primary mb-1" id="es_detail_number">-</div>
+                    <div class="small text-muted mb-0" id="es_detail_meta"></div>
+                </div>
                 <div class="mb-3">
                     <label>Operator Id : <span class="text-danger">*</span></label>
                     <input type="text" id="es_operator_id" class="form-control" required>
@@ -353,7 +357,7 @@ function downloadCsv() {
     form.remove();
 }
 
-function editStatus(id, status, operator_id) {
+function editStatus(id, status, operator_id, meta) {
     $('#es_id').val(id);
     $('#es_operator_id').val(operator_id || '');
     var current = status || '';
@@ -369,7 +373,22 @@ function editStatus(id, status, operator_id) {
         html += '<option value="' + o.v + '"' + (current === o.v ? ' selected' : '') + '>' + o.t + '</option>';
     });
     $('#es_status').html(html);
-    $('#editStatusModalLabel').text('Edit Status');
+
+    meta = meta || {};
+    var number = meta.number || '-';
+    $('#es_detail_number').text(number);
+    var parts = [];
+    if (meta.order_id) parts.push('Order: ' + meta.order_id);
+    if (meta.row_id) parts.push('#' + meta.row_id);
+    if (meta.amount !== undefined && meta.amount !== '') parts.push('Amount: ₹' + meta.amount);
+    if (meta.provider) parts.push('Operator: ' + meta.provider);
+    if (meta.circle) parts.push('Circle: ' + meta.circle);
+    if (meta.user) parts.push('User: ' + meta.user);
+    if (meta.api) parts.push('API: ' + meta.api);
+    if (meta.date) parts.push(meta.date);
+    $('#es_detail_meta').text(parts.join(' · '));
+
+    $('#editStatusModalLabel').text('Edit Status — ' + number);
     $('#editStatusModal').modal('show');
 }
 

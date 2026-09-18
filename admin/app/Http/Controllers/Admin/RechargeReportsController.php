@@ -208,7 +208,7 @@ class RechargeReportsController extends Controller
                 $action = '<div class="recharge-action-cell">'
                     . $this->actionStageHtml($list)
                     . '<div class="recharge-action-btns">'
-                    . '<a href="javascript:void(0)" class="btn btn-soft-primary" title="Edit Status" onclick="editStatus(\'' . e($list->id) . '\',\'' . $st . '\',\'' . e($list->operator_id ?: '') . '\')"><i class="ri-pencil-line"></i></a>'
+                    . '<a href="javascript:void(0)" class="btn btn-soft-primary" title="Edit Status" onclick="' . $this->editStatusJsCall($list) . '"><i class="ri-pencil-line"></i></a>'
                     . '<a href="javascript:void(0)" id="' . e($list->order_id) . '" data-report-id="' . e($list->id) . '" class="btn btn-soft-info checkApilog" title="API Log"><i class="ri-file-list-line"></i></a>'
                     . '<a href="javascript:void(0)" data-report-id="' . e($list->id) . '" data-order-id="' . e($list->order_id) . '" class="btn btn-soft-warning checkCallback" title="Check Callback"><i class="ri-broadcast-line"></i></a>';
 
@@ -905,7 +905,12 @@ class RechargeReportsController extends Controller
                 <td>
                     ' . $this->actionStageHtml($list) . '
                     <div class="mt-1">
-                    <a id="' . $list->id . '" class="badge text-bg-secondary"  onclick="editStatus(`' . $list->id . '`,`' . $list->status . '`,`' . $list->operator_id . '`)"><i class="ri-pencil-fill align-bottom"></i> Edit</a>
+                    <a id="' . $list->id . '" class="badge text-bg-secondary"  onclick="' . $this->editStatusJsCall($list, [
+                        'provider' => is_object($provider) ? (string) ($provider->provider_name ?? '-') : (string) $provider,
+                        'circle' => (string) $state,
+                        'user' => (string) ($user_dt_outlet_name ?: $user_dt_first_name ?: '-'),
+                        'api' => (string) $api,
+                    ]) . '"><i class="ri-pencil-fill align-bottom"></i> Edit</a>
 
                     <a id="' . $list->order_id . '" class="badge text-bg-info checkApilog"><i class="ri-file-list-line align-bottom"></i> Api Log</a>
 
@@ -1781,6 +1786,33 @@ class RechargeReportsController extends Controller
         }
 
         return $html;
+    }
+
+    /**
+     * Safe JS call for Edit Status modal (id, status, operator_id, meta).
+     */
+    private function editStatusJsCall($list, array $overrides = []): string
+    {
+        $meta = array_merge([
+            'number' => (string) ($list->number ?? '-'),
+            'order_id' => (string) ($list->order_id ?: ('R'.$list->id)),
+            'row_id' => (string) ($list->id ?? ''),
+            'amount' => number_format((float) ($list->total_amount ?? $list->amount ?? 0), 2, '.', ''),
+            'provider' => (string) ($list->provider_name ?? '-'),
+            'circle' => (string) ($list->circle_name ?? '-'),
+            'user' => (string) ($list->outlet_name ?: $list->first_name ?: '-'),
+            'api' => (string) ($list->api_name ?? '-'),
+            'date' => (string) ($list->transaction_date ?: $list->created_at ?: ''),
+        ], $overrides);
+
+        $flags = JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE;
+
+        return 'editStatus('
+            .json_encode((string) ($list->id ?? ''), $flags).','
+            .json_encode((string) ($list->status ?? ''), $flags).','
+            .json_encode((string) ($list->operator_id ?? ''), $flags).','
+            .json_encode($meta, $flags)
+            .')';
     }
 
     /**
