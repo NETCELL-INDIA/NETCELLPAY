@@ -7,11 +7,13 @@ return [
     | Mobile Plan API (server-side only)
     |--------------------------------------------------------------------------
     |
-    | Optional override for the plan list endpoint. When PLAN_API_BASE_URL is
-    | empty, the app uses the URL from the apis table (plan_info_fetch_settings).
+    | Used only when the selected API row has an empty api_url. Do not set this
+    | to force one provider over another — PlanAPI, MPlan, and PlanConnect each
+    | use their own host from the apis table (primary and backup).
     |
-    | Verified provider path (JSON, not 404): https://www.mplan.in/api/plans.php
-    | Deprecated/broken path (HTML 404): http://planapi.in/api/plans.php
+    | PlanAPI:  https://planapi.in/api/Mobile/Operatorplan
+    | MPlan:    https://www.mplan.in/api/plans.php
+    | PlanConnect: /api/getMobilePlans
     |
     */
 

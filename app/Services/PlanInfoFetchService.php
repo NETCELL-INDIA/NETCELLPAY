@@ -17,7 +17,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 1,
             'default_primary' => 7,
-            'default_backup' => null,
+            'default_backup' => 6,
         ],
         'roffer_airtel' => [
             'label' => 'Routing R-Offer Fetch (Airtel)',
@@ -38,7 +38,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 4,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
         ],
         'dth_customer' => [
             'label' => 'DTH Customer Fetch',
@@ -52,7 +52,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 6,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
         ],
         'dth_heavy_refresh' => [
             'label' => 'DTH Heavy Refresh',
@@ -224,26 +224,17 @@ class PlanInfoFetchService
         self::ensureTable();
 
         $state = DB::table('states')->where('id', $stateId)->first();
-        $circle = trim((string) ($state->mplan_state_code ?? $state->state_name ?? ''));
-        if (!$state || $circle === '') {
+        if (!$state) {
             return self::planFetchResult(false, 'error', 'Invalid state selected. Circle/plan code is not configured.');
         }
 
-        $circle = str_replace(' ', '%20', $circle);
         $serviceKey = self::planServiceKey($providerId);
 
         $setting = Schema::hasTable('plan_info_fetch_settings')
             ? DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first()
             : null;
 
-        $attempts = $setting
-            ? [
-                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
-            ]
-            : [
-                ['api_id' => 6, 'username' => null, 'password' => null],
-            ];
+        $attempts = self::primaryBackupAttempts($setting, 6, true);
 
         $lastResult = null;
 
@@ -253,7 +244,7 @@ class PlanInfoFetchService
                 continue;
             }
 
-            $operatorCode = \helpers::PlanProviderCode($api->id, $providerId);
+            $operatorCode = self::resolveMobileOperatorCode($api, $providerId);
             if ($operatorCode === 0 || $operatorCode === '' || $operatorCode === null) {
                 $lastResult = self::planFetchResult(
                     false,
@@ -268,8 +259,22 @@ class PlanInfoFetchService
                 continue;
             }
 
-            $useEnvOverride = $index === 0;
-            $url = self::buildMobilePlansUrl($api, (string) $operatorCode, $circle, $useEnvOverride);
+            $circle = self::resolveCircleCode($api, $state);
+            if ($circle === '') {
+                $lastResult = self::planFetchResult(
+                    false,
+                    'error',
+                    'Invalid state selected. Circle/plan code is not configured.',
+                    [],
+                    null,
+                    'config',
+                    (int) $api->id,
+                    null
+                );
+                continue;
+            }
+
+            $url = self::buildMobilePlansUrl($api, (string) $operatorCode, $circle, false);
             if ($url === null) {
                 $lastResult = self::planFetchResult(
                     false,
@@ -328,28 +333,88 @@ class PlanInfoFetchService
 
     public static function buildMobilePlansUrl(object $api, string $operatorCode, string $circleCode, bool $useEnvOverride = true): ?string
     {
-        $key = self::resolvePlanApiKey($api, $useEnvOverride);
-        if ($key === null || $key === '') {
-            return null;
-        }
-
+        $circle = rawurldecode(str_replace('%20', ' ', $circleCode));
+        $family = self::detectPlanFamily($api);
         $base = rtrim(self::resolvePlanApiBaseUrl($api, $useEnvOverride), '/');
         if ($base === '') {
             return null;
         }
 
-        // PlanConnect docs: /api/getMobilePlans?apiKey=&token=&circleCode=&operatorCode=
-        if (self::isPlanConnectHost($base)) {
-            $circle = rawurldecode(str_replace('%20', ' ', $circleCode));
+        if ($family === 'planapi') {
+            [$memberId, $password] = self::resolveHlrCredentials($api);
+            if ($memberId === '' || $password === '') {
+                return null;
+            }
 
+            return $base.'/Mobile/Operatorplan?apimember_id='.urlencode($memberId)
+                .'&api_password='.urlencode($password)
+                .'&cricle='.urlencode($circle)
+                .'&operatorcode='.urlencode($operatorCode);
+        }
+
+        $key = $family === 'planconnect'
+            ? self::resolvePlanConnectToken($api)
+            : self::resolvePlanApiKey($api, $useEnvOverride);
+        if ($key === null || $key === '') {
+            return null;
+        }
+
+        if ($family === 'planconnect') {
             return $base.'/getMobilePlans?'.self::planConnectAuthQuery($key)
                 .'&circleCode='.urlencode($circle)
                 .'&operatorCode='.urlencode($operatorCode);
         }
 
-        return $base . '/plans.php?apikey=' . urlencode($key)
-            . '&operator=' . urlencode($operatorCode)
-            . '&cricle=' . $circleCode;
+        return $base.'/plans.php?apikey='.urlencode($key)
+            .'&operator='.urlencode($operatorCode)
+            .'&cricle='.urlencode($circle);
+    }
+
+    /**
+     * R-Offer URL for PlanAPI (RofferCheck), MPlan (plans.php), or PlanConnect (getRoffers).
+     */
+    public static function buildRofferUrl(object $api, int $providerId, string $number): ?string
+    {
+        $operatorCode = self::resolveMobileOperatorCode($api, $providerId);
+        if ($operatorCode === 0 || $operatorCode === '' || $operatorCode === null) {
+            return null;
+        }
+
+        $family = self::detectPlanFamily($api);
+        $base = rtrim(self::resolvePlanApiBaseUrl($api, false), '/');
+        if ($base === '') {
+            return null;
+        }
+
+        if ($family === 'planapi') {
+            [$memberId, $password] = self::resolveHlrCredentials($api);
+            if ($memberId === '' || $password === '') {
+                return null;
+            }
+
+            return $base.'/Mobile/RofferCheck?apimember_id='.urlencode($memberId)
+                .'&api_password='.urlencode($password)
+                .'&operator_code='.urlencode((string) $operatorCode)
+                .'&mobile_no='.urlencode($number);
+        }
+
+        $key = $family === 'planconnect'
+            ? self::resolvePlanConnectToken($api)
+            : self::resolvePlanApiKey($api, false);
+        if ($key === null || $key === '') {
+            return null;
+        }
+
+        if ($family === 'planconnect') {
+            return $base.'/getRoffers?'.self::planConnectAuthQuery($key)
+                .'&operatorCode='.urlencode((string) $operatorCode)
+                .'&mobileNo='.urlencode($number)
+                .'&mobile='.urlencode($number);
+        }
+
+        return $base.'/plans.php?apikey='.urlencode($key)
+            .'&operator='.urlencode((string) $operatorCode)
+            .'&offer=roffer&tel='.urlencode($number);
     }
 
     /**
@@ -476,14 +541,7 @@ class PlanInfoFetchService
             ? DB::table('plan_info_fetch_settings')->where('service_key', 'hlr')->first()
             : null;
 
-        $attempts = $setting
-            ? [
-                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
-            ]
-            : [
-                ['api_id' => 7, 'username' => null, 'password' => null],
-            ];
+        $attempts = self::primaryBackupAttempts($setting, 7, true);
 
         $lastMessage = 'Unable to fetch operator details. Please try again.';
         $lastApiId = null;
@@ -555,14 +613,11 @@ class PlanInfoFetchService
             ? DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first()
             : null;
 
-        $attempts = $setting
-            ? [
-                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
-            ]
-            : [
-                ['api_id' => $serviceKey === 'dth_heavy_refresh' ? 6 : 7, 'username' => null, 'password' => null],
-            ];
+        $attempts = self::primaryBackupAttempts(
+            $setting,
+            $serviceKey === 'dth_heavy_refresh' ? 6 : 7,
+            true
+        );
 
         if (
             $setting
@@ -732,15 +787,7 @@ class PlanInfoFetchService
             ? DB::table('plan_info_fetch_settings')->where('service_key', 'dth_plan_list')->first()
             : null;
 
-        $attempts = $setting
-            ? [
-                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
-            ]
-            : [
-                ['api_id' => 6, 'username' => null, 'password' => null],
-                ['api_id' => 7, 'username' => null, 'password' => null],
-            ];
+        $attempts = self::primaryBackupAttempts($setting, 6, true);
 
         $lastResult = null;
 
@@ -851,6 +898,11 @@ class PlanInfoFetchService
 
     public static function resolvePlanApiBaseUrl(object $api, bool $useEnvOverride = true): string
     {
+        $fromApi = self::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+        if ($fromApi !== '') {
+            return $fromApi;
+        }
+
         if ($useEnvOverride) {
             $envBase = trim((string) config('plan_api.base_url', ''));
             if ($envBase !== '') {
@@ -858,7 +910,7 @@ class PlanInfoFetchService
             }
         }
 
-        return self::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+        return '';
     }
 
     /**
@@ -940,6 +992,241 @@ class PlanInfoFetchService
         $host = strtolower((string) (parse_url((string) $hostOrUrl, PHP_URL_HOST) ?? $hostOrUrl));
 
         return str_contains($host, 'planconnect');
+    }
+
+    /** @return 'planapi'|'planconnect'|'mplan' */
+    public static function detectPlanFamily(object $api): string
+    {
+        $hay = strtolower(trim((string) ($api->api_url ?? '').' '.(string) ($api->api_name ?? '')));
+        if (str_contains($hay, 'planconnect')) {
+            return 'planconnect';
+        }
+        if (str_contains($hay, 'mplan')) {
+            return 'mplan';
+        }
+        if (str_contains($hay, 'planapi')) {
+            return 'planapi';
+        }
+
+        return 'mplan';
+    }
+
+    /**
+     * @param  object|null  $setting
+     * @return list<array{api_id: mixed, username: mixed, password: mixed}>
+     */
+    private static function primaryBackupAttempts(?object $setting, int $fallbackPrimary, bool $autoBackup = false): array
+    {
+        $attempts = $setting
+            ? [
+                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
+                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+            ]
+            : [
+                ['api_id' => $fallbackPrimary, 'username' => null, 'password' => null],
+                ['api_id' => null, 'username' => null, 'password' => null],
+            ];
+
+        $backupId = self::nullableApiId($attempts[1]['api_id'] ?? null);
+        if ($autoBackup && $backupId === null) {
+            $autoId = self::autoBackupPlanApiId($attempts[0]['api_id'] ?? $fallbackPrimary);
+            if ($autoId !== null) {
+                $attempts[1] = ['api_id' => $autoId, 'username' => null, 'password' => null];
+            }
+        }
+
+        return $attempts;
+    }
+
+    private static function autoBackupPlanApiId($primaryApiId): ?int
+    {
+        $primaryApiId = self::nullableApiId($primaryApiId);
+        foreach (self::apiOptions() as $api) {
+            $id = (int) $api->id;
+            if ($primaryApiId !== null && $id === $primaryApiId) {
+                continue;
+            }
+            $family = self::detectPlanFamily($api);
+            if (in_array($family, ['planapi', 'mplan', 'planconnect'], true)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    private static function resolveCircleCode(object $api, object $state): string
+    {
+        $family = self::detectPlanFamily($api);
+        if ($family === 'planapi') {
+            return self::planApiCircleCode($state);
+        }
+
+        $circle = trim((string) ($state->mplan_state_code ?? ''));
+        if ($circle === '') {
+            $circle = trim((string) ($state->state_name ?? ''));
+        }
+
+        return $circle;
+    }
+
+    private static function planApiCircleCode(object $state): string
+    {
+        $code = trim((string) ($state->plan_api_code ?? ''));
+        if ($code !== '' && preg_match('/^\d+$/', $code)) {
+            return $code;
+        }
+
+        $name = strtolower(preg_replace('/[^a-z]/', '', (string) ($state->state_name ?? $state->mplan_state_code ?? '')) ?? '');
+        $map = [
+            'delhi' => '10',
+            'delhincr' => '10',
+            'upwest' => '97',
+            'upw' => '97',
+            'uttarpradeshwest' => '97',
+            'punjab' => '02',
+            'hp' => '03',
+            'himachal' => '03',
+            'himachalpradesh' => '03',
+            'haryana' => '96',
+            'jk' => '55',
+            'jammuandkashmir' => '55',
+            'jammukashmir' => '55',
+            'upeast' => '54',
+            'upe' => '54',
+            'uttarpradesheast' => '54',
+            'mumbai' => '92',
+            'maharashtra' => '90',
+            'maharashtragoa' => '90',
+            'gujarat' => '98',
+            'mp' => '93',
+            'madhyapradesh' => '93',
+            'rajasthan' => '70',
+            'kolkatta' => '31',
+            'kolkata' => '31',
+            'westbengal' => '51',
+            'orissa' => '53',
+            'odisha' => '53',
+            'assam' => '56',
+            'nesa' => '16',
+            'northeast' => '16',
+            'ne' => '16',
+            'bihar' => '52',
+            'biharjharkhand' => '52',
+            'karnataka' => '06',
+            'chennai' => '40',
+            'tamilnadu' => '94',
+            'tn' => '94',
+            'kerala' => '95',
+            'ap' => '49',
+            'andhrapradesh' => '49',
+            'andhrapradeshtelangana' => '49',
+            'telangana' => '49',
+            'sikkim' => '99',
+            'tripura' => '100',
+            'chhatisgarh' => '101',
+            'chhattisgarh' => '101',
+            'goa' => '102',
+            'meghalay' => '103',
+            'meghalaya' => '103',
+            'mizzoram' => '104',
+            'mizoram' => '104',
+            'jharkhand' => '105',
+            'manipur' => '106',
+        ];
+
+        if ($name !== '' && isset($map[$name])) {
+            return $map[$name];
+        }
+
+        if ($code !== '') {
+            return $code;
+        }
+
+        return trim((string) ($state->state_name ?? ''));
+    }
+
+    public static function resolveMobileOperatorCode(object $api, int $providerId)
+    {
+        $family = self::detectPlanFamily($api);
+        $ids = [(int) $api->id];
+        foreach (self::apiOptions() as $row) {
+            $id = (int) $row->id;
+            if ($id === (int) $api->id) {
+                continue;
+            }
+            if (self::detectPlanFamily($row) === $family) {
+                $ids[] = $id;
+            }
+        }
+
+        foreach ($ids as $apiId) {
+            $row = DB::table('api_provider_codes')
+                ->where('provider_id', $providerId)
+                ->where('api_id', $apiId)
+                ->first();
+            if ($row && $row->provider_code !== null && trim((string) $row->provider_code) !== '' && (string) $row->provider_code !== '0') {
+                $code = trim((string) $row->provider_code);
+                if ($family === 'planapi' && ! is_numeric($code)) {
+                    $fallback = self::planApiPrepaidOpcodeFromProvider($providerId);
+                    if ($fallback !== null) {
+                        return $fallback;
+                    }
+                }
+                if ($family !== 'planapi' && is_numeric($code) && strlen($code) <= 3) {
+                    $named = self::mplanOperatorFromProvider($providerId);
+                    if ($named !== null) {
+                        return $named;
+                    }
+                }
+
+                return $code;
+            }
+        }
+
+        if ($family === 'planapi') {
+            return self::planApiPrepaidOpcodeFromProvider($providerId) ?? 0;
+        }
+
+        return self::mplanOperatorFromProvider($providerId) ?? 0;
+    }
+
+    private static function planApiPrepaidOpcodeFromProvider(int $providerId): ?string
+    {
+        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
+        if (str_contains($name, 'airtel')) {
+            return '2';
+        }
+        if (str_contains($name, 'jio') || str_contains($name, 'reliance')) {
+            return '11';
+        }
+        if ($name === 'vi' || str_contains($name, 'vodafone') || str_contains($name, 'idea')) {
+            return '23';
+        }
+        if (str_contains($name, 'bsnl')) {
+            return '4';
+        }
+
+        return null;
+    }
+
+    private static function mplanOperatorFromProvider(int $providerId): ?string
+    {
+        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
+        if (str_contains($name, 'airtel')) {
+            return 'Airtel';
+        }
+        if (str_contains($name, 'jio') || str_contains($name, 'reliance')) {
+            return 'Jio';
+        }
+        if ($name === 'vi' || str_contains($name, 'vodafone') || str_contains($name, 'idea')) {
+            return 'Voda';
+        }
+        if (str_contains($name, 'bsnl')) {
+            return 'BSNL';
+        }
+
+        return null;
     }
 
     /**
@@ -1217,14 +1504,9 @@ class PlanInfoFetchService
         $setting = Schema::hasTable('plan_info_fetch_settings')
             ? DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first()
             : null;
-        if (!$setting) {
-            return self::legacyFetch($serviceKey, $urlBuilder, $modal, $orderPrefix);
-        }
-
-        $attempts = [
-            ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-            ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
-        ];
+        $allowAutoBackup = in_array($serviceKey, ['mobile_plan_retail', 'dth_plan_list', 'hlr', 'dth_customer', 'dth_heavy_refresh'], true);
+        $fallback = $serviceKey === 'hlr' ? 7 : 6;
+        $attempts = self::primaryBackupAttempts($setting, $fallback, $allowAutoBackup);
 
         foreach ($attempts as $index => $attempt) {
             $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
@@ -1247,7 +1529,7 @@ class PlanInfoFetchService
             }
             $result = \helpers::curl($url, 'GET', '', $headers, 'yes', $modal, $orderId);
 
-            if ($result && self::isSuccessfulFetchResponse($result)) {
+            if ($result && self::isSuccessfulFetchResponse($result) && self::extractRecords($result['response'] ?? null) !== []) {
                 $result['api_id'] = (int) $api->id;
 
                 return $result;
@@ -1326,6 +1608,8 @@ class PlanInfoFetchService
         }
 
         $records = $data['records']
+            ?? $data['RDATA']
+            ?? $data['DATA']
             ?? $data['Roffer']
             ?? $data['roffer']
             ?? $data['Plans']
@@ -1334,7 +1618,7 @@ class PlanInfoFetchService
         if ($records === null && isset($data['data']) && is_array($data['data'])) {
             $inner = $data['data'];
             // PlanConnect ROffer: { data: { rOffers: [ { amount, description } ] } }
-            foreach (['records', 'rOffers', 'ROffers', 'offers', 'Roffer', 'roffer', 'plans'] as $key) {
+            foreach (['records', 'RDATA', 'DATA', 'rOffers', 'ROffers', 'offers', 'Roffer', 'roffer', 'plans'] as $key) {
                 if (isset($inner[$key]) && is_array($inner[$key])) {
                     $records = $inner[$key];
                     break;
@@ -1427,6 +1711,8 @@ class PlanInfoFetchService
         $desc = $row['desc']
             ?? $row['description']
             ?? $row['Description']
+            ?? $row['ofrtext']
+            ?? $row['logdesc']
             ?? $row['offer']
             ?? $row['Offer']
             ?? $row['plan_name']

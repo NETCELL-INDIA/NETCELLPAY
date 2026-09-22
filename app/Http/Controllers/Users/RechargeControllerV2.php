@@ -828,22 +828,7 @@ class RechargeControllerV2 extends Controller
         // }
         $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
-            if ($key === null || $key === '') {
-                return null;
-            }
-            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
-            if ($base === '') {
-                return null;
-            }
-            if (stripos($base, 'planconnect') !== false) {
-                return $base.'/getRoffers?'.PlanInfoFetchService::planConnectAuthQuery($key)
-                    .'&operatorCode='.urlencode((string) $provider_code)
-                    .'&mobileNo='.urlencode($post->number)
-                    .'&mobile='.urlencode($post->number);
-            }
-            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
+            return PlanInfoFetchService::buildRofferUrl($api, (int) $post->provider_id, (string) $post->number);
         }, 'Roffer', 'ROF');
         //echo "<pre>";print_r($result);die;
         if($result){
@@ -1028,35 +1013,29 @@ class RechargeControllerV2 extends Controller
         //         'message' => "Account Not Active.Contact To Admin"
         //     )); 
         // }
-        $serviceKey = PlanInfoFetchService::planServiceKey((int) $post->provider_id);
-        $state = DB::table('states')->where('id', $post->state_id)->first();
-        $state_code = str_replace(" ","%20",$state->mplan_state_code);
-        $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post, $state_code) {
-            $provider_code = \helpers::ApiProviderCode($api->id, $post->provider_id);
-            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
-            if ($key === null || $key === '' || $provider_code == 0 || $provider_code === '') {
-                return null;
-            }
-            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
-            if ($base === '') {
-                return null;
-            }
-            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&cricle=' . $state_code;
-        }, 'Plans', 'ROP');
-        //echo "<pre>";print_r($result);die;
-        if($result){
-            $data= json_decode($result['response'],true);
+        $serviceId = (int) DB::table('providers')->where('id', (int) $post->provider_id)->value('service_id');
+        if ($serviceId === 2) {
+            $result = PlanInfoFetchService::fetchDthPlans((int) $post->provider_id);
             return response()->json([
-                'type'=> 'success',
-                'message'=>'Fatch Successfully',
-                'data' => $data['records']
+                'type' => $result['type'],
+                'message' => $result['message'],
+                'data' => $result['data'] ?? [],
             ]);
-        }else{
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something Went Wrong S"
-            ));
         }
+
+        if (!$post->filled('state_id')) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Please select circle/state.',
+            ]);
+        }
+
+        $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, (int) $post->state_id);
+        return response()->json([
+            'type' => $result['type'],
+            'message' => $result['message'],
+            'data' => $result['data'] ?? [],
+        ]);
    }
 
 

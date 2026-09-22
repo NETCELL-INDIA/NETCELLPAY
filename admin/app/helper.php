@@ -1331,7 +1331,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20260905-WEB-020';
+        return '20260922-WEB-021';
     }
 }
 

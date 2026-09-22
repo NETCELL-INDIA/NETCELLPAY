@@ -16,7 +16,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 1,
             'default_primary' => 7,
-            'default_backup' => null,
+            'default_backup' => 6,
         ],
         'roffer_airtel' => [
             'label' => 'Routing R-Offer Fetch (Airtel)',
@@ -37,7 +37,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 4,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
         ],
         'dth_customer' => [
             'label' => 'DTH Customer Fetch',
@@ -51,7 +51,7 @@ class PlanInfoFetchService
             'is_routing' => false,
             'sort' => 6,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
         ],
         'dth_heavy_refresh' => [
             'label' => 'DTH Heavy Refresh',

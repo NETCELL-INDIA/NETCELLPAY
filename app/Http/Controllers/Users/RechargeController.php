@@ -1922,33 +1922,7 @@ class RechargeController extends Controller
         $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
 
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
-
-            $provider_code = \helpers::PlanProviderCode($api->id, $post->provider_id);
-
-            if ($provider_code == 0 || $provider_code === '') {
-                return null;
-            }
-
-            $key = PlanInfoFetchService::resolvePlanApiKey($api, false);
-
-            if ($key === null || $key === '') {
-                return null;
-            }
-
-            $base = PlanInfoFetchService::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
-            if ($base === '') {
-                return null;
-            }
-
-            if (stripos($base, 'planconnect') !== false) {
-                return $base.'/getRoffers?'.PlanInfoFetchService::planConnectAuthQuery($key)
-                    .'&operatorCode='.urlencode((string) $provider_code)
-                    .'&mobileNo='.urlencode($post->number)
-                    .'&mobile='.urlencode($post->number);
-            }
-
-            return $base . '/plans.php?apikey=' . urlencode($key) . '&operator=' . urlencode($provider_code) . '&offer=roffer&tel=' . urlencode($post->number);
-
+            return PlanInfoFetchService::buildRofferUrl($api, (int) $post->provider_id, (string) $post->number);
         }, 'Roffer', 'ROF');
 
         if ($result) {
