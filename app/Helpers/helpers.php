@@ -354,13 +354,18 @@ class helpers
         }
 
         // Prevent double wallet credit when ProcessRecharge and rechargeCall both refund.
-        $alreadyRefunded = DB::table('reports')
+        $refundCount = DB::table('reports')
             ->where('order_id', $report->order_id)
             ->where('transaction_type', 'Refund')
             ->where('status', 'Success')
-            ->exists();
+            ->count();
+        $refundReverseCount = DB::table('reports')
+            ->where('order_id', $report->order_id)
+            ->where('transaction_type', 'Refund Reverse')
+            ->where('status', 'Success')
+            ->count();
 
-        if ($alreadyRefunded) {
+        if ($refundCount > $refundReverseCount) {
             return 0;
         }
 
@@ -431,7 +436,66 @@ class helpers
 
 
 
-     public function ReverseCommission($report)
+     public static function reverseRefund($report): bool
+     {
+         if (is_numeric($report) || is_string($report)) {
+             $report = DB::table('reports')->where('id', $report)->first();
+         }
+         if (!$report) {
+             return false;
+         }
+
+         $refundCount = DB::table('reports')
+             ->where('order_id', $report->order_id)
+             ->where('transaction_type', 'Refund')
+             ->where('status', 'Success')
+             ->count();
+         $refundReverseCount = DB::table('reports')
+             ->where('order_id', $report->order_id)
+             ->where('transaction_type', 'Refund Reverse')
+             ->where('status', 'Success')
+             ->count();
+         if ($refundCount <= $refundReverseCount) {
+             return false;
+         }
+
+         $user = DB::table('users')->where('id', $report->user_id)->first();
+         if (!$user) {
+             return false;
+         }
+         $amount = (float) $report->amount;
+         $opening = (float) $user->wallet_balance;
+         DB::table('users')->where('id', $user->id)->decrement('wallet_balance', $amount);
+         $user = DB::table('users')->where('id', $user->id)->first();
+
+         DB::table('reports')->insert(self::filterReportColumns([
+             'user_id' => $user->id,
+             'parent__Id' => $report->id,
+             'order_id' => $report->order_id,
+             'number' => $report->number,
+             'amount' => $amount,
+             'total_amount' => $report->total_amount,
+             'commission' => $report->commission,
+             'fund_type' => 'Debit',
+             'transaction_type' => 'Refund Reverse',
+             'provider_id' => $report->provider_id,
+             'service_id' => $report->service_id,
+             'api_id' => $report->api_id,
+             'remark' => 'Refund reversed for Rs. '.$report->total_amount.' Number '.$report->number,
+             'status' => 'Success',
+             'path' => $report->path,
+             'ip_address' => $report->ip_address,
+             'opening_balance' => $opening,
+             'closing_balance' => $user->wallet_balance,
+             'transaction_date' => Carbon::now().':'.rand(111, 999),
+             'created_at' => Carbon::now(),
+             'updated_at' => Carbon::now(),
+         ]));
+
+         return true;
+     }
+
+     public static function ReverseCommission($report)
      {
          $report = DB::table('reports')->where('id', $report)->first();
  

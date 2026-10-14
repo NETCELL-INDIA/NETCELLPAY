@@ -78,45 +78,18 @@ class CallBackController extends Controller
             DB::beginTransaction();
             $report = $this->findPendingReport((int) $api_id, $orderRef, $operatorId);
             $fromFailed = false;
+            $fromSuccess = false;
             if (! $report && $mapped === 'Success') {
-                $report = $this->findFailedReport((int) $api_id, $orderRef, $operatorId);
+                $report = $this->findReportByStatus((int) $api_id, $orderRef, $operatorId, ['Failed', 'Failure', 'Refunded']);
                 $fromFailed = (bool) $report;
+            }
+            if (! $report && $mapped === 'Refunded') {
+                $report = $this->findReportByStatus((int) $api_id, $orderRef, $operatorId, ['Success']);
+                $fromSuccess = (bool) $report;
             }
             if (! $report) {
                 DB::commit();
                 return response()->json(['type' => 'error', 'message' => 'record not found or already finalized.']);
-            }
-
-            if ($update['status'] === 'Refunded') {
-                $successReport = DB::table('reports')
-                    ->where('order_id', $report->order_id)
-                    ->where('status', 'Success')
-                    ->where(function ($q) {
-                        $q->where('parent__id', 0)->orWhereNull('parent__id');
-                    })
-                    ->first();
-                if ($successReport) {
-                    DB::table('reports')->where('id', $successReport->id)->update($update);
-                    DB::commit();
-                    \helpers::refund_row($successReport->id);
-                    \helpers::ReverseCommission($successReport->id);
-                    $c_report = DB::table('complaints')->where('order_id', $report->order_id)->where('status', 'Open')->first();
-                    if ($c_report) {
-                        DB::table('complaints')->where('id', $c_report->id)->update([
-                            'decision_by' => 1,
-                            'decision_remark' => 'Recharge Refunded',
-                            'status' => 'Sloved',
-                            'decision_date' => Carbon::now(),
-                            'updated_at' => Carbon::now(),
-                        ]);
-                        if (isset($c_report->report_id)) {
-                            DB::table('reports')->where('id', $c_report->report_id)->update(['complaint_id' => 0]);
-                        }
-                    }
-                    \helpers::sendApiPartnerRechargeCallback($successReport->id);
-
-                    return response()->json(['type' => 'success', 'message' => 'recharge refunded processed']);
-                }
             }
 
             if ($mapped === 'Pending') {
@@ -129,25 +102,37 @@ class CallBackController extends Controller
                 return response()->json(['type' => 'success', 'message' => 'status left as Pending']);
             }
 
+            if (($fromFailed || $fromSuccess) && Schema::hasColumn('reports', 'callback_status')) {
+                $update['callback_status'] = 0;
+            }
             DB::table('reports')->where('id', $report->id)->update($update);
             DB::commit();
 
-            if ($update['status'] === 'Success') {
+            if ($mapped === 'Success') {
                 if ($fromFailed) {
+                    \helpers::reverseRefund($report->id);
                     \helpers::recordFailToSuccess($report, 'callback', json_encode($data), 'Supplier callback Failed → Success');
                 }
-                \helpers::SetCommission($report->id);
+                $hasCommission = DB::table('reports')
+                    ->where('parent__Id', $report->id)
+                    ->where('transaction_type', 'Commission')
+                    ->exists();
+                if (! $hasCommission) {
+                    \helpers::SetCommission($report->id);
+                }
+                \helpers::sendApiPartnerRechargeCallback($report->id);
+
                 return response()->json(['type' => 'success', 'message' => 'status updated to Success']);
             }
-            if ($update['status'] === 'Failed') {
-                \helpers::closeOpenComplaintsForReport((int) $report->id, 'Recharge failed before completion.');
-                \helpers::refund_row($report->id);
-                return response()->json(['type' => 'success', 'message' => 'status updated to Failed and refunded']);
-            }
 
+            if ($fromSuccess) {
+                \helpers::ReverseCommission($report->id);
+            }
+            \helpers::closeOpenComplaintsForReport((int) $report->id, 'Recharge '.strtolower($mapped).' by operator.');
+            \helpers::refund_row($report->id);
             \helpers::sendApiPartnerRechargeCallback($report->id);
 
-            return response()->json(['type' => 'success', 'message' => 'status updated']);
+            return response()->json(['type' => 'success', 'message' => 'status updated to '.$mapped.' and refunded']);
         } catch (\Throwable $e) {
             DB::rollBack();
             try {
@@ -220,9 +205,8 @@ class CallBackController extends Controller
         return null;
     }
 
-    private function findFailedReport(int $apiId, string $orderRef, string $operatorId)
+    private function findReportByStatus(int $apiId, string $orderRef, string $operatorId, array $statuses)
     {
-        $failed = ['Failed', 'Failure', 'Refunded'];
         $candidates = [];
         if ($orderRef !== '') {
             $candidates[] = ['api_id' => $apiId, 'order_id' => $orderRef];
@@ -232,7 +216,9 @@ class CallBackController extends Controller
             $candidates[] = ['api_id' => $apiId, 'operator_id' => $operatorId];
         }
         foreach ($candidates as $where) {
-            $q = DB::table('reports')->whereIn('status', $failed);
+            $q = DB::table('reports')
+                ->whereIn('status', $statuses)
+                ->where('transaction_type', 'Recharge');
             foreach ($where as $col => $val) {
                 $q->where($col, $val);
             }

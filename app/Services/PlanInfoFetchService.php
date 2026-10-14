@@ -508,6 +508,16 @@ class PlanInfoFetchService
                 .'&mobile='.urlencode($number);
         }
 
+        if (str_contains($host, 'mplan')) {
+            $key = self::resolvePlanApiKey($api, false);
+            if ($key === null || $key === '' || $base === '') {
+                return null;
+            }
+
+            return $base.'/operatorinfo.php?apikey='.urlencode($key)
+                .'&tel='.urlencode($number);
+        }
+
         [$memberId, $password] = self::resolveHlrCredentials($api);
         if ($memberId === '' || $password === '') {
             return null;
@@ -820,6 +830,7 @@ class PlanInfoFetchService
             ]);
 
             if ($requestResult['ok'] && self::plansLookGrouped($requestResult['data'] ?? [])) {
+                $requestResult['data'] = self::expandDthDurationPrices($requestResult['data']);
                 return $requestResult;
             }
 
@@ -879,9 +890,49 @@ class PlanInfoFetchService
                 .'&operatorCode='.urlencode($opcode);
         }
 
-        return $base . '/plans.php?apikey=' . urlencode($key)
-            . '&operator=' . urlencode($opcode)
-            . '&cricle=All';
+        return $base . '/dthplans.php?apikey=' . urlencode($key)
+            . '&operator=' . urlencode($opcode);
+    }
+
+    /**
+     * MPlan dthplans.php returns rs as {"1 MONTHS": "153", ...}; flatten to one row per duration.
+     *
+     * @param  array<string, mixed>  $grouped
+     * @return array<string, mixed>
+     */
+    private static function expandDthDurationPrices(array $grouped): array
+    {
+        foreach ($grouped as $category => $rows) {
+            if (!is_array($rows)) {
+                continue;
+            }
+
+            $flat = [];
+            foreach ($rows as $row) {
+                if (!is_array($row) || !is_array($row['rs'] ?? null)) {
+                    $flat[] = $row;
+                    continue;
+                }
+
+                $desc = trim((string) ($row['plan_name'] ?? ''));
+                $extra = trim((string) ($row['desc'] ?? ''));
+                if ($extra !== '' && $extra !== $desc) {
+                    $desc = $desc !== '' ? $desc . ' - ' . $extra : $extra;
+                }
+
+                foreach ($row['rs'] as $duration => $amount) {
+                    $flat[] = [
+                        'rs' => preg_replace('/[^\d.]/', '', (string) $amount) ?? '',
+                        'desc' => $desc,
+                        'validity' => (string) $duration,
+                    ];
+                }
+            }
+
+            $grouped[$category] = $flat;
+        }
+
+        return $grouped;
     }
 
     /** @param  array<string, mixed>  $data */
@@ -935,7 +986,7 @@ class PlanInfoFetchService
 
         // Drop endpoint file / action segments.
         $path = preg_replace(
-            '#/(?:dthInfo|getDthPlans|getMobilePlans|getRoffers|heavyRefresh|operatorCheck|Dthinfo\.php|Dthheavy\.php|plans\.php|roffer\.php|Mobile(?:/[^/]+)*)/?$#i',
+            '#/(?:dthInfo|getDthPlans|getMobilePlans|getRoffers|heavyRefresh|operatorCheck|Dthinfo\.php|Dthheavy\.php|dthplans\.php|plans\.php|roffer\.php|Mobile(?:/[^/]+)*)/?$#i',
             '',
             $path
         ) ?: $path;
@@ -1038,17 +1089,46 @@ class PlanInfoFetchService
         return $attempts;
     }
 
+    /**
+     * Plan APIs are stored with api_type "others", so this cannot rely on apiOptions().
+     * Only APIs whose URL/name explicitly names a plan provider qualify; a different
+     * provider family than the primary is preferred.
+     */
     private static function autoBackupPlanApiId($primaryApiId): ?int
     {
         $primaryApiId = self::nullableApiId($primaryApiId);
-        foreach (self::apiOptions() as $api) {
+        $primaryFamily = null;
+        if ($primaryApiId !== null) {
+            $primary = DB::table('apis')->where('id', $primaryApiId)->first(['id', 'api_name', 'api_url']);
+            $primaryFamily = $primary ? self::explicitPlanFamily($primary) : null;
+        }
+
+        $sameFamily = null;
+        $candidates = DB::table('apis')->where('status', 1)->orderBy('id')->get(['id', 'api_name', 'api_url']);
+        foreach ($candidates as $api) {
             $id = (int) $api->id;
             if ($primaryApiId !== null && $id === $primaryApiId) {
                 continue;
             }
-            $family = self::detectPlanFamily($api);
-            if (in_array($family, ['planapi', 'mplan', 'planconnect'], true)) {
+            $family = self::explicitPlanFamily($api);
+            if ($family === null) {
+                continue;
+            }
+            if ($family !== $primaryFamily) {
                 return $id;
+            }
+            $sameFamily ??= $id;
+        }
+
+        return $sameFamily;
+    }
+
+    private static function explicitPlanFamily(object $api): ?string
+    {
+        $hay = strtolower(trim((string) ($api->api_url ?? '').' '.(string) ($api->api_name ?? '')));
+        foreach (['planconnect', 'mplan', 'planapi'] as $family) {
+            if (str_contains($hay, $family)) {
+                return $family;
             }
         }
 
@@ -1077,7 +1157,7 @@ class PlanInfoFetchService
             return $code;
         }
 
-        $name = strtolower(preg_replace('/[^a-z]/', '', (string) ($state->state_name ?? $state->mplan_state_code ?? '')) ?? '');
+        $name = preg_replace('/[^a-z]/', '', strtolower((string) ($state->state_name ?? $state->mplan_state_code ?? ''))) ?? '';
         $map = [
             'delhi' => '10',
             'delhincr' => '10',
@@ -2032,6 +2112,11 @@ class PlanInfoFetchService
         $apiMessage = self::responseErrorMessage($body);
         if (self::isAuthorizationFailure($data) || self::isErrorResponse($data)) {
             return self::hlrResult(false, self::formatHlrErrorMessage($apiMessage, $httpCode), [], $apiId, $body);
+        }
+
+        // MPlan operatorinfo.php nests the result under "records".
+        if (is_array($data['records'] ?? null) && !isset($data['data'])) {
+            $data['data'] = $data['records'];
         }
 
         $opCode = self::hlrNonEmpty(
