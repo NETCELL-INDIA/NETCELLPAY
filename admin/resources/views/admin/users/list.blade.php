@@ -318,6 +318,72 @@
 
 
 
+<!-- Fund Details Modal -->
+
+<div id="fundDetailsModal" class="modal fade" tabindex="-1" aria-labelledby="fundDetailsModalLabel" aria-hidden="true" style="display: none;">
+
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+                    <h5 class="modal-title" id="fundDetailsModalLabel">Fund Details (Last 3 Months)</h5>
+                    <div class="small text-muted" id="fund_details_meta">—</div>
+                </div>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="small text-muted">Total Credit</div><div class="fw-semibold text-success" id="fund_sum_credit">—</div></div></div>
+                    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="small text-muted">Total Debit</div><div class="fw-semibold text-danger" id="fund_sum_debit">—</div></div></div>
+                    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="small text-muted">Net</div><div class="fw-semibold" id="fund_sum_net">—</div></div></div>
+                    <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="small text-muted">Current Wallet</div><div class="fw-semibold" id="fund_sum_wallet">—</div></div></div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-striped align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Date</th>
+                                <th>Order ID</th>
+                                <th>Type</th>
+                                <th>From / To</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Opening</th>
+                                <th class="text-end">Closing</th>
+                                <th>Remark</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fund_details_body">
+                            <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
 <!-- Reset Password Modal -->
 
 <div id="resetPasswordModal" class="modal fade" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" style="display: none;">
@@ -1610,6 +1676,76 @@
         });
 
     }); 
+
+
+
+    function fundDetailsEsc(v) {
+        return $('<div>').text(v == null ? '' : String(v)).html();
+    }
+
+    function fundDetailsMoney(v) {
+        return '₹ ' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    $(document).on('click', '.fundDetails', function(e) {
+
+        e.preventDefault();
+
+        var id = $(this).attr('id');
+
+        $('#fund_details_meta').text('Loading...');
+        $('#fund_sum_credit, #fund_sum_debit, #fund_sum_net, #fund_sum_wallet').text('—');
+        $('#fund_details_body').html('<tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>');
+        $('#fundDetailsModal').modal('show');
+
+        $.ajax({
+            url: '{{ route('userlistFundDetails') }}',
+            method: 'post',
+            data: { id: id, _token: '{{ csrf_token() }}' },
+            dataType: 'json',
+            success: function(res) {
+                if (res.type !== 'success') {
+                    $('#fund_details_meta').text('');
+                    $('#fund_details_body').html('<tr><td colspan="10" class="text-center text-danger">' + fundDetailsEsc(res.message || 'Unable to load fund details.') + '</td></tr>');
+                    return;
+                }
+
+                $('#fund_details_meta').text([res.user.name, res.user.mobile, res.from + ' to ' + res.to, res.summary.count + ' entries'].filter(Boolean).join(' · '));
+                $('#fund_sum_credit').text(fundDetailsMoney(res.summary.credit));
+                $('#fund_sum_debit').text(fundDetailsMoney(res.summary.debit));
+                $('#fund_sum_net').text(fundDetailsMoney(res.summary.net));
+                $('#fund_sum_wallet').text(fundDetailsMoney(res.user.wallet));
+
+                if (!res.data.length) {
+                    $('#fund_details_body').html('<tr><td colspan="10" class="text-center text-muted">No fund transactions in the last 3 months.</td></tr>');
+                    return;
+                }
+
+                var html = '';
+                res.data.forEach(function(r, i) {
+                    var isCredit = r.fund_type === 'Credit';
+                    html += '<tr>'
+                        + '<td>' + (i + 1) + '</td>'
+                        + '<td class="text-nowrap">' + fundDetailsEsc(r.date) + '</td>'
+                        + '<td>' + fundDetailsEsc(r.order_id) + '</td>'
+                        + '<td><span class="badge ' + (isCredit ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger') + '">' + fundDetailsEsc(r.type) + '</span></td>'
+                        + '<td>' + fundDetailsEsc(r.party) + '</td>'
+                        + '<td class="text-end fw-semibold ' + (isCredit ? 'text-success' : 'text-danger') + '">' + (isCredit ? '+ ' : '- ') + fundDetailsMoney(r.amount) + '</td>'
+                        + '<td class="text-end">' + fundDetailsMoney(r.opening_balance) + '</td>'
+                        + '<td class="text-end">' + fundDetailsMoney(r.closing_balance) + '</td>'
+                        + '<td>' + fundDetailsEsc(r.remark) + '</td>'
+                        + '<td>' + fundDetailsEsc(r.status) + '</td>'
+                        + '</tr>';
+                });
+                $('#fund_details_body').html(html);
+            },
+            error: function() {
+                $('#fund_details_meta').text('');
+                $('#fund_details_body').html('<tr><td colspan="10" class="text-center text-danger">Unable to load fund details.</td></tr>');
+            }
+        });
+
+    });
 
 
 

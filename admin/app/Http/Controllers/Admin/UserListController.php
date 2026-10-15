@@ -430,6 +430,7 @@ class UserListController extends Controller
                         . ' data-mobile="' . e($row->mobile_number ?? '') . '"'
                         . ' data-wallet="' . e(number_format((float) $row->wallet_balance, 2, '.', '')) . '"'
                         . '><i class="ri-wallet-3-line"></i></a>' : '') . '
+                    <a id="' . $row->id . '" class="btn btn-soft-secondary fundDetails" title="Fund Details (3 Months)"><i class="ri-file-list-3-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-warning resetPassword" title="Reset Password" data-user-name="' . e($fullName) . '" data-user-mobile="' . e($row->mobile_number) . '" data-user-pin="' . e($row->t_pin ?? '') . '"><i class="ri-lock-password-line"></i></a>
                     <a id="' . $row->id . '" class="btn btn-soft-danger deleteData" title="Delete"><i class="ri-delete-bin-line"></i></a>
                     </div>
@@ -1030,6 +1031,78 @@ class UserListController extends Controller
 
     }
 
+
+    public function fundDetails(Request $post)
+    {
+        $userId = (int) $post->id;
+        $user = DB::table('users')->where('id', $userId)->first(['id', 'outlet_name', 'first_name', 'last_name', 'mobile_number', 'wallet_balance']);
+        if (! $user) {
+            return response()->json(['type' => 'error', 'message' => 'User not found.']);
+        }
+
+        $from = Carbon::now()->subMonths(3)->startOfDay();
+        $rows = DB::table('reports')
+            ->where('user_id', $userId)
+            ->whereIn('transaction_type', ['Transfer Money', 'Receive Money', 'Reverse Money', 'Money Reverse', 'Upi Add Money', 'Self Money'])
+            ->where('created_at', '>=', $from)
+            ->orderByDesc('id')
+            ->limit(1000)
+            ->get(['id', 'order_id', 'transaction_type', 'fund_type', 'amount', 'opening_balance', 'closing_balance', 'remark', 'status', 'credit_user_id', 'debit_user_id', 'created_at']);
+
+        $partyIds = $rows->flatMap(fn ($r) => [(int) $r->credit_user_id, (int) $r->debit_user_id])
+            ->filter()->unique()->values()->all();
+        $parties = DB::table('users')->whereIn('id', $partyIds)->get(['id', 'outlet_name', 'first_name', 'last_name', 'mobile_number'])->keyBy('id');
+
+        $credit = 0.0;
+        $debit = 0.0;
+        $data = [];
+        foreach ($rows as $r) {
+            $amount = (float) $r->amount;
+            $isSuccess = strcasecmp((string) $r->status, 'Success') === 0;
+            if ($isSuccess && $r->fund_type === 'Credit') {
+                $credit += $amount;
+            } elseif ($isSuccess && $r->fund_type === 'Debit') {
+                $debit += $amount;
+            }
+
+            $partyId = (int) ($r->fund_type === 'Credit' ? $r->credit_user_id : $r->debit_user_id);
+            $party = $partyId ? ($parties[$partyId] ?? null) : null;
+            $partyName = $party
+                ? trim(($party->outlet_name ?: trim(($party->first_name ?? '').' '.($party->last_name ?? ''))).' ('.$party->mobile_number.')')
+                : '-';
+
+            $data[] = [
+                'date' => $r->created_at ? Carbon::parse($r->created_at)->format('d-m-Y h:i A') : '-',
+                'order_id' => (string) $r->order_id,
+                'type' => (string) $r->transaction_type,
+                'fund_type' => (string) $r->fund_type,
+                'amount' => number_format($amount, 2, '.', ''),
+                'opening_balance' => number_format((float) $r->opening_balance, 2, '.', ''),
+                'closing_balance' => number_format((float) $r->closing_balance, 2, '.', ''),
+                'party' => $partyName,
+                'remark' => (string) $r->remark,
+                'status' => (string) $r->status,
+            ];
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'user' => [
+                'name' => $user->outlet_name ?: trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
+                'mobile' => (string) $user->mobile_number,
+                'wallet' => number_format((float) $user->wallet_balance, 2, '.', ''),
+            ],
+            'from' => $from->format('d-m-Y'),
+            'to' => Carbon::now()->format('d-m-Y'),
+            'summary' => [
+                'credit' => number_format($credit, 2, '.', ''),
+                'debit' => number_format($debit, 2, '.', ''),
+                'net' => number_format($credit - $debit, 2, '.', ''),
+                'count' => count($data),
+            ],
+            'data' => $data,
+        ]);
+    }
 
     public function fundUpdate(Request $post)
     {

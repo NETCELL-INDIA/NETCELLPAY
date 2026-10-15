@@ -777,6 +777,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/users/userlist/fundupdate',[UserListController::class,'fundUpdate'])->name('fundUpdate');
+    Route::post('admin/users/userlist/fund-details',[UserListController::class,'fundDetails'])->name('userlistFundDetails');
 
 
 
