@@ -2711,7 +2711,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20261015-WEB-024';
+        return '20261015-WEB-025';
     }
 }
 

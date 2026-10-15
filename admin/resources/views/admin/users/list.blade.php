@@ -260,6 +260,12 @@
 
                                     <input type="number" class="form-control" name="amount" id="amount" required="required">
 
+                                    <div class="d-flex flex-wrap gap-1 mt-2">
+                                        @foreach ([1000, 2000, 5000, 10000] as $quickAmount)
+                                            <button type="button" class="btn btn-sm btn-outline-primary fund-quick-amount" data-amount="{{ $quickAmount }}">₹{{ number_format($quickAmount) }}</button>
+                                        @endforeach
+                                    </div>
+
                                 </div>
 
                             </div>
@@ -1577,6 +1583,7 @@
         var wallet = $(this).attr('data-wallet') || '0';
 
         $("#fund_details_form")[0].reset();
+        $('.fund-quick-amount').removeClass('active');
 
         $("#id").val(id);
 
@@ -1594,6 +1601,19 @@
 
 
 
+
+    $(document).on('click', '.fund-quick-amount', function() {
+        $('#amount').val($(this).data('amount')).trigger('input');
+        $('.fund-quick-amount').removeClass('active');
+        $(this).addClass('active');
+    });
+
+    $(document).on('input', '#amount', function() {
+        var val = String($(this).val());
+        $('.fund-quick-amount').each(function() {
+            $(this).toggleClass('active', String($(this).data('amount')) === val);
+        });
+    });
 
     $("#fund_details_form").submit(function(e) {
 
