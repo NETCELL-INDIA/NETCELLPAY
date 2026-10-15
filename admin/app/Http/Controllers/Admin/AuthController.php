@@ -121,6 +121,7 @@ class AuthController extends Controller
                             $this->attachLocalOtpHint($data, $otp);
 
                             if (!app()->environment('local')) {
+                                app()->terminating(function () use ($user, $otp) {
                                 try {
                                     $slug = 'otp';
                                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
@@ -154,6 +155,7 @@ class AuthController extends Controller
                                 } catch (\Throwable $e) {
                                     // OTP is already saved; delivery failures should not block login.
                                 }
+                                });
                             }
                         } catch (\Throwable $e) {
                             return response()->json([

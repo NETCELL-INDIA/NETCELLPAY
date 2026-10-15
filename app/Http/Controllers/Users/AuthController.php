@@ -101,6 +101,7 @@ class AuthController extends Controller
                                 'otp_limit' => $user->otp_limit + 1,
                                 'otp_created_at' => Carbon::now(),
                             ]);
+                            app()->terminating(function () use ($user, $otp) {
                             try {
                                 ////Send Whatsapp Message Start
                                 $slug = 'otp';
@@ -142,6 +143,7 @@ class AuthController extends Controller
                             } catch (\Throwable $e) {
                                 // OTP is already saved; delivery failures should not block login.
                             }
+                            });
                             }
                         }else{
                             $data['type'] = 'error';
