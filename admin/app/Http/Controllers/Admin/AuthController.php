@@ -75,7 +75,7 @@ class AuthController extends Controller
             if(Common::verifyUserPassword(trim((string) $post->password), $user)){
 
                 if($user->status==1){
-                    if (!\App\Services\SystemSettingService::adminLoginRequiresOtp()) {
+                    if (!\App\Services\SystemSettingService::adminLoginRequiresOtp() || $this->isTrustedDevice($post, $user)) {
                         $data['type'] = 'success';
                         $data['message'] = 'Login successful.';
                         $loginKey = $user->login_key ?: Str::random(40);
@@ -228,6 +228,7 @@ class AuthController extends Controller
                         $post->session()->put('login_key', $loginKey);
                         $post->session()->put('role_id', (int) $user->role_id);
                         Common::recordLoginHistory((int) $user->id, 'WEB');
+                        $this->rememberDevice($post, $user);
                     }else{
                         $data['type'] = 'error';
                         $data['message'] = "Wrong otp.";
@@ -438,6 +439,105 @@ class AuthController extends Controller
     {
         $post->session()->flush();
         return redirect()->route('loginPage');
+    }
+
+    private const TRUSTED_DEVICE_DAYS = 180;
+
+    private function trustedDeviceCookieName(object $user): string
+    {
+        return 'nc_adm_dev_'.(int) $user->id;
+    }
+
+    /** Ties trust to the current password so a password change forces OTP again. */
+    private function passwordFingerprint(object $user): string
+    {
+        return hash('sha256', (string) ($user->password ?? '').'|'.(int) $user->id);
+    }
+
+    private function ensureTrustedDeviceTable(): bool
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('admin_trusted_devices')) {
+                \Illuminate\Support\Facades\Schema::create('admin_trusted_devices', function ($table) {
+                    $table->id();
+                    $table->unsignedBigInteger('user_id')->index();
+                    $table->string('token_hash', 64)->unique();
+                    $table->string('password_fp', 64);
+                    $table->string('user_agent', 255)->nullable();
+                    $table->string('ip_address', 64)->nullable();
+                    $table->timestamp('last_used_at')->nullable();
+                    $table->timestamp('expires_at')->nullable()->index();
+                    $table->timestamps();
+                });
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            \Log::warning('admin_trusted_devices unavailable: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    private function isTrustedDevice(Request $request, object $user): bool
+    {
+        $token = (string) $request->cookie($this->trustedDeviceCookieName($user), '');
+        if (strlen($token) !== 64 || ! $this->ensureTrustedDeviceTable()) {
+            return false;
+        }
+
+        $row = DB::table('admin_trusted_devices')
+            ->where('token_hash', hash('sha256', $token))
+            ->where('user_id', (int) $user->id)
+            ->where('expires_at', '>', Carbon::now())
+            ->first();
+        if (! $row || ! hash_equals((string) $row->password_fp, $this->passwordFingerprint($user))) {
+            return false;
+        }
+
+        DB::table('admin_trusted_devices')->where('id', $row->id)->update([
+            'last_used_at' => Carbon::now(),
+            'ip_address' => $request->ip(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        return true;
+    }
+
+    private function rememberDevice(Request $request, object $user): void
+    {
+        if (! $this->ensureTrustedDeviceTable()) {
+            return;
+        }
+
+        $user = DB::table('users')->where('id', (int) $user->id)->first() ?: $user;
+        $token = Str::random(64);
+        $expires = Carbon::now()->addDays(self::TRUSTED_DEVICE_DAYS);
+
+        DB::table('admin_trusted_devices')->where('expires_at', '<', Carbon::now())->delete();
+        DB::table('admin_trusted_devices')->insert([
+            'user_id' => (int) $user->id,
+            'token_hash' => hash('sha256', $token),
+            'password_fp' => $this->passwordFingerprint($user),
+            'user_agent' => Str::limit((string) $request->userAgent(), 250, ''),
+            'ip_address' => $request->ip(),
+            'last_used_at' => Carbon::now(),
+            'expires_at' => $expires,
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        \Illuminate\Support\Facades\Cookie::queue(cookie(
+            $this->trustedDeviceCookieName($user),
+            $token,
+            self::TRUSTED_DEVICE_DAYS * 24 * 60,
+            '/',
+            null,
+            $request->isSecure(),
+            true,
+            false,
+            'lax'
+        ));
     }
 
     /**
