@@ -261,7 +261,7 @@
                                     <input type="number" class="form-control" name="amount" id="amount" required="required">
 
                                     <div class="d-flex flex-wrap gap-1 mt-2">
-                                        @foreach ([1000, 2000, 5000, 10000] as $quickAmount)
+                                        @foreach ([1000, 2000, 3000, 5000, 10000, 20000, 30000] as $quickAmount)
                                             <button type="button" class="btn btn-sm btn-outline-primary fund-quick-amount" data-amount="{{ $quickAmount }}">₹{{ number_format($quickAmount) }}</button>
                                         @endforeach
                                     </div>
