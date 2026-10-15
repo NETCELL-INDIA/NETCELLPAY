@@ -128,11 +128,35 @@
     <script>
         var loginLat = '';
         var loginLng = '';
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                loginLat = pos.coords.latitude;
-                loginLng = pos.coords.longitude;
-            }, function() {}, { enableHighAccuracy: true, timeout: 4000, maximumAge: 300000 });
+
+        function npRequestLocation(highAccuracy) {
+            return new Promise(function(resolve) {
+                if (!navigator.geolocation) {
+                    resolve(false);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    loginLat = pos.coords.latitude;
+                    loginLng = pos.coords.longitude;
+                    resolve(true);
+                }, function() {
+                    resolve(false);
+                }, { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 20000 : 10000, maximumAge: 600000 });
+            });
+        }
+
+        // Mobile GPS is slow: get a fast network fix first, then refine with GPS.
+        npRequestLocation(false).then(function() { npRequestLocation(true); });
+
+        // Called from the Sign in / Verify tap (a user gesture, so mobile browsers show the permission prompt).
+        function npEnsureLocation(maxWaitMs) {
+            if (loginLat !== '' && loginLng !== '') {
+                return Promise.resolve();
+            }
+            return Promise.race([
+                npRequestLocation(false),
+                new Promise(function(resolve) { setTimeout(resolve, maxWaitMs); })
+            ]);
         }
 
         function capitalizeFirstLetter(string) {
@@ -189,6 +213,7 @@
                 Error_Msg("Error", "Please enter password", "error");
             } else {
                 window.__npLoginBusy = true;
+                npEnsureLocation(3000).then(function() {
                 $.ajax({
                     url: "{{ route('LoginCheck') }}",
                     type: 'post',
@@ -226,6 +251,7 @@
                         window.__npLoginBusy = false;
                     }
                 });
+                });
             }
         }
 
@@ -244,6 +270,7 @@
             } else if (email_otp === "") {
                 Error_Msg("Error", "Please enter email OTP", "error");
             } else {
+                npEnsureLocation(3000).then(function() {
                 $.ajax({
                     url: "{{ route('checkLoginOtp') }}",
                     type: 'post',
@@ -276,6 +303,7 @@
                             : "Something went wrong!";
                         Error_Msg("Oops...", msg, "error");
                     }
+                });
                 });
             }
         }
