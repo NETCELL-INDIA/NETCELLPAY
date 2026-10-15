@@ -660,6 +660,8 @@
 
                 <div class="modal-body">
 
+                    <div id="roffer_source_note" class="alert alert-info py-2 px-3 mb-2" style="display:none;"></div>
+
                     <table class="table table-bordered m-0">
 
                         <thead>
@@ -1289,6 +1291,8 @@
 
             provider_id = $("#provider_id").val();
 
+            var state_id = $(".state_id").val() || '';
+
             if (number == "") {
 
                 Error_Msg("Oops...", "Please Enter Mobile Number", "error");
@@ -1311,7 +1315,7 @@
 
                     data: {
 
-                        provider_id,number,
+                        provider_id,number,state_id,
 
                         _token: '{{ csrf_token() }}',
 
@@ -1331,13 +1335,22 @@
 
                             $('#plan_details_roffer').empty();    
 
+                            if (data.source === 'plans') {
+                                $('#roffer_source_note').text(data.message).show();
+                            } else {
+                                $('#roffer_source_note').hide().text('');
+                            }
+
                             $.each(data.data, function(key,val) {
+
+                                var extra = [val.category, val.validity ? ('Validity: ' + val.validity) : ''].filter(Boolean).join(' · ');
 
                                 html_list = `<tr onclick="SelectAmount('`+val.rs+`');">
 
                                     <td>
 
-                                        `+val.desc+`
+                                        `+$('<div>').text(val.desc || '').html()+`
+                                        `+(extra ? `<div class="small text-muted mt-1">`+$('<div>').text(extra).html()+`</div>` : ``)+`
 
                                     </td>
 

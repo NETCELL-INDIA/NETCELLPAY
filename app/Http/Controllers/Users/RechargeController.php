@@ -1919,15 +1919,44 @@ class RechargeController extends Controller
 
         try {
 
-        $serviceKey = PlanInfoFetchService::rofferServiceKey((int) $post->provider_id);
+        $providerId = (int) $post->provider_id;
+
+        $serviceKey = PlanInfoFetchService::rofferServiceKey($providerId);
 
         $result = PlanInfoFetchService::fetch($serviceKey, function ($api) use ($post) {
             return PlanInfoFetchService::buildRofferUrl($api, (int) $post->provider_id, (string) $post->number);
         }, 'Roffer', 'ROF');
 
-        if ($result) {
+        $records = $result ? PlanInfoFetchService::extractRecords($result['response'] ?? null) : [];
 
-            $records = PlanInfoFetchService::extractRecords($result['response'] ?? null);
+        if (PlanInfoFetchService::rofferFallsBackToPlans($providerId)) {
+            $offers = PlanInfoFetchService::realOfferRows($records);
+            if ($offers !== []) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'Fatch Successfully',
+                    'source' => 'roffer',
+                    'data' => $offers,
+                ]);
+            }
+
+            $plans = $this->rofferFallbackPlans($providerId, (string) $post->number, (int) $post->state_id);
+            if ($plans !== []) {
+                return response()->json([
+                    'type' => 'success',
+                    'message' => 'No special offers for this number. Showing operator plans.',
+                    'source' => 'plans',
+                    'data' => $plans,
+                ]);
+            }
+
+            return response()->json([
+                'type' => 'error',
+                'message' => 'No offers or plans found for this number. Please select the state and use Plan Details.',
+            ]);
+        }
+
+        if ($result) {
 
             if ($records !== []) {
                 return response()->json([
@@ -1963,6 +1992,28 @@ class RechargeController extends Controller
     }
 
 
+
+    private function rofferFallbackPlans(int $providerId, string $number, int $stateId): array
+    {
+        if ($stateId <= 0 || ! DB::table('states')->where('id', $stateId)->exists()) {
+            $stateId = 0;
+            $lookup = PlanInfoFetchService::fetchOperatorLookup($number);
+            if ($lookup['ok'] ?? false) {
+                $mapped = PlanInfoFetchService::mapHlrToPortal($lookup['api_id'] ?? null, $lookup['data'] ?? []);
+                $stateId = (int) ($mapped['state']->id ?? 0);
+            }
+        }
+        if ($stateId <= 0) {
+            return [];
+        }
+
+        $plans = PlanInfoFetchService::fetchMobilePlans($providerId, $stateId);
+        if (! ($plans['ok'] ?? false)) {
+            return [];
+        }
+
+        return PlanInfoFetchService::realOfferRows(is_array($plans['data'] ?? null) ? $plans['data'] : []);
+    }
 
     public function dthInfo(Request $post)
 

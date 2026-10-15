@@ -198,6 +198,68 @@ class PlanInfoFetchService
         return 'mobile_plan_retail';
     }
 
+    /** Jio / BSNL have no dedicated R-Offer service; fall back to the real plan list when no offers. */
+    public static function rofferFallsBackToPlans(int $providerId): bool
+    {
+        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
+
+        return str_contains($name, 'jio') || str_contains($name, 'bsnl');
+    }
+
+    /**
+     * Flatten grouped plan/offer data and drop placeholder rows (no price, "not available", test text).
+     *
+     * @return list<array{rs: string, desc: string, validity: string, category?: string}>
+     */
+    public static function realOfferRows(array $data): array
+    {
+        $rows = [];
+        if (self::isListArray($data)) {
+            $rows = $data;
+        } else {
+            foreach ($data as $category => $list) {
+                if (! is_array($list)) {
+                    continue;
+                }
+                foreach ($list as $row) {
+                    if (is_array($row)) {
+                        $row['category'] = (string) $category;
+                        $rows[] = $row;
+                    }
+                }
+            }
+        }
+
+        $out = [];
+        $seen = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $rs = trim((string) ($row['rs'] ?? ''));
+            $desc = trim((string) ($row['desc'] ?? ''));
+            if ($rs === '' || ! is_numeric($rs) || (float) $rs <= 0) {
+                continue;
+            }
+            if ($desc === '' || preg_match('/dummy|demo|sample|test\b|not\s*available|no\s*(offer|plan|record|data)|not\s*found|invalid|not\s*authori[sz]e/i', $desc)) {
+                continue;
+            }
+            $key = $rs.'|'.strtolower($desc);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = [
+                'rs' => $rs,
+                'desc' => $desc,
+                'validity' => (string) ($row['validity'] ?? ''),
+                'category' => (string) ($row['category'] ?? ''),
+            ];
+        }
+
+        return $out;
+    }
+
     public static function planServiceKey(int $providerId): string
     {
         $serviceId = (int) DB::table('providers')->where('id', $providerId)->value('service_id');
