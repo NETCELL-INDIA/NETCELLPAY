@@ -291,110 +291,12 @@ class ParentController extends Controller
             ));
         }
 
-        if($post->type == "Transfer"){
-            if($user->wallet_balance < $post->amount){
-                return response()->json(array(
-                    'type' => 'error',  
-                    'message' => "You Have Insufficient your Wallet Balance"
-                ));
-            }
-            DB::beginTransaction();
-
-            try {
-                $user = DB::table('users')->where('id', $post->user_id)->first();
-                $by = $user->outlet_name;
-                ///Report by first crediter by
-                $order_id = "FND".rand(111111111,999999999);
-                DB::table('reports')->insert([
-                    'user_id' => $user->id,
-                    'credit_user_id' => '0',
-                    'debit_user_id' => $post->id,
-                    'amount' => $post->amount,
-                    'total_amount' => $post->amount,
-                    'fund_type' => "Debit",
-                    'transaction_type' => "Transfer Money",
-                    'remark' => $post->remark,
-                    'order_id' => $order_id,
-                    'status' => "Success",
-                    'opening_balance' => $user->wallet_balance,
-                    'closing_balance' => $user->wallet_balance - $post->amount,
-                    'transaction_date' => Carbon::now().":".rand(111,999),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now()
-                ]);
-                $user_data = DB::table('users')->where('id', $user->id)->first(['id','first_name','mobile_number']);
-                $BY = DB::table('users')->where('id', $post->id)->first(['id','first_name','mobile_number']);
-                $user = DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance - $post->amount]);
-
-                $CURRENT_BALANCE = DB::table('users')->where('id', $user_data->id)->first();
-                //////Send Sms By Cron Job Start
-                  
-                $slug = 'fund_transfer';
-                $type = 'Debit';
-                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                $content = str_replace('{TYPE}', '' . $type . '', $content);
-                $content = str_replace('{AMOUNT}', '' . $post->amount . '', $content);
-                $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
-                $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                \helpers::sendQueuedWhatsapp($slug, $user_data->id, (string) $user_data->mobile_number, $content, $sms_tmp);
-                //////Send Sms By Cron Job End
-                
-                ///Report by first reciver by
-                $user = DB::table('users')->where('id', $post->id)->first();     
-                DB::table('reports')->insert([
-                    'user_id' => $user->id,
-                    'credit_user_id' => $post->user_id,
-                    'debit_user_id' => 0,
-                    'amount' => $post->amount,
-                    'total_amount' => $post->amount,
-                    'fund_type' => "Credit",
-                    'transaction_type' => "Receive Money",
-                    'remark' => $post->remark,
-                    'order_id' => $order_id,
-                    'status' => "Success",
-                    'opening_balance' => $user->wallet_balance,
-                    'closing_balance' => $user->wallet_balance + $post->amount,
-                    'transaction_date' => Carbon::now().":".rand(111,999),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now()
-                ]);
-                $user_data = DB::table('users')->where('id', $user->id)->first(['id','first_name','mobile_number']);
-                $BY = DB::table('users')->where('id', $post->user_id)->first(['id','first_name','mobile_number']);
-                $user = DB::table('users')->where('id', $user->id)->update(['wallet_balance' => $user->wallet_balance + $post->amount]);
-                $CURRENT_BALANCE = DB::table('users')->where('id', $user_data->id)->first();
-                //////Send Sms By Cron Job Start
-                $slug = 'fund_receive';
-                $type = 'Credit';
-                $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                $content = str_replace('{TYPE}', '' . $type . '', $content);
-                $content = str_replace('{AMOUNT}', '' . $post->amount . '', $content);
-                $content = str_replace('{BY}', '' . $BY->first_name . '', $content);
-                $content = str_replace('{CURRENT_BALANCE}', '' . $CURRENT_BALANCE->wallet_balance . '', $content);
-                \helpers::sendQueuedWhatsapp($slug, $user_data->id, (string) $user_data->mobile_number, $content, $sms_tmp);
-                //////Send Sms By Cron Job End
-                DB::commit();
-                return response()->json(array(
-                    'type' => 'success',  
-                    'message' => "Fund Transfer Successfully"
-                ));
-            } catch (\Exception $e) {
-                DB::rollback();
-                return response()->json(array(
-                    'type' => 'error',  
-                    'message' => "Something Went Wrong.",
-                    //'error' => $e->getMessage()
-                ));
-            }
-        }else{
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => "Something Went Wrong.Status"
-            ));
-        }
+        return response()->json(\helpers::transferFundToDownline(
+            (int) $post->user_id,
+            (int) $post->id,
+            (float) $post->amount,
+            (string) $post->remark
+        ));
     }
 
 

@@ -4,6 +4,7 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 
@@ -1390,6 +1391,117 @@ class helpers
         }
     }
 
+    /**
+     * Parent (Master Distributor / Distributor) → own downline wallet transfer, shared by web and app.
+     *
+     * @return array{type: string, message: string, order_id?: string, wallet_balance?: float}
+     */
+    public static function transferFundToDownline(int $fromId, int $toId, float $amount, string $remark): array
+    {
+        if ($toId <= 0 || $toId === $fromId) {
+            return ['type' => 'error', 'message' => 'Please select a valid user.'];
+        }
+        $amount = round($amount, 2);
+        if ($amount <= 0) {
+            return ['type' => 'error', 'message' => 'Please enter a valid amount.'];
+        }
+
+        DB::beginTransaction();
+        try {
+            $from = DB::table('users')->where('id', $fromId)->lockForUpdate()->first();
+            $to = DB::table('users')->where('id', $toId)->where('deleted_at', '!=', 1)->lockForUpdate()->first();
+            if (! $from || ! $to || (int) $to->parent_id !== $fromId) {
+                DB::rollBack();
+
+                return ['type' => 'error', 'message' => 'Selected user is not in your user list.'];
+            }
+            if ((float) $from->wallet_balance < $amount) {
+                DB::rollBack();
+
+                return ['type' => 'error', 'message' => 'You Have Insufficient your Wallet Balance'];
+            }
+
+            $orderId = 'FND'.random_int(111111111, 999999999);
+            $now = Carbon::now();
+            $fromClosing = round((float) $from->wallet_balance - $amount, 2);
+            $toClosing = round((float) $to->wallet_balance + $amount, 2);
+
+            DB::table('reports')->insert(self::filterReportColumns([
+                'user_id' => $from->id,
+                'credit_user_id' => 0,
+                'debit_user_id' => $to->id,
+                'amount' => $amount,
+                'total_amount' => $amount,
+                'fund_type' => 'Debit',
+                'transaction_type' => 'Transfer Money',
+                'remark' => $remark,
+                'order_id' => $orderId,
+                'status' => 'Success',
+                'opening_balance' => $from->wallet_balance,
+                'closing_balance' => $fromClosing,
+                'transaction_date' => $now.':'.rand(111, 999),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]));
+            DB::table('users')->where('id', $from->id)->decrement('wallet_balance', $amount);
+
+            DB::table('reports')->insert(self::filterReportColumns([
+                'user_id' => $to->id,
+                'credit_user_id' => $from->id,
+                'debit_user_id' => 0,
+                'amount' => $amount,
+                'total_amount' => $amount,
+                'fund_type' => 'Credit',
+                'transaction_type' => 'Receive Money',
+                'remark' => $remark,
+                'order_id' => $orderId,
+                'status' => 'Success',
+                'opening_balance' => $to->wallet_balance,
+                'closing_balance' => $toClosing,
+                'transaction_date' => $now.':'.rand(111, 999),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]));
+            DB::table('users')->where('id', $to->id)->increment('wallet_balance', $amount);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Downline fund transfer failed', ['from' => $fromId, 'to' => $toId, 'amount' => $amount, 'error' => $e->getMessage()]);
+
+            return ['type' => 'error', 'message' => 'Fund transfer failed. Please try again.'];
+        }
+
+        // Notifications must never undo a completed transfer (templates may be missing).
+        self::notifyFundMovement('fund_transfer', 'Debit', $from, (string) $to->first_name, $amount, $fromClosing);
+        self::notifyFundMovement('fund_receive', 'Credit', $to, (string) $from->first_name, $amount, $toClosing);
+
+        return [
+            'type' => 'success',
+            'message' => 'Fund Transfer Successfully',
+            'order_id' => $orderId,
+            'wallet_balance' => $fromClosing,
+        ];
+    }
+
+    private static function notifyFundMovement(string $slug, string $type, object $user, string $by, float $amount, float $balance): void
+    {
+        try {
+            $tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id', 'content', 'status']);
+            if (! $tmp || trim((string) $tmp->content) === '') {
+                return;
+            }
+            $content = str_replace(
+                ['{NAME}', '{TYPE}', '{AMOUNT}', '{BY}', '{CURRENT_BALANCE}'],
+                [(string) $user->first_name, $type, (string) $amount, $by, (string) $balance],
+                (string) $tmp->content
+            );
+            self::sendQueuedWhatsapp($slug, $user->id, (string) $user->mobile_number, $content, $tmp);
+        } catch (\Throwable $e) {
+            Log::warning('Fund '.$slug.' notification skipped: '.$e->getMessage());
+        }
+    }
+
     public static function sendQueuedWhatsapp(string $slug, $toUserId, string $mobile, string $content, $smsTmp = null): void
     {
         if ($mobile === '' || ! self::whatsappEnabled($slug, $smsTmp)) {
@@ -2711,7 +2823,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20261015-WEB-029';
+        return '20261015-WEB-030';
     }
 }
 
