@@ -77,13 +77,15 @@
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <select class="form-select" id="rehit_api_id" style="width:auto;min-width:180px;">
-                    <option value="">Select Rehit API</option>
+                <select class="form-select" id="rehit_api_id" style="width:auto;min-width:220px;" title="API used for Rehit">
+                    <option value="auto">Auto (Routing Rehit API)</option>
+                    <option value="same">Same API (current)</option>
                     @foreach($apis as $a)
                         <option value="{{ $a->id }}">{{ $a->api_name }}</option>
                     @endforeach
                 </select>
-                <button type="button" class="btn btn-primary" id="btnRehit">Rehit</button>
+                <button type="button" class="btn btn-primary" id="btnRehit" title="Rehit selected rows">Rehit Selected</button>
+                <span class="text-muted small d-none d-md-inline">Rehit never auto-refunds if API says Failed</span>
                 <div class="d-flex align-items-center gap-1">
                     <span class="text-muted small">Show</span>
                     <select class="form-select form-select-sm" id="show" style="width:auto;">
@@ -389,12 +391,16 @@ $(function () {
         $('.row-check').prop('checked', $(this).is(':checked'));
     });
 
-    $('#btnRehit').on('click', function () {
-        var ids = selectedIds();
+    function doRehit(ids, $btn, idleLabel) {
         var apiId = $('#rehit_api_id').val();
         if (!ids.length) { alert('Select at least one transaction'); return; }
-        if (!apiId) { alert('Select Rehit API'); return; }
-        var $btn = $('#btnRehit');
+        if (!apiId) { alert('Select Rehit mode: Auto, Same API, or a specific API'); return; }
+        var apiLabel = $('#rehit_api_id option:selected').text();
+        if (!confirm('Rehit ' + ids.length + ' transaction(s) via:\n' + apiLabel + '\n\nNote: If API returns Failed, status stays Pending (no auto refund).')) {
+            return;
+        }
+        $btn = $btn || $('#btnRehit');
+        idleLabel = idleLabel || 'Rehit Selected';
         $btn.prop('disabled', true).text('Rehit...');
         $.ajax({
             url: '{{ route("pendingReportRehit") }}',
@@ -403,7 +409,7 @@ $(function () {
             data: { _token: csrf, ids: ids, rehit_api_id: apiId },
             success: function (res) {
                 alert(res.message || 'Done');
-                if (res.type === 'success') fetchPending();
+                if (res.type === 'success' || (res.ok && res.ok > 0)) fetchPending();
             },
             error: function (xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message)
@@ -412,9 +418,18 @@ $(function () {
                 alert(msg);
             },
             complete: function () {
-                $btn.prop('disabled', false).text('Rehit');
+                $btn.prop('disabled', false).text(idleLabel);
             }
         });
+    }
+
+    $('#btnRehit').on('click', function () {
+        doRehit(selectedIds(), $(this), 'Rehit Selected');
+    });
+
+    $(document).on('click', '.btn-row-rehit', function () {
+        var id = $(this).data('id');
+        doRehit([String(id)], $(this), 'Rehit');
     });
 
     $(document).on('click', '.btn-resend', function () {
