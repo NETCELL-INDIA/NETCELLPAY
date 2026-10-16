@@ -429,9 +429,18 @@ class PendingReportController extends Controller
             $url = str_replace('{AMOUNT}', (string) ($report->total_amount ?? $report->amount), $url);
             $url = str_replace('{ORDER_ID}', (string) $report->order_id, $url);
 
+            if (preg_match('/\{[A-Z0-9_]+\}/', $url)) {
+                return ['ok' => false, 'message' => 'API URL still has unreplaced placeholders. Check provider/state codes for this API.'];
+            }
+            if ((string) $providerCode === '' || (string) $providerCode === '0') {
+                return ['ok' => false, 'message' => 'Provider code missing for API "'.($api->api_name ?? $apiId).'". Set operator code in API Provider Codes.'];
+            }
+
             $method = strtoupper(trim($api->api_method ?: 'GET'));
-            $logFlag = ((int) ($api->store_log ?? 0) === 1) ? 'yes' : 'no';
-            $result = \Helper::curl($url, $method, '', [], $logFlag, $report->transaction_type ?: 'RECHARGE', $report->order_id);
+            // Always log resend/rehit attempts for troubleshooting.
+            $logFlag = 'yes';
+            $modal = strtoupper($mode) === 'REHIT' ? 'REHIT' : 'RESEND';
+            $result = \Helper::curl($url, $method, '', [], $logFlag, $modal, $report->order_id);
 
             $response = (string) ($result['response'] ?? '');
             $curlError = (string) ($result['error'] ?? '');

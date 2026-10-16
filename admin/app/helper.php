@@ -565,27 +565,30 @@ class Helper {
 
     public static function getApiCommission($amount, $api_id, $provider_id)
     {
-        $api = Api::where('id', $api_id)->first();
-        
-        if($api && $api->status == "1"){
-            $apicom = ApiCommission::where('provider_id', $provider_id)->where('api_id', $api_id)->first();
+        $api = DB::table('apis')->where('id', $api_id)->first();
+
+        if ($api && (int) $api->status === 1) {
+            $apicom = DB::table('api_commissions')
+                ->where('provider_id', $provider_id)
+                ->where('api_id', $api_id)
+                ->first();
             if ($apicom) {
-                if ($apicom->amount_type == "Commission Percent") {
+                if (($apicom->amount_type ?? '') == 'Commission Percent') {
                     $commission = $amount * $apicom->amount_value / 100;
-                }else{
+                } else {
                     $commission = $apicom->amount_value;
                 }
 
-                if($commission == null){
+                if ($commission == null) {
                     $commission = 0;
                 }
-            }else{
+            } else {
                 $commission = 0;
             }
-        }else{
+        } else {
             $commission = 0;
         }
-        
+
         return $commission;
     }
 
@@ -768,40 +771,40 @@ class Helper {
         $err = curl_error($curl);
         $code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         curl_close($curl);
-        if($log != "no"){
-            Apilog::create([
-                "url" => $url,
-                "modal" => $modal,
-                "txnid" => $txnid,
-                "header" => $header,
-                "request" => $parameters,
-                "response" => $response
-            ]);
+        if ($log != 'no') {
+            try {
+                DB::table('apilogs')->insert([
+                    'url' => $url,
+                    'modal' => $modal,
+                    'txnid' => $txnid,
+                    'header' => is_array($header) ? json_encode($header) : (string) $header,
+                    'request' => is_array($parameters) ? json_encode($parameters) : (string) $parameters,
+                    'response' => (string) $response,
+                    'created_at' => \Carbon\Carbon::now(),
+                    'updated_at' => \Carbon\Carbon::now(),
+                ]);
+            } catch (\Throwable $e) {
+            }
         }
 
         return ["response" => $response, "error" => $err, 'code' => $code];
     }
     public static function ApiProviderCode($api_id, $provider_id)
     {
-        $api = Api::where('id', $api_id)->first();
-        
-        if($api && $api->status == "1"){
-            $api_provider_code = ApiProviderCode::where('provider_id', $provider_id)->where('api_id', $api_id)->first();
-            if ($api_provider_code) {
-                
-                $provider_code = $api_provider_code->provider_code;
+        // Use query builder — App\Models\Api / ApiProviderCode are not present in this app.
+        $api = DB::table('apis')->where('id', $api_id)->first();
 
-                if($provider_code == null){
-                    $provider_code = 0;
-                }
-            }else{
-                $provider_code = 0;
+        if ($api && (int) $api->status === 1) {
+            $api_provider_code = DB::table('api_provider_codes')
+                ->where('provider_id', $provider_id)
+                ->where('api_id', $api_id)
+                ->first();
+            if ($api_provider_code && $api_provider_code->provider_code !== null && $api_provider_code->provider_code !== '') {
+                return $api_provider_code->provider_code;
             }
-        }else{
-            $provider_code = 0;
         }
-        
-        return $provider_code;
+
+        return 0;
     }
 
     public static function ApiStateCode($api_id, $state_id)
@@ -1331,7 +1334,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20261015-WEB-030';
+        return '20261016-WEB-031';
     }
 }
 

@@ -394,6 +394,8 @@ $(function () {
         var apiId = $('#rehit_api_id').val();
         if (!ids.length) { alert('Select at least one transaction'); return; }
         if (!apiId) { alert('Select Rehit API'); return; }
+        var $btn = $('#btnRehit');
+        $btn.prop('disabled', true).text('Rehit...');
         $.ajax({
             url: '{{ route("pendingReportRehit") }}',
             method: 'POST',
@@ -402,6 +404,15 @@ $(function () {
             success: function (res) {
                 alert(res.message || 'Done');
                 if (res.type === 'success') fetchPending();
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                    ? xhr.responseJSON.message
+                    : ('Rehit failed (HTTP ' + xhr.status + '). Refresh and try again.');
+                alert(msg);
+            },
+            complete: function () {
+                $btn.prop('disabled', false).text('Rehit');
             }
         });
     });
