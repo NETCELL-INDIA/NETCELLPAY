@@ -69,6 +69,7 @@ class AdminMenuService
                 ['key' => 'recharge_reports.api_report', 'label' => 'API Report', 'paths' => ['admin/recharge-reports/api-report']],
                 ['key' => 'recharge_reports.refund_report', 'label' => 'Refund Report', 'paths' => ['admin/recharge-reports/refund-report']],
                 ['key' => 'recharge_reports.recharge_logs', 'label' => 'Recharge Logs', 'paths' => ['admin/recharge-reports/recharge-logs']],
+                ['key' => 'recharge_reports.callback', 'label' => 'Callback Report', 'paths' => ['admin/recharge-reports/callback-report']],
                 ['key' => 'recharge_reports.fail2success', 'label' => 'Supplier Fail 2 Success', 'paths' => ['admin/recharge-reports/supplier-fail-2-success']],
                 ['key' => 'recharge_reports.rehit', 'label' => 'Resend Report', 'paths' => ['admin/recharge-reports/resend-report', 'admin/recharge-reports/retry-log', 'admin/recharge-reports/rehit-recharge-history']],
                 ['key' => 'recharge_reports.amountwise', 'label' => 'Amountwise Report', 'paths' => ['admin/recharge-reports/amountwise-report']],

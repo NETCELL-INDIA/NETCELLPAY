@@ -90,6 +90,7 @@ use App\Http\Controllers\Admin\CashbackReportController;
 use App\Http\Controllers\Admin\ApiReportController;
 use App\Http\Controllers\Admin\RefundReportController;
 use App\Http\Controllers\Admin\RechargeLogsController;
+use App\Http\Controllers\Admin\CallbackReportController;
 use App\Http\Controllers\Admin\SendSmsReportController;
 use App\Http\Controllers\Admin\NotificationSendReportController;
 use App\Http\Controllers\Admin\MessageSettingController;
@@ -365,6 +366,11 @@ Route::group(['middleware' => AdminCheck::class], function () {
     // Recharge / API Request Logs
     Route::get('admin/recharge-reports/recharge-logs', [RechargeLogsController::class, 'index'])->name('rechargeLogs');
     Route::post('admin/recharge-reports/recharge-logs/list', [RechargeLogsController::class, 'list'])->name('rechargeLogsList');
+
+    // Callback Report (Sent / Received)
+    Route::get('admin/recharge-reports/callback-report', [CallbackReportController::class, 'index'])->name('callbackReport');
+    Route::post('admin/recharge-reports/callback-report/list', [CallbackReportController::class, 'list'])->name('callbackReportList');
+    Route::post('admin/recharge-reports/callback-report/detail', [CallbackReportController::class, 'detail'])->name('callbackReportDetail');
 
     // Supplier Fail 2 Success
     Route::get('admin/recharge-reports/supplier-fail-2-success', [SupplierFail2SuccessController::class, 'index'])->name('supplierFail2Success');
