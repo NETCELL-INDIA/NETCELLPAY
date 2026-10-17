@@ -124,13 +124,20 @@ class CallbackReportController extends Controller
                 $user = trim(($row->outlet_name ?: '-').' / '.($row->mobile_number ?: '-'));
                 $order = e((string) ($row->order_id ?: $row->txnid ?: '-'));
                 $status = e((string) ($row->report_status ?: '-'));
-                $partnerSent = ((int) ($row->callback_status ?? 0) === 1)
-                    ? '<span class="badge bg-success-subtle text-success">Partner: Yes</span>'
-                    : '<span class="badge bg-secondary-subtle text-secondary">Partner: No</span>';
+                $delivery = $this->deliveryFromLog($row->log_response, $row->log_url, $dir);
+                if ($dir === 'sent') {
+                    $partnerSent = $delivery['ok']
+                        ? '<span class="badge bg-success-subtle text-success">Delivery: OK</span>'
+                        : '<span class="badge bg-danger-subtle text-danger">Delivery: Failed</span>';
+                } else {
+                    $partnerSent = ((int) ($row->callback_status ?? 0) === 1)
+                        ? '<span class="badge bg-success-subtle text-success">Partner: Yes</span>'
+                        : '<span class="badge bg-secondary-subtle text-secondary">Partner: No</span>';
+                }
 
                 $preview = $this->previewPayload(
                     $dir === 'sent'
-                        ? ($row->log_response ?: $row->log_request)
+                        ? ($row->log_response ?: $row->log_request ?: $row->log_url)
                         : ($row->log_request ?: $row->callback_response)
                 );
 
@@ -219,6 +226,27 @@ class CallbackReportController extends Controller
             return '<tr><th style="width:32%;background:#f8f9fa">'.e($label).'</th><td>'.$value.'</td></tr>';
         };
 
+        $delivery = $log
+            ? $this->deliveryFromLog($log->response ?? '', $log->url ?? '', $dir)
+            : ['ok' => false, 'label' => '-', 'badge' => 'secondary', 'detail' => ''];
+
+        $markedSent = $report && (int) ($report->callback_status ?? 0) === 1;
+        if ($dir === 'sent') {
+            $sentBadge = $delivery['ok']
+                ? '<span class="badge bg-success">Yes — Delivered</span>'
+                : '<span class="badge bg-danger">Attempted — Failed</span>';
+            if ($delivery['detail'] !== '') {
+                $sentBadge .= ' <small class="text-muted">'.e($delivery['detail']).'</small>';
+            }
+            if (! $markedSent) {
+                $sentBadge .= ' <span class="badge bg-warning text-dark">flag=0</span>';
+            }
+        } else {
+            $sentBadge = $markedSent
+                ? '<span class="badge bg-success">Yes</span>'
+                : '<span class="badge bg-warning text-dark">No</span>';
+        }
+
         $dirLabel = $dir === 'sent' ? 'SENT (Partner)' : ($dir === 'error' ? 'RECEIVED ERROR' : 'RECEIVED (Supplier)');
         $html = '<div class="mb-2"><span class="badge '.($dir === 'sent' ? 'bg-info' : ($dir === 'error' ? 'bg-danger' : 'bg-success')).'">'.e($dirLabel).'</span></div>';
         $html .= '<table class="table table-bordered table-sm mb-3">'
@@ -234,15 +262,19 @@ class CallbackReportController extends Controller
             .$row('API', e((string) ($api->api_name ?? '-')))
             .$row('User', e(trim(($user->outlet_name ?? '').' / '.($user->mobile_number ?? '')) ?: '-'))
             .$row('Partner Callback URL', e((string) (($user && trim((string) ($user->callback_url ?? '')) !== '') ? $user->callback_url : '-')))
-            .$row('Partner Callback Sent', $report
-                ? (((int) ($report->callback_status ?? 0) === 1) ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-warning text-dark">No</span>')
-                : '-')
+            .$row('Partner Callback Sent', $sentBadge)
+            .$row('Delivery', '<span class="badge bg-'.e($delivery['badge']).'">'.e($delivery['label']).'</span>'
+                .($delivery['detail'] !== '' ? ' <small class="text-muted">'.e($delivery['detail']).'</small>' : ''))
             .'</table>';
 
         if ($log) {
+            $reqRaw = trim((string) ($log->request ?? ''));
+            if ($reqRaw === '' || $reqRaw === '-' || $reqRaw === 'null') {
+                $reqRaw = trim((string) ($log->url ?? '')) !== '' ? ('GET '.(string) $log->url) : '';
+            }
             $html .= '<h6 class="text-primary">Callback Log — Request</h6>'
                 .'<pre class="bg-light border rounded p-2 small mb-3" style="white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto;">'
-                .e($pretty($log->request ?? '')).'</pre>';
+                .e($pretty($reqRaw)).'</pre>';
             $html .= '<h6 class="text-primary">Callback Log — Response</h6>'
                 .'<pre class="bg-light border rounded p-2 small mb-3" style="white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;">'
                 .e($pretty($log->response ?? '')).'</pre>';
@@ -261,6 +293,12 @@ class CallbackReportController extends Controller
             $partnerResp = Schema::hasColumn('reports', 'api_partner_callback_response')
                 ? (string) ($report->api_partner_callback_response ?? '')
                 : '';
+            if ($partnerUrl === '' && $log && $dir === 'sent') {
+                $partnerUrl = (string) ($log->url ?? '');
+            }
+            if (($partnerResp === '' || $partnerResp === '-' || $partnerResp === 'null') && $log && $dir === 'sent') {
+                $partnerResp = (string) ($log->response ?? '');
+            }
             if ($partnerUrl !== '' || $partnerResp !== '') {
                 $html .= '<h6 class="text-primary">Stored on Report — Partner Callback Sent</h6>'
                     .'<div class="small text-muted">URL</div>'
@@ -377,7 +415,7 @@ class CallbackReportController extends Controller
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
             $bits = [];
-            foreach (['status', 'Status', 'STATUS', 'message', 'Message', 'order_id', 'request_order_id', 'yourRequestId', 'AGENTID'] as $k) {
+            foreach (['curl_error', 'http_code', 'status', 'Status', 'STATUS', 'message', 'Message', 'order_id', 'request_order_id', 'yourRequestId', 'AGENTID'] as $k) {
                 if (isset($decoded[$k]) && ! is_array($decoded[$k])) {
                     $bits[] = $k.'='.$decoded[$k];
                 }
@@ -388,6 +426,45 @@ class CallbackReportController extends Controller
         }
 
         return mb_substr(preg_replace('/\s+/', ' ', $raw) ?? $raw, 0, 80);
+    }
+
+    /**
+     * @return array{ok:bool,label:string,badge:string,detail:string}
+     */
+    private function deliveryFromLog(?string $response, ?string $url, string $dir): array
+    {
+        if ($dir !== 'sent' && $dir !== 'error') {
+            return ['ok' => true, 'label' => 'Received', 'badge' => 'success', 'detail' => ''];
+        }
+
+        $raw = trim((string) $response);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded) && (isset($decoded['curl_error']) || (isset($decoded['http_code']) && (int) $decoded['http_code'] === 0))) {
+            $detail = (string) ($decoded['curl_error'] ?? ('HTTP '.(int) ($decoded['http_code'] ?? 0)));
+
+            return ['ok' => false, 'label' => 'Failed', 'badge' => 'danger', 'detail' => $detail];
+        }
+
+        if ($raw === '' || $raw === '-' || $raw === 'null') {
+            return ['ok' => false, 'label' => 'No response', 'badge' => 'warning', 'detail' => ''];
+        }
+
+        if (is_array($decoded) && isset($decoded['http_code'])) {
+            $code = (int) $decoded['http_code'];
+            if ($code >= 200 && $code < 300) {
+                return ['ok' => true, 'label' => 'OK', 'badge' => 'success', 'detail' => 'HTTP '.$code];
+            }
+            if ($code > 0) {
+                return ['ok' => false, 'label' => 'HTTP '.$code, 'badge' => 'danger', 'detail' => ''];
+            }
+        }
+
+        // Non-JSON body with content usually means partner accepted the GET
+        if ($raw !== '' && ! str_contains(strtolower($raw), 'curl_error')) {
+            return ['ok' => true, 'label' => 'OK', 'badge' => 'success', 'detail' => ''];
+        }
+
+        return ['ok' => false, 'label' => 'Failed', 'badge' => 'danger', 'detail' => mb_substr($raw, 0, 120)];
     }
 
     private function callbackStats(string $from, string $to): array

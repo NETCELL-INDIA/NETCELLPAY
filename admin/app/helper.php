@@ -731,6 +731,16 @@ class Helper {
         ]);
         $url = $base.(str_contains($base, '?') ? '&' : '?').$query;
         $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id));
+        $respBody = $result['response'] ?? null;
+        $respErr = trim((string) ($result['error'] ?? ''));
+        $respCode = (int) ($result['code'] ?? 0);
+        if ($respBody === false || $respBody === null || $respBody === '') {
+            $storedResp = $respErr !== ''
+                ? json_encode(['curl_error' => $respErr, 'http_code' => $respCode], JSON_UNESCAPED_SLASHES)
+                : '';
+        } else {
+            $storedResp = is_string($respBody) ? $respBody : json_encode($respBody);
+        }
         $payload = [
             'callback_status' => 1,
             'updated_at' => Carbon::now(),
@@ -739,7 +749,7 @@ class Helper {
             $payload['api_partner_call_back_url'] = $url;
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_callback_response')) {
-            $payload['api_partner_callback_response'] = (string) ($result['response'] ?? $result['error'] ?? '');
+            $payload['api_partner_callback_response'] = mb_substr((string) $storedResp, 0, 20000);
         }
         DB::table('reports')->where('id', $report->id)->update($payload);
 
@@ -773,13 +783,24 @@ class Helper {
         curl_close($curl);
         if ($log != 'no') {
             try {
+                $body = $response;
+                if (($body === false || $body === null || $body === '') && $err) {
+                    $body = json_encode(['curl_error' => $err, 'http_code' => $code], JSON_UNESCAPED_SLASHES);
+                } elseif (is_string($body)) {
+                    $body = mb_substr($body, 0, 20000);
+                }
+                // For GET partner callbacks, store URL query as request when body is empty
+                $req = is_array($parameters) ? json_encode($parameters) : (string) $parameters;
+                if (trim($req) === '' && is_string($url) && str_contains($url, '?')) {
+                    $req = 'GET '.$url;
+                }
                 DB::table('apilogs')->insert([
                     'url' => $url,
                     'modal' => $modal,
                     'txnid' => $txnid,
                     'header' => is_array($header) ? json_encode($header) : (string) $header,
-                    'request' => is_array($parameters) ? json_encode($parameters) : (string) $parameters,
-                    'response' => (string) $response,
+                    'request' => $req,
+                    'response' => (string) $body,
                     'created_at' => \Carbon\Carbon::now(),
                     'updated_at' => \Carbon\Carbon::now(),
                 ]);
@@ -1334,7 +1355,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20261017-WEB-033';
+        return '20261017-WEB-034';
     }
 }
 

@@ -237,6 +237,17 @@ class helpers
         $url = $base.$sep.$query;
         $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id));
 
+        $respBody = $result['response'] ?? null;
+        $respErr = trim((string) ($result['error'] ?? ''));
+        $respCode = (int) ($result['code'] ?? 0);
+        if ($respBody === false || $respBody === null || $respBody === '') {
+            $storedResp = $respErr !== ''
+                ? json_encode(['curl_error' => $respErr, 'http_code' => $respCode], JSON_UNESCAPED_SLASHES)
+                : '';
+        } else {
+            $storedResp = is_string($respBody) ? $respBody : json_encode($respBody);
+        }
+
         $payload = [
             'callback_status' => 1,
             'updated_at' => Carbon::now(),
@@ -245,7 +256,7 @@ class helpers
             $payload['api_partner_call_back_url'] = $url;
         }
         if (Schema::hasColumn('reports', 'api_partner_callback_response')) {
-            $payload['api_partner_callback_response'] = (string) ($result['response'] ?? $result['error'] ?? '');
+            $payload['api_partner_callback_response'] = mb_substr((string) $storedResp, 0, 20000);
         }
         DB::table('reports')->where('id', $report->id)->update($payload);
 
@@ -2069,9 +2080,18 @@ class helpers
 
                     "header" => json_encode($header),
 
-                    "request" => is_string($parameters) || $parameters === null || $parameters === ''
-                        ? (string) $parameters
-                        : json_encode($parameters),
+                    "request" => (function () use ($parameters, $url, $method) {
+                        if (is_string($parameters) || $parameters === null || $parameters === '') {
+                            $req = (string) $parameters;
+                        } else {
+                            $req = json_encode($parameters);
+                        }
+                        if (trim($req) === '' && is_string($url) && str_contains($url, '?')) {
+                            return strtoupper((string) $method).' '.$url;
+                        }
+
+                        return $req;
+                    })(),
 
                     "response" => is_string($body) ? $body : json_encode($body),
 
