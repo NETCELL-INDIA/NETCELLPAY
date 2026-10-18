@@ -18,6 +18,7 @@ use App\Http\Controllers\Users\allUpiMoneyController;
 use App\Http\Controllers\Users\BankController;
 use App\Http\Controllers\Users\CallBackController;
 use App\Http\Controllers\Users\BillPaymentsController;
+use App\Http\Controllers\Users\WebsiteContactController;
 use App\Http\Middleware\UserCheck;
 use App\Http\Controllers\Users\LoginHistoryController;
 use Illuminate\Support\Facades\DB;
@@ -126,8 +127,14 @@ Route::get('/services', function () use ($websiteCompany) {
     return view('users.website.services', ['company' => $websiteCompany()]);
 });
 
-Route::get('/contact-us', function () use ($websiteCompany) {
-    return view('users.website.contact-us', ['company' => $websiteCompany()]);
+Route::get('/contact', [WebsiteContactController::class, 'show'])->name('website.contact');
+Route::post('/contact', [WebsiteContactController::class, 'submit'])
+    ->middleware('throttle:8,1')
+    ->name('website.contact.submit');
+
+// Keep legacy URL working for existing links / SEO.
+Route::get('/contact-us', function () {
+    return redirect()->route('website.contact', [], 301);
 });
 
 Route::get('/privacy-policy', function () use ($websiteCompany) {

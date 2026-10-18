@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="{{ $company->company_name }} provides secure digital payments, recharges, bill payments and business banking services across India.">
+    <meta name="description" content="{{ $pageDescription ?? ($company->company_name.' provides secure digital payments, recharges, bill payments and business banking services across India.') }}">
     <meta name="theme-color" content="#111936">
 
-    <title>{{ $company->company_name }} | Digital Payments for Every Business</title>
+    <title>{{ $pageTitle ?? ($company->company_name.' | Digital Payments for Every Business') }}</title>
 
     @include('layouts.favicon')
 
@@ -73,9 +73,9 @@
 
             <nav class="nc-navigation" id="nc-navigation" aria-label="Primary navigation">
                 <a class="{{ request()->is('/') || request()->is('home') ? 'active' : '' }}" href="{{ url('/') }}">Home</a>
-                <a class="{{ request()->is('about-us') ? 'active' : '' }}" href="{{ url('/about-us') }}">About</a>
+                <a class="{{ request()->is('about-us') ? 'active' : '' }}" href="{{ url('/about-us') }}">About Us</a>
                 <a class="{{ request()->is('services') ? 'active' : '' }}" href="{{ url('/services') }}">Services</a>
-                <a class="{{ request()->is('contact-us') ? 'active' : '' }}" href="{{ url('/contact-us') }}">Contact</a>
+                <a class="{{ request()->is('contact') || request()->is('contact-us') ? 'active' : '' }}" href="{{ url('/contact') }}">Contact Support</a>
             </nav>
 
             <div class="nc-nav-actions">

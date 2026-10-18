@@ -28,7 +28,7 @@
                     <a href="{{ url('/') }}">Home</a>
                     <a href="{{ url('/about-us') }}">About us</a>
                     <a href="{{ url('/services') }}">Services</a>
-                    <a href="{{ url('/contact-us') }}">Contact</a>
+                    <a href="{{ url('/contact') }}">Contact Support</a>
                 </div>
 
                 <div class="nc-footer-column">
@@ -41,15 +41,17 @@
 
                 <div class="nc-footer-column nc-footer-contact">
                     <h3>Contact us</h3>
+                    <p><strong>NETCELL RETAIL INDIA PRIVATE LIMITED</strong></p>
+                    <a href="mailto:support@netcellpay.in">
+                        <i class="fas fa-envelope"></i><span>support@netcellpay.in</span>
+                    </a>
+                    <a href="{{ url('/contact') }}">
+                        <i class="fas fa-headset"></i><span>Contact Support</span>
+                    </a>
                     @if(!empty($company->support_number_2) || !empty($company->support_number))
                         <a href="tel:{{ preg_replace('/[^0-9+]/', '', $company->support_number_2 ?: $company->support_number) }}">
                             <i class="fas fa-phone"></i>
                             <span>{{ $company->support_number_2 ?: $company->support_number }}</span>
-                        </a>
-                    @endif
-                    @if(!empty($company->support_email))
-                        <a href="mailto:{{ $company->support_email }}">
-                            <i class="fas fa-envelope"></i><span>{{ $company->support_email }}</span>
                         </a>
                     @endif
                     @if(!empty($company->company_address))
@@ -66,8 +68,8 @@
             @endif
 
             <div class="nc-footer-bottom">
-                <p>&copy; {{ date('Y') }} {{ $company->company_name }}. All rights reserved.</p>
-                <p>{{ !empty($company->footer_value) ? $company->footer_value : 'Built for a smarter digital India.' }}</p>
+                <p>&copy; {{ date('Y') }} NETCELL RETAIL INDIA PRIVATE LIMITED. All rights reserved.</p>
+                <p>{{ !empty($company->footer_value) ? $company->footer_value : 'NETCELL PAY — Built for a smarter digital India.' }}</p>
             </div>
         </div>
     </footer>
