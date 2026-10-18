@@ -1400,7 +1400,7 @@ if (! function_exists('admin_build_serial')) {
      */
     function admin_build_serial(): string
     {
-        return '20261018-WEB-035';
+        return '20261018-WEB-036';
     }
 }
 

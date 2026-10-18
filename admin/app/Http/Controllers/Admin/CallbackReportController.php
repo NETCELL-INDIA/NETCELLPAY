@@ -121,9 +121,43 @@ class CallbackReportController extends Controller
                     default => '<span class="badge bg-success">RECEIVED</span>',
                 };
 
-                $user = trim(($row->outlet_name ?: '-').' / '.($row->mobile_number ?: '-'));
-                $order = e((string) ($row->order_id ?: $row->txnid ?: '-'));
-                $status = e((string) ($row->report_status ?: '-'));
+                // Enrich from callback JSON when apilog.txnid did not join to reports.
+                $payload = $this->parsePayload($row->log_request);
+                if (empty($row->report_id)) {
+                    $resolved = $this->resolveReportFromPayload($payload, (string) ($row->txnid ?? ''), (string) ($row->log_url ?? ''));
+                    if ($resolved) {
+                        $row->report_id = $resolved->id;
+                        $row->order_id = $resolved->order_id;
+                        $row->number = $resolved->number;
+                        $row->amount = $resolved->amount;
+                        $row->total_amount = $resolved->total_amount;
+                        $row->report_status = $resolved->status;
+                        $row->callback_status = $resolved->callback_status ?? 0;
+                        $row->api_id = $resolved->api_id;
+                        $u = DB::table('users')->where('id', (int) $resolved->user_id)->first(['outlet_name', 'mobile_number']);
+                        $row->outlet_name = $u->outlet_name ?? null;
+                        $row->mobile_number = $u->mobile_number ?? null;
+                        $p = DB::table('providers')->where('id', (int) ($resolved->provider_id ?? 0))->first(['provider_name']);
+                        $row->provider_name = $p->provider_name ?? null;
+                        $a = DB::table('apis')->where('id', (int) ($resolved->api_id ?? 0))->first(['api_name']);
+                        $row->api_name = $a->api_name ?? null;
+                    }
+                }
+                if (empty($row->api_name)) {
+                    $apiId = $this->apiIdFromUrl((string) ($row->log_url ?? ''));
+                    if ($apiId > 0) {
+                        $row->api_name = DB::table('apis')->where('id', $apiId)->value('api_name') ?: null;
+                    }
+                }
+                $orderKey = (string) ($row->order_id ?: $row->txnid ?: ($payload['refId'] ?? $payload['order_id'] ?? $payload['txnId'] ?? ''));
+                $number = (string) ($row->number ?: ($payload['number'] ?? ''));
+                $amount = (float) ($row->total_amount ?? $row->amount ?? ($payload['amount'] ?? 0));
+                $status = (string) ($row->report_status ?: ($payload['status'] ?? '-'));
+
+                $user = trim(($row->outlet_name ?: '').' / '.($row->mobile_number ?: ''));
+                $user = ($user === '/' || trim($user, ' /') === '') ? '-' : $user;
+                $order = e($orderKey !== '' ? $orderKey : '-');
+                $status = e($status !== '' ? $status : '-');
                 $delivery = $this->deliveryFromLog($row->log_response, $row->log_url, $dir);
                 if ($dir === 'sent') {
                     $partnerSent = $delivery['ok']
@@ -148,8 +182,8 @@ class CallbackReportController extends Controller
                     .($row->report_id ? '<br><small class="text-muted">#'.e((string) $row->report_id).'</small>' : '')
                     .'</td>'
                     .'<td>'.e($user).'</td>'
-                    .'<td>'.e($row->provider_name ?: '-').'<br><small>'.e($row->number ?: '-').'</small></td>'
-                    .'<td>₹'.number_format((float) ($row->total_amount ?? $row->amount ?? 0), 2).'</td>'
+                    .'<td>'.e($row->provider_name ?: '-').'<br><small>'.e($number !== '' ? $number : '-').'</small></td>'
+                    .'<td>₹'.number_format($amount, 2).'</td>'
                     .'<td>'.$status.'<br>'.$partnerSent.'</td>'
                     .'<td>'.e($row->api_name ?: '-').'<br><small class="text-muted">'.e((string) ($row->modal ?: '-')).'</small></td>'
                     .'<td><code class="small">'.e($preview).'</code></td>'
@@ -187,12 +221,14 @@ class CallbackReportController extends Controller
             $log = DB::table('apilogs')->where('id', $logId)->first();
         }
 
+        $payload = $log ? $this->parsePayload($log->request ?? '') : [];
+
         $report = null;
         if ($reportId > 0) {
             $report = DB::table('reports')->where('id', $reportId)->first();
         }
-        if (! $report && $log && trim((string) ($log->txnid ?? '')) !== '') {
-            $report = DB::table('reports')->where('order_id', $log->txnid)->first();
+        if (! $report && $log) {
+            $report = $this->resolveReportFromPayload($payload, (string) ($log->txnid ?? ''), (string) ($log->url ?? ''));
         }
 
         if (! $log && ! $report) {
@@ -207,10 +243,38 @@ class CallbackReportController extends Controller
         if ($report && ! empty($report->api_id)) {
             $api = DB::table('apis')->where('id', (int) $report->api_id)->first(['id', 'api_name', 'callback_switch']);
         }
+        if (! $api) {
+            $apiId = $this->apiIdFromUrl((string) ($log->url ?? ''));
+            if ($apiId > 0) {
+                $api = DB::table('apis')->where('id', $apiId)->first(['id', 'api_name', 'callback_switch']);
+            }
+        }
         $user = null;
         if ($report) {
             $user = DB::table('users')->where('id', (int) $report->user_id)->first(['id', 'outlet_name', 'mobile_number', 'callback_url']);
         }
+
+        $orderDisplay = $this->firstNonEmpty([
+            $log->txnid ?? '',
+            $report->order_id ?? '',
+            $payload['refId'] ?? '',
+            $payload['order_id'] ?? '',
+            $payload['orderId'] ?? '',
+            $payload['txnId'] ?? '',
+            $payload['request_order_id'] ?? '',
+        ]);
+        $numberDisplay = $this->firstNonEmpty([
+            $report->number ?? '',
+            $payload['number'] ?? '',
+        ]);
+        $amountDisplay = $report
+            ? ((float) ($report->total_amount ?? $report->amount))
+            : (float) ($payload['amount'] ?? 0);
+        $statusDisplay = $this->firstNonEmpty([
+            $report->status ?? '',
+            $payload['status'] ?? '',
+            $payload['Status'] ?? '',
+        ]);
 
         $pretty = function ($raw): string {
             $raw = is_string($raw) ? $raw : json_encode($raw);
@@ -254,13 +318,20 @@ class CallbackReportController extends Controller
             .$row('Time', e($log ? Carbon::parse($log->created_at)->format('d-m-Y h:i:s A') : '-'))
             .$row('Modal / Type', e((string) ($log->modal ?? '-')))
             .$row('URL', '<code>'.e((string) ($log->url ?? '-')).'</code>')
-            .$row('Txn / Order', e((string) ($log->txnid ?? ($report->order_id ?? '-'))))
+            .$row('Txn / Order', e($orderDisplay !== '' ? $orderDisplay : '-'))
             .$row('Report ID', e((string) ($report->id ?? '-')))
-            .$row('Number', e((string) ($report->number ?? '-')))
-            .$row('Amount', $report ? ('₹'.number_format((float) ($report->total_amount ?? $report->amount), 2)) : '-')
-            .$row('Status', e((string) ($report->status ?? '-')))
+            .$row('Number', e($numberDisplay !== '' ? $numberDisplay : '-'))
+            .$row('Amount', $amountDisplay > 0 ? ('₹'.number_format($amountDisplay, 2)) : '-')
+            .$row('Status', e($statusDisplay !== '' ? $statusDisplay : '-'))
             .$row('API', e((string) ($api->api_name ?? '-')))
-            .$row('User', e(trim(($user->outlet_name ?? '').' / '.($user->mobile_number ?? '')) ?: '-'))
+            .$row('User', e((function () use ($user) {
+                if (! $user) {
+                    return '-';
+                }
+                $label = trim(($user->outlet_name ?? '').' / '.($user->mobile_number ?? ''));
+
+                return ($label === '/' || trim($label, ' /') === '') ? '-' : $label;
+            })()))
             .$row('Partner Callback URL', e((string) (($user && trim((string) ($user->callback_url ?? '')) !== '') ? $user->callback_url : '-')))
             .$row('Partner Callback Sent', $sentBadge)
             .$row('Delivery', '<span class="badge bg-'.e($delivery['badge']).'">'.e($delivery['label']).'</span>'
@@ -415,7 +486,7 @@ class CallbackReportController extends Controller
         $decoded = json_decode($raw, true);
         if (is_array($decoded)) {
             $bits = [];
-            foreach (['curl_error', 'http_code', 'status', 'Status', 'STATUS', 'message', 'Message', 'order_id', 'request_order_id', 'yourRequestId', 'AGENTID'] as $k) {
+            foreach (['curl_error', 'http_code', 'status', 'Status', 'STATUS', 'message', 'Message', 'refId', 'order_id', 'txnId', 'number', 'amount', 'request_order_id', 'yourRequestId', 'AGENTID'] as $k) {
                 if (isset($decoded[$k]) && ! is_array($decoded[$k])) {
                     $bits[] = $k.'='.$decoded[$k];
                 }
@@ -495,5 +566,119 @@ class CallbackReportController extends Controller
             'sent' => $sent,
             'error' => $error,
         ];
+    }
+
+    private function parsePayload($raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+        $raw = trim((string) $raw);
+        if ($raw === '' || $raw === '-' || $raw === 'null') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (! is_array($decoded)) {
+            return [];
+        }
+        foreach (['data', 'Data', 'payload', 'result', 'Result'] as $wrap) {
+            if (isset($decoded[$wrap]) && is_array($decoded[$wrap])) {
+                $decoded = array_merge($decoded, $decoded[$wrap]);
+            }
+        }
+
+        return $decoded;
+    }
+
+    private function firstNonEmpty(array $candidates): string
+    {
+        foreach ($candidates as $c) {
+            $v = trim((string) $c);
+            if ($v !== '' && strcasecmp($v, 'null') !== 0 && $v !== '-') {
+                return $v;
+            }
+        }
+
+        return '';
+    }
+
+    private function apiIdFromUrl(string $url): int
+    {
+        if (preg_match('#/recharge-callback(?:-error)?/(\d+)#i', $url, $m)) {
+            return (int) $m[1];
+        }
+
+        return 0;
+    }
+
+    private function resolveReportFromPayload(array $payload, string $txnid = '', string $url = ''): ?object
+    {
+        $refs = [];
+        foreach ([
+            $txnid,
+            $payload['refId'] ?? '',
+            $payload['RefId'] ?? '',
+            $payload['ref_id'] ?? '',
+            $payload['order_id'] ?? '',
+            $payload['orderId'] ?? '',
+            $payload['OrderId'] ?? '',
+            $payload['request_order_id'] ?? '',
+            $payload['requestOrderId'] ?? '',
+            $payload['txnId'] ?? '',
+            $payload['txnid'] ?? '',
+            $payload['transactionId'] ?? '',
+        ] as $ref) {
+            $ref = trim((string) $ref);
+            if ($ref !== '' && strcasecmp($ref, 'null') !== 0) {
+                $refs[] = $ref;
+            }
+        }
+        $refs = array_values(array_unique($refs));
+        $apiId = $this->apiIdFromUrl($url);
+
+        foreach ($refs as $ref) {
+            $q = DB::table('reports')->where(function ($w) use ($ref) {
+                $w->where('order_id', $ref);
+                if (Schema::hasColumn('reports', 'request_order_id')) {
+                    $w->orWhere('request_order_id', $ref);
+                }
+                if (Schema::hasColumn('reports', 'api_operator_id')) {
+                    $w->orWhere('api_operator_id', $ref);
+                }
+                $w->orWhere('operator_id', $ref);
+            })->whereIn('transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment']);
+            if ($apiId > 0) {
+                $hit = (clone $q)->where('api_id', $apiId)->orderByDesc('id')->first();
+                if ($hit) {
+                    return $hit;
+                }
+            }
+            $hit = $q->orderByDesc('id')->first();
+            if ($hit) {
+                return $hit;
+            }
+        }
+
+        $number = trim((string) ($payload['number'] ?? ''));
+        $amount = $payload['amount'] ?? null;
+        if ($number !== '' && $amount !== null && $amount !== '') {
+            $q = DB::table('reports')
+                ->where('number', $number)
+                ->where(function ($w) use ($amount) {
+                    $w->where('total_amount', $amount)->orWhere('amount', $amount);
+                })
+                ->whereIn('transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
+                ->orderByDesc('id');
+            if ($apiId > 0) {
+                $hit = (clone $q)->where('api_id', $apiId)->first();
+                if ($hit) {
+                    return $hit;
+                }
+            }
+
+            return $q->first();
+        }
+
+        return null;
     }
 }

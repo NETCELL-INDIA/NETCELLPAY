@@ -18,7 +18,7 @@ class CallBackController extends Controller
             DB::table('apilogs')->insert([
                 'url' => '/recharge-callback/'.$api_id,
                 'modal' => 'RechargeCallback',
-                'txnid' => (string) ($data['order_id'] ?? $data['request_order_id'] ?? $data['txnid'] ?? ''),
+                'txnid' => $this->callbackOrderRef($data),
                 'header' => json_encode(\helpers::safeRequestMeta()),
                 'request' => json_encode($data),
                 'response' => '',
@@ -54,13 +54,12 @@ class CallBackController extends Controller
         }
 
         $mapped = \helpers::mapApiCallbackStatus($api, $actual);
-        $operatorId = (string) (\helpers::apiArrayGet($data, $operatorKey) ?? $data['opid'] ?? $data['operator_id'] ?? '');
-        $orderRef = (string) (\helpers::apiArrayGet($data, $orderKey)
-            ?? $data['order_id']
-            ?? $data['OrderId']
-            ?? $data['request_order_id']
-            ?? $data['txnid']
+        $operatorId = (string) (\helpers::apiArrayGet($data, $operatorKey)
+            ?? $data['opid']
+            ?? $data['operator_id']
+            ?? $data['operatorId']
             ?? '');
+        $orderRef = (string) (\helpers::apiArrayGet($data, $orderKey) ?: $this->callbackOrderRef($data));
 
         $update = [
             'status' => $mapped,
@@ -170,6 +169,27 @@ class CallBackController extends Controller
         }
 
         return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Resolve our order / request id from supplier callback body (handles camelCase keys).
+     */
+    private function callbackOrderRef(array $data): string
+    {
+        foreach ([
+            'order_id', 'OrderId', 'ORDER_ID', 'orderId',
+            'refId', 'RefId', 'REFID', 'ref_id', 'reference', 'Reference',
+            'request_order_id', 'requestOrderId', 'RequestOrderId',
+            'txnid', 'txnId', 'TxnId', 'TXNID', 'transactionId', 'TransactionId',
+            'yourRequestId', 'AGENTID', 'AgentId',
+        ] as $key) {
+            $val = trim((string) ($data[$key] ?? ''));
+            if ($val !== '' && strcasecmp($val, 'null') !== 0) {
+                return $val;
+            }
+        }
+
+        return '';
     }
 
     private function findPendingReport(int $apiId, string $orderRef, string $operatorId)
