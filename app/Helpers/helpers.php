@@ -42,6 +42,62 @@ class helpers
         return array_intersect_key($data, $columns);
     }
 
+    /**
+     * Fields allowed when applying supplier API live status onto a recharge row.
+     * Never touch wallet / identity columns (user_id, path, balances, etc.).
+     */
+    public static function safeReportApiUpdate(array $data): array
+    {
+        $allowed = [
+            'status', 'operator_id', 'api_operator_id', 'remark', 'order_id',
+            'api_id', 'callback_status', 'callback_response', 'api_partner_order_id',
+            'updated_at',
+        ];
+
+        return array_intersect_key($data, array_flip($allowed));
+    }
+
+    /**
+     * Replace API URL placeholders. Includes retailer identity so backup/failover
+     * suppliers can show who actually did the recharge (not only API_USERNAME).
+     */
+    public static function applyApiUrlPlaceholders(string $url, $api, $report, $providerCode = '', $stateCode = ''): string
+    {
+        $user = null;
+        if ($report && ! empty($report->user_id)) {
+            try {
+                $user = DB::table('users')->where('id', (int) $report->user_id)
+                    ->first(['outlet_name', 'mobile_number', 'first_name', 'last_name']);
+            } catch (\Throwable $e) {
+                $user = null;
+            }
+        }
+
+        $outlet = trim((string) ($user->outlet_name ?? ''));
+        $mobile = trim((string) ($user->mobile_number ?? ''));
+        $agent = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+        if ($agent === '') {
+            $agent = $outlet !== '' ? $outlet : $mobile;
+        }
+
+        $replacements = [
+            '{API_USERNAME}' => (string) ($api->api_username ?? ''),
+            '{API_PASSWORD}' => (string) ($api->api_password ?? ''),
+            '{API_KEY}' => (string) ($api->api_key ?? ''),
+            '{NUMBER}' => (string) ($report->number ?? ''),
+            '{PROVIDER_CODE}' => (string) $providerCode,
+            '{STATE_CODE}' => (string) $stateCode,
+            '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
+            '{ORDER_ID}' => (string) ($report->order_id ?? ''),
+            '{OUTLET_NAME}' => $outlet,
+            '{USER_MOBILE}' => $mobile,
+            '{USER_ID}' => (string) ($report->user_id ?? ''),
+            '{AGENT_NAME}' => $agent,
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $url);
+    }
+
     public static function ensureHotIndexes(): void
     {
         try {
@@ -2087,10 +2143,10 @@ class helpers
                             $req = json_encode($parameters);
                         }
                         if (trim($req) === '' && is_string($url) && str_contains($url, '?')) {
-                            return strtoupper((string) $method).' '.$url;
+                            $req = strtoupper((string) $method).' '.$url;
                         }
 
-                        return $req;
+                        return self::redactUrlSecrets($req);
                     })(),
 
                     "response" => is_string($body) ? $body : json_encode($body),
@@ -2843,7 +2899,7 @@ if (! function_exists('user_build_serial')) {
      */
     function user_build_serial(): string
     {
-        return '20261016-WEB-032';
+        return '20261018-WEB-035';
     }
 }
 

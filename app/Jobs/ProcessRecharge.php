@@ -96,15 +96,19 @@ class ProcessRecharge implements ShouldQueue
                 $provider_code = \helpers::ApiProviderCode($try_api_id, $this->provider_id);
                 $state_code = \helpers::ApiStateCode($try_api_id, $report->state_id);
 
-                $url = $api_details->api_url;
-                $url = str_replace('{API_USERNAME}', '' . $api_details->api_username . '', $url);
-                $url = str_replace('{API_PASSWORD}', '' . $api_details->api_password . '', $url);
-                $url = str_replace('{API_KEY}', '' . $api_details->api_key . '', $url);
-                $url = str_replace('{NUMBER}', '' . $report->number . '', $url);
-                $url = str_replace('{PROVIDER_CODE}', '' . $provider_code . '', $url);
-                $url = str_replace('{STATE_CODE}', '' . $state_code . '', $url);
-                $url = str_replace('{AMOUNT}', '' . $report->total_amount . '', $url);
-                $url = str_replace('{ORDER_ID}', '' . $report->order_id . '', $url);
+                $url = \helpers::applyApiUrlPlaceholders(
+                    (string) $api_details->api_url,
+                    $api_details,
+                    $report,
+                    $provider_code,
+                    $state_code
+                );
+
+                // Never call our own ApiPartner recharge as a supplier — that would
+                // create/debit under the API-key user (API Partner name), not the retailer.
+                if ($this->isSelfApiPartnerUrl($url)) {
+                    continue;
+                }
 
                 // Use configured method. Netcellin transaction-request rejects GET
                 // ("Invalid request method") and accepts POST with query-string URL.
@@ -115,8 +119,18 @@ class ProcessRecharge implements ShouldQueue
                 $logFlag = 'yes';
                 $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
 
+                // Transient error → try next backup API (do not abort the whole failover chain).
                 if ((empty($result['response']) && !empty($result['error'])) || empty($result['response']) || (isset($result['code']) && $result['code'] >= 500)) {
-                    throw new \Exception('Transient API error: ' . ($result['error'] ?? 'empty response'));
+                    $final_result = [
+                        'status' => 'Failed',
+                        'operator_id' => '',
+                        'remark' => $this->service.' Failed (API error: '.($result['error'] ?? 'empty response').') For Rs. '.$report->total_amount.' Number '.$report->number,
+                    ];
+                    DB::table('reports')->where('id', $this->report_id)->update(\helpers::safeReportApiUpdate(array_merge([
+                        'api_id' => $try_api_id,
+                        'updated_at' => Carbon::now(),
+                    ], $final_result)));
+                    continue;
                 }
 
                 $update = [
@@ -145,8 +159,15 @@ class ProcessRecharge implements ShouldQueue
                         $mapped = \helpers::mapApiLiveStatus($api_details, $actual, $data);
                         if ($mapped) {
                             $update['status'] = $mapped;
-                            $update['operator_id'] = \helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '';
-                            $update['api_operator_id'] = \helpers::apiArrayGet($data, $api_details->order_id_value) ?? '';
+                            $opId = (string) (\helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '');
+                            $apiOpId = (string) (\helpers::apiArrayGet($data, $api_details->order_id_value) ?? '');
+                            // Do not store supplier API login as operator id — looks like "who recharged".
+                            $apiUser = trim((string) ($api_details->api_username ?? ''));
+                            if ($apiUser !== '' && strcasecmp($opId, $apiUser) === 0) {
+                                $opId = $apiOpId !== '' ? $apiOpId : '';
+                            }
+                            $update['operator_id'] = $opId;
+                            $update['api_operator_id'] = $apiOpId;
                             $msg = $data['Message'] ?? $data['message'] ?? '';
                             if ($mapped === 'Success') {
                                 $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
@@ -160,7 +181,10 @@ class ProcessRecharge implements ShouldQueue
                     }
                 }
 
-                DB::table('reports')->where('id', $this->report_id)->update(array_merge(['api_id' => $try_api_id], $update));
+                // Identity columns (user_id / path / balances) must never change on failover.
+                DB::table('reports')->where('id', $this->report_id)->update(
+                    \helpers::safeReportApiUpdate(array_merge(['api_id' => $try_api_id], $update))
+                );
 
                 if ($update['status'] == 'Success') {
                     \helpers::SetCommission($this->report_id);
@@ -242,5 +266,36 @@ class ProcessRecharge implements ShouldQueue
 
             throw $th;
         }
+    }
+
+    /**
+     * Detect backup URLs that hit our own ApiPartner recharge endpoint.
+     * Those debit the API-key owner's wallet and show that user as "who recharged".
+     */
+    private function isSelfApiPartnerUrl(string $url): bool
+    {
+        if ($url === '' || stripos($url, 'ApiPartner') === false || stripos($url, 'Recharge') === false) {
+            return false;
+        }
+        $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?: ''));
+        if ($host === '') {
+            return false;
+        }
+        $selfHosts = ['localhost', '127.0.0.1', 'netcellpay.in', 'www.netcellpay.in'];
+        try {
+            $reqHost = strtolower((string) (request()->getHost() ?: ''));
+            if ($reqHost !== '') {
+                $selfHosts[] = $reqHost;
+                $selfHosts[] = 'www.'.$reqHost;
+            }
+        } catch (\Throwable $e) {
+        }
+        foreach ($selfHosts as $h) {
+            if ($h !== '' && ($host === $h || str_ends_with($host, '.'.$h))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

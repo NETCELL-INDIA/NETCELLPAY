@@ -553,14 +553,7 @@ class PendingReportController extends Controller
             $providerCode = \Helper::ApiProviderCode($api->id, $report->provider_id);
             $stateCode = \Helper::ApiStateCode($api->id, $report->state_id ?? 0);
 
-            $url = str_replace('{API_USERNAME}', (string) $api->api_username, $url);
-            $url = str_replace('{API_PASSWORD}', (string) $api->api_password, $url);
-            $url = str_replace('{API_KEY}', (string) $api->api_key, $url);
-            $url = str_replace('{NUMBER}', (string) $report->number, $url);
-            $url = str_replace('{PROVIDER_CODE}', (string) $providerCode, $url);
-            $url = str_replace('{STATE_CODE}', (string) $stateCode, $url);
-            $url = str_replace('{AMOUNT}', (string) ($report->total_amount ?? $report->amount), $url);
-            $url = str_replace('{ORDER_ID}', (string) $report->order_id, $url);
+            $url = \Helper::applyApiUrlPlaceholders($url, $api, $report, $providerCode, $stateCode);
 
             if (preg_match('/\{[A-Z0-9_]+\}/', $url)) {
                 return ['ok' => false, 'message' => 'API URL still has unreplaced placeholders. Check provider/state codes for this API.'];

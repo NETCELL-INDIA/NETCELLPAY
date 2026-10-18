@@ -673,13 +673,27 @@ class RechargeController extends Controller
 
                             $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                            DB::table('reports')->where('id', $report)->update($api_result);
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
-                            $set_com = \helpers::SetCommission($report);
+                            // ProcessRecharge may already have credited commission — avoid double credit.
+                            $hasCommission = DB::table('reports')
+                                ->where('parent__Id', $report)
+                                ->where('transaction_type', 'Commission')
+                                ->exists();
+                            if (! $hasCommission) {
+                                \helpers::SetCommission($report);
+                            }
 
                             //return $set_com;die;
 
                         } else if ($api_result['status'] == "Failed") {
+
+                            // ProcessRecharge (via RunApi) already tried all backup APIs and refunded once.
+                            $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
+
+                            // Legacy nested backup/refund kept disabled — ProcessRecharge owns failover.
+                            if (false) {
 
                             //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
 
@@ -687,7 +701,7 @@ class RechargeController extends Controller
 
                                 $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                DB::table('reports')->where('id', $report)->update($api_result);
+                                DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                 \helpers::refund_row($report);
 
@@ -703,7 +717,7 @@ class RechargeController extends Controller
 
                                         $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                        DB::table('reports')->where('id', $report)->update($api_result);
+                                        DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                         $set_com = \helpers::SetCommission($report);
 
@@ -715,7 +729,7 @@ class RechargeController extends Controller
 
                                             $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                            DB::table('reports')->where('id', $report)->update($api_result);
+                                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                             \helpers::refund_row($report);
 
@@ -731,7 +745,7 @@ class RechargeController extends Controller
 
                                                     $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                                    DB::table('reports')->where('id', $report)->update($api_result);
+                                                    DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                     $set_com = \helpers::SetCommission($report);
 
@@ -741,7 +755,7 @@ class RechargeController extends Controller
 
                                                     //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
 
-                                                    // DB::table('reports')->where('id', $report)->update($api_result);
+                                                    // DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                     // \helpers::refund_row($report);
 
@@ -749,7 +763,7 @@ class RechargeController extends Controller
 
                                                         $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                                        DB::table('reports')->where('id', $report)->update($api_result);
+                                                        DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                         \helpers::refund_row($report);
 
@@ -765,7 +779,7 @@ class RechargeController extends Controller
 
                                                                 $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
 
-                                                                DB::table('reports')->where('id', $report)->update($api_result);
+                                                                DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                                 $set_com = \helpers::SetCommission($report);
 
@@ -777,13 +791,13 @@ class RechargeController extends Controller
 
                                                                 //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
 
-                                                                DB::table('reports')->where('id', $report)->update($api_result);
+                                                                DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                                 \helpers::refund_row($report);
 
                                                             } else {
 
-                                                                DB::table('reports')->where('id', $report)->update($api_result);
+                                                                DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                             }
 
@@ -831,7 +845,7 @@ class RechargeController extends Controller
 
                                                 } else {
 
-                                                    DB::table('reports')->where('id', $report)->update($api_result);
+                                                    DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                                 }
 
@@ -879,7 +893,7 @@ class RechargeController extends Controller
 
                                     } else {
 
-                                        DB::table('reports')->where('id', $report)->update($api_result);
+                                        DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                                     }
 
@@ -925,13 +939,15 @@ class RechargeController extends Controller
 
                             }
 
+                            } // end if (false) — legacy nested backup disabled
+
 
 
 
 
                         } else {
 
-                            DB::table('reports')->where('id', $report)->update($api_result);
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                         }
 

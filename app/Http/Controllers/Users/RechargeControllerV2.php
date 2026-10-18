@@ -283,28 +283,40 @@ class RechargeControllerV2 extends Controller
                     $api_result = \helpers::RunApi($provider->api_id,$post->provider_id,$report,'Recharge');
                     if($api_result){
                         if($api_result['status'] == "Success"){
-                            DB::table('reports')->where('id', $report)->update($api_result);
-                            $set_com = \helpers::SetCommission($report);
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
+                            $hasCommission = DB::table('reports')
+                                ->where('parent__Id', $report)
+                                ->where('transaction_type', 'Commission')
+                                ->exists();
+                            if (! $hasCommission) {
+                                \helpers::SetCommission($report);
+                            }
                            //return $set_com;die;
-                        }else if($api_result['status'] == "Failed"){  
-                            //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
+                        }else if($api_result['status'] == "Failed"){
+                            // ProcessRecharge already tried all backups and refunded once.
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
+                        }else{
+                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
+                        }
+                        if (false) {
+                            // legacy nested backup disabled
                             if($provider->backup_api_id == 0){
-                                DB::table('reports')->where('id', $report)->update($api_result);
+                                DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
                                 \helpers::refund_row($report);
                             }else{
                                 DB::table('reports')->where('id', $report)->update(['api_id'=>$provider->backup_api_id]);
                                 $api_result = \helpers::RunApi($provider->backup_api_id,$post->provider_id,$report,'Recharge');
                                 if($api_result){
                                     if($api_result['status'] == "Success"){
-                                        DB::table('reports')->where('id', $report)->update($api_result);
+                                        DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
                                         $set_com = \helpers::SetCommission($report);
                                     //return $set_com;die;
                                     }else if($api_result['status'] == "Failed"){  
                                         //DB::table('users')->where('id', $user->id)->increment('wallet_balance', $post->amount);
-                                            DB::table('reports')->where('id', $report)->update($api_result);
+                                            DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
                                             \helpers::refund_row($report);
                                     }else{
-                                        DB::table('reports')->where('id', $report)->update($api_result);
+                                        DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
                                     }
 
                                     $data_show['number'] = $post->number;
@@ -327,11 +339,7 @@ class RechargeControllerV2 extends Controller
                                     return response()->json($data_show);
                                 }
                             }
-
-                            
-                        }else{
-                            DB::table('reports')->where('id', $report)->update($api_result);
-                        }
+                            } // end if (false)
 
 
                         $data_show['number'] = $post->number;
