@@ -164,6 +164,24 @@ $(function(){
             $('#cbDetailBody').html('<p class="text-danger mb-0">Request failed</p>');
         });
     });
+    $(document).on('click','.btn-cb-resend', function(){
+        var rid=$(this).data('report-id'), $btn=$(this), $msg=$('#cbResendMsg');
+        if(!rid){ return; }
+        $btn.prop('disabled', true);
+        $msg.removeClass('text-success text-danger').addClass('text-muted').text('Sending...');
+        $.post('{{ route("resendPartnerCallback") }}', {_token:csrf, report_id:rid}, function(res){
+            if(res&&res.type==='success'){
+                $msg.removeClass('text-muted text-danger').addClass('text-success').text(res.message||'Sent');
+                setTimeout(function(){ fetchList(); }, 800);
+            } else {
+                $msg.removeClass('text-muted text-success').addClass('text-danger').text((res&&res.message)?res.message:'Failed');
+            }
+        },'json').fail(function(){
+            $msg.removeClass('text-muted text-success').addClass('text-danger').text('Request failed');
+        }).always(function(){
+            $btn.prop('disabled', false);
+        });
+    });
     fetchList();
 });
 </script>

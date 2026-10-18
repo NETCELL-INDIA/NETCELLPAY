@@ -159,8 +159,8 @@ class ProcessRecharge implements ShouldQueue
                         $mapped = \helpers::mapApiLiveStatus($api_details, $actual, $data);
                         if ($mapped) {
                             $update['status'] = $mapped;
-                            $opId = (string) (\helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '');
-                            $apiOpId = (string) (\helpers::apiArrayGet($data, $api_details->order_id_value) ?? '');
+                            $opId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '');
+                            $apiOpId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api_details->order_id_value) ?? '');
                             // Do not store supplier API login as operator id — looks like "who recharged".
                             $apiUser = trim((string) ($api_details->api_username ?? ''));
                             if ($apiUser !== '' && strcasecmp($opId, $apiUser) === 0) {
@@ -188,6 +188,11 @@ class ProcessRecharge implements ShouldQueue
 
                 if ($update['status'] == 'Success') {
                     \helpers::SetCommission($this->report_id);
+                    // SetCommission also tries partner callback; call again so Success never skips it.
+                    try {
+                        \helpers::sendApiPartnerRechargeCallback($this->report_id);
+                    } catch (\Throwable $e) {
+                    }
 
                     try {
                         $reportRow = DB::table('reports')->where('id', $this->report_id)->first();

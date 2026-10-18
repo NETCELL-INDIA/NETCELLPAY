@@ -54,22 +54,26 @@ class CallBackController extends Controller
         }
 
         $mapped = \helpers::mapApiCallbackStatus($api, $actual);
-        $operatorId = (string) (\helpers::apiArrayGet($data, $operatorKey)
+        $operatorId = \helpers::sanitizeOperatorId(
+            \helpers::apiArrayGet($data, $operatorKey)
             ?? $data['opid']
             ?? $data['operator_id']
             ?? $data['operatorId']
-            ?? '');
+            ?? ''
+        );
         $orderRef = (string) (\helpers::apiArrayGet($data, $orderKey) ?: $this->callbackOrderRef($data));
 
         $update = [
             'status' => $mapped,
-            'operator_id' => $operatorId,
             'callback_response' => json_encode($data),
             'updated_at' => Carbon::now(),
         ];
-        if ($operatorId !== '' && Schema::hasColumn('reports', 'api_operator_id') && in_array($mapped, ['Success', 'Failed', 'Refunded'], true)) {
-            if (($api->callback_operator_id_value ?? '') === ($api->callback_order_id_value ?? '')) {
-                // keep operator_id as mapped; do not overwrite api_operator_id blindly
+        if ($operatorId !== '') {
+            $update['operator_id'] = $operatorId;
+            if (Schema::hasColumn('reports', 'api_operator_id')
+                && in_array($mapped, ['Success', 'Failed', 'Refunded'], true)
+                && ($api->callback_operator_id_value ?? '') !== ($api->callback_order_id_value ?? '')) {
+                $update['api_operator_id'] = $operatorId;
             }
         }
 
@@ -78,6 +82,7 @@ class CallBackController extends Controller
             $report = $this->findPendingReport((int) $api_id, $orderRef, $operatorId);
             $fromFailed = false;
             $fromSuccess = false;
+            $partnerOnly = false;
             if (! $report && $mapped === 'Success') {
                 $report = $this->findReportByStatus((int) $api_id, $orderRef, $operatorId, ['Failed', 'Failure', 'Refunded']);
                 $fromFailed = (bool) $report;
@@ -85,6 +90,15 @@ class CallBackController extends Controller
             if (! $report && $mapped === 'Refunded') {
                 $report = $this->findReportByStatus((int) $api_id, $orderRef, $operatorId, ['Success']);
                 $fromSuccess = (bool) $report;
+            }
+            // Already Success but partner callback not delivered yet — still notify partner.
+            if (! $report && $mapped === 'Success') {
+                $report = $this->findReportByStatus((int) $api_id, $orderRef, $operatorId, ['Success']);
+                if ($report && (int) ($report->callback_status ?? 0) !== 1) {
+                    $partnerOnly = true;
+                } elseif ($report) {
+                    $report = null;
+                }
             }
             if (! $report) {
                 DB::commit();
@@ -99,6 +113,21 @@ class CallBackController extends Controller
                 DB::commit();
 
                 return response()->json(['type' => 'success', 'message' => 'status left as Pending']);
+            }
+
+            if ($partnerOnly) {
+                $touch = [
+                    'callback_response' => $update['callback_response'],
+                    'updated_at' => Carbon::now(),
+                ];
+                if ($operatorId !== '' && empty($report->operator_id)) {
+                    $touch['operator_id'] = $operatorId;
+                }
+                DB::table('reports')->where('id', $report->id)->update($touch);
+                DB::commit();
+                \helpers::sendApiPartnerRechargeCallback($report->id);
+
+                return response()->json(['type' => 'success', 'message' => 'partner callback sent for existing Success']);
             }
 
             if (($fromFailed || $fromSuccess) && Schema::hasColumn('reports', 'callback_status')) {

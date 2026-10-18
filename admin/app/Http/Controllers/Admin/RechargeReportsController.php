@@ -2720,9 +2720,21 @@ class RechargeReportsController extends Controller
         }
 
         if (! $ok) {
+            $cbUrl = '';
+            try {
+                $cbUrl = trim((string) (DB::table('users')->where('id', $report->user_id)->value('callback_url') ?? ''));
+            } catch (\Throwable $e) {
+            }
+            if ($cbUrl !== '' && \Helper::isUnusableCallbackUrl($cbUrl)) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'Callback URL is a placeholder ('.$cbUrl.'). Update this user\'s Callback URL, then resend.',
+                ]);
+            }
+
             return response()->json([
                 'type' => 'error',
-                'message' => 'Partner callback not sent (not API partner path, or callback URL missing/invalid).',
+                'message' => 'Partner callback not delivered (DNS/network error, missing URL, or not API partner path). Check Callback Report → Sent for details.',
             ]);
         }
 

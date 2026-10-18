@@ -295,6 +295,8 @@ class CallbackReportController extends Controller
             : ['ok' => false, 'label' => '-', 'badge' => 'secondary', 'detail' => ''];
 
         $markedSent = $report && (int) ($report->callback_status ?? 0) === 1;
+        $partnerUrl = trim((string) ($user->callback_url ?? ''));
+        $placeholderUrl = $partnerUrl !== '' && \Helper::isUnusableCallbackUrl($partnerUrl);
         if ($dir === 'sent') {
             $sentBadge = $delivery['ok']
                 ? '<span class="badge bg-success">Yes — Delivered</span>'
@@ -303,7 +305,7 @@ class CallbackReportController extends Controller
                 $sentBadge .= ' <small class="text-muted">'.e($delivery['detail']).'</small>';
             }
             if (! $markedSent) {
-                $sentBadge .= ' <span class="badge bg-warning text-dark">flag=0</span>';
+                $sentBadge .= ' <span class="badge bg-warning text-dark">retry pending</span>';
             }
         } else {
             $sentBadge = $markedSent
@@ -313,6 +315,14 @@ class CallbackReportController extends Controller
 
         $dirLabel = $dir === 'sent' ? 'SENT (Partner)' : ($dir === 'error' ? 'RECEIVED ERROR' : 'RECEIVED (Supplier)');
         $html = '<div class="mb-2"><span class="badge '.($dir === 'sent' ? 'bg-info' : ($dir === 'error' ? 'bg-danger' : 'bg-success')).'">'.e($dirLabel).'</span></div>';
+        if ($placeholderUrl || (stripos($delivery['detail'] ?? '', 'Could not resolve host') !== false)) {
+            $html .= '<div class="alert alert-warning py-2 small mb-3">'
+                .'<strong>Partner callback cannot reach host.</strong> '
+                .'User Callback URL is '
+                .($placeholderUrl ? 'a placeholder ('.e($partnerUrl).')' : 'not resolvable')
+                .'. Update the API partner\'s Callback URL in User settings, then click Resend.'
+                .'</div>';
+        }
         $html .= '<table class="table table-bordered table-sm mb-3">'
             .$row('Log ID', e((string) ($log->id ?? '-')))
             .$row('Time', e($log ? Carbon::parse($log->created_at)->format('d-m-Y h:i:s A') : '-'))
@@ -332,11 +342,18 @@ class CallbackReportController extends Controller
 
                 return ($label === '/' || trim($label, ' /') === '') ? '-' : $label;
             })()))
-            .$row('Partner Callback URL', e((string) (($user && trim((string) ($user->callback_url ?? '')) !== '') ? $user->callback_url : '-')))
+            .$row('Partner Callback URL', e($partnerUrl !== '' ? $partnerUrl : '-'))
             .$row('Partner Callback Sent', $sentBadge)
             .$row('Delivery', '<span class="badge bg-'.e($delivery['badge']).'">'.e($delivery['label']).'</span>'
                 .($delivery['detail'] !== '' ? ' <small class="text-muted">'.e($delivery['detail']).'</small>' : ''))
             .'</table>';
+        if ($report && $dir === 'sent') {
+            $html .= '<div class="mb-3">'
+                .'<button type="button" class="btn btn-sm btn-primary btn-cb-resend" data-report-id="'.e((string) $report->id).'">'
+                .'Resend Partner Callback</button>'
+                .'<span class="ms-2 small text-muted" id="cbResendMsg"></span>'
+                .'</div>';
+        }
 
         if ($log) {
             $reqRaw = trim((string) ($log->request ?? ''));
@@ -358,23 +375,23 @@ class CallbackReportController extends Controller
                     .'<pre class="bg-light border rounded p-2 small mb-3" style="white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;">'
                     .e($pretty($inbound)).'</pre>';
             }
-            $partnerUrl = Schema::hasColumn('reports', 'api_partner_call_back_url')
+            $storedPartnerUrl = Schema::hasColumn('reports', 'api_partner_call_back_url')
                 ? (string) ($report->api_partner_call_back_url ?? '')
                 : '';
             $partnerResp = Schema::hasColumn('reports', 'api_partner_callback_response')
                 ? (string) ($report->api_partner_callback_response ?? '')
                 : '';
-            if ($partnerUrl === '' && $log && $dir === 'sent') {
-                $partnerUrl = (string) ($log->url ?? '');
+            if ($storedPartnerUrl === '' && $log && $dir === 'sent') {
+                $storedPartnerUrl = (string) ($log->url ?? '');
             }
             if (($partnerResp === '' || $partnerResp === '-' || $partnerResp === 'null') && $log && $dir === 'sent') {
                 $partnerResp = (string) ($log->response ?? '');
             }
-            if ($partnerUrl !== '' || $partnerResp !== '') {
+            if ($storedPartnerUrl !== '' || $partnerResp !== '') {
                 $html .= '<h6 class="text-primary">Stored on Report — Partner Callback Sent</h6>'
                     .'<div class="small text-muted">URL</div>'
                     .'<pre class="bg-light border rounded p-2 small mb-2" style="white-space:pre-wrap;word-break:break-word;">'
-                    .e($partnerUrl !== '' ? $partnerUrl : '-').'</pre>'
+                    .e($storedPartnerUrl !== '' ? $storedPartnerUrl : '-').'</pre>'
                     .'<div class="small text-muted">Response</div>'
                     .'<pre class="bg-light border rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;">'
                     .e($pretty($partnerResp)).'</pre>';
@@ -394,7 +411,8 @@ class CallbackReportController extends Controller
     {
         $q = DB::table('apilogs as l')
             ->leftJoin('reports as r', function ($join) {
-                $join->whereRaw('r.order_id COLLATE utf8mb4_unicode_ci = l.txnid COLLATE utf8mb4_unicode_ci');
+                $join->whereRaw('r.order_id COLLATE utf8mb4_unicode_ci = l.txnid COLLATE utf8mb4_unicode_ci')
+                    ->whereIn('r.transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment']);
             })
             ->leftJoin('users as u', 'u.id', '=', 'r.user_id')
             ->leftJoin('providers as p', 'p.id', '=', 'r.provider_id')

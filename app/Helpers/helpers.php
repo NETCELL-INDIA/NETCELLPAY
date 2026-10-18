@@ -255,12 +255,49 @@ class helpers
         return strcasecmp(trim((string) $path), 'Api') === 0;
     }
 
-    public static function sendApiPartnerRechargeCallback($report): bool
+    /**
+     * Strip JSON/URL junk from operator ids (e.g. RC…", → RC…).
+     */
+    public static function sanitizeOperatorId($raw): string
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '' || strcasecmp($raw, 'null') === 0) {
+            return '';
+        }
+        $raw = trim($raw, " \t\n\r\0\x0B\"',");
+        if (preg_match('/^([A-Za-z0-9][A-Za-z0-9._-]{0,120})/', $raw, $m)) {
+            return $m[1];
+        }
+
+        return mb_substr($raw, 0, 120);
+    }
+
+    /**
+     * Placeholder / unusable partner callback hosts (DNS will always fail).
+     */
+    public static function isUnusableCallbackUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '') {
+            return true;
+        }
+        $bad = [
+            'callbackurl.com', 'www.callbackurl.com',
+            'example.com', 'www.example.com',
+            'test.com', 'www.test.com',
+            'localhost', '127.0.0.1',
+            'yourdomain.com', 'your-callback-url.com',
+        ];
+
+        return in_array($host, $bad, true);
+    }
+
+    public static function sendApiPartnerRechargeCallback($report, bool $force = false): bool
     {
         if (is_numeric($report) || is_string($report)) {
             $report = DB::table('reports')->where('id', $report)->first();
         }
-        if (!$report) {
+        if (! $report) {
             return false;
         }
         if (! self::isApiPartnerPath($report->path ?? '')) {
@@ -269,24 +306,63 @@ class helpers
         if (in_array((string) $report->status, self::rechargePendingStatuses(), true)) {
             return false;
         }
-        if ((int) ($report->callback_status ?? 0) === 1) {
+        if ((int) ($report->callback_status ?? 0) === 1 && ! $force) {
             return false;
         }
 
         $user = DB::table('users')->where('id', $report->user_id)->first(['callback_url', 'wallet_balance']);
         $base = trim((string) ($user->callback_url ?? ''));
-        if ($user === null || $base === '' || ! filter_var($base, FILTER_VALIDATE_URL)) {
-            DB::table('reports')->where('id', $report->id)->update(['callback_status' => 1]);
+        if ($user === null || $base === '' || ! filter_var($base, FILTER_VALIDATE_URL) || self::isUnusableCallbackUrl($base)) {
+            $reason = ($user === null || $base === '')
+                ? 'Partner callback URL missing'
+                : (! filter_var($base, FILTER_VALIDATE_URL)
+                    ? 'Partner callback URL invalid'
+                    : 'Partner callback URL is a placeholder ('.$base.') — update user Callback URL');
+            try {
+                DB::table('apilogs')->insert([
+                    'url' => $base !== '' ? $base : '(empty)',
+                    'modal' => 'USER_RECHARGE_CALLBACK',
+                    'txnid' => (string) ($report->order_id ?? $report->id),
+                    'header' => json_encode([]),
+                    'request' => 'SKIP '.$reason,
+                    'response' => json_encode(['curl_error' => $reason, 'http_code' => 0], JSON_UNESCAPED_SLASHES),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            } catch (\Throwable $e) {
+            }
+            // Stop cron retries for missing/invalid/placeholder; admin Resend (force) after URL fix.
+            try {
+                DB::table('reports')->where('id', $report->id)->update([
+                    'callback_status' => 1,
+                    'updated_at' => Carbon::now(),
+                ]);
+            } catch (\Throwable $e) {
+            }
 
             return false;
+        }
+
+        $operatorId = self::sanitizeOperatorId($report->operator_id ?? '');
+        if ($operatorId === '' && ! empty($report->api_operator_id)) {
+            $operatorId = self::sanitizeOperatorId($report->api_operator_id);
+        }
+        // Prefer true operator ref when stored value is our order id / garbage.
+        $orderId = (string) ($report->order_id ?? '');
+        if ($operatorId !== '' && $orderId !== '' && strcasecmp($operatorId, $orderId) === 0
+            && ! empty($report->api_operator_id)) {
+            $alt = self::sanitizeOperatorId($report->api_operator_id);
+            if ($alt !== '' && strcasecmp($alt, $orderId) !== 0) {
+                $operatorId = $alt;
+            }
         }
 
         $query = http_build_query([
             'request_order_id' => (string) ($report->request_order_id ?? ''),
             'status' => (string) $report->status,
             'amount' => (string) ($report->total_amount ?? $report->amount),
-            'order_id' => (string) ($report->order_id ?? ''),
-            'operator_id' => (string) ($report->operator_id ?? ''),
+            'order_id' => $orderId,
+            'operator_id' => $operatorId,
             'balance' => round((float) ($user->wallet_balance ?? 0), 2),
         ]);
         $sep = str_contains($base, '?') ? '&' : '?';
@@ -296,27 +372,40 @@ class helpers
         $respBody = $result['response'] ?? null;
         $respErr = trim((string) ($result['error'] ?? ''));
         $respCode = (int) ($result['code'] ?? 0);
+        $delivered = ($respErr === '' && $respCode >= 200 && $respCode < 500);
         if ($respBody === false || $respBody === null || $respBody === '') {
             $storedResp = $respErr !== ''
                 ? json_encode(['curl_error' => $respErr, 'http_code' => $respCode], JSON_UNESCAPED_SLASHES)
-                : '';
+                : json_encode(['http_code' => $respCode], JSON_UNESCAPED_SLASHES);
         } else {
             $storedResp = is_string($respBody) ? $respBody : json_encode($respBody);
         }
 
-        $payload = [
-            'callback_status' => 1,
-            'updated_at' => Carbon::now(),
-        ];
-        if (Schema::hasColumn('reports', 'api_partner_call_back_url')) {
-            $payload['api_partner_call_back_url'] = $url;
+        // Mark sent only when delivery reached the host; leave 0 on DNS/network so cron/resend can retry after URL fix.
+        try {
+            DB::table('reports')->where('id', $report->id)->update([
+                'callback_status' => $delivered ? 1 : 0,
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
         }
-        if (Schema::hasColumn('reports', 'api_partner_callback_response')) {
-            $payload['api_partner_callback_response'] = mb_substr((string) $storedResp, 0, 20000);
-        }
-        DB::table('reports')->where('id', $report->id)->update($payload);
 
-        return true;
+        try {
+            $extra = [];
+            if (Schema::hasColumn('reports', 'api_partner_call_back_url')) {
+                $extra['api_partner_call_back_url'] = mb_substr($url, 0, 1900);
+            }
+            if (Schema::hasColumn('reports', 'api_partner_callback_response')) {
+                $extra['api_partner_callback_response'] = mb_substr((string) $storedResp, 0, 20000);
+            }
+            if ($extra !== []) {
+                $extra['updated_at'] = Carbon::now();
+                DB::table('reports')->where('id', $report->id)->update($extra);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $delivered;
     }
 
     public static function loginCoordinatesFromRequest($request = null): array
