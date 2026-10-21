@@ -671,7 +671,8 @@ class RechargeController extends Controller
 
                         if ($api_result['status'] == "Success") {
 
-                            $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
+                            // Do not reset callback_status — ProcessRecharge may already have sent partner callback.
+                            unset($api_result['callback_status']);
 
                             DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
@@ -689,7 +690,7 @@ class RechargeController extends Controller
                         } else if ($api_result['status'] == "Failed") {
 
                             // ProcessRecharge (via RunApi) already tried all backup APIs and refunded once.
-                            $api_result['callback_status'] = \helpers::isApiPartnerPath($post->path ?? '') ? 0 : 1;
+                            unset($api_result['callback_status']);
                             DB::table('reports')->where('id', $report)->update(\helpers::safeReportApiUpdate($api_result));
 
                             // Legacy nested backup/refund kept disabled — ProcessRecharge owns failover.

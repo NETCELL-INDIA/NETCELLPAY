@@ -523,8 +523,8 @@ class ReportsController extends Controller
             ///
             's.service_name as service_name',
         )
-        ->join('users as d','d.id','=','complaints.decision_by')
-        ->join('services as s','s.id','=','complaints.service_id')
+        ->leftJoin('users as d','d.id','=','complaints.decision_by')
+        ->leftJoin('services as s','s.id','=','complaints.service_id')
         ->where('complaints.user_id', $post->user_id)->whereBetween('complaints.created_at', [$from_date,$to_date])
         ;
 
@@ -617,8 +617,8 @@ class ReportsController extends Controller
             'b.bank_name as bank_name',
             'b.account_type as account_type',
         )
-        ->join('users as d','d.id','=','fund_requests.decision_by')
-        ->join('banks as b','b.id','=','fund_requests.bank_id')
+        ->leftJoin('users as d','d.id','=','fund_requests.decision_by')
+        ->leftJoin('banks as b','b.id','=','fund_requests.bank_id')
         ->where('fund_requests.user_id', $post->user_id)->whereBetween('fund_requests.created_at', [$from_date,$to_date])
         ;
 
@@ -639,7 +639,7 @@ class ReportsController extends Controller
         }
 
         if($post->order_id != ""){
-            $query->where('fund_requests.request_id', $post->order_id);
+            $query->where('fund_requests.order_id', $post->order_id);
         }
         $start= ($page-1) * $limit;
 

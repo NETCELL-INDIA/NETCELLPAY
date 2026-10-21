@@ -206,31 +206,37 @@ class ParentController extends Controller
                 $user_data = DB::table('users')->where('mobile_number', $post->mobile_number)->first();
                 $slug = 'create_user';
                 $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
-                $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
-                $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                if(\helpers::whatsappEnabled($slug, $sms_tmp)){
-                    $msg_data = [
-                        'mobile_number' => $post->mobile_number,
-                        'content' => $content,
-                        'template_id' => $sms_tmp->template_id,
-                        'slug' => $slug,
-                    ];
-                    $sms = \helpers::sendWhatasappMsg($msg_data);
+                if ($sms_tmp && ! empty($sms_tmp->content) && $user_data) {
+                    $content = $sms_tmp->content;
+                    $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+                    $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
+                    $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
+                    $content = str_replace('{PIN}', '' . $t_pin . '', $content);
+                    if (\helpers::whatsappEnabled($slug, $sms_tmp)) {
+                        $msg_data = [
+                            'mobile_number' => $post->mobile_number,
+                            'content' => $content,
+                            'template_id' => $sms_tmp->template_id,
+                            'slug' => $slug,
+                        ];
+                        \helpers::sendWhatasappMsg($msg_data);
+                    }
                 }
                 ////Send Whatsapp Message End
                 ////Send Email Start
-                $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                if($company->email_message == 1){
+                $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+                $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+                $company = $company ?: DB::table('companies')->where('status', '1')->first();
+                if ($company && (int) ($company->email_message ?? 0) === 1 && $user_data && ! empty($user_data->email_address)) {
                     $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                    $content_email = $email_tmp->content;
-                    $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
-                    $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
-                    $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
-                    $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
-                    Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                    if ($email_tmp && ! empty($email_tmp->content)) {
+                        $content_email = $email_tmp->content;
+                        $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
+                        $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
+                        $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
+                        $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
+                        Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                    }
                 }
                 ////Send Email End
                 try {
@@ -302,35 +308,37 @@ class ParentController extends Controller
 
     public function userListSearchUser(Request $post)
     {
-        if($post->mobile_number != ''){
+        $user = collect();
+        if ($post->filled('mobile_number')) {
             $user = DB::table('users')
-           ->where('deleted_at', '!=' , 1)
-            ->where('mobile_number','LIKE','%'.$post->mobile_number.'%')
-            ->where('parent_id', $post->user_id)
-            ->get(['id','first_name','middle_name','last_name','outlet_name','email_address','mobile_number','wallet_balance','city','parent_id','role_id','status']);
-            
+                ->where('deleted_at', '!=', 1)
+                ->where('mobile_number', 'LIKE', '%'.$post->mobile_number.'%')
+                ->where('parent_id', $post->user_id)
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'email_address', 'mobile_number', 'wallet_balance', 'city', 'parent_id', 'role_id', 'status']);
         }
+
         return response()->json([
-            'users' => $user
+            'users' => $user,
         ]);
     }
 
     public function userListSearchUserName(Request $post)
     {
-        if($post->mobile_number != ''){
+        $user = collect();
+        if ($post->filled('mobile_number')) {
             $user = DB::table('users')
-           ->where('deleted_at', '!=' , 1)
-           ->where('parent_id', $post->user_id)
-            ->where(function ($query) use ($post) {
-                $query->where('first_name','LIKE','%'.$post->mobile_number.'%');
-                $query->orWhere('outlet_name','LIKE','%'.$post->mobile_number.'%');
-                $query->orWhere('mobile_number','LIKE','%'.$post->mobile_number.'%');
-            })
-            ->get(['id','first_name','middle_name','last_name','outlet_name','email_address','mobile_number','wallet_balance','city','parent_id','role_id','status']);
-            
+                ->where('deleted_at', '!=', 1)
+                ->where('parent_id', $post->user_id)
+                ->where(function ($query) use ($post) {
+                    $query->where('first_name', 'LIKE', '%'.$post->mobile_number.'%');
+                    $query->orWhere('outlet_name', 'LIKE', '%'.$post->mobile_number.'%');
+                    $query->orWhere('mobile_number', 'LIKE', '%'.$post->mobile_number.'%');
+                })
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'email_address', 'mobile_number', 'wallet_balance', 'city', 'parent_id', 'role_id', 'status']);
         }
+
         return response()->json([
-            'users' => $user
+            'users' => $user,
         ]);
     }
 

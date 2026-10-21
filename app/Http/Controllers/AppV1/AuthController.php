@@ -50,7 +50,7 @@ class AuthController extends Controller
                 COALESCE(SUM(CASE WHEN transaction_type = 'Upi Add Money' AND status = 'Success' THEN total_amount ELSE 0 END), 0) as rc_upi_add_money,
                 COALESCE(SUM(CASE WHEN transaction_type = 'Recharge' AND status IN ('Success','Pending') THEN commission ELSE 0 END), 0)
                     + COALESCE(SUM(CASE WHEN transaction_type = 'Commission' AND status = 'Success' THEN amount ELSE 0 END), 0)
-                    + COALESCE(SUM(CASE WHEN transaction_type = 'Reverse Commission' AND status = 'Success' THEN amount ELSE 0 END), 0) as rc_commission
+                    - COALESCE(SUM(CASE WHEN transaction_type = 'Reverse Commission' AND status = 'Success' THEN amount ELSE 0 END), 0) as rc_commission
             ")
             ->first();
     $tranaction_reports = DB::table('reports')->where('user_id',$userId)
@@ -61,7 +61,13 @@ class AuthController extends Controller
             ->whereIn('transaction_type',['Transfer Money','Receive Money','Self Money','Money Reverse','Reverse Money'])
             ->orderBy('created_at', 'DESC')->take(5)
             ->get();
-    $user = DB::table('users')->where('id',$userId)->first(); 
+    $user = DB::table('users')->where('id',$userId)->first();
+        if (! $user) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'User not found.',
+            ], 200);
+        }
 
         $data_n['rc_success_amount'] = (float) ($agg->rc_success_amount ?? 0);
         $data_n['rc_success_hit'] = (int) ($agg->rc_success_hit ?? 0);
@@ -79,17 +85,19 @@ class AuthController extends Controller
             ->where('user_id', $userId)
             ->count();
 
-        $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+        $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+        $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+        $company = $company ?: DB::table('companies')->where('status', '1')->first();
 
-        $compan_data['domain'] = $company->domain;
-        $compan_data['company_name'] = $company->company_name;
-        $compan_data['support_number'] = $company->support_number;
-        $compan_data['support_number_2'] = $company->support_number_2;
-        $compan_data['support_email'] = $company->support_email;
-        $compan_data['refund_policy'] = $company->refund_policy;
-        $compan_data['terms_and_conditions'] = $company->terms_and_conditions;
-        $compan_data['privacy_policy'] = $company->privacy_policy;
-        $compan_data['company_address'] = $company->company_address;
+        $compan_data['domain'] = $company->domain ?? $host;
+        $compan_data['company_name'] = $company->company_name ?? 'NETCELL PAY';
+        $compan_data['support_number'] = $company->support_number ?? '';
+        $compan_data['support_number_2'] = $company->support_number_2 ?? '';
+        $compan_data['support_email'] = $company->support_email ?? 'support@netcellpay.in';
+        $compan_data['refund_policy'] = $company->refund_policy ?? '';
+        $compan_data['terms_and_conditions'] = $company->terms_and_conditions ?? '';
+        $compan_data['privacy_policy'] = $company->privacy_policy ?? '';
+        $compan_data['company_address'] = $company->company_address ?? '';
 
         $errors = [
             'name' => $user->first_name." ".$user->last_name,
@@ -632,33 +640,39 @@ class AuthController extends Controller
             ////Send Whatsapp Message Start
             $slug = 'otp';
             $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-            $content = $sms_tmp->content;
-            $content = str_replace('{NAME}', '' . $post->first_name . '', $content);
-            $content = str_replace('{MIDDLE_NAME}', '' . $post->middle_name . '', $content);
-            $content = str_replace('{LAST_NAME}', '' . $post->last_name . '', $content);
-            $content = str_replace('{OUTLET_NAME}', '' . $post->outlet_name . '', $content);
-            $content = str_replace('{OTP}', '' . $g_otp . '', $content);
-            if(\helpers::whatsappEnabled($slug, $sms_tmp)){
-                $msg_data = [
-                    'mobile_number' => $post->mobile_number,
-                    'content' => $content,
-                    'template_id' => $sms_tmp->template_id,
-                    'slug' => $slug,
-                ];
-                $sms = \helpers::sendWhatasappMsg($msg_data);
+            if ($sms_tmp && ! empty($sms_tmp->content)) {
+                $content = $sms_tmp->content;
+                $content = str_replace('{NAME}', '' . $post->first_name . '', $content);
+                $content = str_replace('{MIDDLE_NAME}', '' . $post->middle_name . '', $content);
+                $content = str_replace('{LAST_NAME}', '' . $post->last_name . '', $content);
+                $content = str_replace('{OUTLET_NAME}', '' . $post->outlet_name . '', $content);
+                $content = str_replace('{OTP}', '' . $g_otp . '', $content);
+                if (\helpers::whatsappEnabled($slug, $sms_tmp)) {
+                    $msg_data = [
+                        'mobile_number' => $post->mobile_number,
+                        'content' => $content,
+                        'template_id' => $sms_tmp->template_id,
+                        'slug' => $slug,
+                    ];
+                    \helpers::sendWhatasappMsg($msg_data);
+                }
             }
             ////Send Whatsapp Message End
             ////Send Email Start
-            $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-            if($company->email_message == 1){
+            $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+            $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+            $company = $company ?: DB::table('companies')->where('status', '1')->first();
+            if ($company && (int) ($company->email_message ?? 0) === 1) {
                 $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                $content_email = $email_tmp->content;
-                $content_email = str_replace('{NAME}', '' . $post->first_name . '', $content_email);
-                $content_email = str_replace('{MIDDLE_NAME}', '' . $post->middle_name . '', $content_email);
-                $content_email = str_replace('{LAST_NAME}', '' . $post->last_name . '', $content_email);
-                $content_email = str_replace('{OUTLET_NAME}', '' . $post->outlet_name . '', $content_email);
-                $content_email = str_replace('{OTP}', '' . $g_otp . '', $content_email);
-                Mail::to(strtolower($post->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                if ($email_tmp && ! empty($email_tmp->content)) {
+                    $content_email = $email_tmp->content;
+                    $content_email = str_replace('{NAME}', '' . $post->first_name . '', $content_email);
+                    $content_email = str_replace('{MIDDLE_NAME}', '' . $post->middle_name . '', $content_email);
+                    $content_email = str_replace('{LAST_NAME}', '' . $post->last_name . '', $content_email);
+                    $content_email = str_replace('{OUTLET_NAME}', '' . $post->outlet_name . '', $content_email);
+                    $content_email = str_replace('{OTP}', '' . $g_otp . '', $content_email);
+                    Mail::to(strtolower($post->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                }
             }
             ////Send Email End
             return response()->json($errors);
@@ -755,31 +769,37 @@ class AuthController extends Controller
                     ////Send Whatsapp Message Start
                     $slug = 'create_user';
                     $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                    $content = $sms_tmp->content;
-                    $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                    $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
-                    $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
-                    $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                    if(\helpers::whatsappEnabled($slug, $sms_tmp)){
-                        $msg_data = [
-                            'mobile_number' => $post->mobile_number,
-                            'content' => $content,
-                            'template_id' => $sms_tmp->template_id,
-                            'slug' => $slug,
-                        ];
-                        $sms = \helpers::sendWhatasappMsg($msg_data);
+                    if ($sms_tmp && ! empty($sms_tmp->content)) {
+                        $content = $sms_tmp->content;
+                        $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+                        $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
+                        $content = str_replace('{PASSWORD}', '' . $g_pass . '', $content);
+                        $content = str_replace('{PIN}', '' . $t_pin . '', $content);
+                        if (\helpers::whatsappEnabled($slug, $sms_tmp)) {
+                            $msg_data = [
+                                'mobile_number' => $post->mobile_number,
+                                'content' => $content,
+                                'template_id' => $sms_tmp->template_id,
+                                'slug' => $slug,
+                            ];
+                            \helpers::sendWhatasappMsg($msg_data);
+                        }
                     }
                     ////Send Whatsapp Message End
                     ////Send Email Start
-                    $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                    if($company->email_message == 1){
+                    $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+                    $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+                    $company = $company ?: DB::table('companies')->where('status', '1')->first();
+                    if ($company && (int) ($company->email_message ?? 0) === 1 && ! empty($user_data->email_address)) {
                         $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
-                        $content_email = $email_tmp->content;
-                        $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
-                        $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
-                        $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
-                        $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
-                        Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                        if ($email_tmp && ! empty($email_tmp->content)) {
+                            $content_email = $email_tmp->content;
+                            $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
+                            $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
+                            $content_email = str_replace('{PASSWORD}', '' . $g_pass . '', $content_email);
+                            $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
+                            Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
+                        }
                     }
                     ////Send Email End
                     return response()->json(array(
@@ -968,28 +988,32 @@ class AuthController extends Controller
                 ////Send Whatsapp Message Start
                 $slug = 'forgot_pin';
                 $sms_tmp = DB::table('sms_templates')->where('slug', $slug)->first(['template_id','content','status']);
-                $content = $sms_tmp->content;
-                $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
-                $content = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content);
-                $content = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content);
-                $content = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content);
-                $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
-                $content = str_replace('{PIN}', '' . $t_pin . '', $content);
-                if(\helpers::whatsappEnabled($slug, $sms_tmp)){
-                    $msg_data = [
-                        'mobile_number' => $user_data->mobile_number,
-                        'content' => $content,
-                        'template_id' => $sms_tmp->template_id,
-                        'slug' => $slug,
-                    ];
-                    $sms = \helpers::sendWhatasappMsg($msg_data);
-                    //return $sms;
+                if ($sms_tmp && ! empty($sms_tmp->content) && $user_data) {
+                    $content = $sms_tmp->content;
+                    $content = str_replace('{NAME}', '' . $user_data->first_name . '', $content);
+                    $content = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content);
+                    $content = str_replace('{LAST_NAME}', '' . $user_data->last_name . '', $content);
+                    $content = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content);
+                    $content = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content);
+                    $content = str_replace('{PIN}', '' . $t_pin . '', $content);
+                    if (\helpers::whatsappEnabled($slug, $sms_tmp)) {
+                        $msg_data = [
+                            'mobile_number' => $user_data->mobile_number,
+                            'content' => $content,
+                            'template_id' => $sms_tmp->template_id,
+                            'slug' => $slug,
+                        ];
+                        \helpers::sendWhatasappMsg($msg_data);
+                    }
                 }
                 ////Send Whatsapp Message End
                 ////Send Email Start
-                    $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
-                    if($company->email_message == 1){
-                        $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+                $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+                $company = $company ?: DB::table('companies')->where('status', '1')->first();
+                if ($company && (int) ($company->email_message ?? 0) === 1 && $user_data && ! empty($user_data->email_address)) {
+                    $email_tmp = DB::table('email_templates')->where('slug', $slug)->first(['subject','content','status']);
+                    if ($email_tmp && ! empty($email_tmp->content)) {
                         $content_email = $email_tmp->content;
                         $content_email = str_replace('{NAME}', '' . $user_data->first_name . '', $content_email);
                         $content_email = str_replace('{MIDDLE_NAME}', '' . $user_data->middle_name . '', $content_email);
@@ -997,9 +1021,10 @@ class AuthController extends Controller
                         $content_email = str_replace('{OUTLET_NAME}', '' . $user_data->outlet_name . '', $content_email);
                         $content_email = str_replace('{MOBILE}', '' . $user_data->mobile_number . '', $content_email);
                         $content_email = str_replace('{PIN}', '' . $t_pin . '', $content_email);
-                        Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject,$content_email));
+                        Mail::to(strtolower($user_data->email_address))->queue(new SendEmail($email_tmp->subject, $content_email));
                     }
-                    ////Send Email End
+                }
+                ////Send Email End
                 return response()->json(array(
                     'type' => 'success',  
                     'message' => "Pin Change Successfuly new pin send email,whatsapp & sms"

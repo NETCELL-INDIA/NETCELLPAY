@@ -43,13 +43,12 @@ class AppUserCheck
 
         $validator = \Validator::make($post->all(), array_reverse($rules));
         if ($validator->fails()) {
-            foreach ($validator->errors()->messages() as $key => $value) {
-                $error = $value[0];
-            }
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => $error
-            ));
+            $error = $validator->errors()->first() ?: 'Validation failed';
+
+            return response()->json([
+                'type' => 'error',
+                'message' => $error,
+            ]);
         }
         $user = DB::table('users')->where("login_key",$post->login_key)->where("id",$post->user_id)->whereNotIn("role_id",[1,2])->first();
         if(!$user){

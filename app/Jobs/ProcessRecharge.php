@@ -61,6 +61,25 @@ class ProcessRecharge implements ShouldQueue
                         'callback_status' => $existing->callback_status ?? 1,
                         'updated_at' => Carbon::now(),
                     ]);
+                    // Duplicate race: this row was also debited — settle wallet/commission.
+                    try {
+                        $copied = strcasecmp((string) $existing->status, 'Success') === 0;
+                        if ($copied) {
+                            $hasCommission = DB::table('reports')
+                                ->where('parent__Id', $report->id)
+                                ->where('transaction_type', 'Commission')
+                                ->exists();
+                            if (! $hasCommission) {
+                                \helpers::SetCommission($report->id);
+                            }
+                            \helpers::sendApiPartnerRechargeCallback($report->id);
+                        } elseif (in_array((string) $existing->status, ['Failed', 'Refunded'], true)) {
+                            \helpers::refund_row($report->id);
+                            \helpers::sendApiPartnerRechargeCallback($report->id);
+                        }
+                    } catch (\Throwable $e) {
+                    }
+
                     return;
                 }
             }
@@ -76,6 +95,8 @@ class ProcessRecharge implements ShouldQueue
 
             $provider = DB::table('providers')->where('id', $this->provider_id)->first();
             if (!$provider) {
+                $this->failAndRefund('Provider not found for recharge.');
+
                 return;
             }
 
@@ -231,7 +252,10 @@ class ProcessRecharge implements ShouldQueue
                 break;
             }
 
-            if ($final_result && $final_result['status'] == 'Failed') {
+            if ($final_result === null) {
+                // No usable supplier API ran (all inactive / self-ApiPartner skipped).
+                $this->failAndRefund('No active recharge API available.');
+            } elseif (($final_result['status'] ?? '') === 'Failed') {
                 try {
                     \helpers::closeOpenComplaintsForReport($this->report_id, 'Recharge failed before completion.');
                     \helpers::refund_row($this->report_id);
@@ -270,6 +294,41 @@ class ProcessRecharge implements ShouldQueue
             ]);
 
             throw $th;
+        }
+    }
+
+    /**
+     * Mark Failed + refund when recharge cannot proceed (no provider / no API).
+     */
+    private function failAndRefund(string $remark): void
+    {
+        try {
+            $report = DB::table('reports')->where('id', $this->report_id)->first();
+            if (! $report || ! in_array((string) $report->status, ['Pending', 'Under Process', 'Under Proces', 'Processing'], true)) {
+                return;
+            }
+            DB::table('reports')->where('id', $this->report_id)->update([
+                'status' => 'Failed',
+                'remark' => trim($this->service.' Failed — '.$remark),
+                'updated_at' => Carbon::now(),
+            ]);
+            \helpers::closeOpenComplaintsForReport($this->report_id, $remark);
+            \helpers::refund_row($this->report_id);
+            \helpers::sendApiPartnerRechargeCallback($this->report_id);
+        } catch (\Throwable $e) {
+            try {
+                DB::table('apilogs')->insert([
+                    'url' => 'refund-error',
+                    'modal' => 'ProcessRecharge',
+                    'txnid' => (string) $this->report_id,
+                    'header' => json_encode([]),
+                    'request' => json_encode(['error' => $e->getMessage(), 'remark' => $remark]),
+                    'response' => 'failAndRefund failed',
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            } catch (\Throwable $ignored) {
+            }
         }
     }
 
