@@ -44,6 +44,9 @@ class PlanCircleDthApiController extends Controller
                 'backup_api_id' => $row->backup_api_id,
                 'backup_username' => $row->backup_username ?? '',
                 'backup_password' => $row->backup_password ?? '',
+                'backup2_api_id' => $row->backup2_api_id ?? null,
+                'backup2_username' => $row->backup2_username ?? '',
+                'backup2_password' => $row->backup2_password ?? '',
             ];
         });
 

@@ -9,6 +9,11 @@
         color: #0d6efd;
         font-size: 1.35rem;
         font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .plan-api-hint {
+        color: #6c757d;
+        font-size: 13px;
         margin-bottom: 1rem;
     }
     .plan-api-table {
@@ -20,7 +25,7 @@
         padding: 0.55rem;
     }
     .plan-api-table .service-col {
-        min-width: 240px;
+        min-width: 220px;
         font-weight: 600;
         background: #fff;
     }
@@ -42,6 +47,12 @@
         text-align: center;
         font-weight: 600;
     }
+    .plan-api-table thead .backup2-head {
+        background-color: #fd7e14;
+        color: #fff;
+        text-align: center;
+        font-weight: 600;
+    }
     .plan-api-table thead .sub-head {
         background-color: #f8f9fa;
         text-align: center;
@@ -58,9 +69,14 @@
         border-color: #f1aeb5;
         background-color: #fff8f8;
     }
+    .plan-api-table .backup2-cell .form-control,
+    .plan-api-table .backup2-cell .form-select {
+        border-color: #ffc107;
+        background-color: #fffbf0;
+    }
     .plan-api-table input.form-control,
     .plan-api-table select.form-select {
-        min-width: 150px;
+        min-width: 140px;
         font-size: 13px;
     }
     .plan-api-actions .btn {
@@ -71,16 +87,24 @@
 <div class="row">
     <div class="col-12">
         <div class="plan-api-page-title">Plan/Circle/DTH Info Fetch API Settings</div>
+        <div class="plan-api-hint">
+            Set API 1 / API 2 / API 3 order (PlanConnect, MPlan, PlanAPI). If API 1 fails, system tries API 2, then API 3.
+            Leave Backup empty for auto next provider. Choose "Stop" to disable further failover.
+        </div>
 
         <div class="table-responsive">
             <table class="table table-bordered plan-api-table">
                 <thead>
                     <tr>
                         <th rowspan="2" class="service-col">Service</th>
-                        <th colspan="3" class="primary-head">Primary</th>
-                        <th colspan="3" class="backup-head">Backup</th>
+                        <th colspan="3" class="primary-head">API 1 (Primary)</th>
+                        <th colspan="3" class="backup-head">API 2 (Backup)</th>
+                        <th colspan="3" class="backup2-head">API 3 (Backup)</th>
                     </tr>
                     <tr>
+                        <th class="sub-head">API</th>
+                        <th class="sub-head">Username</th>
+                        <th class="sub-head">Password</th>
                         <th class="sub-head">API</th>
                         <th class="sub-head">Username</th>
                         <th class="sub-head">Password</th>
@@ -109,10 +133,10 @@
                         </td>
                         <td class="backup-cell">
                             <select class="form-select backup-api">
-                                <option value="">Select Provider</option>
-                                <option value="0" @selected((int)$row->backup_api_id === 0)>Stop R-Offer Check</option>
+                                <option value="">Auto (next provider)</option>
+                                <option value="0" @selected(isset($row->backup_api_id) && (int)$row->backup_api_id === 0)>Stop</option>
                                 @foreach($apis as $api)
-                                <option value="{{ $api->id }}" @selected((int)$row->backup_api_id === (int)$api->id)>{{ $api->api_name }}</option>
+                                <option value="{{ $api->id }}" @selected(isset($row->backup_api_id) && (int)$row->backup_api_id === (int)$api->id)>{{ $api->api_name }}</option>
                                 @endforeach
                             </select>
                         </td>
@@ -121,6 +145,21 @@
                         </td>
                         <td class="backup-cell">
                             <input type="text" class="form-control backup-password" value="{{ $row->backup_password ?? '' }}" placeholder="Password">
+                        </td>
+                        <td class="backup2-cell">
+                            <select class="form-select backup2-api">
+                                <option value="">Auto (next provider)</option>
+                                <option value="0" @selected(isset($row->backup2_api_id) && (int)$row->backup2_api_id === 0)>Stop</option>
+                                @foreach($apis as $api)
+                                <option value="{{ $api->id }}" @selected(isset($row->backup2_api_id) && (int)$row->backup2_api_id === (int)$api->id)>{{ $api->api_name }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+                        <td class="backup2-cell">
+                            <input type="text" class="form-control backup2-username" value="{{ $row->backup2_username ?? '' }}" placeholder="Username / API Key">
+                        </td>
+                        <td class="backup2-cell">
+                            <input type="text" class="form-control backup2-password" value="{{ $row->backup2_password ?? '' }}" placeholder="Password">
                         </td>
                     </tr>
                     @endforeach
@@ -183,12 +222,23 @@
     $(document).on('change', '.backup-api', function () {
         const apiId = $(this).val();
         const $row = $(this).closest('tr');
-        if (apiId === '0') {
+        if (apiId === '0' || apiId === '') {
             $row.find('.backup-username').val('');
             $row.find('.backup-password').val('');
             return;
         }
         applyApiCredentials($row, 'backup', apiId, true);
+    });
+
+    $(document).on('change', '.backup2-api', function () {
+        const apiId = $(this).val();
+        const $row = $(this).closest('tr');
+        if (apiId === '0' || apiId === '') {
+            $row.find('.backup2-username').val('');
+            $row.find('.backup2-password').val('');
+            return;
+        }
+        applyApiCredentials($row, 'backup2', apiId, true);
     });
 
     function collectRows() {
@@ -207,6 +257,9 @@
                 backup_api_id: $row.find('.backup-api').val(),
                 backup_username: $row.find('.backup-username').val(),
                 backup_password: $row.find('.backup-password').val(),
+                backup2_api_id: $row.find('.backup2-api').val(),
+                backup2_username: $row.find('.backup2-username').val(),
+                backup2_password: $row.find('.backup2-password').val(),
             });
         });
         return rows;
@@ -236,7 +289,7 @@
     $('#reset_settings_btn').on('click', function () {
         Swal.fire({
             title: 'Reset to defaults?',
-            text: 'All Plan/Circle/DTH API settings will be restored to default values.',
+            text: 'All Plan/Circle/DTH API settings will be restored to default values (API 1/2/3).',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',

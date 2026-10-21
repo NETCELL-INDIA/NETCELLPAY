@@ -10,7 +10,7 @@ class PlanInfoFetchService
 {
     public const STOP_API_ID = 0;
 
-    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null}> */
+    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null, default_backup2: int|null}> */
     public const SERVICES = [
         'hlr' => [
             'label' => 'Operator/Circle Fetch (HLR)',
@@ -18,6 +18,7 @@ class PlanInfoFetchService
             'sort' => 1,
             'default_primary' => 7,
             'default_backup' => 6,
+            'default_backup2' => 8,
         ],
         'roffer_airtel' => [
             'label' => 'Routing R-Offer Fetch (Airtel)',
@@ -25,6 +26,7 @@ class PlanInfoFetchService
             'sort' => 2,
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
+            'default_backup2' => self::STOP_API_ID,
         ],
         'roffer_vi' => [
             'label' => 'Routing R-Offer Fetch (VI)',
@@ -32,6 +34,7 @@ class PlanInfoFetchService
             'sort' => 3,
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
+            'default_backup2' => self::STOP_API_ID,
         ],
         'mobile_plan_retail' => [
             'label' => 'Mobile Plan/Roffer Fetch (Retail)',
@@ -39,13 +42,15 @@ class PlanInfoFetchService
             'sort' => 4,
             'default_primary' => 6,
             'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_customer' => [
             'label' => 'DTH Customer Fetch',
             'is_routing' => false,
             'sort' => 5,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_plan_list' => [
             'label' => 'DTH Plan List',
@@ -53,46 +58,72 @@ class PlanInfoFetchService
             'sort' => 6,
             'default_primary' => 6,
             'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_heavy_refresh' => [
             'label' => 'DTH Heavy Refresh',
             'is_routing' => false,
             'sort' => 7,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
+            'default_backup2' => 8,
         ],
     ];
 
     public static function ensureTable(): void
     {
-        if (Schema::hasTable('plan_info_fetch_settings')) {
+        if (!Schema::hasTable('plan_info_fetch_settings')) {
+            try {
+                Schema::create('plan_info_fetch_settings', function ($table) {
+                    $table->id();
+                    $table->string('service_key', 64)->unique();
+                    $table->string('service_label');
+                    $table->unsignedBigInteger('primary_api_id')->nullable();
+                    $table->string('primary_username', 255)->nullable();
+                    $table->string('primary_password', 255)->nullable();
+                    $table->unsignedBigInteger('backup_api_id')->nullable();
+                    $table->string('backup_username', 255)->nullable();
+                    $table->string('backup_password', 255)->nullable();
+                    $table->unsignedBigInteger('backup2_api_id')->nullable();
+                    $table->string('backup2_username', 255)->nullable();
+                    $table->string('backup2_password', 255)->nullable();
+                    $table->boolean('is_routing')->default(false);
+                    $table->unsignedTinyInteger('sort_order')->default(0);
+                    $table->timestamps();
+                });
+
+                self::seedDefaults();
+            } catch (\Throwable $e) {
+                // Fall back to legacy API ids when table cannot be created.
+            }
+        }
+
+        self::ensureBackup2Columns();
+    }
+
+    private static function ensureBackup2Columns(): void
+    {
+        if (!Schema::hasTable('plan_info_fetch_settings')) {
             return;
         }
 
         try {
-            Schema::create('plan_info_fetch_settings', function ($table) {
-                $table->id();
-                $table->string('service_key', 64)->unique();
-                $table->string('service_label');
-                $table->unsignedBigInteger('primary_api_id')->nullable();
-                $table->string('primary_username', 255)->nullable();
-                $table->string('primary_password', 255)->nullable();
-                $table->unsignedBigInteger('backup_api_id')->nullable();
-                $table->string('backup_username', 255)->nullable();
-                $table->string('backup_password', 255)->nullable();
-                $table->boolean('is_routing')->default(false);
-                $table->unsignedTinyInteger('sort_order')->default(0);
-                $table->timestamps();
-            });
-
-            self::seedDefaults();
+            if (!Schema::hasColumn('plan_info_fetch_settings', 'backup2_api_id')) {
+                Schema::table('plan_info_fetch_settings', function ($table) {
+                    $table->unsignedBigInteger('backup2_api_id')->nullable()->after('backup_password');
+                    $table->string('backup2_username', 255)->nullable()->after('backup2_api_id');
+                    $table->string('backup2_password', 255)->nullable()->after('backup2_username');
+                });
+            }
         } catch (\Throwable $e) {
-            // Fall back to legacy API ids when table cannot be created.
+            // Column may already exist on concurrent boot.
         }
     }
 
     public static function seedDefaults(): void
     {
+        self::ensureBackup2Columns();
+
         foreach (self::SERVICES as $key => $meta) {
             $exists = DB::table('plan_info_fetch_settings')->where('service_key', $key)->exists();
             if ($exists) {
@@ -104,6 +135,7 @@ class PlanInfoFetchService
                 'service_label' => $meta['label'],
                 'primary_api_id' => $meta['default_primary'],
                 'backup_api_id' => $meta['default_backup'],
+                'backup2_api_id' => $meta['default_backup2'] ?? null,
                 'is_routing' => $meta['is_routing'],
                 'sort_order' => $meta['sort'],
                 'created_at' => now(),
@@ -128,6 +160,7 @@ class PlanInfoFetchService
             $row = (object) (array) $row;
             self::applyCredentialFallback($row, 'primary', $apis);
             self::applyCredentialFallback($row, 'backup', $apis);
+            self::applyCredentialFallback($row, 'backup2', $apis);
 
             return $row;
         });
@@ -175,6 +208,9 @@ class PlanInfoFetchService
                     'backup_api_id' => self::nullableApiId($row['backup_api_id'] ?? null),
                     'backup_username' => self::nullableString($row['backup_username'] ?? null),
                     'backup_password' => self::nullableString($row['backup_password'] ?? null),
+                    'backup2_api_id' => self::nullableApiId($row['backup2_api_id'] ?? null),
+                    'backup2_username' => self::nullableString($row['backup2_username'] ?? null),
+                    'backup2_password' => self::nullableString($row['backup2_password'] ?? null),
                     'is_routing' => !empty($row['is_routing']),
                     'sort_order' => (int) ($row['sort_order'] ?? 0),
                     'updated_at' => now(),
@@ -352,7 +388,7 @@ class PlanInfoFetchService
             }
 
             $orderId = 'ROP' . random_int(1111111111, 9999999999);
-            $attemptLabel = $index === 0 ? 'primary' : 'backup';
+            $attemptLabel = self::attemptLabel($index);
             $requestResult = self::executePlanApiRequest($url, 'Plans', $orderId, [
                 'operator' => (string) $operatorCode,
                 'circle' => urldecode($circle),
@@ -368,11 +404,11 @@ class PlanInfoFetchService
                 return $requestResult;
             }
 
-            if ($index === 0 && count($attempts) > 1 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
-                Log::info('Plan API primary failed, trying backup', [
+            if (self::shouldContinueFailover($attempts, $index)) {
+                Log::info('Plan API attempt failed, trying next', [
                     'service_key' => $serviceKey,
-                    'primary_api_id' => (int) $api->id,
-                    'backup_api_id' => self::nullableApiId($attempts[1]['api_id'] ?? null),
+                    'failed_api_id' => (int) $api->id,
+                    'attempt' => $attemptLabel,
                     'http_code' => $requestResult['http_code'],
                     'message' => $requestResult['message'],
                 ]);
@@ -652,13 +688,13 @@ class PlanInfoFetchService
 
             Log::info('HLR operator lookup failed', [
                 'api_id' => (int) $api->id,
-                'attempt' => $index === 0 ? 'primary' : 'backup',
+                'attempt' => self::attemptLabel($index),
                 'http_code' => (int) ($result['code'] ?? 0),
                 'message' => $lastMessage,
                 'endpoint' => \helpers::redactUrlSecrets($url),
             ]);
 
-            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+            if (self::shouldContinueFailover($attempts, $index)) {
                 continue;
             }
 
@@ -690,15 +726,6 @@ class PlanInfoFetchService
             $serviceKey === 'dth_heavy_refresh' ? 6 : 7,
             true
         );
-
-        if (
-            $setting
-            && $serviceKey === 'dth_customer'
-            && !self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)
-            && (int) ($setting->primary_api_id ?? 0) === 6
-        ) {
-            $attempts[1] = ['api_id' => 7, 'username' => null, 'password' => null];
-        }
 
         $lastMessage = $serviceKey === 'dth_heavy_refresh'
             ? 'Unable to refresh DTH info. Please try again.'
@@ -746,13 +773,14 @@ class PlanInfoFetchService
             Log::info('DTH info fetch failed', [
                 'service_key' => $serviceKey,
                 'api_id' => (int) $api->id,
+                'attempt' => self::attemptLabel($index),
                 'provider_id' => $providerId,
                 'http_code' => (int) ($result['code'] ?? 0),
                 'message' => $lastMessage,
                 'endpoint' => \helpers::redactUrlSecrets($url),
             ]);
 
-            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+            if (self::shouldContinueFailover($attempts, $index)) {
                 continue;
             }
 
@@ -813,6 +841,14 @@ class PlanInfoFetchService
     public static function buildDthHeavyUrl(object $api, int $providerId, string $number): ?string
     {
         $providerName = (string) DB::table('providers')->where('id', $providerId)->value('provider_name');
+        $rawUrl = (string) ($api->api_url ?? '');
+        $host = strtolower((string) (parse_url($rawUrl, PHP_URL_HOST) ?? ''));
+
+        // PlanAPI has no dedicated heavy endpoint — use DTH info as soft-refresh failover.
+        if (str_contains($host, 'planapi')) {
+            return self::buildDthInfoUrl($api, $providerId, $number);
+        }
+
         $key = self::resolvePlanApiKey($api, false);
         $opcode = self::resolveDthOpcode($api->id, $providerId, $providerName, false);
         if ($key === null || $key === '' || $opcode === null) {
@@ -822,18 +858,19 @@ class PlanInfoFetchService
             return null;
         }
 
-        $base = self::normalizePlanApiBaseUrl((string) ($api->api_url ?? ''));
+        $base = self::normalizePlanApiBaseUrl($rawUrl);
         if ($base === '') {
             return null;
         }
 
         // PlanConnect: /api/heavyRefresh?apiKey=&token=&vcNo=&operatorCode=
-        if (self::isPlanConnectHost($base)) {
+        if (self::isPlanConnectHost($base) || self::isPlanConnectHost($host)) {
             return $base.'/heavyRefresh?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
                 .'&operatorCode='.urlencode($opcode);
         }
 
+        // MPlan: /Dthheavy.php
         return $base . '/Dthheavy.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($opcode)
             . '&offer=roffer&tel=' . urlencode($number);
@@ -888,7 +925,7 @@ class PlanInfoFetchService
             $requestResult = self::executePlanApiRequest($url, 'Plans', $orderId, [
                 'provider_id' => $providerId,
                 'api_id' => (int) $api->id,
-                'attempt' => $index === 0 ? 'primary' : 'backup',
+                'attempt' => self::attemptLabel($index),
             ]);
 
             if ($requestResult['ok'] && self::plansLookGrouped($requestResult['data'] ?? [])) {
@@ -903,7 +940,7 @@ class PlanInfoFetchService
 
             $lastResult = $requestResult;
 
-            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
+            if (self::shouldContinueFailover($attempts, $index)) {
                 continue;
             }
 
@@ -1125,26 +1162,65 @@ class PlanInfoFetchService
     }
 
     /**
+     * Build ordered API chain: Primary → Backup → Backup2 (PlanConnect / MPlan / PlanAPI).
+     * Null backup slots auto-fill the next unused plan-provider family when $autoBackup is true.
+     * Backup api_id = 0 (STOP) ends the chain (no further failover).
+     *
      * @param  object|null  $setting
      * @return list<array{api_id: mixed, username: mixed, password: mixed}>
      */
     private static function primaryBackupAttempts(?object $setting, int $fallbackPrimary, bool $autoBackup = false): array
     {
-        $attempts = $setting
+        $slots = $setting
             ? [
-                ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
-                ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+                ['api_id' => $setting->primary_api_id ?? null, 'username' => $setting->primary_username ?? null, 'password' => $setting->primary_password ?? null],
+                ['api_id' => $setting->backup_api_id ?? null, 'username' => $setting->backup_username ?? null, 'password' => $setting->backup_password ?? null],
+                ['api_id' => $setting->backup2_api_id ?? null, 'username' => $setting->backup2_username ?? null, 'password' => $setting->backup2_password ?? null],
             ]
             : [
                 ['api_id' => $fallbackPrimary, 'username' => null, 'password' => null],
                 ['api_id' => null, 'username' => null, 'password' => null],
+                ['api_id' => null, 'username' => null, 'password' => null],
             ];
 
-        $backupId = self::nullableApiId($attempts[1]['api_id'] ?? null);
-        if ($autoBackup && $backupId === null) {
-            $autoId = self::autoBackupPlanApiId($attempts[0]['api_id'] ?? $fallbackPrimary);
-            if ($autoId !== null) {
-                $attempts[1] = ['api_id' => $autoId, 'username' => null, 'password' => null];
+        $attempts = [];
+
+        foreach ($slots as $slotIndex => $slot) {
+            $apiId = self::nullableApiId($slot['api_id'] ?? null);
+
+            if ($slotIndex === 0) {
+                if ($apiId === null || $apiId === self::STOP_API_ID) {
+                    $apiId = $fallbackPrimary;
+                }
+                if ($apiId !== null && $apiId !== self::STOP_API_ID) {
+                    $attempts[] = [
+                        'api_id' => $apiId,
+                        'username' => $slot['username'],
+                        'password' => $slot['password'],
+                    ];
+                }
+                continue;
+            }
+
+            if ($apiId === self::STOP_API_ID) {
+                break;
+            }
+
+            if ($apiId !== null) {
+                $attempts[] = [
+                    'api_id' => $apiId,
+                    'username' => $slot['username'],
+                    'password' => $slot['password'],
+                ];
+                continue;
+            }
+
+            if ($autoBackup) {
+                $usedIds = array_column($attempts, 'api_id');
+                $autoId = self::autoBackupPlanApiIdExcluding($usedIds);
+                if ($autoId !== null) {
+                    $attempts[] = ['api_id' => $autoId, 'username' => null, 'password' => null];
+                }
             }
         }
 
@@ -1154,35 +1230,74 @@ class PlanInfoFetchService
     /**
      * Plan APIs are stored with api_type "others", so this cannot rely on apiOptions().
      * Only APIs whose URL/name explicitly names a plan provider qualify; a different
-     * provider family than the primary is preferred.
+     * provider family than ones already used is preferred.
+     *
+     * @param  list<int|string|null>  $usedApiIds
      */
-    private static function autoBackupPlanApiId($primaryApiId): ?int
+    private static function autoBackupPlanApiIdExcluding(array $usedApiIds): ?int
     {
-        $primaryApiId = self::nullableApiId($primaryApiId);
-        $primaryFamily = null;
-        if ($primaryApiId !== null) {
-            $primary = DB::table('apis')->where('id', $primaryApiId)->first(['id', 'api_name', 'api_url']);
-            $primaryFamily = $primary ? self::explicitPlanFamily($primary) : null;
+        $usedIdSet = [];
+        $usedFamilies = [];
+
+        foreach ($usedApiIds as $rawId) {
+            $id = self::nullableApiId($rawId);
+            if ($id === null) {
+                continue;
+            }
+            $usedIdSet[$id] = true;
+            $row = DB::table('apis')->where('id', $id)->first(['id', 'api_name', 'api_url']);
+            if ($row) {
+                $family = self::explicitPlanFamily($row);
+                if ($family !== null) {
+                    $usedFamilies[$family] = true;
+                }
+            }
         }
 
-        $sameFamily = null;
         $candidates = DB::table('apis')->where('status', 1)->orderBy('id')->get(['id', 'api_name', 'api_url']);
         foreach ($candidates as $api) {
             $id = (int) $api->id;
-            if ($primaryApiId !== null && $id === $primaryApiId) {
+            if (isset($usedIdSet[$id])) {
                 continue;
             }
             $family = self::explicitPlanFamily($api);
-            if ($family === null) {
+            if ($family === null || isset($usedFamilies[$family])) {
                 continue;
             }
-            if ($family !== $primaryFamily) {
-                return $id;
-            }
-            $sameFamily ??= $id;
+
+            return $id;
         }
 
-        return $sameFamily;
+        return null;
+    }
+
+    /** @deprecated Use autoBackupPlanApiIdExcluding */
+    private static function autoBackupPlanApiId($primaryApiId): ?int
+    {
+        return self::autoBackupPlanApiIdExcluding([$primaryApiId]);
+    }
+
+    private static function attemptLabel(int $index): string
+    {
+        return match ($index) {
+            0 => 'primary',
+            1 => 'backup',
+            default => 'backup2',
+        };
+    }
+
+    /**
+     * @param  list<array{api_id: mixed, username: mixed, password: mixed}>  $attempts
+     */
+    private static function shouldContinueFailover(array $attempts, int $index): bool
+    {
+        for ($i = $index + 1; $i < count($attempts); $i++) {
+            if (self::shouldRetryWithBackupApi($attempts[$i]['api_id'] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function explicitPlanFamily(object $api): ?string
@@ -1677,11 +1792,11 @@ class PlanInfoFetchService
                 return $result;
             }
 
-            if ($index === 0 && self::shouldRetryWithBackupApi($attempts[1]['api_id'] ?? null)) {
-                Log::info('Plan info fetch primary failed, trying backup', [
+            if (self::shouldContinueFailover($attempts, $index)) {
+                Log::info('Plan info fetch attempt failed, trying next', [
                     'service_key' => $serviceKey,
-                    'primary_api_id' => (int) $api->id,
-                    'backup_api_id' => self::nullableApiId($attempts[1]['api_id'] ?? null),
+                    'failed_api_id' => (int) $api->id,
+                    'attempt' => self::attemptLabel($index),
                     'http_code' => (int) ($result['code'] ?? 0),
                     'endpoint' => isset($url) ? \helpers::redactUrlSecrets($url) : null,
                 ]);

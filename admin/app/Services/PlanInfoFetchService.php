@@ -9,7 +9,7 @@ class PlanInfoFetchService
 {
     public const STOP_API_ID = 0;
 
-    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null}> */
+    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null, default_backup2: int|null}> */
     public const SERVICES = [
         'hlr' => [
             'label' => 'Operator/Circle Fetch (HLR)',
@@ -17,6 +17,7 @@ class PlanInfoFetchService
             'sort' => 1,
             'default_primary' => 7,
             'default_backup' => 6,
+            'default_backup2' => 8,
         ],
         'roffer_airtel' => [
             'label' => 'Routing R-Offer Fetch (Airtel)',
@@ -24,6 +25,7 @@ class PlanInfoFetchService
             'sort' => 2,
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
+            'default_backup2' => self::STOP_API_ID,
         ],
         'roffer_vi' => [
             'label' => 'Routing R-Offer Fetch (VI)',
@@ -31,6 +33,7 @@ class PlanInfoFetchService
             'sort' => 3,
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
+            'default_backup2' => self::STOP_API_ID,
         ],
         'mobile_plan_retail' => [
             'label' => 'Mobile Plan/Roffer Fetch (Retail)',
@@ -38,13 +41,15 @@ class PlanInfoFetchService
             'sort' => 4,
             'default_primary' => 6,
             'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_customer' => [
             'label' => 'DTH Customer Fetch',
             'is_routing' => false,
             'sort' => 5,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_plan_list' => [
             'label' => 'DTH Plan List',
@@ -52,46 +57,72 @@ class PlanInfoFetchService
             'sort' => 6,
             'default_primary' => 6,
             'default_backup' => 7,
+            'default_backup2' => 8,
         ],
         'dth_heavy_refresh' => [
             'label' => 'DTH Heavy Refresh',
             'is_routing' => false,
             'sort' => 7,
             'default_primary' => 6,
-            'default_backup' => null,
+            'default_backup' => 7,
+            'default_backup2' => 8,
         ],
     ];
 
     public static function ensureTable(): void
     {
-        if (Schema::hasTable('plan_info_fetch_settings')) {
+        if (!Schema::hasTable('plan_info_fetch_settings')) {
+            try {
+                Schema::create('plan_info_fetch_settings', function ($table) {
+                    $table->id();
+                    $table->string('service_key', 64)->unique();
+                    $table->string('service_label');
+                    $table->unsignedBigInteger('primary_api_id')->nullable();
+                    $table->string('primary_username', 255)->nullable();
+                    $table->string('primary_password', 255)->nullable();
+                    $table->unsignedBigInteger('backup_api_id')->nullable();
+                    $table->string('backup_username', 255)->nullable();
+                    $table->string('backup_password', 255)->nullable();
+                    $table->unsignedBigInteger('backup2_api_id')->nullable();
+                    $table->string('backup2_username', 255)->nullable();
+                    $table->string('backup2_password', 255)->nullable();
+                    $table->boolean('is_routing')->default(false);
+                    $table->unsignedTinyInteger('sort_order')->default(0);
+                    $table->timestamps();
+                });
+
+                self::seedDefaults();
+            } catch (\Throwable $e) {
+                // Fall back to legacy API ids when table cannot be created.
+            }
+        }
+
+        self::ensureBackup2Columns();
+    }
+
+    private static function ensureBackup2Columns(): void
+    {
+        if (!Schema::hasTable('plan_info_fetch_settings')) {
             return;
         }
 
         try {
-            Schema::create('plan_info_fetch_settings', function ($table) {
-                $table->id();
-                $table->string('service_key', 64)->unique();
-                $table->string('service_label');
-                $table->unsignedBigInteger('primary_api_id')->nullable();
-                $table->string('primary_username', 255)->nullable();
-                $table->string('primary_password', 255)->nullable();
-                $table->unsignedBigInteger('backup_api_id')->nullable();
-                $table->string('backup_username', 255)->nullable();
-                $table->string('backup_password', 255)->nullable();
-                $table->boolean('is_routing')->default(false);
-                $table->unsignedTinyInteger('sort_order')->default(0);
-                $table->timestamps();
-            });
-
-            self::seedDefaults();
+            if (!Schema::hasColumn('plan_info_fetch_settings', 'backup2_api_id')) {
+                Schema::table('plan_info_fetch_settings', function ($table) {
+                    $table->unsignedBigInteger('backup2_api_id')->nullable()->after('backup_password');
+                    $table->string('backup2_username', 255)->nullable()->after('backup2_api_id');
+                    $table->string('backup2_password', 255)->nullable()->after('backup2_username');
+                });
+            }
         } catch (\Throwable $e) {
-            // Fall back to legacy API ids when table cannot be created.
+            // Column may already exist on concurrent boot.
         }
     }
 
     public static function seedDefaults(): void
     {
+        self::ensureBackup2Columns();
+
         foreach (self::SERVICES as $key => $meta) {
             $exists = DB::table('plan_info_fetch_settings')->where('service_key', $key)->exists();
             if ($exists) {
@@ -103,6 +134,7 @@ class PlanInfoFetchService
                 'service_label' => $meta['label'],
                 'primary_api_id' => $meta['default_primary'],
                 'backup_api_id' => $meta['default_backup'],
+                'backup2_api_id' => $meta['default_backup2'] ?? null,
                 'is_routing' => $meta['is_routing'],
                 'sort_order' => $meta['sort'],
                 'created_at' => now(),
@@ -127,6 +159,7 @@ class PlanInfoFetchService
             $row = (object) (array) $row;
             self::applyCredentialFallback($row, 'primary', $apis);
             self::applyCredentialFallback($row, 'backup', $apis);
+            self::applyCredentialFallback($row, 'backup2', $apis);
 
             return $row;
         });
@@ -174,6 +207,9 @@ class PlanInfoFetchService
                     'backup_api_id' => self::nullableApiId($row['backup_api_id'] ?? null),
                     'backup_username' => self::nullableString($row['backup_username'] ?? null),
                     'backup_password' => self::nullableString($row['backup_password'] ?? null),
+                    'backup2_api_id' => self::nullableApiId($row['backup2_api_id'] ?? null),
+                    'backup2_username' => self::nullableString($row['backup2_username'] ?? null),
+                    'backup2_password' => self::nullableString($row['backup2_password'] ?? null),
                     'is_routing' => !empty($row['is_routing']),
                     'sort_order' => (int) ($row['sort_order'] ?? 0),
                     'updated_at' => now(),
@@ -222,9 +258,15 @@ class PlanInfoFetchService
         $attempts = [
             ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
             ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
+            ['api_id' => $setting->backup2_api_id ?? null, 'username' => $setting->backup2_username ?? null, 'password' => $setting->backup2_password ?? null],
         ];
 
-        foreach ($attempts as $index => $attempt) {
+        foreach ($attempts as $attempt) {
+            $apiId = self::nullableApiId($attempt['api_id'] ?? null);
+            if ($apiId === self::STOP_API_ID) {
+                break;
+            }
+
             $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
             if (!$api) {
                 continue;
