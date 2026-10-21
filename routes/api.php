@@ -93,6 +93,7 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     ///////
     Route::post('/v1/recharge-reports',[ReportsController::class,'fetchAllRecharge']);
     Route::post('/v1/account-reports',[ReportsController::class,'fetchAllAccount']);
+    Route::post('/v1/ledger-reports',[ReportsController::class,'fetchAllAccount']);
     Route::post('/v1/fund-reports',[ReportsController::class,'fetchAllFund']);
     Route::post('/v1/complaint-reports',[ReportsController::class,'fetchAllComplaints']);
     Route::post('/v1/fund-request-reports',[ReportsController::class,'fetchAllFundRequest']);
