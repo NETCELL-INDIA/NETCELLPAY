@@ -41,6 +41,27 @@
                     </div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">KYC Upload</h5>
+                    <p class="text-muted small mb-2">Upload Aadhaar / PAN. Admin reviews before approval. JPG, PNG or PDF, max 2 MB.</p>
+                    <div id="kyc_alert" class="small mb-2"></div>
+                    <form id="kyc_upload_form">
+                        <select class="form-select mb-2" name="doc_type" required>
+                            <option value="aadhaar">Aadhaar</option>
+                            <option value="pan">PAN</option>
+                            <option value="photo">Photo</option>
+                        </select>
+                        <input type="file" class="form-control mb-2" name="document" accept=".jpg,.jpeg,.png,.pdf" required>
+                        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card" id="low_balance_card" style="display:none">
+                <div class="card-body">
+                    <div class="alert alert-warning mb-0" id="low_balance_text"></div>
+                </div>
+            </div>
             <!--end card-->
             <!-- <div class="card">
                 <div class="card-body">
@@ -778,6 +799,30 @@
             $("#side_profile_pic").attr("src", admin_url+"/public/profile_pic/"+data.user.profile_pic);
             $("#side_fullname").text(data.user.first_name+" "+data.user.middle_name+" "+data.user.last_name);
             $("#side_destination").text(data.user.outlet_name+" / "+data.user.role_name);
+            var bal = parseFloat(data.user.wallet_balance || 0);
+            var alertBelow = parseFloat(data.balance_alert_below || 0);
+            if (alertBelow > 0 && bal < alertBelow) {
+                $("#low_balance_text").text("Low balance: ₹" + bal.toFixed(2) + ". Add money before it goes below ₹" + alertBelow.toFixed(2) + ".");
+                $("#low_balance_card").show();
+            }
+            $("#kyc_upload_form").on("submit", function (e) {
+                e.preventDefault();
+                var fd = new FormData(this);
+                fd.append("_token", "{{ csrf_token() }}");
+                $.ajax({
+                    url: "{{ route('profileKycUpload') }}",
+                    method: "POST",
+                    data: fd,
+                    processData: false,
+                    contentType: false,
+                    success: function (res) {
+                        $("#kyc_alert").text(res.message || "");
+                    },
+                    error: function () {
+                        $("#kyc_alert").text("Upload failed.");
+                    }
+                });
+            });
             html = '';
             $.each(data.login_history, function(k,v) {
                 var pin = (v.maps_url)

@@ -139,6 +139,12 @@
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/user-reports/recharge-report') }}" class="nav-link">Recharge Report</a>
                             </li>
+                            <li class="nav-item">
+                                <a href="{{ URL::asset('users/user-reports/bill-payment-report') }}" class="nav-link">Bill Payment Report</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ URL::asset('users/user-reports/daybook') }}" class="nav-link">Daybook</a>
+                            </li>
                         </ul>
                     </div>
                 </li>

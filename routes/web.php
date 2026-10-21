@@ -10,6 +10,7 @@ use App\Http\Controllers\Users\FundReportsController;
 use App\Http\Controllers\Users\RechargeController;
 use App\Http\Controllers\Users\AccountReportsController;
 use App\Http\Controllers\Users\RechargeReportsController;
+use App\Http\Controllers\Users\ExtraReportsController;
 use App\Http\Controllers\Users\ComplaintController;
 use App\Http\Controllers\Users\ProfileController;
 use App\Http\Controllers\Users\ApiSettingsController;
@@ -199,6 +200,7 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::post('users/profile/my-profile-password-change',[ProfileController::class,'myProfilePasswordChange'])->name('myProfilePasswordChange');
     Route::post('users/profile/my-profile-pin-change',[ProfileController::class,'myProfilePinChange'])->name('myProfilePinChange');
     Route::post('users/profile/my-profile-generate-key',[ProfileController::class,'myProfileGenerateKey'])->name('myProfileGenerateKey');
+    Route::post('users/profile/kyc-upload',[ProfileController::class,'uploadKyc'])->name('profileKycUpload');
     Route::get('users/profile/my-profile-my-commission',[ProfileController::class,'myProfileCommission'])->name('myProfileCommission');
     Route::post('users/profile/my-profile-my-commission-list',[ProfileController::class,'myProfileCommissionList'])->name('myProfileCommissionList');
 
@@ -271,6 +273,10 @@ Route::group(['middleware' => userCheck::class], function () {
     //Recharge Reports Routes 
     Route::get('users/user-reports/recharge-report',[RechargeReportsController::class,'index']);
     Route::post('users/user-reports/recharge-report/list',[RechargeReportsController::class,'fetchAll'])->name('rechargeReportsList');
+    Route::get('users/user-reports/bill-payment-report',[ExtraReportsController::class,'billIndex']);
+    Route::post('users/user-reports/bill-payment-report/list',[ExtraReportsController::class,'billList'])->name('billPaymentReportsList');
+    Route::get('users/user-reports/daybook',[ExtraReportsController::class,'daybookIndex']);
+    Route::post('users/user-reports/daybook/list',[ExtraReportsController::class,'daybookList'])->name('daybookReportsList');
     //Support Routes 
     Route::get('users/support/complaint',[ComplaintController::class,'index']);
     Route::post('users/support/complaint/list',[ComplaintController::class,'fetchAll'])->name('ComplaintsList');

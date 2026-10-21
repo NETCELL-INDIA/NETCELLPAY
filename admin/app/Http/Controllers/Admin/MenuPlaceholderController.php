@@ -19,6 +19,17 @@ class MenuPlaceholderController extends Controller
         'users/default-cashback' => 'admin/system/scheme',
         'users/special-margins' => 'admin/system/scheme',
         'users/manage-kyc' => 'admin/users/kyc',
+        'users/signup-requests' => 'admin/business/signups',
+        'users/refer-earn-users' => 'admin/business/referrals',
+        'khatabook/list-of-users' => 'admin/business/khatabook',
+        'khatabook/auto-credit' => 'admin/business/khatabook',
+        'khatabook/credit-ledger' => 'admin/business/khatabook',
+        'khatabook/credit-history' => 'admin/business/khatabook',
+        'khatabook/outstanding-report' => 'admin/business/khatabook',
+        'accounts/tds' => 'admin/business/tds',
+        'accounts/invoice' => 'admin/business/tds',
+        'dmt/dmt-report' => 'admin/business/dmt',
+        'dmt/dmt-kyc-report' => 'admin/business/signups',
         'users/deleted-users' => 'admin/users/deleted',
 
         // Payments
@@ -83,8 +94,6 @@ class MenuPlaceholderController extends Controller
      */
     private array $pages = [
         // DMT
-        'dmt/dmt-report' => ['section' => 'DMT', 'title' => 'DMT Report', 'description' => 'Domestic money transfer report — module not in this Netcell build yet'],
-        'dmt/dmt-kyc-report' => ['section' => 'DMT', 'title' => 'DMT KYC Report', 'description' => 'DMT KYC — not in this Netcell build yet'],
         'dmt/dmt-settings' => ['section' => 'DMT', 'title' => 'DMT Settings', 'description' => 'DMT configuration — not in this Netcell build yet'],
         'dmt/dmt-inward-margins' => ['section' => 'DMT', 'title' => 'DMT Inward Margins', 'description' => 'Not in this Netcell build yet'],
         'dmt/dmt-outward-margins' => ['section' => 'DMT', 'title' => 'DMT Outward Margins', 'description' => 'Not in this Netcell build yet'],
@@ -96,23 +105,13 @@ class MenuPlaceholderController extends Controller
         'express-dmt/outward-margins' => ['section' => 'Express DMT', 'title' => 'Outward Margins', 'description' => 'Not in this Netcell build yet'],
 
         // Users (no dedicated pages)
-        'users/signup-requests' => ['section' => 'Users', 'title' => 'Signup Requests', 'description' => 'Signup requests module not present'],
-        'users/refer-earn-users' => ['section' => 'Users', 'title' => 'Refer & Earn Users', 'description' => 'Refer & Earn module not present'],
-
-        // Khatabook
-        'khatabook/list-of-users' => ['section' => 'Khatabook', 'title' => 'List of Users', 'description' => 'Khatabook not in this Netcell build'],
-        'khatabook/auto-credit' => ['section' => 'Khatabook', 'title' => 'Auto Credit', 'description' => 'Khatabook not in this Netcell build'],
-        'khatabook/credit-ledger' => ['section' => 'Khatabook', 'title' => 'Credit Ledger', 'description' => 'Khatabook not in this Netcell build'],
-        'khatabook/credit-history' => ['section' => 'Khatabook', 'title' => 'Credit History', 'description' => 'Khatabook not in this Netcell build'],
-        'khatabook/outstanding-report' => ['section' => 'Khatabook', 'title' => 'Outstanding Report', 'description' => 'Khatabook not in this Netcell build'],
+        // Khatabook pages redirect to the working ledger.
 
         // Payments missing
         'payments/balance-exchange-settings' => ['section' => 'Payments', 'title' => 'Balance Exchange Settings', 'description' => 'Balance exchange module not present'],
 
         // Accounts missing
         'accounts/balance-exchange-report' => ['section' => 'Accounts Reports', 'title' => 'Balance Exchange Report', 'description' => 'Not present in this Netcell build'],
-        'accounts/invoice' => ['section' => 'Accounts Reports', 'title' => 'Invoice', 'description' => 'Invoice module not present'],
-        'accounts/tds' => ['section' => 'Accounts Reports', 'title' => 'TDS', 'description' => 'TDS module not present'],
 
         // Pancard
         'pancard/pancard-report' => ['section' => 'Pancard', 'title' => 'Pancard Report', 'description' => 'Pancard not in this Netcell build'],

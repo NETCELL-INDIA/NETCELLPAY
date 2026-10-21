@@ -100,6 +100,7 @@ use App\Http\Controllers\Admin\AmountwiseReportController;
 use App\Http\Controllers\Admin\ConsumptionReportController;
 use App\Http\Controllers\Admin\PlanLogsReportController;
 use App\Http\Controllers\Admin\MenuPlaceholderController;
+use App\Http\Controllers\Admin\BusinessToolsController;
 
 
 
@@ -401,6 +402,19 @@ Route::group(['middleware' => AdminCheck::class], function () {
     // Plan Logs Report
     Route::get('admin/recharge-reports/plan-logs-report', [PlanLogsReportController::class, 'index'])->name('planLogsReport');
     Route::post('admin/recharge-reports/plan-logs-report/list', [PlanLogsReportController::class, 'list'])->name('planLogsReportList');
+
+    Route::get('admin/business/signups', [BusinessToolsController::class, 'signups']);
+    Route::post('admin/business/signups/status', [BusinessToolsController::class, 'signupStatus'])->name('adminSignupStatus');
+    Route::get('admin/business/referrals', [BusinessToolsController::class, 'referrals']);
+    Route::get('admin/business/khatabook', [BusinessToolsController::class, 'khata']);
+    Route::post('admin/business/khatabook/save', [BusinessToolsController::class, 'khataSave'])->name('adminKhataSave');
+    Route::get('admin/business/tds', [BusinessToolsController::class, 'tds']);
+    Route::get('admin/business/dmt', function () {
+        return app(BusinessToolsController::class)->serviceReport('dmt');
+    });
+    Route::get('admin/business/aeps', function () {
+        return app(BusinessToolsController::class)->serviceReport('aeps');
+    });
 
     // Other sidebar section placeholders (Rambhiya menu structure)
     Route::get('admin/menu/{section}/{slug}', [MenuPlaceholderController::class, 'show'])

@@ -160,7 +160,8 @@ API Settings
                     <li>Balance URL, Recharge, and Recharge Status all return current wallet as <code>balance</code>.</li>
                     <li><code>request_order_id</code> = your unique txn id. Reuse returns “request order id already exists.”</li>
                     <li><code>order_id</code> = our system id (starts with RC…). Use this for complaints.</li>
-                    <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid.</li>
+                    <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid. BBPS uses the bill service id from the operator table.</li>
+                    <li>BBPS: <code>/api/ApiPartner/V1/BillFetch</code> (provider_id, service_id, bill fields), <code>/api/ApiPartner/V1/BillPay</code> (same fields as recharge plus transaction amount and request_order_id), <code>/api/ApiPartner/V1/BillStatus</code> (order_id).</li>
                     <li>Use <code>provider_id</code> from the operator table below.</li>
                 </ul>
             </div>

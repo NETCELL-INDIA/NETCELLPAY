@@ -140,7 +140,7 @@
                     </div>
                     <span class="nc-service-icon nc-icon-blue"><i class="fas fa-fingerprint"></i></span>
                     <h3>AEPS Banking</h3>
-                    <p>Enable Aadhaar-authenticated cash withdrawal, balance enquiry and mini statements.</p>
+                    <p>AEPS cash withdrawal is available only after the admin enables an NPCI/bank supplier. Until then use recharge, BBPS and wallet.</p>
                     <a href="{{ url('/services') }}">Learn more <i class="fas fa-arrow-right"></i></a>
                 </article>
 

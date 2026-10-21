@@ -28,4 +28,24 @@ class ApiController extends Controller
             'balance' => round((float) $user->wallet_balance, 2),
         ]);
     }
+
+    public function billFetch(Request $post)
+    {
+        $user = DB::table('users')->where('api_key', $post->api_key)->first();
+        if ($user && \helpers::isUserServiceLocked((int) $user->id, (int) $post->service_id)) {
+            return response()->json(['type' => 'error', 'message' => 'This service is locked for your account.']);
+        }
+
+        return app(\App\Http\Controllers\Users\BillPaymentsController::class)->fetchBill($post);
+    }
+
+    public function billPay(Request $post)
+    {
+        $post->merge([
+            'transaction_type' => 'Bill Pay',
+            'path' => 'ApiPartner',
+        ]);
+
+        return app(\App\Http\Controllers\Users\RechargeController::class)->rechargeCall($post);
+    }
 }

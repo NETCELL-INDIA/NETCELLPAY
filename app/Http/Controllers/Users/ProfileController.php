@@ -95,6 +95,61 @@ class ProfileController extends Controller
         return response()->json($data);
     }
 
+    public function uploadKyc(Request $post)
+    {
+        $userId = (int) Session::get('user_id');
+        if ($userId <= 0) {
+            return response()->json(['type' => 'error', 'message' => 'Login required.']);
+        }
+
+        $validator = \Validator::make($post->all(), [
+            'doc_type' => 'required|in:aadhaar,pan,photo',
+            'document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['type' => 'error', 'message' => $validator->errors()->first()]);
+        }
+
+        $this->ensureKycTable();
+        $file = $post->file('document');
+        $name = $userId.'_'.$post->doc_type.'_'.time().'.'.$file->getClientOriginalExtension();
+        $dir = public_path('kyc_docs');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $file->move($dir, $name);
+
+        DB::table('user_kyc_documents')->insert([
+            'user_id' => $userId,
+            'doc_type' => $post->doc_type,
+            'file_name' => $name,
+            'status' => 'Pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('users')->where('id', $userId)->where('kyc_status', '!=', 'Approved')->update([
+            'kyc_status' => 'Under Process',
+        ]);
+
+        return response()->json(['type' => 'success', 'message' => 'KYC document uploaded. Admin will review it.']);
+    }
+
+    private function ensureKycTable(): void
+    {
+        if (\Illuminate\Support\Facades\Schema::hasTable('user_kyc_documents')) {
+            return;
+        }
+        \Illuminate\Support\Facades\Schema::create('user_kyc_documents', function ($table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->string('doc_type', 32);
+            $table->string('file_name');
+            $table->string('status', 32)->default('Pending');
+            $table->timestamps();
+        });
+    }
+
 
     public function myProfilePasswordChange(Request $post) {
         $rules = array(

@@ -38,6 +38,9 @@ Route::group(['middleware' => ApiPartnerCheck::class], function () {
     Route::get('/ApiPartner/V1/RechargeStatus',[RechargeController::class,'getRechargeReciept']);
     Route::get('/ApiPartner/V1/RechargeComplaint',[RechargeController::class,'submitRechargeComplaint']);
     Route::get('/ApiPartner/V1/Balance',[ApiController::class,'checkBalance']);
+    Route::get('/ApiPartner/V1/BillFetch',[ApiController::class,'billFetch']);
+    Route::get('/ApiPartner/V1/BillPay',[ApiController::class,'billPay']);
+    Route::get('/ApiPartner/V1/BillStatus',[RechargeController::class,'getRechargeReciept']);
 });
 
 
