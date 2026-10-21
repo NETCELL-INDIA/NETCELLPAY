@@ -5,10 +5,12 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 
 use Illuminate\Http\Request;
+use App\Mail\SendEmail;
 
 class helpers
 
@@ -455,6 +457,8 @@ class helpers
         foreach ([
             'latitude' => 'DECIMAL(10,7) NULL',
             'longitude' => 'DECIMAL(10,7) NULL',
+            'user_agent' => 'VARCHAR(500) NULL',
+            'device_info' => 'VARCHAR(255) NULL',
         ] as $column => $definition) {
             try {
                 if (! Schema::hasColumn('login_histories', $column)) {
@@ -465,36 +469,223 @@ class helpers
         }
     }
 
+    /**
+     * Human-readable device / browser from User-Agent (and optional app fields).
+     */
+    public static function describeLoginDevice(?string $userAgent = null, $request = null): string
+    {
+        $req = $request ?: request();
+        $ua = trim((string) ($userAgent ?? $req->userAgent() ?? ''));
+
+        $appDevice = trim((string) $req->input('device_name', $req->input('device_model', $req->input('model', ''))));
+        $appOs = trim((string) $req->input('os_version', $req->input('android_version', $req->input('os', ''))));
+        $deviceId = trim((string) $req->input('device_id', ''));
+
+        if ($appDevice !== '' || $appOs !== '') {
+            $parts = array_filter([$appDevice !== '' ? $appDevice : null, $appOs !== '' ? ('Android/OS '.$appOs) : null]);
+            $label = implode(' · ', $parts);
+            if ($deviceId !== '') {
+                $label .= ' (ID: '.mb_substr($deviceId, 0, 24).')';
+            }
+
+            return $label !== '' ? $label : 'Mobile App';
+        }
+
+        if ($ua === '') {
+            return 'Unknown device';
+        }
+
+        $os = 'Unknown OS';
+        if (preg_match('/Android\s+([\d.]+)/i', $ua, $m)) {
+            $os = 'Android '.$m[1];
+        } elseif (preg_match('/iPhone OS ([\d_]+)/i', $ua, $m)) {
+            $os = 'iOS '.str_replace('_', '.', $m[1]);
+        } elseif (preg_match('/Windows NT ([\d.]+)/i', $ua, $m)) {
+            $map = ['10.0' => '10/11', '6.3' => '8.1', '6.2' => '8', '6.1' => '7'];
+            $os = 'Windows '.($map[$m[1]] ?? $m[1]);
+        } elseif (preg_match('/Mac OS X ([\d_]+)/i', $ua, $m)) {
+            $os = 'macOS '.str_replace('_', '.', $m[1]);
+        } elseif (stripos($ua, 'Linux') !== false) {
+            $os = 'Linux';
+        }
+
+        $browser = 'Browser';
+        if (preg_match('/Edg\/([\d.]+)/i', $ua, $m)) {
+            $browser = 'Edge '.$m[1];
+        } elseif (preg_match('/Chrome\/([\d.]+)/i', $ua, $m) && stripos($ua, 'Edg') === false) {
+            $browser = 'Chrome '.$m[1];
+        } elseif (preg_match('/Firefox\/([\d.]+)/i', $ua, $m)) {
+            $browser = 'Firefox '.$m[1];
+        } elseif (preg_match('/Version\/([\d.]+).*Safari/i', $ua, $m)) {
+            $browser = 'Safari '.$m[1];
+        } elseif (stripos($ua, 'okhttp') !== false || stripos($ua, 'Dalvik') !== false) {
+            $browser = 'Android App';
+        }
+
+        $device = 'Desktop';
+        if (preg_match('/Mobile|Android|iPhone|iPad/i', $ua)) {
+            if (preg_match('/iPad/i', $ua)) {
+                $device = 'iPad';
+            } elseif (preg_match('/iPhone/i', $ua)) {
+                $device = 'iPhone';
+            } else {
+                $device = 'Mobile';
+            }
+        }
+
+        return trim($device.' · '.$os.' · '.$browser);
+    }
+
     public static function recordLoginHistory(int $userId, string $loginPath = 'WEB'): void
     {
+        $ip = (string) (request()->ip() ?: '');
+        $ua = mb_substr((string) (request()->userAgent() ?: ''), 0, 500);
+        $device = self::describeLoginDevice($ua);
+
         try {
-            if (! Schema::hasTable('login_histories')) {
-                return;
+            if (Schema::hasTable('login_histories')) {
+                self::ensureLoginHistoryGeoColumns();
+
+                $row = [
+                    'user_id' => $userId,
+                    'ip_address' => $ip,
+                    'login_path' => $loginPath,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ];
+
+                [$lat, $lng] = self::loginCoordinatesFromRequest();
+                if (Schema::hasColumn('login_histories', 'latitude')) {
+                    $row['latitude'] = $lat;
+                }
+                if (Schema::hasColumn('login_histories', 'longitude')) {
+                    $row['longitude'] = $lng;
+                }
+                if (Schema::hasColumn('login_histories', 'user_agent')) {
+                    $row['user_agent'] = $ua !== '' ? $ua : null;
+                }
+                if (Schema::hasColumn('login_histories', 'device_info')) {
+                    $row['device_info'] = $device;
+                }
+
+                try {
+                    DB::table('login_histories')->insert($row);
+                } catch (\Throwable $e) {
+                }
             }
-            self::ensureLoginHistoryGeoColumns();
         } catch (\Throwable $e) {
+        }
+
+        try {
+            self::sendLoginAlertEmail($userId, $loginPath, $ip, $device, $ua);
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * Email user about successful login (IP + device). Never throws to caller.
+     */
+    public static function sendLoginAlertEmail(
+        int $userId,
+        string $loginPath,
+        string $ip,
+        string $device,
+        string $userAgent = ''
+    ): void {
+        if ($userId <= 0) {
             return;
         }
 
-        $row = [
-            'user_id' => $userId,
-            'ip_address' => request()->ip(),
-            'login_path' => $loginPath,
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
-        ];
-
-        [$lat, $lng] = self::loginCoordinatesFromRequest();
-        if (Schema::hasColumn('login_histories', 'latitude')) {
-            $row['latitude'] = $lat;
+        $user = DB::table('users')->where('id', $userId)->first(['id', 'first_name', 'last_name', 'outlet_name', 'email_address', 'mobile_number']);
+        if (! $user) {
+            return;
         }
-        if (Schema::hasColumn('login_histories', 'longitude')) {
-            $row['longitude'] = $lng;
+
+        $email = strtolower(trim((string) ($user->email_address ?? '')));
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $host = '';
+        try {
+            $host = (string) request()->getHost();
+        } catch (\Throwable $e) {
+        }
+        $company = null;
+        try {
+            $q = DB::table('companies')->where('status', '1');
+            $company = $host !== '' ? (clone $q)->where('domain', $host)->first() : null;
+            $company = $company ?: $q->first();
+        } catch (\Throwable $e) {
+        }
+
+        // Prefer template slug login_alert; otherwise send when company email is on.
+        $tpl = null;
+        try {
+            $tpl = self::emailTemplateForSend('login_alert');
+        } catch (\Throwable $e) {
+            $tpl = null;
+        }
+
+        $companyEmailOn = $company && (int) ($company->email_message ?? 0) === 1;
+        if (! $tpl && ! $companyEmailOn) {
+            // Still send a security alert if SMTP is configured (login alerts are important).
+            $mailHost = trim((string) config('mail.mailers.smtp.host', ''));
+            $mailUser = trim((string) config('mail.mailers.smtp.username', ''));
+            if ($mailHost === '' || $mailUser === '') {
+                return;
+            }
+        }
+
+        $name = trim(($user->first_name ?? '').' '.($user->last_name ?? ''));
+        if ($name === '') {
+            $name = (string) ($user->outlet_name ?: $user->mobile_number ?: 'User');
+        }
+        $when = Carbon::now()->format('d-m-Y h:i:s A');
+        $pathLabel = strtoupper($loginPath) === 'APP' ? 'Mobile App' : 'Website';
+        $maps = '';
+        [$lat, $lng] = self::loginCoordinatesFromRequest();
+        if ($lat !== null && $lng !== null) {
+            $maps = self::googleMapsUrl($lat, $lng) ?: '';
+        }
+
+        $subject = 'New login on your NETCELL PAY account';
+        $body = "Hello {$name},\n\n"
+            ."A new login was detected on your NETCELL PAY account.\n\n"
+            ."Date & Time: {$when}\n"
+            ."Login via: {$pathLabel}\n"
+            .'IP Address: '.($ip !== '' ? $ip : 'Unknown')."\n"
+            ."Device: {$device}\n";
+        if ($userAgent !== '') {
+            $body .= 'User-Agent: '.mb_substr($userAgent, 0, 300)."\n";
+        }
+        if ($maps !== '') {
+            $body .= "Location map: {$maps}\n";
+        }
+        $body .= "\nIf this was you, no action is needed.\n"
+            ."If you did not log in, change your password immediately and contact support@netcellpay.in.\n\n"
+            ."— NETCELL PAY Security";
+
+        if ($tpl) {
+            $subject = (string) ($tpl->subject ?: $subject);
+            $content = (string) ($tpl->content ?: $body);
+            $content = str_replace(
+                ['{NAME}', '{IP}', '{DEVICE}', '{LOGIN_PATH}', '{TIME}', '{MOBILE}', '{USER_AGENT}', '{MAPS_URL}'],
+                [$name, $ip !== '' ? $ip : 'Unknown', $device, $pathLabel, $when, (string) ($user->mobile_number ?? ''), mb_substr($userAgent, 0, 300), $maps],
+                $content
+            );
+            $body = $content;
         }
 
         try {
-            DB::table('login_histories')->insert($row);
+            Mail::to($email)->queue(new SendEmail($subject, $body));
         } catch (\Throwable $e) {
+            try {
+                Mail::raw($body, function ($message) use ($email, $subject) {
+                    $message->to($email)->subject($subject);
+                });
+            } catch (\Throwable $e2) {
+            }
         }
     }
 
