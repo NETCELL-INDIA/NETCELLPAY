@@ -5,166 +5,124 @@
 @section('content')
 
 <style>
-    .plan-api-page-title {
-        color: #0d6efd;
-        font-size: 1.35rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    .plan-api-hint {
-        color: #6c757d;
-        font-size: 13px;
-        margin-bottom: 1rem;
-    }
-    .plan-api-table {
-        margin-bottom: 0;
-    }
-    .plan-api-table th,
-    .plan-api-table td {
-        vertical-align: middle;
-        padding: 0.55rem;
-    }
-    .plan-api-table .service-col {
-        min-width: 220px;
-        font-weight: 600;
+    .plan-api-page-title { color: #0d6efd; font-size: 1.35rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .plan-api-hint { color: #6c757d; font-size: 13px; margin-bottom: 1rem; }
+    .plan-svc-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 0.85rem;
         background: #fff;
+        overflow: hidden;
     }
-    .plan-api-table .routing-row {
-        background-color: #d4edda !important;
+    .plan-svc-card.routing { border-left: 4px solid #198754; }
+    .plan-svc-card.disabled-svc { opacity: 0.72; background: #f8f9fa; }
+    .plan-svc-head {
+        display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+        padding: 0.65rem 0.85rem; background: #f8f9fa; border-bottom: 1px solid #e9ecef;
     }
-    .plan-api-table .routing-row .service-col {
-        background-color: #d4edda;
+    .plan-svc-title { font-weight: 700; min-width: 220px; flex: 1; }
+    .plan-svc-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .plan-svc-meta .form-control, .plan-svc-meta .form-select { font-size: 13px; min-width: 90px; }
+    .plan-api-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(180px, 1fr));
+        gap: 0.65rem;
+        padding: 0.75rem;
     }
-    .plan-api-table thead .primary-head {
-        background-color: #0d6efd;
-        color: #fff;
-        text-align: center;
-        font-weight: 600;
+    @media (max-width: 1200px) {
+        .plan-api-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
     }
-    .plan-api-table thead .backup-head {
-        background-color: #dc3545;
-        color: #fff;
-        text-align: center;
-        font-weight: 600;
+    @media (max-width: 700px) {
+        .plan-api-grid { grid-template-columns: 1fr; }
     }
-    .plan-api-table thead .backup2-head {
-        background-color: #fd7e14;
-        color: #fff;
-        text-align: center;
-        font-weight: 600;
-    }
-    .plan-api-table thead .sub-head {
-        background-color: #f8f9fa;
-        text-align: center;
-        font-size: 13px;
-        font-weight: 600;
-    }
-    .plan-api-table .primary-cell .form-control,
-    .plan-api-table .primary-cell .form-select {
-        border-color: #9ec5fe;
-        background-color: #f8fbff;
-    }
-    .plan-api-table .backup-cell .form-control,
-    .plan-api-table .backup-cell .form-select {
-        border-color: #f1aeb5;
-        background-color: #fff8f8;
-    }
-    .plan-api-table .backup2-cell .form-control,
-    .plan-api-table .backup2-cell .form-select {
-        border-color: #ffc107;
-        background-color: #fffbf0;
-    }
-    .plan-api-table input.form-control,
-    .plan-api-table select.form-select {
-        min-width: 140px;
-        font-size: 13px;
-    }
-    .plan-api-actions .btn {
-        min-width: 90px;
-    }
+    .plan-api-slot { border-radius: 6px; padding: 0.55rem; border: 1px solid #e9ecef; }
+    .plan-api-slot.s1 { background: #f8fbff; border-color: #9ec5fe; }
+    .plan-api-slot.s2 { background: #fff8f8; border-color: #f1aeb5; }
+    .plan-api-slot.s3 { background: #fffbf0; border-color: #ffc107; }
+    .plan-api-slot.s4 { background: #f3faf3; border-color: #75b798; }
+    .plan-api-slot h6 { font-size: 12px; font-weight: 700; margin: 0 0 0.4rem; text-transform: uppercase; }
+    .plan-api-slot .form-control, .plan-api-slot .form-select { font-size: 13px; margin-bottom: 0.35rem; }
+    .plan-stats { font-size: 12px; color: #6c757d; }
+    .plan-stats .ok { color: #198754; font-weight: 600; }
+    .plan-stats .fail { color: #dc3545; font-weight: 600; }
+    .plan-api-actions .btn { min-width: 90px; }
 </style>
 
 <div class="row">
     <div class="col-12">
         <div class="plan-api-page-title">Plan/Circle/DTH Info Fetch API Settings</div>
         <div class="plan-api-hint">
-            Set API 1 / API 2 / API 3 order (PlanConnect, MPlan, PlanAPI). If API 1 fails, system tries API 2, then API 3.
-            Leave Backup empty for auto next provider. Choose "Stop" to disable further failover.
+            API 1→2→3→4 failover (PlanConnect / MPlan / PlanAPI + extras). Enable/Disable, Cache (seconds), Timeout, and Test per service.
+            Empty backup = auto next provider. Stop = no further failover.
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-bordered plan-api-table">
-                <thead>
-                    <tr>
-                        <th rowspan="2" class="service-col">Service</th>
-                        <th colspan="3" class="primary-head">API 1 (Primary)</th>
-                        <th colspan="3" class="backup-head">API 2 (Backup)</th>
-                        <th colspan="3" class="backup2-head">API 3 (Backup)</th>
-                    </tr>
-                    <tr>
-                        <th class="sub-head">API</th>
-                        <th class="sub-head">Username</th>
-                        <th class="sub-head">Password</th>
-                        <th class="sub-head">API</th>
-                        <th class="sub-head">Username</th>
-                        <th class="sub-head">Password</th>
-                        <th class="sub-head">API</th>
-                        <th class="sub-head">Username</th>
-                        <th class="sub-head">Password</th>
-                    </tr>
-                </thead>
-                <tbody id="settings_body">
-                    @foreach($settings as $row)
-                    <tr class="{{ $row->is_routing ? 'routing-row' : '' }}" data-service-key="{{ $row->service_key }}" data-is-routing="{{ $row->is_routing ? '1' : '0' }}">
-                        <td class="service-col">{{ $row->service_label }}</td>
-                        <td class="primary-cell">
-                            <select class="form-select primary-api">
-                                <option value="">Select Provider</option>
+        <div id="settings_body">
+            @foreach($settings as $row)
+            <div class="plan-svc-card {{ $row->is_routing ? 'routing' : '' }} {{ empty($row->is_enabled) ? 'disabled-svc' : '' }}"
+                 data-service-key="{{ $row->service_key }}"
+                 data-is-routing="{{ $row->is_routing ? '1' : '0' }}">
+                <div class="plan-svc-head">
+                    <div class="plan-svc-title">{{ $row->service_label }}</div>
+                    <div class="plan-svc-meta">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input is-enabled" type="checkbox" role="switch" @checked(!empty($row->is_enabled))>
+                            <label class="form-check-label">Enabled</label>
+                        </div>
+                        <div>
+                            <label class="form-label mb-0 small">Cache (sec)</label>
+                            <input type="number" min="0" max="86400" class="form-control form-control-sm cache-ttl" value="{{ (int)($row->cache_ttl ?? 0) }}" style="width:90px">
+                        </div>
+                        <div>
+                            <label class="form-label mb-0 small">Timeout</label>
+                            <input type="number" min="5" max="120" class="form-control form-control-sm timeout-seconds" value="{{ (int)($row->timeout_seconds ?? 30) }}" style="width:80px">
+                        </div>
+                        <div class="plan-stats">
+                            <span class="ok">OK {{ (int)($row->success_count ?? 0) }}</span> /
+                            <span class="fail">Fail {{ (int)($row->fail_count ?? 0) }}</span>
+                            @if(!empty($row->last_message))
+                                <div class="text-truncate" style="max-width:220px" title="{{ $row->last_message }}">{{ $row->last_message }}</div>
+                            @endif
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary test-service-btn">Test</button>
+                    </div>
+                </div>
+                <div class="plan-api-grid">
+                    @php
+                        $slots = [
+                            ['side' => 'primary', 'cls' => 's1', 'title' => 'API 1 (Primary)', 'stop' => false],
+                            ['side' => 'backup', 'cls' => 's2', 'title' => 'API 2 (Backup)', 'stop' => true],
+                            ['side' => 'backup2', 'cls' => 's3', 'title' => 'API 3 (Backup)', 'stop' => true],
+                            ['side' => 'backup3', 'cls' => 's4', 'title' => 'API 4 (Backup)', 'stop' => true],
+                        ];
+                    @endphp
+                    @foreach($slots as $slot)
+                        @php
+                            $side = $slot['side'];
+                            $apiIdKey = $side.'_api_id';
+                            $userKey = $side.'_username';
+                            $passKey = $side.'_password';
+                            $currentId = $row->{$apiIdKey} ?? null;
+                        @endphp
+                        <div class="plan-api-slot {{ $slot['cls'] }}">
+                            <h6>{{ $slot['title'] }}</h6>
+                            <select class="form-select form-select-sm {{ $side }}-api">
+                                @if($slot['stop'])
+                                    <option value="">Auto (next provider)</option>
+                                    <option value="0" @selected(isset($currentId) && (int)$currentId === 0)>Stop</option>
+                                @else
+                                    <option value="">Select Provider</option>
+                                @endif
                                 @foreach($apis as $api)
-                                <option value="{{ $api->id }}" @selected((int)$row->primary_api_id === (int)$api->id)>{{ $api->api_name }}</option>
+                                    <option value="{{ $api->id }}" @selected(isset($currentId) && (int)$currentId === (int)$api->id)>{{ $api->api_name }}</option>
                                 @endforeach
                             </select>
-                        </td>
-                        <td class="primary-cell">
-                            <input type="text" class="form-control primary-username" value="{{ $row->primary_username ?? '' }}" placeholder="Username / API Key">
-                        </td>
-                        <td class="primary-cell">
-                            <input type="text" class="form-control primary-password" value="{{ $row->primary_password ?? '' }}" placeholder="Password">
-                        </td>
-                        <td class="backup-cell">
-                            <select class="form-select backup-api">
-                                <option value="">Auto (next provider)</option>
-                                <option value="0" @selected(isset($row->backup_api_id) && (int)$row->backup_api_id === 0)>Stop</option>
-                                @foreach($apis as $api)
-                                <option value="{{ $api->id }}" @selected(isset($row->backup_api_id) && (int)$row->backup_api_id === (int)$api->id)>{{ $api->api_name }}</option>
-                                @endforeach
-                            </select>
-                        </td>
-                        <td class="backup-cell">
-                            <input type="text" class="form-control backup-username" value="{{ $row->backup_username ?? '' }}" placeholder="Username / API Key">
-                        </td>
-                        <td class="backup-cell">
-                            <input type="text" class="form-control backup-password" value="{{ $row->backup_password ?? '' }}" placeholder="Password">
-                        </td>
-                        <td class="backup2-cell">
-                            <select class="form-select backup2-api">
-                                <option value="">Auto (next provider)</option>
-                                <option value="0" @selected(isset($row->backup2_api_id) && (int)$row->backup2_api_id === 0)>Stop</option>
-                                @foreach($apis as $api)
-                                <option value="{{ $api->id }}" @selected(isset($row->backup2_api_id) && (int)$row->backup2_api_id === (int)$api->id)>{{ $api->api_name }}</option>
-                                @endforeach
-                            </select>
-                        </td>
-                        <td class="backup2-cell">
-                            <input type="text" class="form-control backup2-username" value="{{ $row->backup2_username ?? '' }}" placeholder="Username / API Key">
-                        </td>
-                        <td class="backup2-cell">
-                            <input type="text" class="form-control backup2-password" value="{{ $row->backup2_password ?? '' }}" placeholder="Password">
-                        </td>
-                    </tr>
+                            <input type="text" class="form-control form-control-sm {{ $side }}-username" value="{{ $row->{$userKey} ?? '' }}" placeholder="Username / API Key">
+                            <input type="text" class="form-control form-control-sm {{ $side }}-password" value="{{ $row->{$passKey} ?? '' }}" placeholder="Password">
+                        </div>
                     @endforeach
-                </tbody>
-            </table>
+                </div>
+            </div>
+            @endforeach
         </div>
 
         <div class="mt-3 d-flex gap-2 plan-api-actions">
@@ -182,6 +140,7 @@
     const serviceLabels = @json(collect($settings)->pluck('service_label', 'service_key'));
     const routingKeys = @json(collect($settings)->where('is_routing', true)->pluck('service_key')->values());
     const apiCatalog = @json($apiCatalog);
+    const sides = ['primary', 'backup', 'backup2', 'backup3'];
 
     function notify(title, text, icon) {
         Swal.fire({
@@ -194,72 +153,67 @@
         });
     }
 
-    function applyApiCredentials($row, side, apiId, force) {
+    function applyApiCredentials($card, side, apiId, force) {
         if (!apiId || apiId === '0' || !apiCatalog[apiId]) {
             if (force) {
-                $row.find('.' + side + '-username').val('');
-                $row.find('.' + side + '-password').val('');
+                $card.find('.' + side + '-username').val('');
+                $card.find('.' + side + '-password').val('');
             }
             return;
         }
-
         const api = apiCatalog[apiId];
         const username = api.api_key || api.api_username || '';
         const password = api.api_password || api.api_key || '';
-
-        if (force || $row.find('.' + side + '-username').val() === '') {
-            $row.find('.' + side + '-username').val(username);
+        if (force || $card.find('.' + side + '-username').val() === '') {
+            $card.find('.' + side + '-username').val(username);
         }
-        if (force || $row.find('.' + side + '-password').val() === '') {
-            $row.find('.' + side + '-password').val(password);
+        if (force || $card.find('.' + side + '-password').val() === '') {
+            $card.find('.' + side + '-password').val(password);
         }
     }
 
-    $(document).on('change', '.primary-api', function () {
-        applyApiCredentials($(this).closest('tr'), 'primary', $(this).val(), true);
+    sides.forEach(function (side) {
+        $(document).on('change', '.' + side + '-api', function () {
+            const apiId = $(this).val();
+            const $card = $(this).closest('.plan-svc-card');
+            if (apiId === '0' || apiId === '') {
+                $card.find('.' + side + '-username').val('');
+                $card.find('.' + side + '-password').val('');
+                return;
+            }
+            applyApiCredentials($card, side, apiId, true);
+        });
     });
 
-    $(document).on('change', '.backup-api', function () {
-        const apiId = $(this).val();
-        const $row = $(this).closest('tr');
-        if (apiId === '0' || apiId === '') {
-            $row.find('.backup-username').val('');
-            $row.find('.backup-password').val('');
-            return;
-        }
-        applyApiCredentials($row, 'backup', apiId, true);
-    });
-
-    $(document).on('change', '.backup2-api', function () {
-        const apiId = $(this).val();
-        const $row = $(this).closest('tr');
-        if (apiId === '0' || apiId === '') {
-            $row.find('.backup2-username').val('');
-            $row.find('.backup2-password').val('');
-            return;
-        }
-        applyApiCredentials($row, 'backup2', apiId, true);
+    $(document).on('change', '.is-enabled', function () {
+        $(this).closest('.plan-svc-card').toggleClass('disabled-svc', !this.checked);
     });
 
     function collectRows() {
         const rows = [];
-        $('#settings_body tr').each(function (index) {
-            const $row = $(this);
-            const serviceKey = $row.data('service-key');
+        $('#settings_body .plan-svc-card').each(function (index) {
+            const $card = $(this);
+            const serviceKey = $card.data('service-key');
             rows.push({
                 service_key: serviceKey,
                 service_label: serviceLabels[serviceKey] || serviceKey,
                 is_routing: routingKeys.includes(serviceKey) ? 1 : 0,
                 sort_order: index + 1,
-                primary_api_id: $row.find('.primary-api').val(),
-                primary_username: $row.find('.primary-username').val(),
-                primary_password: $row.find('.primary-password').val(),
-                backup_api_id: $row.find('.backup-api').val(),
-                backup_username: $row.find('.backup-username').val(),
-                backup_password: $row.find('.backup-password').val(),
-                backup2_api_id: $row.find('.backup2-api').val(),
-                backup2_username: $row.find('.backup2-username').val(),
-                backup2_password: $row.find('.backup2-password').val(),
+                is_enabled: $card.find('.is-enabled').is(':checked') ? 1 : 0,
+                cache_ttl: $card.find('.cache-ttl').val(),
+                timeout_seconds: $card.find('.timeout-seconds').val(),
+                primary_api_id: $card.find('.primary-api').val(),
+                primary_username: $card.find('.primary-username').val(),
+                primary_password: $card.find('.primary-password').val(),
+                backup_api_id: $card.find('.backup-api').val(),
+                backup_username: $card.find('.backup-username').val(),
+                backup_password: $card.find('.backup-password').val(),
+                backup2_api_id: $card.find('.backup2-api').val(),
+                backup2_username: $card.find('.backup2-username').val(),
+                backup2_password: $card.find('.backup2-password').val(),
+                backup3_api_id: $card.find('.backup3-api').val(),
+                backup3_username: $card.find('.backup3-username').val(),
+                backup3_password: $card.find('.backup3-password').val(),
             });
         });
         return rows;
@@ -269,36 +223,25 @@
         $.ajax({
             url: '{{ route('planCircleDthApiSave') }}',
             method: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                rows: collectRows()
-            },
+            data: { _token: '{{ csrf_token() }}', rows: collectRows() },
             success: function (res) {
-                if (res.type === 'success') {
-                    notify('Success', res.message, 'success');
-                } else {
-                    notify('Error', res.message || 'Save failed', 'error');
-                }
+                notify(res.type === 'success' ? 'Success' : 'Error', res.message || 'Save failed', res.type === 'success' ? 'success' : 'error');
             },
-            error: function () {
-                notify('Error', 'Unable to save settings.', 'error');
-            }
+            error: function () { notify('Error', 'Unable to save settings.', 'error'); }
         });
     });
 
     $('#reset_settings_btn').on('click', function () {
         Swal.fire({
             title: 'Reset to defaults?',
-            text: 'All Plan/Circle/DTH API settings will be restored to default values (API 1/2/3).',
+            text: 'All Plan/Circle/DTH API settings will be restored to default values.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Yes, reset'
         }).then(function (result) {
-            if (!result.isConfirmed) {
-                return;
-            }
+            if (!result.isConfirmed) return;
             $.ajax({
                 url: '{{ route('planCircleDthApiReset') }}',
                 method: 'POST',
@@ -311,10 +254,31 @@
                         notify('Error', res.message || 'Reset failed', 'error');
                     }
                 },
-                error: function () {
-                    notify('Error', 'Unable to reset settings.', 'error');
-                }
+                error: function () { notify('Error', 'Unable to reset settings.', 'error'); }
             });
+        });
+    });
+
+    $(document).on('click', '.test-service-btn', function () {
+        const $card = $(this).closest('.plan-svc-card');
+        const serviceKey = $card.data('service-key');
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('...');
+        $.ajax({
+            url: '{{ route('planCircleDthApiTest') }}',
+            method: 'POST',
+            data: { _token: '{{ csrf_token() }}', service_key: serviceKey },
+            success: function (res) {
+                let detail = res.message || '';
+                if (res.chain && res.chain.length) {
+                    detail += '\n' + res.chain.map(function (c) {
+                        return c.label + ': ' + (c.api_name || '-') + (c.ready ? ' ✓' : '');
+                    }).join('\n');
+                }
+                notify(res.type === 'success' ? 'Test OK' : 'Test Failed', detail, res.type === 'success' ? 'success' : 'error');
+            },
+            error: function () { notify('Error', 'Unable to test service.', 'error'); },
+            complete: function () { $btn.prop('disabled', false).text('Test'); }
         });
     });
 </script>

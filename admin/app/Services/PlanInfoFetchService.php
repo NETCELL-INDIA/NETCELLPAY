@@ -9,7 +9,7 @@ class PlanInfoFetchService
 {
     public const STOP_API_ID = 0;
 
-    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null, default_backup2: int|null}> */
+    /** @var array<string, array{label: string, is_routing: bool, sort: int, default_primary: int|null, default_backup: int|null, default_backup2: int|null, default_backup3: int|null, default_cache_ttl: int, default_timeout: int}> */
     public const SERVICES = [
         'hlr' => [
             'label' => 'Operator/Circle Fetch (HLR)',
@@ -18,6 +18,9 @@ class PlanInfoFetchService
             'default_primary' => 7,
             'default_backup' => 6,
             'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 300,
+            'default_timeout' => 25,
         ],
         'roffer_airtel' => [
             'label' => 'Routing R-Offer Fetch (Airtel)',
@@ -26,6 +29,9 @@ class PlanInfoFetchService
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
             'default_backup2' => self::STOP_API_ID,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 0,
+            'default_timeout' => 30,
         ],
         'roffer_vi' => [
             'label' => 'Routing R-Offer Fetch (VI)',
@@ -34,38 +40,86 @@ class PlanInfoFetchService
             'default_primary' => 6,
             'default_backup' => self::STOP_API_ID,
             'default_backup2' => self::STOP_API_ID,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 0,
+            'default_timeout' => 30,
         ],
-        'mobile_plan_retail' => [
-            'label' => 'Mobile Plan/Roffer Fetch (Retail)',
-            'is_routing' => false,
+        'roffer_jio' => [
+            'label' => 'Routing R-Offer Fetch (Jio)',
+            'is_routing' => true,
             'sort' => 4,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 0,
+            'default_timeout' => 30,
         ],
-        'dth_customer' => [
-            'label' => 'DTH Customer Fetch',
-            'is_routing' => false,
+        'roffer_bsnl' => [
+            'label' => 'Routing R-Offer Fetch (BSNL)',
+            'is_routing' => true,
             'sort' => 5,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 0,
+            'default_timeout' => 30,
         ],
-        'dth_plan_list' => [
-            'label' => 'DTH Plan List',
+        'mobile_plan_retail' => [
+            'label' => 'Mobile Plan/Roffer Fetch (Retail)',
             'is_routing' => false,
             'sort' => 6,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 600,
+            'default_timeout' => 30,
         ],
-        'dth_heavy_refresh' => [
-            'label' => 'DTH Heavy Refresh',
+        'last_recharge' => [
+            'label' => 'Last Recharge / Expiry (Airtel & VI)',
             'is_routing' => false,
             'sort' => 7,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 25,
+        ],
+        'dth_customer' => [
+            'label' => 'DTH Customer Fetch',
+            'is_routing' => false,
+            'sort' => 8,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_plan_list' => [
+            'label' => 'DTH Plan List',
+            'is_routing' => false,
+            'sort' => 9,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 600,
+            'default_timeout' => 30,
+        ],
+        'dth_heavy_refresh' => [
+            'label' => 'DTH Heavy Refresh',
+            'is_routing' => false,
+            'sort' => 10,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 0,
+            'default_timeout' => 45,
         ],
     ];
 
@@ -86,6 +140,17 @@ class PlanInfoFetchService
                     $table->unsignedBigInteger('backup2_api_id')->nullable();
                     $table->string('backup2_username', 255)->nullable();
                     $table->string('backup2_password', 255)->nullable();
+                    $table->unsignedBigInteger('backup3_api_id')->nullable();
+                    $table->string('backup3_username', 255)->nullable();
+                    $table->string('backup3_password', 255)->nullable();
+                    $table->boolean('is_enabled')->default(true);
+                    $table->unsignedInteger('cache_ttl')->default(0);
+                    $table->unsignedSmallInteger('timeout_seconds')->default(30);
+                    $table->unsignedInteger('success_count')->default(0);
+                    $table->unsignedInteger('fail_count')->default(0);
+                    $table->timestamp('last_success_at')->nullable();
+                    $table->timestamp('last_fail_at')->nullable();
+                    $table->string('last_message', 500)->nullable();
                     $table->boolean('is_routing')->default(false);
                     $table->unsignedTinyInteger('sort_order')->default(0);
                     $table->timestamps();
@@ -97,35 +162,58 @@ class PlanInfoFetchService
             }
         }
 
-        self::ensureBackup2Columns();
+        self::ensureExtraSettingsColumns();
     }
 
-    private static function ensureBackup2Columns(): void
+    private static function ensureExtraSettingsColumns(): void
     {
         if (!Schema::hasTable('plan_info_fetch_settings')) {
             return;
         }
 
-        try {
-            if (!Schema::hasColumn('plan_info_fetch_settings', 'backup2_api_id')) {
-                Schema::table('plan_info_fetch_settings', function ($table) {
-                    $table->unsignedBigInteger('backup2_api_id')->nullable()->after('backup_password');
-                    $table->string('backup2_username', 255)->nullable()->after('backup2_api_id');
-                    $table->string('backup2_password', 255)->nullable()->after('backup2_username');
-                });
+        $columns = [
+            'backup2_api_id' => fn ($table) => $table->unsignedBigInteger('backup2_api_id')->nullable(),
+            'backup2_username' => fn ($table) => $table->string('backup2_username', 255)->nullable(),
+            'backup2_password' => fn ($table) => $table->string('backup2_password', 255)->nullable(),
+            'backup3_api_id' => fn ($table) => $table->unsignedBigInteger('backup3_api_id')->nullable(),
+            'backup3_username' => fn ($table) => $table->string('backup3_username', 255)->nullable(),
+            'backup3_password' => fn ($table) => $table->string('backup3_password', 255)->nullable(),
+            'is_enabled' => fn ($table) => $table->boolean('is_enabled')->default(true),
+            'cache_ttl' => fn ($table) => $table->unsignedInteger('cache_ttl')->default(0),
+            'timeout_seconds' => fn ($table) => $table->unsignedSmallInteger('timeout_seconds')->default(30),
+            'success_count' => fn ($table) => $table->unsignedInteger('success_count')->default(0),
+            'fail_count' => fn ($table) => $table->unsignedInteger('fail_count')->default(0),
+            'last_success_at' => fn ($table) => $table->timestamp('last_success_at')->nullable(),
+            'last_fail_at' => fn ($table) => $table->timestamp('last_fail_at')->nullable(),
+            'last_message' => fn ($table) => $table->string('last_message', 500)->nullable(),
+        ];
+
+        foreach ($columns as $name => $adder) {
+            try {
+                if (!Schema::hasColumn('plan_info_fetch_settings', $name)) {
+                    Schema::table('plan_info_fetch_settings', function ($table) use ($adder) {
+                        $adder($table);
+                    });
+                }
+            } catch (\Throwable $e) {
+                // Column may already exist on concurrent boot.
             }
-        } catch (\Throwable $e) {
-            // Column may already exist on concurrent boot.
         }
     }
 
     public static function seedDefaults(): void
     {
-        self::ensureBackup2Columns();
+        self::ensureExtraSettingsColumns();
 
         foreach (self::SERVICES as $key => $meta) {
             $exists = DB::table('plan_info_fetch_settings')->where('service_key', $key)->exists();
             if ($exists) {
+                DB::table('plan_info_fetch_settings')->where('service_key', $key)->update([
+                    'service_label' => $meta['label'],
+                    'is_routing' => $meta['is_routing'],
+                    'sort_order' => $meta['sort'],
+                    'updated_at' => now(),
+                ]);
                 continue;
             }
 
@@ -135,6 +223,10 @@ class PlanInfoFetchService
                 'primary_api_id' => $meta['default_primary'],
                 'backup_api_id' => $meta['default_backup'],
                 'backup2_api_id' => $meta['default_backup2'] ?? null,
+                'backup3_api_id' => $meta['default_backup3'] ?? self::STOP_API_ID,
+                'is_enabled' => true,
+                'cache_ttl' => (int) ($meta['default_cache_ttl'] ?? 0),
+                'timeout_seconds' => (int) ($meta['default_timeout'] ?? 30),
                 'is_routing' => $meta['is_routing'],
                 'sort_order' => $meta['sort'],
                 'created_at' => now(),
@@ -160,6 +252,12 @@ class PlanInfoFetchService
             self::applyCredentialFallback($row, 'primary', $apis);
             self::applyCredentialFallback($row, 'backup', $apis);
             self::applyCredentialFallback($row, 'backup2', $apis);
+            self::applyCredentialFallback($row, 'backup3', $apis);
+            $row->is_enabled = (int) ($row->is_enabled ?? 1) === 1;
+            $row->cache_ttl = (int) ($row->cache_ttl ?? 0);
+            $row->timeout_seconds = (int) ($row->timeout_seconds ?? 30);
+            $row->success_count = (int) ($row->success_count ?? 0);
+            $row->fail_count = (int) ($row->fail_count ?? 0);
 
             return $row;
         });
@@ -210,12 +308,81 @@ class PlanInfoFetchService
                     'backup2_api_id' => self::nullableApiId($row['backup2_api_id'] ?? null),
                     'backup2_username' => self::nullableString($row['backup2_username'] ?? null),
                     'backup2_password' => self::nullableString($row['backup2_password'] ?? null),
+                    'backup3_api_id' => self::nullableApiId($row['backup3_api_id'] ?? null),
+                    'backup3_username' => self::nullableString($row['backup3_username'] ?? null),
+                    'backup3_password' => self::nullableString($row['backup3_password'] ?? null),
+                    'is_enabled' => !array_key_exists('is_enabled', $row) || !empty($row['is_enabled']),
+                    'cache_ttl' => max(0, (int) ($row['cache_ttl'] ?? 0)),
+                    'timeout_seconds' => max(5, min(120, (int) ($row['timeout_seconds'] ?? 30))),
                     'is_routing' => !empty($row['is_routing']),
                     'sort_order' => (int) ($row['sort_order'] ?? 0),
                     'updated_at' => now(),
                 ]
             );
         }
+    }
+
+    /**
+     * Admin config test: verifies API 1–4 chain is resolvable.
+     *
+     * @return array{ok: bool, message: string, chain: list<array<string, mixed>>, api_id: int|null}
+     */
+    public static function testService(string $serviceKey): array
+    {
+        self::ensureTable();
+        if (!isset(self::SERVICES[$serviceKey])) {
+            return ['ok' => false, 'message' => 'Unknown service.', 'chain' => [], 'api_id' => null];
+        }
+
+        $row = DB::table('plan_info_fetch_settings')->where('service_key', $serviceKey)->first();
+        if (!$row) {
+            return ['ok' => false, 'message' => 'Service settings not found. Save/Reset first.', 'chain' => [], 'api_id' => null];
+        }
+
+        if ((int) ($row->is_enabled ?? 1) !== 1) {
+            return ['ok' => false, 'message' => 'Service is disabled.', 'chain' => [], 'api_id' => null];
+        }
+
+        $slots = [
+            ['label' => 'API 1', 'api_id' => $row->primary_api_id ?? null, 'username' => $row->primary_username ?? null, 'password' => $row->primary_password ?? null],
+            ['label' => 'API 2', 'api_id' => $row->backup_api_id ?? null, 'username' => $row->backup_username ?? null, 'password' => $row->backup_password ?? null],
+            ['label' => 'API 3', 'api_id' => $row->backup2_api_id ?? null, 'username' => $row->backup2_username ?? null, 'password' => $row->backup2_password ?? null],
+            ['label' => 'API 4', 'api_id' => $row->backup3_api_id ?? null, 'username' => $row->backup3_username ?? null, 'password' => $row->backup3_password ?? null],
+        ];
+
+        $chain = [];
+        $ready = 0;
+        $firstReadyId = null;
+        foreach ($slots as $slot) {
+            $apiId = self::nullableApiId($slot['api_id']);
+            if ($apiId === self::STOP_API_ID) {
+                $chain[] = ['label' => $slot['label'], 'api_id' => 0, 'api_name' => 'Stop', 'ready' => false];
+                break;
+            }
+            if ($apiId === null) {
+                $chain[] = ['label' => $slot['label'], 'api_id' => null, 'api_name' => 'Auto / empty', 'ready' => false];
+                continue;
+            }
+            $api = self::resolveApiRow($apiId, $slot['username'], $slot['password']);
+            $isReady = (bool) $api;
+            if ($isReady) {
+                $ready++;
+                $firstReadyId ??= (int) $api->id;
+            }
+            $chain[] = [
+                'label' => $slot['label'],
+                'api_id' => $apiId,
+                'api_name' => $api->api_name ?? ('API #'.$apiId.' missing'),
+                'ready' => $isReady,
+            ];
+        }
+
+        $ok = $ready > 0;
+        $message = $ok
+            ? "Config OK — {$ready} API slot(s) ready. Cache {$row->cache_ttl}s, timeout {$row->timeout_seconds}s. Hits OK/Fail: ".(int) ($row->success_count ?? 0).'/'.(int) ($row->fail_count ?? 0)
+            : 'No usable API in chain. Select API 1 (and backups) then Save.';
+
+        return ['ok' => $ok, 'message' => $message, 'chain' => $chain, 'api_id' => $firstReadyId];
     }
 
     public static function rofferServiceKey(int $providerId): string
@@ -255,10 +422,15 @@ class PlanInfoFetchService
             return self::legacyFetch($serviceKey, $urlBuilder, $modal, $orderPrefix);
         }
 
+        if ((int) ($setting->is_enabled ?? 1) !== 1) {
+            return null;
+        }
+
         $attempts = [
             ['api_id' => $setting->primary_api_id, 'username' => $setting->primary_username, 'password' => $setting->primary_password],
             ['api_id' => $setting->backup_api_id, 'username' => $setting->backup_username, 'password' => $setting->backup_password],
             ['api_id' => $setting->backup2_api_id ?? null, 'username' => $setting->backup2_username ?? null, 'password' => $setting->backup2_password ?? null],
+            ['api_id' => $setting->backup3_api_id ?? null, 'username' => $setting->backup3_username ?? null, 'password' => $setting->backup3_password ?? null],
         ];
 
         foreach ($attempts as $attempt) {

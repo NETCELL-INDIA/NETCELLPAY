@@ -706,6 +706,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/system/plan-circle-dth-api/list', [PlanCircleDthApiController::class, 'list'])->name('planCircleDthApiList');
     Route::post('admin/system/plan-circle-dth-api/save', [PlanCircleDthApiController::class, 'save'])->name('planCircleDthApiSave');
     Route::post('admin/system/plan-circle-dth-api/reset', [PlanCircleDthApiController::class, 'reset'])->name('planCircleDthApiReset');
+    Route::post('admin/system/plan-circle-dth-api/test', [PlanCircleDthApiController::class, 'test'])->name('planCircleDthApiTest');
 
     Route::post('admin/system/apis/list',[ApiController::class,'fetchAll'])->name('apisList');
 

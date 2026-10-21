@@ -38,6 +38,14 @@ class PlanCircleDthApiController extends Controller
                 'service_label' => $row->service_label,
                 'is_routing' => (bool) $row->is_routing,
                 'sort_order' => (int) $row->sort_order,
+                'is_enabled' => (int) ($row->is_enabled ?? 1) === 1,
+                'cache_ttl' => (int) ($row->cache_ttl ?? 0),
+                'timeout_seconds' => (int) ($row->timeout_seconds ?? 30),
+                'success_count' => (int) ($row->success_count ?? 0),
+                'fail_count' => (int) ($row->fail_count ?? 0),
+                'last_success_at' => $row->last_success_at ?? null,
+                'last_fail_at' => $row->last_fail_at ?? null,
+                'last_message' => $row->last_message ?? '',
                 'primary_api_id' => $row->primary_api_id,
                 'primary_username' => $row->primary_username ?? '',
                 'primary_password' => $row->primary_password ?? '',
@@ -47,6 +55,9 @@ class PlanCircleDthApiController extends Controller
                 'backup2_api_id' => $row->backup2_api_id ?? null,
                 'backup2_username' => $row->backup2_username ?? '',
                 'backup2_password' => $row->backup2_password ?? '',
+                'backup3_api_id' => $row->backup3_api_id ?? null,
+                'backup3_username' => $row->backup3_username ?? '',
+                'backup3_password' => $row->backup3_password ?? '',
             ];
         });
 
@@ -80,6 +91,23 @@ class PlanCircleDthApiController extends Controller
         return response()->json([
             'type' => 'success',
             'message' => 'Settings reset to defaults.',
+        ]);
+    }
+
+    public function test(Request $request)
+    {
+        $serviceKey = trim((string) $request->input('service_key', ''));
+        if ($serviceKey === '') {
+            return response()->json(['type' => 'error', 'message' => 'Service key required.']);
+        }
+
+        $result = PlanInfoFetchService::testService($serviceKey);
+
+        return response()->json([
+            'type' => $result['ok'] ? 'success' : 'error',
+            'message' => $result['message'],
+            'chain' => $result['chain'] ?? [],
+            'api_id' => $result['api_id'] ?? null,
         ]);
     }
 }
