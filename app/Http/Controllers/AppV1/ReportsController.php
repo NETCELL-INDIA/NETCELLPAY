@@ -318,122 +318,94 @@ class ReportsController extends Controller
 
     public function fetchAllAccount(Request $post)
     {
-
-        $rules = array(
-            'page' => 'required|numeric',
-            'limit' => 'required|numeric',
-        );
-
-        $validator = \Validator::make($post->all(), array_reverse($rules));
-        if ($validator->fails()) {
-            foreach ($validator->errors()->messages() as $key => $value) {
-                $error = $value[0];
-            }
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => $error
-            ));
+        $json = json_decode($post->getContent(), true);
+        if (is_array($json)) {
+            $post->merge($json);
         }
 
-        if($post->from_date){
-            $from_date = $post->from_date." 00:00:00";
-            $to_date = $post->to_date." 23:59:59";
-        }else{
-            $from_date = Carbon::today()->format('Y-m-d')." 00:00:00";
-            $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
-            $table = "reports";
-        } 
-        
+        $userId = (int) $post->input('user_id');
+        if ($userId <= 0 && $post->filled('login_key')) {
+            $userId = (int) DB::table('users')->where('login_key', $post->login_key)->value('id');
+        }
+        if ($userId <= 0) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'user_id or login_key is required.',
+            ], 200);
+        }
+
+        // page/limit optional — apps often send only user_id + date range
+        $page = max(1, (int) ($post->input('page') ?: 1));
+        $asked = (int) ($post->input('limit') ?: 50);
+        $limit = ($asked > 0 && $asked <= 200) ? $asked : 50;
+
+        $fromDate = trim((string) $post->input('from_date', ''));
+        $toDate = trim((string) $post->input('to_date', ''));
+        if ($fromDate !== '') {
+            $from_date = $fromDate.' 00:00:00';
+            $to_date = ($toDate !== '' ? $toDate : $fromDate).' 23:59:59';
+        } else {
+            $from_date = Carbon::now()->subDays(30)->format('Y-m-d').' 00:00:00';
+            $to_date = Carbon::today()->format('Y-m-d').' 23:59:59';
+        }
+
         $query = DB::table('reports')
-        ->select(
-            'reports.id',
-            //'reports.number',
-            'reports.amount',
-            //'reports.status',
-            'reports.closing_balance',
-            //'reports.provider_id',
-            //'reports.number',
-            'reports.total_amount',
-            'reports.order_id',
-            'reports.remark',
-            'reports.opening_balance',
-            'reports.transaction_type',
-            'reports.fund_type',
-            'reports.transaction_date',
-            //'providers.provider_logo',
-            //'providers.provider_name',
-            //'providers.id as p_id',
-            'u.id as u_id',
-            'u.outlet_name as u_outlet_name',
-            'u.mobile_number as u_mobile_number',
-            'u.first_name as u_first_name',
-            'u.last_name as u_last_name',
-            'u.middle_name as u_middle_name',
-            'u.email_address as u_email_address',
-            ///
-            'd.id as d_id',
-            'd.outlet_name as d_outlet_name',
-            'd.mobile_number as d_mobile_number',
-            'd.first_name as d_first_name',
-            'd.last_name as d_last_name',
-            'd.middle_name as d_middle_name',
-            'd.email_address as d_email_address',
-            ///
-            'c.id as c_id',
-            'c.outlet_name as c_outlet_name',
-            'c.mobile_number as c_mobile_number',
-            'c.first_name as c_first_name',
-            'c.last_name as c_last_name',
-            'c.middle_name as c_middle_name',
-            'c.email_address as c_email_address',
-        )
-        //->join('providers','providers.id','=','reports.provider_id')
-        ->join('users as u','u.id','=','reports.user_id')
-        ->join('users as d','d.id','=','reports.debit_user_id')
-        ->join('users as c','c.id','=','reports.credit_user_id')
-        ->where('reports.user_id', $post->user_id)->whereBetween('reports.created_at', [$from_date,$to_date])
-        //->whereIn('reports.transaction_type',['Recharge'])
-        ;
+            ->select(
+                'reports.id',
+                'reports.amount',
+                'reports.status',
+                'reports.closing_balance',
+                'reports.total_amount',
+                'reports.order_id',
+                'reports.remark',
+                'reports.opening_balance',
+                'reports.transaction_type',
+                'reports.fund_type',
+                'reports.transaction_date',
+                'reports.created_at',
+                'reports.number',
+                'u.id as u_id',
+                'u.outlet_name as u_outlet_name',
+                'u.mobile_number as u_mobile_number',
+                'u.first_name as u_first_name',
+                'u.last_name as u_last_name',
+                'u.middle_name as u_middle_name',
+                'u.email_address as u_email_address',
+                'd.id as d_id',
+                'd.outlet_name as d_outlet_name',
+                'd.mobile_number as d_mobile_number',
+                'd.first_name as d_first_name',
+                'd.last_name as d_last_name',
+                'c.id as c_id',
+                'c.outlet_name as c_outlet_name',
+                'c.mobile_number as c_mobile_number',
+                'c.first_name as c_first_name',
+                'c.last_name as c_last_name'
+            )
+            ->leftJoin('users as u', 'u.id', '=', 'reports.user_id')
+            ->leftJoin('users as d', 'd.id', '=', 'reports.debit_user_id')
+            ->leftJoin('users as c', 'c.id', '=', 'reports.credit_user_id')
+            ->where('reports.user_id', $userId)
+            ->whereBetween('reports.created_at', [$from_date, $to_date]);
 
-        if($post->page){
-            $page = $post->page; 
-        }else{
-            $page = 1; 
-        }
-
-        if($post->limit){
-            if($post->limit <= 50){
-                $limit = $post->limit; 
-            }else{
-                $limit = 10;  
-            }
-        }else{
-            $limit = 10; 
-        }
-
-        if($post->order_id != ""){
+        if ($post->filled('order_id')) {
             $query->where('reports.order_id', $post->order_id);
         }
-
-        if($post->number != ""){
+        if ($post->filled('number')) {
             $query->where('reports.number', $post->number);
         }
-        if($post->req_order_id != ""){
+        if ($post->filled('req_order_id')) {
             $query->where('reports.request_order_id', $post->req_order_id);
         }
-        $start= ($page-1) * $limit;
 
+        $start = ($page - 1) * $limit;
+        $list = $query->orderBy('reports.id', 'DESC')->offset($start)->limit($limit)->get();
 
-
-        $list =  $query->orderBy('reports.id', 'DESC')->offset($start)->limit($limit)->get();
-
-
-
-        return response()->json(array(
-            'type' => "success",  
-            'message' => "Fetch Successfuly.",
-            'data' => $list
-        ));
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Account reports fetched successfully',
+            'data' => $list,
+        ], 200);
     }
 
 
