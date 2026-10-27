@@ -20,6 +20,7 @@ use App\Http\Controllers\Users\BankController;
 use App\Http\Controllers\Users\CallBackController;
 use App\Http\Controllers\Users\BillPaymentsController;
 use App\Http\Controllers\Users\WebsiteContactController;
+use App\Http\Controllers\Users\AccountDeletionController;
 use App\Http\Middleware\UserCheck;
 use App\Http\Controllers\Users\LoginHistoryController;
 use Illuminate\Support\Facades\DB;
@@ -127,6 +128,14 @@ Route::get('/about-us', function () use ($websiteCompany) {
 Route::get('/services', function () use ($websiteCompany) {
     return view('users.website.services', ['company' => $websiteCompany()]);
 });
+
+Route::get('/delete-account', [AccountDeletionController::class, 'show'])->name('website.delete-account');
+Route::post('/delete-account', [AccountDeletionController::class, 'submit'])
+    ->middleware('throttle:6,1')
+    ->name('website.delete-account.submit');
+Route::post('/delete-account/verify', [AccountDeletionController::class, 'verify'])
+    ->middleware('throttle:10,1')
+    ->name('website.delete-account.verify');
 
 Route::get('/contact', [WebsiteContactController::class, 'show'])->name('website.contact');
 Route::post('/contact', [WebsiteContactController::class, 'submit'])

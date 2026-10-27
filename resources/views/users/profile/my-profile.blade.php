@@ -649,21 +649,9 @@
                                 </ul>
                             </div>
                             <div>
-                                <h5 class="card-title text-decoration-underline mb-3">Delete This
-                                    Account:</h5>
-                                <p class="text-muted">Go to the Data & Privacy section of your profile
-                                    Account. Scroll to "Your data & privacy options." Delete your
-                                    Profile Account. Follow the instructions to delete your account :
-                                </p>
-                                <div>
-                                    <input type="password" class="form-control" id="passwordInput"
-                                        placeholder="Enter your password" value="make@321654987" style="max-width: 265px;">
-                                </div>
-                                <div class="hstack gap-2 mt-3">
-                                    <a href="javascript:void(0);" class="btn btn-soft-danger">Close &
-                                        Delete This Account</a>
-                                    <a href="javascript:void(0);" class="btn btn-light">Cancel</a>
-                                </div>
+                                <h5 class="card-title text-decoration-underline mb-3">Delete this account</h5>
+                                <p class="text-muted">Request deletion of your NETCELL PAY account. You will verify the registered mobile number before an administrator processes the request.</p>
+                                <a href="{{ url('/delete-account') }}" class="btn btn-soft-danger">Request account deletion</a>
                             </div>
                         </div>
                         <!--end tab-pane-->

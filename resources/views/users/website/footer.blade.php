@@ -34,6 +34,7 @@
                 <div class="nc-footer-column">
                     <h3>Legal</h3>
                     <a href="{{ url('/privacy-policy') }}">Privacy policy</a>
+                    <a href="{{ url('/delete-account') }}">Delete account</a>
                     <a href="{{ url('/term-and-condition') }}">Terms & conditions</a>
                     <a href="{{ url('/refunds') }}">Refund & cancellation</a>
                     <a href="{{ url('/users/login') }}">Customer login</a>

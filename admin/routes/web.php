@@ -101,6 +101,7 @@ use App\Http\Controllers\Admin\ConsumptionReportController;
 use App\Http\Controllers\Admin\PlanLogsReportController;
 use App\Http\Controllers\Admin\MenuPlaceholderController;
 use App\Http\Controllers\Admin\BusinessToolsController;
+use App\Http\Controllers\Admin\AccountDeletionAdminController;
 
 
 
@@ -402,6 +403,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
     // Plan Logs Report
     Route::get('admin/recharge-reports/plan-logs-report', [PlanLogsReportController::class, 'index'])->name('planLogsReport');
     Route::post('admin/recharge-reports/plan-logs-report/list', [PlanLogsReportController::class, 'list'])->name('planLogsReportList');
+
+    Route::get('admin/users/account-deletions', [AccountDeletionAdminController::class, 'index']);
+    Route::post('admin/users/account-deletions/update', [AccountDeletionAdminController::class, 'update'])->name('adminAccountDeletionUpdate');
 
     Route::get('admin/business/signups', [BusinessToolsController::class, 'signups']);
     Route::post('admin/business/signups/status', [BusinessToolsController::class, 'signupStatus'])->name('adminSignupStatus');
