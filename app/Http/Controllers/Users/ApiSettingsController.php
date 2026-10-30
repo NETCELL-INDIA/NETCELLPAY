@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Users;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 
@@ -46,11 +47,26 @@ class ApiSettingsController extends Controller
             ->orderBy('p.provider_name')
             ->get(['p.id', 'p.provider_name', 'p.service_id', 's.service_name']);
 
+        $billProviders = DB::table('providers as p')
+            ->leftJoin('services as s', 's.id', '=', 'p.service_id')
+            ->where('p.status', 1)
+            ->where(function ($q) {
+                $q->where('p.deleted_at', 0)->orWhereNull('p.deleted_at');
+            })
+            ->whereNotIn('p.service_id', [1, 2, 4])
+            ->orderBy('s.service_name')
+            ->orderBy('p.provider_name')
+            ->limit(200)
+            ->get(['p.id', 'p.provider_name', 'p.service_id', 's.service_name']);
+
         return view('users.api-settings.index', [
             'company' => $company,
             'user' => $user,
             'baseUrl' => $baseUrl,
             'providers' => $providers,
+            'billProviders' => $billProviders,
+            'clientIp' => (string) \helpers::getIp(),
+            'callbackLogs' => $this->recentCallbacks((int) $user->id),
         ]);
     }
 
@@ -77,6 +93,27 @@ class ApiSettingsController extends Controller
         Session::flash('success', 'API settings saved successfully.');
 
         return redirect()->back();
+    }
+
+    private function recentCallbacks(int $userId)
+    {
+        try {
+            $select = ['id', 'order_id', 'request_order_id', 'number', 'total_amount', 'status', 'created_at'];
+            foreach (['callback_status', 'api_partner_call_back_url', 'api_partner_callback_response'] as $column) {
+                if (Schema::hasColumn('reports', $column)) {
+                    $select[] = $column;
+                }
+            }
+
+            return DB::table('reports')
+                ->where('user_id', $userId)
+                ->where('path', 'Api')
+                ->orderByDesc('id')
+                ->limit(25)
+                ->get($select);
+        } catch (\Throwable $e) {
+            return collect();
+        }
     }
 
     public function generateKey(Request $request)

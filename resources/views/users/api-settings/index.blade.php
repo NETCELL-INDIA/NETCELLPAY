@@ -10,6 +10,11 @@ API Settings
     $rechargeSample = $baseUrl . '/Recharge?api_key=' . urlencode($apiKey) . '&number=9876543210&amount=199&provider_id=1&service_id=1&request_order_id=REQ' . date('YmdHis');
     $statusSample = $baseUrl . '/RechargeStatus?api_key=' . urlencode($apiKey) . '&request_order_id=REQ' . date('YmdHis');
     $complaintSample = $baseUrl . '/RechargeComplaint?api_key=' . urlencode($apiKey) . '&order_id=RC20260817111918870042258&subject=Wrong%20recharge';
+    $billFetchSample = $baseUrl . '/BillFetch?api_key=' . urlencode($apiKey) . '&provider_id=10&service_id=5&number=1234567890';
+    $billPaySample = $baseUrl . '/BillPay?api_key=' . urlencode($apiKey) . '&number=1234567890&amount=500&provider_id=10&service_id=5&request_order_id=BILL' . date('YmdHis');
+    $billStatusSample = $baseUrl . '/BillStatus?api_key=' . urlencode($apiKey) . '&request_order_id=BILL' . date('YmdHis');
+    $savedIp = trim((string) ($user->ip_address ?? ''));
+    $ipOpen = ($savedIp === '' || in_array($savedIp, ['0.0.0.0', '1.1.1.1'], true));
 @endphp
 <div class="row">
     <div class="col-12">
@@ -49,14 +54,79 @@ API Settings
                         </div>
                         <div class="col-md-12">
                             <label class="form-label">IP Whitelist</label>
+                            @if($ipOpen)
+                                <div class="alert alert-warning py-2">API calls are blocked until you save a server IP. Blank, <code>0.0.0.0</code> and <code>1.1.1.1</code> are not allowed.</div>
+                            @endif
                             <input type="text" name="ip_address" class="form-control" value="{{ old('ip_address', $user->ip_address) }}" placeholder="203.0.113.10, 203.0.113.11">
-                            <small class="text-muted">Local: all IPs allowed. Production: blank / <code>0.0.0.0</code> / <code>*</code> allows all. Otherwise only listed IPs.</small>
+                            <small class="text-muted d-block mt-1">Browser IP right now: <strong>{{ $clientIp }}</strong>. The API checks the server that calls us, which may be a different IP.</small>
+                            <small class="text-muted d-block">Blank is blocked. Enter one IP, or several separated by commas. Use <code>*</code> only if every IP should be allowed.</small>
                         </div>
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary">Save API Settings</button>
                         </div>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Callback log</h4>
+                <p class="text-muted mb-0">Last 25 API recharges and bill pays. This list does not move wallet money.</p>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Your ID</th>
+                                <th>Our order</th>
+                                <th>Number</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Callback</th>
+                                <th>Response</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($callbackLogs as $log)
+                                @php
+                                    $sent = (int) ($log->callback_status ?? 0) === 1;
+                                    $callbackUrl = trim((string) ($log->api_partner_call_back_url ?? ''));
+                                    $callbackResponse = trim(strip_tags((string) ($log->api_partner_callback_response ?? '')));
+                                    if (strlen($callbackResponse) > 80) {
+                                        $callbackResponse = substr($callbackResponse, 0, 80) . '...';
+                                    }
+                                @endphp
+                                <tr>
+                                    <td>{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->format('d-m-Y h:i A') : '-' }}</td>
+                                    <td>{{ $log->request_order_id ?: '-' }}</td>
+                                    <td>{{ $log->order_id ?: '-' }}</td>
+                                    <td>{{ $log->number ?: '-' }}</td>
+                                    <td>{{ $log->total_amount ?: '-' }}</td>
+                                    <td>{{ $log->status ?: '-' }}</td>
+                                    <td>
+                                        @if($sent && $callbackUrl !== '')
+                                            Sent
+                                        @elseif($sent)
+                                            Not delivered
+                                        @else
+                                            Waiting
+                                        @endif
+                                    </td>
+                                    <td>{{ $callbackResponse !== '' ? $callbackResponse : '-' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted">No API transactions yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -101,6 +171,27 @@ API Settings
                                 <td><code>{{ $baseUrl }}/RechargeComplaint</code></td>
                                 <td><code>api_key</code>, <code>order_id</code> (our RC… ID), <code>subject</code></td>
                             </tr>
+                            <tr>
+                                <td>Bill Fetch</td>
+                                <td><code>{{ $baseUrl }}/BillFetch</code></td>
+                                <td>
+                                    <code>api_key</code>, <code>provider_id</code>, <code>service_id</code>, <code>number</code> (customer account)<br>
+                                    Optional extra biller fields: <code>filed_2</code>, <code>filed_3</code>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Bill Pay</td>
+                                <td><code>{{ $baseUrl }}/BillPay</code></td>
+                                <td>
+                                    <code>api_key</code>, <code>number</code>, <code>amount</code>, <code>provider_id</code>, <code>service_id</code>, <code>request_order_id</code><br>
+                                    Same wallet rules as recharge. Send a new <code>request_order_id</code> every time.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Bill Status</td>
+                                <td><code>{{ $baseUrl }}/BillStatus</code></td>
+                                <td><code>api_key</code>, <code>request_order_id</code> (your ID from Bill Pay, not our <code>order_id</code>)</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -114,6 +205,12 @@ API Settings
                 <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $statusSample }}</pre>
                 <p class="mb-1"><strong>Complaint</strong></p>
                 <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $complaintSample }}</pre>
+                <p class="mb-1"><strong>Bill Fetch</strong></p>
+                <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $billFetchSample }}</pre>
+                <p class="mb-1"><strong>Bill Pay</strong></p>
+                <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $billPaySample }}</pre>
+                <p class="mb-1"><strong>Bill Status</strong></p>
+                <pre class="bg-light p-2 small mb-3" style="white-space:pre-wrap;">{{ $billStatusSample }}</pre>
 
                 <h5 class="mb-2">Balance response</h5>
                 <pre class="bg-light p-2 small mb-3">{
@@ -160,9 +257,9 @@ API Settings
                     <li>Balance URL, Recharge, and Recharge Status all return current wallet as <code>balance</code>.</li>
                     <li><code>request_order_id</code> = your unique txn id. Reuse returns “request order id already exists.”</li>
                     <li><code>order_id</code> = our system id (starts with RC…). Use this for complaints.</li>
-                    <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid. BBPS uses the bill service id from the operator table.</li>
-                    <li>BBPS: <code>/api/ApiPartner/V1/BillFetch</code> (provider_id, service_id, bill fields), <code>/api/ApiPartner/V1/BillPay</code> (same fields as recharge plus transaction amount and request_order_id), <code>/api/ApiPartner/V1/BillStatus</code> (order_id).</li>
-                    <li>Use <code>provider_id</code> from the operator table below.</li>
+                    <li><code>service_id</code>: 1 = Mobile, 2 = DTH, 4 = Postpaid. Other bill operators use the <code>service_id</code> in the bill table below.</li>
+                    <li>Bill Fetch does not debit the wallet. Bill Pay does. Bill Status uses your <code>request_order_id</code>.</li>
+                    <li>Use <code>provider_id</code> from the operator tables below. Sample bill IDs in the URLs above are examples only.</li>
                 </ul>
             </div>
         </div>
@@ -195,6 +292,42 @@ API Settings
                             @empty
                             <tr>
                                 <td colspan="4" class="text-center text-muted">No active operators found. Contact admin.</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Bill operator IDs</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>provider_id</th>
+                                <th>Operator</th>
+                                <th>service_id</th>
+                                <th>Service</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($billProviders as $p)
+                            <tr>
+                                <td>{{ $p->id }}</td>
+                                <td>{{ $p->provider_name }}</td>
+                                <td>{{ $p->service_id }}</td>
+                                <td>{{ $p->service_name }}</td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No separate bill operators are active. Use the provider_id and service_id admin has enabled for BBPS.</td>
                             </tr>
                             @endforelse
                         </tbody>
