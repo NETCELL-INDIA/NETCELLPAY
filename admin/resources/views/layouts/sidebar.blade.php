@@ -264,6 +264,7 @@
                             @if(admin_can('users.list'))<li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Users</a></li>@endif
                             @if(admin_can('users.list') || admin_can('users.deleted'))<li class="nav-item"><a href="{{ URL::asset('admin/users/deleted') }}" class="nav-link">User Delete</a></li>@endif
                             @if(admin_can('users.kyc'))<li class="nav-item"><a href="{{ URL::asset('admin/users/kyc') }}" class="nav-link">Manage KYC</a></li>@endif
+                            @if(admin_can('users.kyc') || admin_can('business.signups'))<li class="nav-item"><a href="{{ URL::asset('admin/business/signups') }}" class="nav-link">KYC Approve</a></li>@endif
                             @if(admin_can('users.list') || admin_can('users.deleted'))<li class="nav-item"><a href="{{ URL::asset('admin/users/account-deletions') }}" class="nav-link">Account Deletion Requests</a></li>@endif
                             @if(admin_can('users.service_lock'))<li class="nav-item"><a href="{{ URL::asset('admin/users/service-lock') }}" class="nav-link">User Service Lock</a></li>@endif
                             @if(admin_can('users.login_history'))<li class="nav-item"><a href="{{ URL::asset('admin/users/login-history') }}" class="nav-link">Login History</a></li>@endif
@@ -299,6 +300,24 @@
                         </ul>
                     </div>
                 </li>
+
+                @if(admin_can('business') || admin_can('users') || admin_can('accounts'))
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#sidebarBusiness" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarBusiness">
+                        <i class="bx bx-briefcase"></i> <span>Business</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="sidebarBusiness">
+                        <ul class="nav nav-sm flex-column">
+                            @if(admin_can('business.signups') || admin_can('users.kyc') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/signups') }}" class="nav-link">KYC Approve</a></li>@endif
+                            @if(admin_can('business.referrals') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/referrals') }}" class="nav-link">Referral History</a></li>@endif
+                            @if(admin_can('business.khatabook') || admin_can('accounts') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/khatabook') }}" class="nav-link">Khatabook</a></li>@endif
+                            @if(admin_can('business.tds') || admin_can('accounts') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/tds') }}" class="nav-link">TDS</a></li>@endif
+                            @if(admin_can('business.dmt') || admin_can('accounts') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/dmt') }}" class="nav-link">DMT Report</a></li>@endif
+                            @if(admin_can('business.aeps') || admin_can('accounts') || admin_can('users'))<li class="nav-item"><a href="{{ URL::asset('admin/business/aeps') }}" class="nav-link">AEPS Report</a></li>@endif
+                        </ul>
+                    </div>
+                </li>
+                @endif
 
                 @if(admin_can('accounts'))
                 <li class="nav-item">

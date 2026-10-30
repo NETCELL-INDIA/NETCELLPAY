@@ -89,7 +89,7 @@ class AdminMenuService
             ['key' => 'users', 'label' => 'Users', 'children' => [
                 ['key' => 'users.list', 'label' => 'Create / List Users', 'paths' => ['admin/users/list']],
                 ['key' => 'users.deleted', 'label' => 'User Delete', 'paths' => ['admin/users/deleted']],
-                ['key' => 'users.kyc', 'label' => 'Manage KYC', 'paths' => ['admin/users/kyc']],
+                ['key' => 'users.kyc', 'label' => 'Manage KYC', 'paths' => ['admin/users/kyc', 'admin/business/signups']],
                 ['key' => 'users.service_lock', 'label' => 'User Service Lock', 'paths' => ['admin/users/service-lock']],
                 ['key' => 'users.login_history', 'label' => 'Login History', 'paths' => ['admin/users/login-history']],
             ]],
@@ -140,6 +140,14 @@ class AdminMenuService
                 ['key' => 'website.banners', 'label' => 'Banner Setting', 'paths' => ['admin/website/banners']],
                 ['key' => 'website.popups', 'label' => 'Popup Master', 'paths' => ['admin/website/popups']],
                 ['key' => 'website.policy', 'label' => 'Web Policy', 'paths' => ['admin/website/policy']],
+            ]],
+            ['key' => 'business', 'label' => 'Business', 'children' => [
+                ['key' => 'business.signups', 'label' => 'KYC Approve', 'paths' => ['admin/business/signups']],
+                ['key' => 'business.referrals', 'label' => 'Referral History', 'paths' => ['admin/business/referrals']],
+                ['key' => 'business.khatabook', 'label' => 'Khatabook', 'paths' => ['admin/business/khatabook']],
+                ['key' => 'business.tds', 'label' => 'TDS', 'paths' => ['admin/business/tds']],
+                ['key' => 'business.dmt', 'label' => 'DMT Report', 'paths' => ['admin/business/dmt']],
+                ['key' => 'business.aeps', 'label' => 'AEPS Report', 'paths' => ['admin/business/aeps']],
             ]],
             ['key' => 'employees', 'label' => 'Employees', 'children' => [
                 ['key' => 'employees.list', 'label' => 'Create / List Employees', 'paths' => ['admin/users/list']],
