@@ -312,16 +312,18 @@ class SystemSettingService
             return null;
         }
 
+        $amount = (float) $amount;
         $exists = DB::table('reports')
             ->where('user_id', $userId)
             ->where('number', $number)
-            ->where('total_amount', $amount)
-            ->where('provider_id', $providerId)
             ->where('created_at', '>=', Carbon::now()->subMinutes($minutes))
+            ->where('provider_id', $providerId)
+            ->whereBetween('total_amount', [$amount - 0.01, $amount + 0.01])
+            ->whereNotIn('status', ['Failed', 'Failure', 'Refund', 'Refunded', 'Refund Reverse'])
             ->exists();
 
         if ($exists) {
-            return 'Same recharge was done recently. Please wait '.$minutes.' minutes.';
+            return 'Same number and same amount was recharged recently. Please wait '.$minutes.' minutes.';
         }
 
         return null;

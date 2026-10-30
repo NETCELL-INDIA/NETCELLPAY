@@ -2502,6 +2502,62 @@ class helpers
         }
     }
 
+    /**
+     * Block a recharge amount for an operator, or for one user on that operator.
+     * Returns an error message when blocked. Missing tables never block.
+     */
+    public static function blockedDenominationMessage($userId, $providerId, $amount): ?string
+    {
+        $providerId = (int) $providerId;
+        $userId = (int) $userId;
+        $amount = round((float) $amount, 2);
+        if ($providerId <= 0 || $amount <= 0) {
+            return null;
+        }
+
+        try {
+            if (Schema::hasTable('operator_denomination_blocks')) {
+                $rows = DB::table('operator_denomination_blocks')
+                    ->where('provider_id', $providerId)
+                    ->where('status', 1)
+                    ->get(['amounts']);
+                foreach ($rows as $row) {
+                    if (self::amountIsListed((string) ($row->amounts ?? ''), $amount)) {
+                        return 'This amount is blocked for this operator. Contact admin.';
+                    }
+                }
+            }
+            if ($userId > 0 && Schema::hasTable('user_operator_denomination_blocks')) {
+                $rows = DB::table('user_operator_denomination_blocks')
+                    ->where('provider_id', $providerId)
+                    ->where('user_id', $userId)
+                    ->where('status', 1)
+                    ->get(['amounts']);
+                foreach ($rows as $row) {
+                    if (self::amountIsListed((string) ($row->amounts ?? ''), $amount)) {
+                        return 'This amount is blocked for your account on this operator. Contact admin.';
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static function amountIsListed(string $csv, float $amount): bool
+    {
+        foreach (preg_split('/\s*,\s*/', $csv) as $part) {
+            $part = trim((string) $part);
+            if ($part !== '' && is_numeric($part) && abs(round((float) $part, 2) - $amount) < 0.001) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function checkApis($route,$post,$user){
         $route_api_id = 0;
         try {

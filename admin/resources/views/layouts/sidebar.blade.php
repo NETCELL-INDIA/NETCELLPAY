@@ -272,6 +272,20 @@
                 </li>
                 @endif
 
+                @if(admin_can('employees') || admin_can('users.login_history') || admin_can('users.list'))
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#sidebarEmployees" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarEmployees">
+                        <i class="bx bx-id-card"></i> <span>Employees</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="sidebarEmployees">
+                        <ul class="nav nav-sm flex-column">
+                            @if(admin_can('employees.list') || admin_can('users.list'))<li class="nav-item"><a href="{{ URL::asset('admin/users/list') }}" class="nav-link">Create / List Employees</a></li>@endif
+                            @if(admin_can('employees.login_history') || admin_can('users.login_history'))<li class="nav-item"><a href="{{ URL::asset('admin/employees/login-history') }}" class="nav-link">Login History</a></li>@endif
+                        </ul>
+                    </div>
+                </li>
+                @endif
+
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarPayments" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarPayments">
                         <i class="bx bxs-wallet"></i> <span>Payments</span>
@@ -344,6 +358,8 @@
                             @if(admin_can('system.settings'))<li class="nav-item"><a href="{{ URL::asset('admin/system-settings/system') }}" class="nav-link">System Setting</a></li>@endif
                             @if(admin_can('system.banks'))<li class="nav-item"><a href="{{ URL::asset('admin/system/banks') }}" class="nav-link">Banks</a></li>@endif
                             @if(admin_can('system.amount_block'))<li class="nav-item"><a href="{{ URL::asset('admin/system/amount-block') }}" class="nav-link">Amount Block</a></li>@endif
+                            @if(admin_can('system.amount_block') || admin_can('system.operator_denomination_block'))<li class="nav-item"><a href="{{ URL::asset('admin/system/operator-denomination-block') }}" class="nav-link">Operator Denomination Block</a></li>@endif
+                            @if(admin_can('system.amount_block') || admin_can('system.user_operator_denomination_block'))<li class="nav-item"><a href="{{ URL::asset('admin/system/user-operator-denomination-block') }}" class="nav-link">User Operator Denomination Block</a></li>@endif
                             @if(admin_can('system.amount_switch'))<li class="nav-item"><a href="{{ URL::asset('admin/system/amount-wize-switch') }}" class="nav-link">Amount Wise Switch</a></li>@endif
                             @if(admin_can('system.state_switch'))<li class="nav-item"><a href="{{ URL::asset('admin/system/state-wize-switch') }}" class="nav-link">State Wise Switch</a></li>@endif
                             @if(admin_can('system.user_switch'))<li class="nav-item"><a href="{{ URL::asset('admin/system/user-wize-switch') }}" class="nav-link">User Wise Switch</a></li>@endif

@@ -409,6 +409,15 @@ class RechargeController extends Controller
 
 
 
+        $denomBlock = \helpers::blockedDenominationMessage($user->id ?? 0, $post->provider_id, $post->amount);
+        if ($denomBlock) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $denomBlock
+            ));
+        }
+
         ////Validation Check  Block Amount
 
         $chk_block_amount = DB::table('amount_blocks')->where('provider_id', $post->provider_id)->where('status', 1)->first();

@@ -66,6 +66,7 @@ class MenuPlaceholderController extends Controller
         'employees/list-employee' => 'admin/users/list',
         'employees/permissions' => 'admin/system/role',
         'employees/performance-report' => 'admin/admin-reports/user-sale-report',
+        'employees/login-history' => 'admin/employees/login-history',
 
         // Extras
         'extras/manage-news' => 'admin/system/announcement',
@@ -122,8 +123,7 @@ class MenuPlaceholderController extends Controller
 
         // W2R
 
-        // Employees missing
-        'employees/login-history' => ['section' => 'Employees', 'title' => 'Login History', 'description' => 'Employee login history not present'],
+        // Employees login history is a real page.
     ];
 
     public function show(string $section, string $slug)

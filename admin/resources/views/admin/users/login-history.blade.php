@@ -22,13 +22,13 @@
 @section('content')
 <div class="row">
     <div class="col-12">
-        <h4 class="lh-page-title">Login History</h4>
+        <h4 class="lh-page-title">{{ $pageTitle ?? 'Login History' }}</h4>
     </div>
 </div>
 
 <div class="card">
     <div class="card-body py-3">
-        <form method="get" action="{{ route('usersLoginHistory') }}" class="row g-3 align-items-end">
+        <form method="get" action="{{ $historyRoute ?? route('usersLoginHistory') }}" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="form-label mb-0">Mobile Number</label>
                 <input type="text" name="mobile" class="form-control" maxlength="10" placeholder="Enter Mobile" value="{{ $mobile }}">
@@ -58,6 +58,7 @@
                     <tr>
                         <th>#</th>
                         <th>Name</th>
+                        @if(!empty($staffOnly))<th>Role</th>@endif
                         <th>Mobile</th>
                         <th>IP Address</th>
                         <th>Login By</th>
@@ -72,6 +73,7 @@
                         <tr>
                             <td>{{ $logs->firstItem() + $loop->index }}</td>
                             <td>{{ $row->display_name ?: '-' }}</td>
+                            @if(!empty($staffOnly))<td>{{ $row->role_name ?: '-' }}</td>@endif
                             <td>{{ $row->mobile_number ?: '-' }}</td>
                             <td>{{ $row->ip_address ?: '-' }}</td>
                             <td>{{ $row->login_by }}</td>
@@ -92,7 +94,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">No login history found</td>
+                            <td colspan="{{ !empty($staffOnly) ? 10 : 9 }}" class="text-center text-muted py-4">No login history found</td>
                         </tr>
                     @endforelse
                 </tbody>

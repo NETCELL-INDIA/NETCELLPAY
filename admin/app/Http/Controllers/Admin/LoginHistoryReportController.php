@@ -13,6 +13,16 @@ class LoginHistoryReportController extends Controller
 {
     public function index(Request $request)
     {
+        return $this->render($request, false);
+    }
+
+    public function employees(Request $request)
+    {
+        return $this->render($request, true);
+    }
+
+    private function render(Request $request, bool $staffOnly)
+    {
         Common::ensureLoginHistoriesTable();
 
         $mobile = trim((string) $request->get('mobile', ''));
@@ -21,7 +31,12 @@ class LoginHistoryReportController extends Controller
 
         $query = DB::table('login_histories as lh')
             ->leftJoin('users as u', 'u.id', '=', 'lh.user_id')
+            ->leftJoin('roles as r', 'r.id', '=', 'u.role_id')
             ->orderByDesc('lh.id');
+
+        if ($staffOnly) {
+            $query->whereIn('u.role_id', [1, 2, 4, 5]);
+        }
 
         $query->whereBetween('lh.created_at', [$fromDate.' 00:00:00', $toDate.' 23:59:59']);
 
@@ -39,6 +54,7 @@ class LoginHistoryReportController extends Controller
             'u.last_name',
             'u.outlet_name',
             'u.mobile_number',
+            'r.name as role_name',
         ];
 
         foreach (['latitude', 'longitude'] as $column) {
@@ -72,6 +88,9 @@ class LoginHistoryReportController extends Controller
             return $row;
         });
 
-        return view('admin.users.login-history', compact('logs', 'mobile', 'fromDate', 'toDate'));
+        $pageTitle = $staffOnly ? 'Employee Login History' : 'Login History';
+        $historyRoute = $staffOnly ? route('employeeLoginHistory') : route('usersLoginHistory');
+
+        return view('admin.users.login-history', compact('logs', 'mobile', 'fromDate', 'toDate', 'pageTitle', 'historyRoute', 'staffOnly'));
     }
 }

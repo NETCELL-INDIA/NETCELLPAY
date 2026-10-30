@@ -139,6 +139,7 @@ use App\Http\Controllers\Admin\LogsController;
 
 
 use App\Http\Controllers\Admin\AmountBlockController;
+use App\Http\Controllers\Admin\DenominationBlockController;
 
 use App\Http\Controllers\Admin\AmountWizeSwitchController;
 
@@ -569,6 +570,12 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/system/amount-block/delete',[AmountBlockController::class,'deleteData'])->name('amountBlockDelete');
 
+    Route::get('admin/system/operator-denomination-block',[DenominationBlockController::class,'operator']);
+    Route::get('admin/system/user-operator-denomination-block',[DenominationBlockController::class,'user']);
+    Route::post('admin/system/denomination-block/list',[DenominationBlockController::class,'list'])->name('denomBlockList');
+    Route::post('admin/system/denomination-block/save',[DenominationBlockController::class,'save'])->name('denomBlockSave');
+    Route::post('admin/system/denomination-block/delete',[DenominationBlockController::class,'delete'])->name('denomBlockDelete');
+
     //Amount Wize Switch
 
     Route::get('admin/system/amount-wize-switch',[AmountWizeSwitchController::class,'index']);
@@ -782,6 +789,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/users/userlist/deleted-list',[UserListController::class,'fetchDeleted'])->name('userlistDeletedList');
     Route::post('admin/users/userlist/restore',[UserListController::class,'restoreData'])->name('userlistRestore');
     Route::get('admin/users/login-history', [LoginHistoryReportController::class, 'index'])->name('usersLoginHistory');
+    Route::get('admin/employees/login-history', [LoginHistoryReportController::class, 'employees'])->name('employeeLoginHistory');
 
 
 

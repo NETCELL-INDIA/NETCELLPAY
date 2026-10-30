@@ -70,6 +70,8 @@
 
                 <div class="card-body">
 
+                    <div id="operator_down_note" class="alert alert-warning py-2" style="display:none"></div>
+
                     <form id="pay_form">
 
                         <div class="row gy-3">
@@ -806,6 +808,8 @@
 
                     //$('#provider_id').empty();
 
+                    var downNames = [];
+
                     $.each(res.provider, function(k, v) {
 
                         var providerName = String(v.provider_name || '').toUpperCase();
@@ -815,6 +819,7 @@
                             providerName += ' (OFF)';
                             isDisabled = true;
                         } else if (Number(v.provider_down) === 1 || Number(v.user_down) === 1) {
+                            downNames.push(providerName);
                             providerName += ' (DOWN)';
                             isDisabled = true;
                         }
@@ -822,6 +827,12 @@
                         $('#provider_id').append($('<option>').val(v.id).text(providerName).prop('disabled', isDisabled));
 
                     });
+
+                    if (downNames.length) {
+                        $('#operator_down_note').text('Operator down: ' + downNames.join(', ') + '. Recharge will not be sent until admin turns it on.').show();
+                    } else {
+                        $('#operator_down_note').hide();
+                    }
 
                     $("#preloader").hide();
 

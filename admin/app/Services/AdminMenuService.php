@@ -118,7 +118,9 @@ class AdminMenuService
             ['key' => 'system', 'label' => 'System', 'children' => [
                 ['key' => 'system.settings', 'label' => 'System Setting', 'paths' => ['admin/system-settings']],
                 ['key' => 'system.banks', 'label' => 'Banks', 'paths' => ['admin/system/banks']],
-                ['key' => 'system.amount_block', 'label' => 'Amount Block', 'paths' => ['admin/system/amount-block']],
+                ['key' => 'system.amount_block', 'label' => 'Amount Block', 'paths' => ['admin/system/amount-block', 'admin/system/operator-denomination-block', 'admin/system/user-operator-denomination-block', 'admin/system/denomination-block']],
+                ['key' => 'system.operator_denomination_block', 'label' => 'Operator Denomination Block', 'paths' => ['admin/system/operator-denomination-block', 'admin/system/denomination-block']],
+                ['key' => 'system.user_operator_denomination_block', 'label' => 'User Operator Denomination Block', 'paths' => ['admin/system/user-operator-denomination-block', 'admin/system/denomination-block']],
                 ['key' => 'system.amount_switch', 'label' => 'Amount Wise Switch', 'paths' => ['admin/system/amount-wize-switch']],
                 ['key' => 'system.state_switch', 'label' => 'State Wise Switch', 'paths' => ['admin/system/state-wize-switch']],
                 ['key' => 'system.user_switch', 'label' => 'User Wise Switch', 'paths' => ['admin/system/user-wize-switch']],
@@ -143,6 +145,7 @@ class AdminMenuService
                 ['key' => 'employees.list', 'label' => 'Create / List Employees', 'paths' => ['admin/users/list']],
                 ['key' => 'employees.permissions', 'label' => 'Permissions / Roles', 'paths' => ['admin/system/role']],
                 ['key' => 'employees.performance', 'label' => 'Performance Report', 'paths' => ['admin/admin-reports/user-sale-report']],
+                ['key' => 'employees.login_history', 'label' => 'Employee Login History', 'paths' => ['admin/employees/login-history', 'admin/menu/employees/login-history']],
             ]],
             ['key' => 'extras', 'label' => 'Extras', 'children' => [
                 ['key' => 'extras.sms_api', 'label' => 'SMS API List', 'paths' => ['admin/extras/sms-api-list']],
