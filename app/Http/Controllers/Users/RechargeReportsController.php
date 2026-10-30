@@ -236,4 +236,76 @@ class RechargeReportsController extends Controller
         
     }
 
+    public function download(Request $post)
+    {
+        $user = DB::table('users')->where('id', Session::get('user_id'))->whereNotIn('role_id', [1, 2])->first();
+        abort_unless($user, 403);
+
+        $today = Carbon::today()->format('Y-m-d');
+        $from = (string) $post->get('from_date');
+        $to = (string) $post->get('to_date');
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $from = $today;
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $to = $from;
+        }
+        $table = ((string) $post->get('tbl_type') === '1' && \Illuminate\Support\Facades\Schema::hasTable('backup_reports'))
+            ? 'backup_reports'
+            : 'reports';
+
+        $query = DB::table($table)
+            ->where('user_id', $user->id)
+            ->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59']);
+
+        if ((int) $user->role_id === 6 || (int) $user->role_id === 3) {
+            $query->whereIn('transaction_type', ['Recharge']);
+        } else {
+            $query->whereIn('transaction_type', ['Commission']);
+        }
+        if (trim((string) $post->get('order_id')) !== '') {
+            $query->where('order_id', trim((string) $post->get('order_id')));
+        }
+        if (trim((string) $post->get('req_order_id')) !== '') {
+            $query->where('request_order_id', trim((string) $post->get('req_order_id')));
+        }
+        if (trim((string) $post->get('number')) !== '') {
+            $query->where('number', trim((string) $post->get('number')));
+        }
+
+        $rows = $query->orderByDesc('id')->limit(4000)->get([
+            'created_at', 'number', 'request_order_id', 'order_id', 'operator_id',
+            'status', 'total_amount', 'amount', 'commission', 'transaction_type',
+        ]);
+
+        $csv = "date,number,request_order_id,order_id,operator_id,status,total_amount,amount,commission,type\n";
+        foreach ($rows as $row) {
+            $line = [
+                (string) $row->created_at,
+                (string) $row->number,
+                (string) $row->request_order_id,
+                (string) $row->order_id,
+                (string) $row->operator_id,
+                (string) $row->status,
+                (string) $row->total_amount,
+                (string) $row->amount,
+                (string) $row->commission,
+                (string) $row->transaction_type,
+            ];
+            $csv .= implode(',', array_map(function ($value) {
+                $value = str_replace(["\r", "\n"], ' ', $value);
+                if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+                    $value = "'".$value;
+                }
+
+                return '"'.str_replace('"', '""', $value).'"';
+            }, $line))."\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="recharge-report-'.$from.'-to-'.$to.'.csv"',
+        ]);
+    }
+
 }

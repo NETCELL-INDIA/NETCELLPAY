@@ -60,6 +60,29 @@ API Settings
                             <input type="text" name="ip_address" class="form-control" value="{{ old('ip_address', $user->ip_address) }}" placeholder="203.0.113.10, 203.0.113.11">
                             <small class="text-muted d-block mt-1">Browser IP right now: <strong>{{ $clientIp }}</strong>. The API checks the server that calls us, which may be a different IP.</small>
                             <small class="text-muted d-block">Blank is blocked. Enter one IP, or several separated by commas. Use <code>*</code> only if every IP should be allowed.</small>
+                            @if(($rejectedIps ?? collect())->count())
+                                <div class="table-responsive mt-2">
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Rejected IP</th>
+                                                <th>Reason</th>
+                                                <th>Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($rejectedIps as $ipRow)
+                                            <tr>
+                                                <td><strong>{{ $ipRow->ip_address }}</strong></td>
+                                                <td>{{ $ipRow->reason }}</td>
+                                                <td>{{ $ipRow->created_at ? \Carbon\Carbon::parse($ipRow->created_at)->format('d-m-Y h:i A') : '-' }}</td>
+                                            </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <small class="text-muted">Copy the rejected server IP into the box above and save. The same IP is logged at most once every 15 minutes.</small>
+                            @endif
                         </div>
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary">Save API Settings</button>
@@ -122,6 +145,47 @@ API Settings
                             @empty
                                 <tr>
                                     <td colspan="8" class="text-center text-muted">No API transactions yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Complaint callback log</h4>
+                <p class="text-muted mb-0">Last 25 API complaints. Sent means your complaint callback URL returned success. This list does not move wallet money.</p>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Request ID</th>
+                                <th>Order</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Callback</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse(($complaintLogs ?? []) as $log)
+                                <tr>
+                                    <td>{{ $log->created_at ? \Carbon\Carbon::parse($log->created_at)->format('d-m-Y h:i A') : '-' }}</td>
+                                    <td>{{ $log->request_id ?: '-' }}</td>
+                                    <td>{{ $log->order_id ?: '-' }}</td>
+                                    <td>{{ $log->subject ?: '-' }}</td>
+                                    <td>{{ $log->status ?: '-' }}</td>
+                                    <td>{{ (int) ($log->callback_status ?? 0) === 1 ? 'Sent' : 'Waiting' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No API complaints yet.</td>
                                 </tr>
                             @endforelse
                         </tbody>

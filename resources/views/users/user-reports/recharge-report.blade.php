@@ -82,6 +82,7 @@
                             <div>
                                 <label class="form-label mb-0"></label>
                                 <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAll(1,10)">Search</button>
+                                <button type="button" class="form-control btn btn-outline-success mt-1" onclick="downloadRechargeCsv()">CSV</button>
                             </div>  
                         </div>
                     </div>                          
@@ -297,6 +298,18 @@
 @section('script')
 <script>
     fetchAll(1,10);
+    function downloadRechargeCsv() {
+        var q = new URLSearchParams({
+            from_date: $('#from_date').val() || '',
+            to_date: $('#to_date').val() || '',
+            order_id: $('#order_id').val() || '',
+            req_order_id: $('#req_order_id').val() || '',
+            number: $('#number_text').val() || '',
+            tbl_type: $('#tbl_type').val() || '0'
+        });
+        window.location = '{{ url('users/user-reports/recharge-report/download') }}?' + q.toString();
+    }
+
     function fetchAllSearch() {
         var from_date = $("#from_date").val();
         var to_date = $("#to_date").val();

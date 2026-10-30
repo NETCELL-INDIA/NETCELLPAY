@@ -67,6 +67,8 @@ class ApiSettingsController extends Controller
             'billProviders' => $billProviders,
             'clientIp' => (string) \helpers::getIp(),
             'callbackLogs' => $this->recentCallbacks((int) $user->id),
+            'complaintLogs' => $this->recentComplaints((int) $user->id),
+            'rejectedIps' => $this->recentRejectedIps((int) $user->id),
         ]);
     }
 
@@ -111,6 +113,47 @@ class ApiSettingsController extends Controller
                 ->orderByDesc('id')
                 ->limit(25)
                 ->get($select);
+        } catch (\Throwable $e) {
+            return collect();
+        }
+    }
+
+    private function recentComplaints(int $userId)
+    {
+        try {
+            if (! Schema::hasTable('complaints')) {
+                return collect();
+            }
+            $select = ['id', 'order_id', 'request_id', 'subject', 'status', 'created_at'];
+            foreach (['callback_status', 'decision_remark', 'decision_date'] as $column) {
+                if (Schema::hasColumn('complaints', $column)) {
+                    $select[] = $column;
+                }
+            }
+
+            return DB::table('complaints')
+                ->where('user_id', $userId)
+                ->where('path', 'Api')
+                ->orderByDesc('id')
+                ->limit(25)
+                ->get($select);
+        } catch (\Throwable $e) {
+            return collect();
+        }
+    }
+
+    private function recentRejectedIps(int $userId)
+    {
+        try {
+            if (! Schema::hasTable('api_ip_rejects')) {
+                return collect();
+            }
+
+            return DB::table('api_ip_rejects')
+                ->where('user_id', $userId)
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get(['ip_address', 'reason', 'created_at']);
         } catch (\Throwable $e) {
             return collect();
         }

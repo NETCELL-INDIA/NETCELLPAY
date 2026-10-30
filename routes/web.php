@@ -288,6 +288,7 @@ Route::group(['middleware' => userCheck::class], function () {
     //Recharge Reports Routes 
     Route::get('users/user-reports/recharge-report',[RechargeReportsController::class,'index']);
     Route::post('users/user-reports/recharge-report/list',[RechargeReportsController::class,'fetchAll'])->name('rechargeReportsList');
+    Route::get('users/user-reports/recharge-report/download',[RechargeReportsController::class,'download'])->name('rechargeReportsDownload');
     Route::get('users/user-reports/recharge-receipt/{id}',[RechargeReceiptController::class,'download'])->whereNumber('id')->name('rechargeReceiptPdf');
     Route::post('users/user-reports/wrong-recharge',[WrongRechargeController::class,'store'])->middleware('throttle:6,1')->name('wrongRechargeStore');
     Route::get('users/user-reports/bill-payment-report',[ExtraReportsController::class,'billIndex']);
