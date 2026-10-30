@@ -516,7 +516,7 @@ class PlanInfoFetchService
             : null;
 
         $cacheTtl = self::cacheTtlFor($setting);
-        $cacheKey = 'plan_fetch:mobile:v2:'.$serviceKey.':'.$providerId.':'.$stateId;
+        $cacheKey = 'plan_fetch:mobile:v3:'.$serviceKey.':'.$providerId.':'.$stateId;
         if ($cacheTtl > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && !empty($cached['ok'])) {
@@ -1297,7 +1297,7 @@ class PlanInfoFetchService
             : null;
 
         $cacheTtl = self::cacheTtlFor($setting);
-        $cacheKey = 'plan_fetch:dth_plans:v2:'.$providerId;
+        $cacheKey = 'plan_fetch:dth_plans:v3:'.$providerId;
         if ($cacheTtl > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && !empty($cached['ok'])) {
@@ -2360,8 +2360,7 @@ class PlanInfoFetchService
                 if (! is_array($row)) {
                     continue;
                 }
-                $normalized = self::normalizePlanRow($row);
-                if ($normalized !== null) {
+                foreach (self::expandPlanRows($row) as $normalized) {
                     $out[] = $normalized;
                 }
             }
@@ -2374,13 +2373,15 @@ class PlanInfoFetchService
             if (! is_array($rows)) {
                 continue;
             }
+            if (! self::isListArray($rows)) {
+                $rows = [$rows];
+            }
             $normalizedRows = [];
             foreach ($rows as $row) {
                 if (! is_array($row)) {
                     continue;
                 }
-                $normalized = self::normalizePlanRow($row);
-                if ($normalized !== null) {
+                foreach (self::expandPlanRows($row) as $normalized) {
                     $normalizedRows[] = $normalized;
                 }
             }
@@ -2450,7 +2451,50 @@ class PlanInfoFetchService
             return true;
         }
 
-        return (bool) preg_match('/not\s*available|no\s*(offer|plan|record|data)|not\s*found|invalid\s*operator|invalid\s*circle/i', $desc);
+        if (strlen($desc) > 80) {
+            return false;
+        }
+
+        return (bool) preg_match('/not\s*available|no\s+plans?|no\s+records?|not\s*found|invalid\s+operator|invalid\s+circle/i', $desc);
+    }
+
+    /**
+     * One supplier pack can hold several prices in priceList. Each price becomes its own plan.
+     *
+     * @param  array<string, mixed>  $row
+     * @return list<array<string, string>>
+     */
+    private static function expandPlanRows(array $row): array
+    {
+        $priceList = $row['priceList'] ?? $row['PricingList'] ?? $row['prices'] ?? null;
+        if (is_array($priceList) && $priceList !== []) {
+            $name = trim((string) ($row['name'] ?? $row['plan_name'] ?? $row['PlanName'] ?? ''));
+            $out = [];
+            foreach ($priceList as $price) {
+                if (! is_array($price)) {
+                    continue;
+                }
+                $merged = array_merge($row, $price);
+                unset($merged['priceList'], $merged['PricingList'], $merged['prices']);
+                $extra = trim((string) ($price['description'] ?? $price['desc'] ?? $price['ofrtext'] ?? ''));
+                if ($name !== '' && $extra !== '' && stripos($extra, $name) === false) {
+                    $merged['desc'] = trim($name.' '.$extra);
+                } elseif ($extra === '' && $name !== '') {
+                    $merged['desc'] = $name;
+                }
+                $normalized = self::normalizePlanRow($merged);
+                if ($normalized !== null) {
+                    $out[] = $normalized;
+                }
+            }
+            if ($out !== []) {
+                return $out;
+            }
+        }
+
+        $normalized = self::normalizePlanRow($row);
+
+        return $normalized === null ? [] : [$normalized];
     }
 
     /**
@@ -2496,6 +2540,39 @@ class PlanInfoFetchService
         }
 
         return $out;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     * @return list<array<string, string>>
+     */
+    private static function flattenPlanRows(array $data): array
+    {
+        if ($data === []) {
+            return [];
+        }
+
+        $lists = self::isListArray($data) ? [$data] : array_values($data);
+        $rows = [];
+        $seen = [];
+        foreach ($lists as $list) {
+            if (! is_array($list)) {
+                continue;
+            }
+            foreach ($list as $row) {
+                if (! is_array($row) || ! isset($row['rs'], $row['desc'])) {
+                    continue;
+                }
+                $key = $row['rs'].'|'.strtolower((string) $row['desc']);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
     }
 
     /** @param  mixed  $row */
@@ -3157,11 +3234,17 @@ class PlanInfoFetchService
     public static function appPlanPayload(array $result): array
     {
         $data = self::withoutPlaceholderPlans(is_array($result['data'] ?? null) ? $result['data'] : []);
-        if ($data !== [] && self::isListArray($data)) {
-            $data = ['Plans' => $data];
+        $flat = self::flattenPlanRows($data);
+        if ($flat === []) {
+            $data = [];
+        } elseif (self::isListArray($data)) {
+            $data = ['Plans' => $flat];
+        } else {
+            // The app reads the Plans list. Category keys stay for the website tabs.
+            $data = ['Plans' => $flat] + $data;
         }
 
-        $ok = ($result['type'] ?? '') === 'success' && $data !== [];
+        $ok = $flat !== [];
 
         return [
             'type' => $ok ? 'success' : 'error',
