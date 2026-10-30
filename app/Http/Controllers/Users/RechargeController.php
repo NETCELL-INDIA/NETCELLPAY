@@ -2326,7 +2326,7 @@ class RechargeController extends Controller
 
             'provider_id' => 'required|numeric',
 
-            'state_id' => 'nullable|numeric',
+            'state_id' => 'nullable',
 
         );
 
@@ -2373,27 +2373,27 @@ class RechargeController extends Controller
         $serviceId = (int) DB::table('providers')->where('id', (int) $post->provider_id)->value('service_id');
         if ($serviceId === 2) {
             $result = PlanInfoFetchService::fetchDthPlans((int) $post->provider_id);
-            return response()->json([
-                'type' => $result['type'],
-                'message' => $result['message'],
-                'data' => $result['data'] ?? [],
-            ]);
+
+            return response()->json(PlanInfoFetchService::appPlanPayload($result));
         }
 
-        if (!$post->filled('state_id')) {
+        $number = (string) ($post->number ?? $post->mobile ?? $post->mobile_number ?? '');
+        $stateRaw = $post->input('state_id', $post->input('circle_id', $post->input('circle', $post->input('state'))));
+        $stateId = PlanInfoFetchService::resolvePortalStateId($stateRaw, $number);
+        if ($stateId < 1) {
             return response()->json([
                 'type' => 'error',
+                'status' => 'error',
                 'message' => 'Please select circle/state.',
+                'data' => [],
+                'RDATA' => [],
+                'records' => [],
             ]);
         }
 
-        $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, (int) $post->state_id);
+        $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, $stateId);
 
-        return response()->json([
-            'type' => $result['type'],
-            'message' => $result['message'],
-            'data' => $result['data'] ?? [],
-        ]);
+        return response()->json(PlanInfoFetchService::appPlanPayload($result));
 
         } catch (\Throwable $e) {
             return response()->json([

@@ -401,6 +401,20 @@ class PlanInfoFetchService
         return max(5, min(120, $timeout));
     }
 
+    /**
+     * Keep a multi-API plan chain inside a phone timeout.
+     * One supplier may use the admin timeout. Two or more get a short try, then the next API.
+     */
+    private static function chainTimeout(int $configured, int $attemptCount): int
+    {
+        $configured = max(5, min(30, $configured));
+        if ($attemptCount <= 1) {
+            return $configured;
+        }
+
+        return min($configured, 8);
+    }
+
     /** Jio / BSNL have no dedicated R-Offer service; fall back to the real plan list when no offers. */
     public static function rofferFallsBackToPlans(int $providerId): bool
     {
@@ -512,7 +526,7 @@ class PlanInfoFetchService
         }
 
         $attempts = self::primaryBackupAttempts($setting, 6, true);
-        $timeout = self::timeoutFor($setting);
+        $timeout = self::chainTimeout(self::timeoutFor($setting), count($attempts));
 
         $lastResult = null;
 
@@ -1292,7 +1306,7 @@ class PlanInfoFetchService
         }
 
         $attempts = self::primaryBackupAttempts($setting, 6, true);
-        $timeout = self::timeoutFor($setting);
+        $timeout = self::chainTimeout(self::timeoutFor($setting), count($attempts));
         $lastResult = null;
 
         foreach ($attempts as $index => $attempt) {
@@ -1922,11 +1936,12 @@ class PlanInfoFetchService
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_MAXREDIRS, 10);
         curl_setopt($curl, CURLOPT_ENCODING, '');
-        $connectTimeout = (int) config('plan_api.connect_timeout', 10);
         $timeout = isset($context['timeout']) ? (int) $context['timeout'] : (int) config('plan_api.timeout', 30);
-        $timeout = max($connectTimeout, max(5, min(120, $timeout)));
+        $timeout = max(5, min(120, $timeout));
+        $connectTimeout = min(5, $timeout);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $connectTimeout);
         curl_setopt($curl, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'GET');
 
@@ -2997,6 +3012,77 @@ class PlanInfoFetchService
         }
 
         return $value;
+    }
+
+    /**
+     * Portal state id from the app's state_id, circle code, circle name, or the mobile number.
+     */
+    public static function resolvePortalStateId($raw, string $number = ''): int
+    {
+        $raw = trim((string) $raw);
+        if ($raw !== '' && ctype_digit($raw)) {
+            $id = (int) $raw;
+            if ($id > 0 && DB::table('states')->where('id', $id)->exists()) {
+                return $id;
+            }
+            $byCode = DB::table('states')
+                ->where('plan_api_code', $raw)
+                ->orWhere('plan_api_code', ltrim($raw, '0'))
+                ->value('id');
+            if ($byCode) {
+                return (int) $byCode;
+            }
+        } elseif ($raw !== '') {
+            $state = self::matchStateByCircleName($raw);
+            if ($state) {
+                return (int) $state->id;
+            }
+        }
+
+        $digits = preg_replace('/\D/', '', $number) ?? '';
+        if (strlen($digits) >= 10) {
+            $lookup = self::fetchOperatorLookup(substr($digits, -10));
+            if (! empty($lookup['ok'])) {
+                $mapped = self::mapHlrToPortal(
+                    isset($lookup['api_id']) ? (int) $lookup['api_id'] : null,
+                    is_array($lookup['data'] ?? null) ? $lookup['data'] : []
+                );
+                if (! empty($mapped['state']->id)) {
+                    return (int) $mapped['state']->id;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Website reads data as category → rows. The Android app also reads RDATA/records
+     * and shows "Plans not available from API" when those keys are missing or data is a list.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    public static function appPlanPayload(array $result): array
+    {
+        $data = $result['data'] ?? [];
+        if (! is_array($data)) {
+            $data = [];
+        }
+        if ($data !== [] && self::isListArray($data)) {
+            $data = ['Plans' => $data];
+        }
+
+        $ok = ($result['type'] ?? '') === 'success' && $data !== [];
+
+        return [
+            'type' => $ok ? 'success' : 'error',
+            'status' => $ok ? 'success' : 'error',
+            'message' => $ok ? 'Fatch Successfully' : (string) ($result['message'] ?? 'No plans found for this operator and circle.'),
+            'data' => $data,
+            'RDATA' => $data,
+            'records' => $data,
+        ];
     }
 
     /**
