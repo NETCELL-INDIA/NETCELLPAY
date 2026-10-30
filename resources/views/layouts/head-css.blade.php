@@ -11,5 +11,5 @@
 <link href="{{ URL::asset('assets/css/header-modern.css') }}?v={{ user_build_serial() }}" rel="stylesheet" type="text/css" />
 <link href="{{ URL::asset('assets/css/portal-modern.css') }}?v={{ user_build_serial() }}" rel="stylesheet" type="text/css" />
 <!-- custom Css-->
-<link href="{{ URL::asset('assets/css/custom.css') }}" rel="stylesheet" type="text/css" />
+<link href="{{ URL::asset('assets/css/custom.css') }}?v=20261030-navy" rel="stylesheet" type="text/css" />
 {{-- @yield('css') --}}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\AdminAudit;
+use App\Services\PendingRechargeStatusService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -132,6 +133,7 @@ class PendingReportController extends Controller
                     <td><span class="badge bg-warning text-dark">' . e(strtoupper($list->status ?: 'PENDING')) . '</span></td>
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="text-nowrap">
+                        <button type="button" class="btn btn-sm btn-outline-info btn-check-status" data-id="' . e($list->id) . '" title="Ask supplier status. Does not send the recharge again.">Status</button>
                         <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '" title="Same API again">Resend</button>
                         <button type="button" class="btn btn-sm btn-primary btn-row-rehit" data-id="' . e($list->id) . '" data-api-id="' . e((string) ($list->api_id ?? '')) . '" title="Rehit with selected / auto API">Rehit</button>
                         <button type="button" class="btn btn-sm btn-outline-warning btn-check-callback" data-id="' . e($list->id) . '" data-order-id="' . e($list->order_id ?: '') . '">Callback</button>
@@ -319,6 +321,35 @@ class PendingReportController extends Controller
         return response()->json([
             'type' => 'success',
             'message' => "Updated {$updated} transaction(s) to {$status}",
+        ]);
+    }
+
+    public function checkStatus(Request $request)
+    {
+        $ids = $request->ids;
+        if (! is_array($ids) || $ids === []) {
+            $ids = $request->filled('id') ? [(int) $request->id] : [];
+        }
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if ($ids === []) {
+            return response()->json(['type' => 'error', 'message' => 'Select at least one transaction']);
+        }
+
+        $lines = [];
+        $ok = 0;
+        foreach (array_slice($ids, 0, 20) as $id) {
+            $result = PendingRechargeStatusService::checkOne($id);
+            $label = '#'.$id.': '.($result['message'] ?? 'Checked');
+            $lines[] = $label;
+            if (! empty($result['ok']) && in_array($result['status'] ?? '', ['Success', 'Failed'], true)) {
+                $ok++;
+            }
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'message' => implode("\n", $lines),
+            'updated' => $ok,
         ]);
     }
 

@@ -928,6 +928,7 @@ class Helper {
             '{STATE_CODE}' => (string) $stateCode,
             '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
             '{ORDER_ID}' => (string) ($report->order_id ?? ''),
+            '{REQUEST_ORDER_ID}' => (string) ($report->request_order_id ?? $report->order_id ?? ''),
             '{OUTLET_NAME}' => $outlet,
             '{USER_MOBILE}' => $mobile,
             '{USER_ID}' => (string) ($report->user_id ?? ''),

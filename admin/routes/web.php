@@ -102,6 +102,7 @@ use App\Http\Controllers\Admin\PlanLogsReportController;
 use App\Http\Controllers\Admin\MenuPlaceholderController;
 use App\Http\Controllers\Admin\BusinessToolsController;
 use App\Http\Controllers\Admin\AccountDeletionAdminController;
+use App\Http\Controllers\Admin\WrongRechargeAdminController;
 
 
 
@@ -344,6 +345,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::post('admin/recharge-reports/pending-report/bulk-status', [PendingReportController::class, 'bulkStatus'])->name('pendingReportBulkStatus');
     Route::post('admin/recharge-reports/pending-report/rehit', [PendingReportController::class, 'rehit'])->name('pendingReportRehit');
     Route::post('admin/recharge-reports/pending-report/resend', [PendingReportController::class, 'resend'])->name('pendingReportResend');
+    Route::post('admin/recharge-reports/pending-report/check-status', [PendingReportController::class, 'checkStatus'])->name('pendingReportCheckStatus');
+    Route::get('admin/recharge-reports/wrong-recharge', [WrongRechargeAdminController::class, 'index']);
+    Route::post('admin/recharge-reports/wrong-recharge/update', [WrongRechargeAdminController::class, 'update'])->name('adminWrongRechargeUpdate');
 
     // Margin Report (full page)
     Route::get('admin/recharge-reports/margin-report', [MarginReportController::class, 'index'])->name('marginReport');

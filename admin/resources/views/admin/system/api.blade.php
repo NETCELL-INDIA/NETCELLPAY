@@ -258,6 +258,36 @@
 
                             </div>
 
+                            <div class="col-xxl-9 col-md-12">
+
+                                <div>
+
+                                    <label for="status_check_url" class="col-form-label">Status Check URL (optional): {ORDER_ID},{REQUEST_ORDER_ID},{NUMBER},{AMOUNT},{API_USERNAME},{API_KEY}. Do not paste the recharge URL here.</label>
+
+                                    <textarea class="form-control" name="status_check_url" id="status_check_url"></textarea>
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
+                                    <label for="status_check_method" class="col-form-label">Status Check Method:</label>
+
+                                    <select name="status_check_method" id="status_check_method" class="form-control">
+
+                                        <option value="GET" selected>GET</option>
+
+                                        <option value="POST">POST</option>
+
+                                    </select>
+
+                                </div>
+
+                            </div>
+
 
 
                             <div class="col-xxl-12 col-md-12">
@@ -1759,6 +1789,10 @@
                 $("#complaint_api_url").val(data.data.complaint_api_url);
 
                 $("#balance_check_url").val(data.data.balance_check_url);
+
+                $("#status_check_url").val(data.data.status_check_url || '');
+
+                $("#status_check_method").val(data.data.status_check_method || 'GET');
 
                 $("#status_value").val(data.data.status_value);
 

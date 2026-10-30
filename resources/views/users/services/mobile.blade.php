@@ -572,6 +572,8 @@
 
                         onclick="receiptPrint()"><i class="ri-printer-line align-bottom me-1"></i> Print Receipt</button>
 
+                    <a class="btn btn-primary" id="receipt_pdf_btn" href="#" target="_blank">Download PDF</a>
+
                 </div>
 
             </div><!-- /.modal-content -->
@@ -940,6 +942,7 @@
 
 
         function receiptView(id) {
+            $('#receipt_pdf_btn').attr('href', '{{ url('users/user-reports/recharge-receipt') }}/' + id);
 
             $("#receipt_btn").text('Loading...');
 

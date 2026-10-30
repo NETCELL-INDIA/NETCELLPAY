@@ -16,7 +16,7 @@
     <link href="{{ URL::asset('web_template/css/animate.css') }}" rel="stylesheet">
     <link href="{{ URL::asset('web_template/css/style.css') }}" rel="stylesheet">
     <link href="{{ URL::asset('web_template/css/responsive.css') }}" rel="stylesheet">
-    <link href="{{ URL::asset('web_template/css/netcell-site.css') }}" rel="stylesheet">
+    <link href="{{ URL::asset('web_template/css/netcell-site.css') }}?v=20261030-navy" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">

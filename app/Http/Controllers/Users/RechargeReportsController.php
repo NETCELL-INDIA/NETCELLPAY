@@ -104,6 +104,17 @@ class RechargeReportsController extends Controller
         ->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
+        $w2rStatus = [];
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('wrong_recharge_requests') && $list_count > 0) {
+                $w2rStatus = DB::table('wrong_recharge_requests')
+                    ->whereIn('report_id', $list->pluck('id'))
+                    ->whereIn('status', ['Pending', 'Approved', 'Refunded'])
+                    ->pluck('status', 'report_id')
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+        }
         $output = '';
 		if ($list->count() > 0) {
 			$output .= '<div class="table-responsive">';
@@ -146,6 +157,16 @@ class RechargeReportsController extends Controller
                     $action = '<button type="submit" class="btn btn-secondary" id="receipt_btn" onclick="receiptView(`' . $list->id . '`)"><i class="ri-file-list-3-line"></i> Receipt</button>  <button type="submit" class="btn btn-warning" id="complaint_btn" onclick="complaintView(`' . $list->id . '`,`' . $list->order_id . '`)"><i class="ri-questionnaire-fill"></i> Complaint</button>';
                 }else{
                     $action = '<h5>--</h5>';
+                }
+                if (in_array($list->transaction_type ?? '', ['Recharge', 'Bill Pay'], true)) {
+                    $action .= '<div class="mt-1"><a class="btn btn-sm btn-outline-primary" href="'.e(url('users/user-reports/recharge-receipt/'.$list->id)).'">PDF</a></div>';
+                }
+                if (($list->transaction_type ?? '') === 'Recharge' && $list->status === 'Success') {
+                    if (isset($w2rStatus[$list->id])) {
+                        $action .= '<div class="mt-1"><span class="badge bg-info">Wrong no. '.e($w2rStatus[$list->id]).'</span></div>';
+                    } else {
+                        $action .= '<div class="mt-1"><button type="button" class="btn btn-sm btn-danger btn-wrong-no" data-id="'.e($list->id).'" data-order="'.e($list->order_id).'" data-number="'.e($list->number).'">Wrong number</button></div>';
+                    }
                 }
 
                 $provider = DB::table('providers')->where('id', $list->provider_id)->first();

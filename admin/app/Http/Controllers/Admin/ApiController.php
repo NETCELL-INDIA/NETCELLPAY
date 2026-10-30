@@ -678,6 +678,10 @@ class ApiController extends Controller
             'api_key' => $post->api_key,
             'api_url' => $post->api_url,
             'balance_check_url' => $post->balance_check_url,
+            'status_check_url' => (string) ($post->status_check_url ?? ''),
+            'status_check_method' => in_array(strtoupper((string) $post->status_check_method), ['GET', 'POST'], true)
+                ? strtoupper((string) $post->status_check_method)
+                : 'GET',
             'status_value' => $post->status_value,
             'success_value' => $post->success_value,
             'failed_value' => $post->failed_value,
@@ -753,7 +757,7 @@ class ApiController extends Controller
             return;
         }
 
-        foreach (['api_url', 'balance_check_url', 'complaint_api_url'] as $column) {
+        foreach (['api_url', 'balance_check_url', 'complaint_api_url', 'status_check_url'] as $column) {
             try {
                 if (!Schema::hasColumn('apis', $column)) {
                     DB::statement("ALTER TABLE `apis` ADD COLUMN `{$column}` TEXT NULL");
@@ -771,6 +775,13 @@ class ApiController extends Controller
         try {
             if (!Schema::hasColumn('apis', 'store_log')) {
                 DB::statement('ALTER TABLE `apis` ADD COLUMN `store_log` TINYINT(1) NOT NULL DEFAULT 0');
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            if (!Schema::hasColumn('apis', 'status_check_method')) {
+                DB::statement("ALTER TABLE `apis` ADD COLUMN `status_check_method` VARCHAR(8) NULL DEFAULT 'GET'");
             }
         } catch (\Throwable $e) {
         }

@@ -1,6 +1,6 @@
 :root {
-    --portal-primary: #635bff;
-    --portal-secondary: #00bfa6;
+    --portal-primary: #2458c9;
+    --portal-secondary: #111936;
     --portal-ink: #172033;
     --portal-muted: #718096;
     --portal-cloud: #f4f7fb;
@@ -11,8 +11,8 @@
 
 .page-content.portal-content {
     background:
-        radial-gradient(circle at 0% 0%, rgba(99, 91, 255, .06), transparent 26%),
-        radial-gradient(circle at 100% 100%, rgba(0, 191, 166, .06), transparent 24%),
+        radial-gradient(circle at 0% 0%, rgba(36, 88, 201, .06), transparent 26%),
+        radial-gradient(circle at 100% 100%, rgba(17, 25, 54, .06), transparent 24%),
         var(--portal-cloud);
 }
 
@@ -75,7 +75,7 @@
 
 .portal-shell .card-header {
     padding: 16px 20px !important;
-    background: linear-gradient(90deg, rgba(99, 91, 255, .06), transparent 55%) !important;
+    background: linear-gradient(90deg, rgba(36, 88, 201, .06), transparent 55%) !important;
     border-bottom: 1px solid #eef2f7 !important;
 }
 
@@ -111,7 +111,7 @@
 .portal-shell .form-control:focus,
 .portal-shell .form-select:focus {
     border-color: var(--portal-primary) !important;
-    box-shadow: 0 0 0 4px rgba(99, 91, 255, .1) !important;
+    box-shadow: 0 0 0 4px rgba(36, 88, 201, .1) !important;
 }
 
 .portal-shell .btn {
@@ -124,9 +124,9 @@
 .portal-shell #get_roffer_btn,
 .portal-shell #get_plans_btn {
     color: #fff !important;
-    background: linear-gradient(110deg, var(--portal-primary), #7770ff) !important;
+    background: linear-gradient(110deg, #111936, var(--portal-primary)) !important;
     border: 0 !important;
-    box-shadow: 0 8px 20px rgba(99, 91, 255, .22) !important;
+    box-shadow: 0 8px 20px rgba(36, 88, 201, .22) !important;
 }
 
 .portal-shell .btn-warning.bg-gradient,
@@ -142,7 +142,7 @@
     color: #fff !important;
     background: linear-gradient(110deg, var(--portal-secondary), #26d9c3) !important;
     border: 0 !important;
-    box-shadow: 0 8px 20px rgba(0, 191, 166, .22) !important;
+    box-shadow: 0 8px 20px rgba(17, 25, 54, .22) !important;
 }
 
 .portal-shell .btn-success,
@@ -179,7 +179,7 @@
 }
 
 .portal-shell .modal-header {
-    background: linear-gradient(90deg, rgba(99, 91, 255, .06), transparent 55%);
+    background: linear-gradient(90deg, rgba(36, 88, 201, .06), transparent 55%);
     border-bottom: 1px solid #eef2f7 !important;
 }
 
@@ -209,17 +209,24 @@
 }
 
 [data-layout=horizontal] .navbar-menu {
-    background: #fff !important;
+    background: #111936 !important;
 }
 
-[data-layout=horizontal] .navbar-menu .navbar-nav .nav-link {
+[data-layout=horizontal] .navbar-menu .navbar-nav .nav-link,
+[data-layout=horizontal] .navbar-menu .navbar-nav .nav-link i {
     padding: .65rem 1.1rem !important;
+    color: rgba(255, 255, 255, .88) !important;
     font-weight: 600;
+}
+
+[data-layout=horizontal] .navbar-menu .navbar-nav .nav-link i {
+    padding: 0 !important;
 }
 
 [data-layout=horizontal] .navbar-menu .navbar-nav .nav-link.active,
 [data-layout=horizontal] .navbar-menu .navbar-nav .nav-link:hover {
-    color: var(--portal-primary) !important;
+    color: #fff !important;
+    background: rgba(54, 123, 245, .22) !important;
 }
 
 @media (max-width: 768px) {

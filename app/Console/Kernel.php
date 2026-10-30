@@ -20,6 +20,9 @@ class Kernel extends ConsoleKernel
         'App\Console\Commands\ComplaintCallback',
         'App\Console\Commands\SendSms',
         'App\Console\Commands\ProcessPendingRecharges',
+        'App\Console\Commands\CheckPendingRechargeStatus',
+        'App\Console\Commands\NotifyLowBalance',
+        'App\Console\Commands\SendDailySalesSummary',
     ];
 
     protected function schedule(Schedule $schedule)
@@ -28,6 +31,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('complaint_callback')->everyMinute();
         $schedule->command('send_sms_every_minutes')->everyMinute();
         $schedule->command('process_pending_recharges')->everyMinute();
+        $schedule->command('check_pending_recharge_status')->everyMinute();
+        $schedule->command('notify_low_balance')->everyFifteenMinutes();
+        $schedule->command('send_daily_sales_summary')->hourly();
     }
 
     /**

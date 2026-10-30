@@ -1,6 +1,6 @@
 :root {
-    --auth-primary: #635bff;
-    --auth-secondary: #00bfa6;
+    --auth-primary: #2458c9;
+    --auth-secondary: #111936;
     --auth-ink: #172033;
     --auth-muted: #718096;
 }
@@ -17,7 +17,7 @@ body {
     overflow: hidden;
     background:
         radial-gradient(circle at 8% 10%, rgba(0, 191, 166, .16), transparent 28%),
-        radial-gradient(circle at 92% 90%, rgba(99, 91, 255, .14), transparent 30%),
+        radial-gradient(circle at 92% 90%, rgba(36, 88, 201, .14), transparent 30%),
         #f4f7fb;
     place-items: center;
 }
@@ -28,7 +28,7 @@ body {
     width: 260px;
     height: 260px;
     content: "";
-    border: 1px solid rgba(99, 91, 255, .12);
+    border: 1px solid rgba(36, 88, 201, .12);
     border-radius: 50%;
 }
 
@@ -214,7 +214,7 @@ body {
 .login-input:focus {
     background: #fff;
     border-color: var(--auth-primary);
-    box-shadow: 0 0 0 4px rgba(99, 91, 255, .1);
+    box-shadow: 0 0 0 4px rgba(36, 88, 201, .1);
 }
 
 .login-button {
@@ -229,13 +229,13 @@ body {
     background: linear-gradient(110deg, var(--auth-primary), #7770ff);
     border: 0;
     border-radius: 13px;
-    box-shadow: 0 14px 28px rgba(99, 91, 255, .22);
+    box-shadow: 0 14px 28px rgba(36, 88, 201, .22);
     transition: .2s ease;
 }
 
 .login-button:hover {
     color: #fff;
-    box-shadow: 0 17px 32px rgba(99, 91, 255, .3);
+    box-shadow: 0 17px 32px rgba(36, 88, 201, .3);
     transform: translateY(-1px);
 }
 

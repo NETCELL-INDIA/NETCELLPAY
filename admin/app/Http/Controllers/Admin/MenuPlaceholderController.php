@@ -87,6 +87,8 @@ class MenuPlaceholderController extends Controller
         'routings/operator-routing' => 'admin/routings/operator',
         'routings/servicewise-routing' => 'admin/system/state-wize-switch',
         'routings/pending-settings' => 'admin/system/amount-block',
+        'w2r/pending-requests' => 'admin/recharge-reports/wrong-recharge',
+        'w2r/processed-requests' => 'admin/recharge-reports/wrong-recharge?status=done',
     ];
 
     /**
@@ -119,8 +121,6 @@ class MenuPlaceholderController extends Controller
         'pancard/pancard-settings' => ['section' => 'Pancard', 'title' => 'Pancard Settings', 'description' => 'Pancard not in this Netcell build'],
 
         // W2R
-        'w2r/pending-requests' => ['section' => 'Wrong 2 Right', 'title' => 'Pending Requests', 'description' => 'Wrong 2 Right not in this Netcell build'],
-        'w2r/processed-requests' => ['section' => 'Wrong 2 Right', 'title' => 'Processed Requests', 'description' => 'Wrong 2 Right not in this Netcell build'],
 
         // Employees missing
         'employees/login-history' => ['section' => 'Employees', 'title' => 'Login History', 'description' => 'Employee login history not present'],

@@ -656,6 +656,10 @@ class RechargeController extends Controller
                 $report = DB::table('reports')->insertGetId(\helpers::filterReportColumns($post->all()));
 
                 DB::commit();
+                try {
+                    \App\Services\RetailerNoticeService::alertLowBalance((int) $user->id);
+                } catch (\Throwable $e) {
+                }
 
 
 

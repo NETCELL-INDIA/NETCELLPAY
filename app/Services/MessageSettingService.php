@@ -20,6 +20,8 @@ class MessageSettingService
         ['slug' => 'recharge_success', 'label' => 'Recharge Success', 'whatsapp' => 0, 'email' => 0, 'push' => 1],
         ['slug' => 'recharge_refund', 'label' => 'Recharge Refund', 'whatsapp' => 1, 'email' => 0, 'push' => 1],
         ['slug' => 'admin_notification', 'label' => 'Admin Broadcast Notification', 'whatsapp' => 0, 'email' => 0, 'push' => 1],
+        ['slug' => 'low_balance', 'label' => 'Low Wallet Balance', 'whatsapp' => 1, 'email' => 0, 'push' => 0],
+        ['slug' => 'daily_sales', 'label' => 'Daily Sales Summary', 'whatsapp' => 1, 'email' => 0, 'push' => 0],
     ];
 
     public static function ensureTable(): void

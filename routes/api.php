@@ -11,6 +11,7 @@ use App\Http\Middleware\AppUserCheck;
 ////App APis Controllers Start
 use App\Http\Controllers\AppV1\AuthController;
 use App\Http\Controllers\AppV1\ReportsController;
+use App\Http\Controllers\Users\WrongRechargeController;
 use App\Http\Controllers\AppV1\ServicesController;
 use App\Http\Controllers\AppV1\ParentController;
 use Illuminate\Support\Facades\Redirect;
@@ -93,6 +94,7 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/instant-add-money',[addMoneyController::class,'addMoneyRequestSubmit']);
     Route::post('/v1/instant-add-money-qr-code',[allUpiMoneyController::class,'addMoneyRequestSubmit']);
     Route::post('/v1/send-complaint',[RechargeController::class,'submitRechargeComplaint']);
+    Route::post('/v1/wrong-recharge',[WrongRechargeController::class,'store'])->middleware('throttle:6,1');
     ///////
     Route::post('/v1/recharge-reports',[ReportsController::class,'fetchAllRecharge']);
     Route::post('/v1/account-reports',[ReportsController::class,'fetchAllAccount']);

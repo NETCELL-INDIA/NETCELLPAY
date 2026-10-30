@@ -229,6 +229,7 @@
                     <button type="button" class="btn btn-warning" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-secondary" id="receipt_print_btn"
                         onclick="receiptPrint()"><i class="ri-printer-line align-bottom me-1"></i> Print Receipt</button>
+                    <a class="btn btn-primary" id="receipt_pdf_btn" href="#" target="_blank">Download PDF</a>
                 </div>
             </div><!-- /.modal-content -->
         </div><!-- /.modal-dialog -->
@@ -260,6 +261,37 @@
             </div><!-- /.modal-content -->
         </div><!-- /.modal-dialog -->
     </div><!-- /.modal -->
+
+    <div id="wrongModal" class="modal" tabindex="-1" aria-hidden="true" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="wrongModalLabel">Wrong number</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">This sends a review request only. It does not refund the wallet or recharge the correct number.</p>
+                    <input type="hidden" id="wrong_report_id">
+                    <div class="mb-3">
+                        <label>Recharged number</label>
+                        <input type="text" class="form-control" id="wrong_old_number" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label>Correct number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="wrong_correct_number" maxlength="16" inputmode="numeric">
+                    </div>
+                    <div class="mb-3">
+                        <label>Reason</label>
+                        <textarea class="form-control" id="wrong_reason" maxlength="500"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" id="wrong_submit_btn">Submit request</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @endsection
 @section('script')
@@ -352,6 +384,7 @@
 
 
     function receiptView(id) {
+        $('#receipt_pdf_btn').attr('href', '{{ url('users/user-reports/recharge-receipt') }}/' + id);
         $("#receipt_btn").text('Loading...');
         $('#receipt_btn').prop('disabled', true);
         $.ajax({
@@ -382,6 +415,42 @@
         });
     }
 
+
+    $(document).on('click', '.btn-wrong-no', function () {
+        $('#wrong_report_id').val($(this).data('id'));
+        $('#wrong_old_number').val($(this).data('number'));
+        $('#wrong_correct_number').val('');
+        $('#wrong_reason').val('');
+        $('#wrongModalLabel').text('Wrong number — ' + $(this).data('order'));
+        $('#wrongModal').modal('show');
+    });
+
+    $('#wrong_submit_btn').on('click', function () {
+        var btn = $(this);
+        btn.prop('disabled', true).text('Submitting...');
+        $.ajax({
+            url: '{{ route('wrongRechargeStore') }}',
+            method: 'post',
+            data: {
+                _token: '{{ csrf_token() }}',
+                report_id: $('#wrong_report_id').val(),
+                correct_number: $('#wrong_correct_number').val(),
+                reason: $('#wrong_reason').val()
+            },
+            success: function (data) {
+                btn.prop('disabled', false).text('Submit request');
+                Error_Msg(capitalizeFirstLetter(data.type || 'info'), data.message || 'Saved', data.type || 'info');
+                if (data.type === 'success') {
+                    $('#wrongModal').modal('hide');
+                    fetchAll(1, 10);
+                }
+            },
+            error: function () {
+                btn.prop('disabled', false).text('Submit request');
+                Error_Msg('Oops...', 'Something went wrong!', 'error');
+            }
+        });
+    });
 
     function complaintView(id,order_id) {
         $("#complaintModalLabel").text("Order ID : "+order_id);

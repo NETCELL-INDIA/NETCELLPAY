@@ -85,6 +85,7 @@
                     @endforeach
                 </select>
                 <button type="button" class="btn btn-primary" id="btnRehit" title="Rehit selected rows">Rehit Selected</button>
+                <button type="button" class="btn btn-info" id="btnCheckStatus" title="Ask the supplier status URL. Does not send the recharge again.">Check status</button>
                 <span class="text-muted small d-none d-md-inline">Rehit never auto-refunds if API says Failed</span>
                 <div class="d-flex align-items-center gap-1">
                     <span class="text-muted small">Show</span>
@@ -425,6 +426,34 @@ $(function () {
 
     $('#btnRehit').on('click', function () {
         doRehit(selectedIds(), $(this), 'Rehit Selected');
+    });
+
+    function checkSupplierStatus(ids, $btn, idleLabel) {
+        if (!ids.length) { alert('Select at least one transaction'); return; }
+        $btn = $btn || $('#btnCheckStatus');
+        idleLabel = idleLabel || 'Check status';
+        $btn.prop('disabled', true).text('Checking...');
+        $.ajax({
+            url: '{{ route("pendingReportCheckStatus") }}',
+            method: 'post',
+            data: { _token: csrf, ids: ids },
+            success: function (res) {
+                alert(res.message || 'Checked');
+                fetchPending();
+            },
+            error: function () {
+                alert('Status check failed');
+            },
+            complete: function () {
+                $btn.prop('disabled', false).text(idleLabel);
+            }
+        });
+    }
+    $('#btnCheckStatus').on('click', function () {
+        checkSupplierStatus(selectedIds(), $(this), 'Check status');
+    });
+    $(document).on('click', '.btn-check-status', function () {
+        checkSupplierStatus([String($(this).data('id'))], $(this), 'Status');
     });
 
     $(document).on('click', '.btn-row-rehit', function () {

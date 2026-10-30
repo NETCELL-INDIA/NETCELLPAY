@@ -4,8 +4,8 @@
    ========================================================= */
 
 :root {
-    --rb-blue: #405189;
-    --rb-blue-dark: #364574;
+    --rb-blue: #16356e;
+    --rb-blue-dark: #0c1730;
     --rb-title: #212529;
     --rb-page-bg: #f3f6f9;
     --rb-card-border: #e9ebec;
@@ -13,9 +13,20 @@
     --rb-info: #299cdb;
     --rb-danger: #f06548;
     --rb-warning: #f7b84b;
-    --rb-table-head: #405189;
+    --rb-table-head: #16356e;
     --rb-muted: #878a99;
     --rb-welcome: #c62828;
+}
+
+.btn-primary {
+    background-color: #16356e !important;
+    border-color: #0c1730 !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: #0c1730 !important;
+    border-color: #070d1c !important;
 }
 
 /* Welcome strip removed */
@@ -69,7 +80,7 @@
 
 /* ========== Horizontal top menu (purple) ========== */
 [data-layout=horizontal] .app-menu.navbar-menu {
-    background: #3b2a6e !important;
+    background: #0c1730 !important;
     border: 0 !important;
     box-shadow: 0 2px 6px rgba(15, 34, 58, 0.12) !important;
     /* sit below white navbar only */
@@ -137,7 +148,7 @@
 [data-layout=horizontal] .navbar-nav .nav-link.menu-link.active,
 [data-layout=horizontal] .navbar-nav .nav-link.menu-link[aria-expanded=true],
 [data-layout=horizontal] .navbar-nav .nav-item:hover > .nav-link.menu-link {
-    background: #4a3785 !important;
+    background: #163056 !important;
     color: #fff !important;
 }
 
@@ -206,7 +217,7 @@
 
 [data-layout=horizontal] .navbar-nav .menu-dropdown .nav-link:hover,
 [data-layout=horizontal] .navbar-nav .menu-dropdown .nav-link.active {
-    color: #3b2a6e !important;
+    color: #0c1730 !important;
     background: #f3f6f9 !important;
 }
 
@@ -217,7 +228,7 @@
 }
 
 [data-layout=horizontal] .navbar-nav > .nav-item > .nav-link.menu-link.active {
-    background: #4a3785 !important;
+    background: #163056 !important;
     color: #fff !important;
 }
 
@@ -449,7 +460,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.9rem 1rem;
-    background: linear-gradient(135deg, #405189 0%, #3b2a6e 100%);
+    background: linear-gradient(135deg, #16356e 0%, #0c1730 100%);
     color: #fff;
 }
 
@@ -932,7 +943,7 @@ table thead.table-dark > tr > th {
     align-items: center;
     justify-content: center;
     padding: 3rem 2.5rem;
-    background: linear-gradient(145deg, #3b2a6e 0%, #405189 55%, #2a4f7f 100%);
+    background: linear-gradient(145deg, #0c1730 0%, #16356e 55%, #2a4f7f 100%);
     color: #fff;
     overflow: hidden;
 }
@@ -1154,7 +1165,7 @@ table thead.table-dark > tr > th {
 }
 
 .np-login-forgot:hover {
-    color: #3b2a6e;
+    color: #0c1730;
 }
 
 .np-login-submit {
@@ -1520,7 +1531,7 @@ table thead.table-dark > tr > th {
 .recharge-report-page .recharge-filter-card .card-header,
 .recharge-report-page .recharge-list-card .card-header {
     padding: 0.45rem 0.75rem !important;
-    background: linear-gradient(90deg, #405189 0%, #4f63a8 100%) !important;
+    background: linear-gradient(90deg, #16356e 0%, #1e467f 100%) !important;
 }
 
 .recharge-report-page .recharge-filter-card .card-title,
@@ -1617,7 +1628,7 @@ table thead.table-dark > tr > th {
 
 .recharge-filter-field .form-control-sm:focus,
 .recharge-filter-field .form-select-sm:focus {
-    border-color: #405189 !important;
+    border-color: #16356e !important;
     box-shadow: 0 0 0 3px rgba(64, 81, 137, 0.14) !important;
 }
 

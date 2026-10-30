@@ -276,6 +276,10 @@ class RechargeControllerV2 extends Controller
                 $post['closing_balance'] = $user->wallet_balance;
                 $report = DB::table('reports')->insertGetId(\helpers::filterReportColumns($post->all()));
                 DB::commit();
+                try {
+                    \App\Services\RetailerNoticeService::alertLowBalance((int) $user->id);
+                } catch (\Throwable $e) {
+                }
                 
 
 

@@ -53,7 +53,7 @@ class helpers
         $allowed = [
             'status', 'operator_id', 'api_operator_id', 'remark', 'order_id',
             'api_id', 'callback_status', 'callback_response', 'api_partner_order_id',
-            'updated_at',
+            'status_checked_at', 'updated_at',
         ];
 
         return array_intersect_key($data, array_flip($allowed));
@@ -91,6 +91,7 @@ class helpers
             '{STATE_CODE}' => (string) $stateCode,
             '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
             '{ORDER_ID}' => (string) ($report->order_id ?? ''),
+            '{REQUEST_ORDER_ID}' => (string) ($report->request_order_id ?? $report->order_id ?? ''),
             '{OUTLET_NAME}' => $outlet,
             '{USER_MOBILE}' => $mobile,
             '{USER_ID}' => (string) ($report->user_id ?? ''),
@@ -1822,6 +1823,10 @@ class helpers
         // Notifications must never undo a completed transfer (templates may be missing).
         self::notifyFundMovement('fund_transfer', 'Debit', $from, (string) $to->first_name, $amount, $fromClosing);
         self::notifyFundMovement('fund_receive', 'Credit', $to, (string) $from->first_name, $amount, $toClosing);
+        try {
+            \App\Services\RetailerNoticeService::alertLowBalance($fromId);
+        } catch (\Throwable $e) {
+        }
 
         return [
             'type' => 'success',
@@ -2465,7 +2470,7 @@ class helpers
 
         $matched = false;
         foreach ($apis as $api) {
-            foreach ([$api->api_url ?? '', $api->balance_check_url ?? '', $api->complaint_api_url ?? ''] as $apiUrl) {
+            foreach ([$api->api_url ?? '', $api->balance_check_url ?? '', $api->complaint_api_url ?? '', $api->status_check_url ?? ''] as $apiUrl) {
                 $apiHost = parse_url((string) $apiUrl, PHP_URL_HOST);
                 if ($apiHost && strcasecmp($apiHost, $host) === 0) {
                     $matched = true;

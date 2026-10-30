@@ -10,6 +10,8 @@ use App\Http\Controllers\Users\FundReportsController;
 use App\Http\Controllers\Users\RechargeController;
 use App\Http\Controllers\Users\AccountReportsController;
 use App\Http\Controllers\Users\RechargeReportsController;
+use App\Http\Controllers\Users\WrongRechargeController;
+use App\Http\Controllers\Users\RechargeReceiptController;
 use App\Http\Controllers\Users\ExtraReportsController;
 use App\Http\Controllers\Users\ComplaintController;
 use App\Http\Controllers\Users\ProfileController;
@@ -41,6 +43,9 @@ Route::get('/cron-job', function() {
     \Artisan::call('send_sms_every_minutes');
     \Artisan::call('recharge_callback');
     \Artisan::call('process_pending_recharges');
+    \Artisan::call('check_pending_recharge_status');
+    \Artisan::call('notify_low_balance');
+    \Artisan::call('send_daily_sales_summary');
     \Artisan::call('queue:work', ['--stop-when-empty' => true]);
     return "done";
 });
@@ -282,6 +287,8 @@ Route::group(['middleware' => userCheck::class], function () {
     //Recharge Reports Routes 
     Route::get('users/user-reports/recharge-report',[RechargeReportsController::class,'index']);
     Route::post('users/user-reports/recharge-report/list',[RechargeReportsController::class,'fetchAll'])->name('rechargeReportsList');
+    Route::get('users/user-reports/recharge-receipt/{id}',[RechargeReceiptController::class,'download'])->whereNumber('id')->name('rechargeReceiptPdf');
+    Route::post('users/user-reports/wrong-recharge',[WrongRechargeController::class,'store'])->middleware('throttle:6,1')->name('wrongRechargeStore');
     Route::get('users/user-reports/bill-payment-report',[ExtraReportsController::class,'billIndex']);
     Route::post('users/user-reports/bill-payment-report/list',[ExtraReportsController::class,'billList'])->name('billPaymentReportsList');
     Route::get('users/user-reports/daybook',[ExtraReportsController::class,'daybookIndex']);

@@ -1,6 +1,6 @@
 :root {
-    --dash-primary: #635bff;
-    --dash-secondary: #00bfa6;
+    --dash-primary: #2458c9;
+    --dash-secondary: #111936;
     --dash-ink: #172033;
     --dash-muted: #718096;
     --dash-cloud: #f4f7fb;
@@ -12,8 +12,8 @@
 .page-content:has(.dash-page) {
     padding-top: calc(var(--nc-header-height, 70px) + 12px);
     background:
-        radial-gradient(circle at 0% 0%, rgba(99, 91, 255, .06), transparent 26%),
-        radial-gradient(circle at 100% 100%, rgba(0, 191, 166, .06), transparent 24%),
+        radial-gradient(circle at 0% 0%, rgba(36, 88, 201, .06), transparent 26%),
+        radial-gradient(circle at 100% 100%, rgba(17, 25, 54, .06), transparent 24%),
         var(--dash-cloud);
 }
 
@@ -36,7 +36,7 @@
     place-items: center;
     color: var(--dash-primary);
     font-size: 20px;
-    background: rgba(99, 91, 255, .1);
+    background: rgba(36, 88, 201, .1);
     border-radius: 12px;
 }
 
@@ -84,7 +84,7 @@
 
 .dash-filter .form-control:focus {
     border-color: var(--dash-primary);
-    box-shadow: 0 0 0 4px rgba(99, 91, 255, .1);
+    box-shadow: 0 0 0 4px rgba(36, 88, 201, .1);
 }
 
 .dash-filter-sep {
@@ -101,7 +101,7 @@
     background: linear-gradient(110deg, var(--dash-primary), #7770ff);
     border: 0;
     border-radius: 12px;
-    box-shadow: 0 10px 22px rgba(99, 91, 255, .22);
+    box-shadow: 0 10px 22px rgba(36, 88, 201, .22);
 }
 
 .dash-btn-search:hover {
@@ -135,7 +135,7 @@
     justify-content: space-between;
     padding: 16px 20px;
     border-bottom: 1px solid #eef2f7;
-    background: linear-gradient(90deg, rgba(99, 91, 255, .06), transparent 55%);
+    background: linear-gradient(90deg, rgba(36, 88, 201, .06), transparent 55%);
 }
 
 .dash-card-head h4 {
@@ -292,7 +292,7 @@
 .dash-stat-card.is-pending .dash-stat-icon { color: #d97706; background: rgba(245, 158, 11, .12); }
 .dash-stat-card.is-failed .dash-stat-icon { color: #dc2626; background: rgba(239, 68, 68, .12); }
 .dash-stat-card.is-refund .dash-stat-icon { color: #7c3aed; background: rgba(139, 92, 246, .12); }
-.dash-stat-card.is-info .dash-stat-icon { color: var(--dash-primary); background: rgba(99, 91, 255, .12); }
+.dash-stat-card.is-info .dash-stat-icon { color: var(--dash-primary); background: rgba(36, 88, 201, .12); }
 
 .dash-reports-card .card-body,
 .dash-reports-card .dash-card-body {
@@ -356,7 +356,7 @@
     padding: 16px 12px;
     text-decoration: none;
     color: var(--dash-ink);
-    background: linear-gradient(180deg, rgba(99, 91, 255, .06), #fff);
+    background: linear-gradient(180deg, rgba(36, 88, 201, .06), #fff);
     border: 1px solid #eef2f7;
     border-radius: 14px;
     transition: transform .15s ease, box-shadow .15s ease;
@@ -365,7 +365,7 @@
 .dash-recharge-card:hover {
     color: var(--dash-ink);
     transform: translateY(-2px);
-    box-shadow: 0 10px 22px rgba(99, 91, 255, .12);
+    box-shadow: 0 10px 22px rgba(36, 88, 201, .12);
 }
 
 .dash-recharge-icon {
