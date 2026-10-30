@@ -14,13 +14,14 @@ class RechargeCallback extends Command
 
     public function handle()
     {
+        $pendingStatuses = helpers::rechargePendingStatuses();
         $res = DB::table('reports')
             ->whereRaw('LOWER(path) = ?', ['api'])
-            ->where('transaction_type', 'Recharge')
+            ->whereIn('transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
             ->where(function ($q) {
                 $q->where('callback_status', 0)->orWhereNull('callback_status');
             })
-            ->whereNotIn('status', helpers::rechargePendingStatuses())
+            ->whereNotIn('status', $pendingStatuses)
             ->orderBy('id')
             ->take(100)
             ->get();
@@ -29,6 +30,27 @@ class RechargeCallback extends Command
             try {
                 helpers::sendApiPartnerRechargeCallback($row);
             } catch (\Throwable $e) {
+            }
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_call_back_url')) {
+            $stuck = DB::table('reports')
+                ->whereRaw('LOWER(path) = ?', ['api'])
+                ->whereIn('transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
+                ->where('callback_status', 1)
+                ->where(function ($q) {
+                    $q->whereNull('api_partner_call_back_url')->orWhere('api_partner_call_back_url', '');
+                })
+                ->whereNotIn('status', $pendingStatuses)
+                ->where('created_at', '>=', now()->subDays(7))
+                ->orderByDesc('id')
+                ->take(30)
+                ->get();
+            foreach ($stuck as $row) {
+                try {
+                    helpers::sendApiPartnerRechargeCallback($row, true);
+                } catch (\Throwable $e) {
+                }
             }
         }
 

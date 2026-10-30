@@ -42,6 +42,7 @@ use App\Mail\SendEmail;
 Route::get('/cron-job', function() {
     \Artisan::call('send_sms_every_minutes');
     \Artisan::call('recharge_callback');
+    \Artisan::call('complaint_callback');
     \Artisan::call('process_pending_recharges');
     \Artisan::call('check_pending_recharge_status');
     \Artisan::call('notify_low_balance');

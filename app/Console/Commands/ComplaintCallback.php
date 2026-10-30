@@ -28,21 +28,44 @@ class ComplaintCallback extends Command
      */
     public function handle()
     {
-        $res = DB::table('complaints')->where('path','Api')
-                ->where('callback_status', 0)
-                ->whereNotIn('status',['Open','Under Review'])->take(100)->get();
-       $rows =  $res->count();
-       //echo "<pre>";print_r($rows);
-        for ($i = 0; $i < $rows; $i++) {
-            $user = DB::table('users')->where('id', $res[$i]->user_id)->first(['complaint_callback_url']);
-            $url = $user->complaint_callback_url . "?status=" . $res[$i]->status . "&decision_remark=" . $res[$i]->decision_remark . "&request_id=" . $res[$i]->request_id . "&decision_date=" . $res[$i]->decision_date;
-            $order_id = $res[$i]->request_id;
-            $header = [];
-            $result = helpers::curl($url, "GET", "", $header, "yes", "USER_COMPLAINT_CALLBACK", $order_id);
-            //echo "<pre>";print_r($result);
-            DB::table('complaints')->where('id', $res[$i]->id)->update([
-                'callback_status' =>  1,
+        $res = DB::table('complaints as c')
+            ->join('users as u', 'u.id', '=', 'c.user_id')
+            ->where('c.path', 'Api')
+            ->where('c.callback_status', 0)
+            ->whereNotIn('c.status', ['Open', 'Under Review'])
+            ->whereNotNull('u.complaint_callback_url')
+            ->where('u.complaint_callback_url', '!=', '')
+            ->orderBy('c.id')
+            ->take(100)
+            ->get([
+                'c.id',
+                'c.status',
+                'c.decision_remark',
+                'c.request_id',
+                'c.decision_date',
+                'u.complaint_callback_url',
             ]);
+
+        foreach ($res as $row) {
+            $base = trim((string) $row->complaint_callback_url);
+            if ($base === '' || ! filter_var($base, FILTER_VALIDATE_URL) || helpers::isUnusableCallbackUrl($base)) {
+                continue;
+            }
+            $query = http_build_query([
+                'status' => (string) $row->status,
+                'decision_remark' => (string) $row->decision_remark,
+                'request_id' => (string) $row->request_id,
+                'decision_date' => (string) $row->decision_date,
+            ]);
+            $url = $base.(str_contains($base, '?') ? '&' : '?').$query;
+            $result = helpers::curl($url, 'GET', '', [], 'yes', 'USER_COMPLAINT_CALLBACK', (string) $row->request_id, true);
+            $code = (int) ($result['code'] ?? 0);
+            $err = trim((string) ($result['error'] ?? ''));
+            if ($err === '' && $code >= 200 && $code < 300) {
+                DB::table('complaints')->where('id', $row->id)->update([
+                    'callback_status' => 1,
+                ]);
+            }
         }
         return 0;
     }

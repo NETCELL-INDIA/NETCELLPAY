@@ -765,15 +765,6 @@ class Helper {
                 ]);
             } catch (\Throwable $e) {
             }
-            // Stop cron retries for missing/invalid/placeholder; admin Resend (force) after URL fix.
-            try {
-                DB::table('reports')->where('id', $report->id)->update([
-                    'callback_status' => 1,
-                    'updated_at' => Carbon::now(),
-                ]);
-            } catch (\Throwable $e) {
-            }
-
             return false;
         }
 
@@ -782,12 +773,9 @@ class Helper {
             $operatorId = self::sanitizeOperatorId($report->api_operator_id);
         }
         $orderId = (string) ($report->order_id ?? '');
-        if ($operatorId !== '' && $orderId !== '' && strcasecmp($operatorId, $orderId) === 0
-            && ! empty($report->api_operator_id)) {
-            $alt = self::sanitizeOperatorId($report->api_operator_id);
-            if ($alt !== '' && strcasecmp($alt, $orderId) !== 0) {
-                $operatorId = $alt;
-            }
+        if ($operatorId !== '' && $orderId !== '' && strcasecmp($operatorId, $orderId) === 0) {
+            $alt = self::sanitizeOperatorId($report->api_operator_id ?? '');
+            $operatorId = ($alt !== '' && strcasecmp($alt, $orderId) !== 0) ? $alt : '';
         }
 
         $query = http_build_query([
@@ -799,11 +787,11 @@ class Helper {
             'balance' => round((float) ($user->wallet_balance ?? 0), 2),
         ]);
         $url = $base.(str_contains($base, '?') ? '&' : '?').$query;
-        $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id));
+        $result = self::curl($url, 'GET', '', [], 'yes', 'USER_RECHARGE_CALLBACK', (string) ($report->order_id ?? $report->id), true);
         $respBody = $result['response'] ?? null;
         $respErr = trim((string) ($result['error'] ?? ''));
         $respCode = (int) ($result['code'] ?? 0);
-        $delivered = ($respErr === '' && $respCode >= 200 && $respCode < 500);
+        $delivered = ($respErr === '' && $respCode >= 200 && $respCode < 300);
         if ($respBody === false || $respBody === null || $respBody === '') {
             $storedResp = $respErr !== ''
                 ? json_encode(['curl_error' => $respErr, 'http_code' => $respCode], JSON_UNESCAPED_SLASHES)
@@ -822,7 +810,7 @@ class Helper {
 
         try {
             $extra = [];
-            if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_call_back_url')) {
+            if ($delivered && \Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_call_back_url')) {
                 $extra['api_partner_call_back_url'] = mb_substr($url, 0, 1900);
             }
             if (\Illuminate\Support\Facades\Schema::hasColumn('reports', 'api_partner_callback_response')) {
@@ -838,14 +826,17 @@ class Helper {
         return $delivered;
     }
 
-    public static function curl($url, $method = 'GET', $parameters = null, $header = [], $log = "no", $modal = "none", $txnid = "none")
+    public static function curl($url, $method = 'GET', $parameters = null, $header = [], $log = "no", $modal = "none", $txnid = "none", $followRedirects = false)
     {   
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, FALSE);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, FALSE);
         curl_setopt($curl, CURLOPT_URL, $url);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_MAXREDIRS, 10);
+        curl_setopt($curl, CURLOPT_MAXREDIRS, 5);
+        if ($followRedirects) {
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        }
         curl_setopt($curl, CURLOPT_ENCODING, "");
         curl_setopt($curl, CURLOPT_TIMEOUT, 180);
         curl_setopt($curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
