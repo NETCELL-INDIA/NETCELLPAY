@@ -402,14 +402,13 @@ class PlanInfoFetchService
     }
 
     /**
-     * Keep a multi-API plan chain inside a phone timeout.
-     * One supplier may use the admin timeout. Two or more get a short try, then the next API.
+     * First supplier keeps most of the admin timeout. Later suppliers get a short try.
      */
-    private static function chainTimeout(int $configured, int $attemptCount): int
+    private static function chainTimeout(int $configured, int $attemptIndex): int
     {
         $configured = max(5, min(30, $configured));
-        if ($attemptCount <= 1) {
-            return $configured;
+        if ($attemptIndex === 0) {
+            return min($configured, 20);
         }
 
         return min($configured, 8);
@@ -517,7 +516,7 @@ class PlanInfoFetchService
             : null;
 
         $cacheTtl = self::cacheTtlFor($setting);
-        $cacheKey = 'plan_fetch:mobile:'.$serviceKey.':'.$providerId.':'.$stateId;
+        $cacheKey = 'plan_fetch:mobile:v2:'.$serviceKey.':'.$providerId.':'.$stateId;
         if ($cacheTtl > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && !empty($cached['ok'])) {
@@ -526,11 +525,12 @@ class PlanInfoFetchService
         }
 
         $attempts = self::primaryBackupAttempts($setting, 6, true);
-        $timeout = self::chainTimeout(self::timeoutFor($setting), count($attempts));
+        $configuredTimeout = self::timeoutFor($setting);
 
         $lastResult = null;
 
         foreach ($attempts as $index => $attempt) {
+            $timeout = self::chainTimeout($configuredTimeout, $index);
             $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
             if (!$api) {
                 continue;
@@ -1297,7 +1297,7 @@ class PlanInfoFetchService
             : null;
 
         $cacheTtl = self::cacheTtlFor($setting);
-        $cacheKey = 'plan_fetch:dth_plans:'.$providerId;
+        $cacheKey = 'plan_fetch:dth_plans:v2:'.$providerId;
         if ($cacheTtl > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && !empty($cached['ok'])) {
@@ -1306,10 +1306,11 @@ class PlanInfoFetchService
         }
 
         $attempts = self::primaryBackupAttempts($setting, 6, true);
-        $timeout = self::chainTimeout(self::timeoutFor($setting), count($attempts));
+        $configuredTimeout = self::timeoutFor($setting);
         $lastResult = null;
 
         foreach ($attempts as $index => $attempt) {
+            $timeout = self::chainTimeout($configuredTimeout, $index);
             $api = self::resolveApiRow($attempt['api_id'], $attempt['username'], $attempt['password']);
             if (!$api) {
                 continue;
@@ -2423,14 +2424,104 @@ class PlanInfoFetchService
             ?? $row['Valid']
             ?? '';
 
-        if ($rs === '' && $desc === '') {
+        $validity = trim((string) $validity);
+        if (self::isPlaceholderPlan($rs, $desc)) {
             return null;
         }
 
         return [
             'rs' => $rs,
+            'amount' => $rs,
+            'price' => $rs,
             'desc' => $desc,
-            'validity' => (string) $validity,
+            'description' => $desc,
+            'detail' => $desc,
+            'validity' => $validity,
+        ];
+    }
+
+    private static function isPlaceholderPlan(string $rs, string $desc): bool
+    {
+        if ($rs === '' || ! is_numeric($rs) || (float) $rs <= 0) {
+            return true;
+        }
+
+        if ($desc === '') {
+            return true;
+        }
+
+        return (bool) preg_match('/not\s*available|no\s*(offer|plan|record|data)|not\s*found|invalid\s*operator|invalid\s*circle/i', $desc);
+    }
+
+    /**
+     * Drop ₹0 / "Plan Not Available" rows so the app does not show a fake plan card.
+     *
+     * @param  array<mixed>  $data
+     * @return array<mixed>
+     */
+    private static function withoutPlaceholderPlans(array $data): array
+    {
+        if ($data === []) {
+            return [];
+        }
+
+        if (self::isListArray($data)) {
+            $rows = [];
+            foreach ($data as $row) {
+                $clean = self::presentPlanRow($row);
+                if ($clean !== null) {
+                    $rows[] = $clean;
+                }
+            }
+
+            return $rows;
+        }
+
+        $out = [];
+        foreach ($data as $category => $rows) {
+            if (! is_array($rows)) {
+                continue;
+            }
+            $cleanRows = [];
+            foreach ($rows as $row) {
+                $clean = self::presentPlanRow($row);
+                if ($clean !== null) {
+                    $cleanRows[] = $clean;
+                }
+            }
+            if ($cleanRows !== []) {
+                $label = is_string($category) && $category !== '' ? $category : 'Plans';
+                $out[$label] = $cleanRows;
+            }
+        }
+
+        return $out;
+    }
+
+    /** @param  mixed  $row */
+    private static function presentPlanRow($row): ?array
+    {
+        if (! is_array($row)) {
+            return null;
+        }
+
+        $rs = trim((string) ($row['rs'] ?? $row['amount'] ?? $row['price'] ?? ''));
+        $rs = preg_replace('/[^\d.]/', '', $rs) ?? '';
+        $desc = trim((string) ($row['desc'] ?? $row['description'] ?? $row['detail'] ?? ''));
+        if (self::isPlaceholderPlan($rs, $desc)) {
+            return null;
+        }
+
+        $validity = trim((string) ($row['validity'] ?? ''));
+
+        return [
+            'rs' => $rs,
+            'amount' => $rs,
+            'price' => $rs,
+            'desc' => $desc,
+            'description' => $desc,
+            'detail' => $desc,
+            'validity' => $validity,
         ];
     }
 
@@ -3065,10 +3156,7 @@ class PlanInfoFetchService
      */
     public static function appPlanPayload(array $result): array
     {
-        $data = $result['data'] ?? [];
-        if (! is_array($data)) {
-            $data = [];
-        }
+        $data = self::withoutPlaceholderPlans(is_array($result['data'] ?? null) ? $result['data'] : []);
         if ($data !== [] && self::isListArray($data)) {
             $data = ['Plans' => $data];
         }
