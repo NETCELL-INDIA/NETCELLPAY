@@ -2322,9 +2322,15 @@ class RechargeController extends Controller
 
 
 
+        if (! $post->filled('provider_id')) {
+            $post->merge([
+                'provider_id' => $post->input('operator_id', $post->input('opid', $post->input('operator', $post->input('provider_name')))),
+            ]);
+        }
+
         $rules = array(
 
-            'provider_id' => 'required|numeric',
+            'provider_id' => 'required',
 
             'state_id' => 'nullable',
 
@@ -2370,9 +2376,16 @@ class RechargeController extends Controller
 
         try {
 
-        $serviceId = (int) DB::table('providers')->where('id', (int) $post->provider_id)->value('service_id');
+        $providerId = PlanInfoFetchService::resolveMobileProviderId(
+            $post->input('provider_id'),
+            (string) $post->input('provider_name', $post->input('operator', $post->input('operatorname', '')))
+        );
+        if ($providerId < 1) {
+            $providerId = (int) $post->provider_id;
+        }
+        $serviceId = (int) DB::table('providers')->where('id', $providerId)->value('service_id');
         if ($serviceId === 2) {
-            $result = PlanInfoFetchService::fetchDthPlans((int) $post->provider_id);
+            $result = PlanInfoFetchService::fetchDthPlans($providerId);
 
             return response()->json(PlanInfoFetchService::appPlanPayload($result));
         }
@@ -2385,15 +2398,24 @@ class RechargeController extends Controller
                 'type' => 'error',
                 'status' => 'error',
                 'message' => 'Please select circle/state.',
-                'data' => [],
-                'RDATA' => [],
-                'records' => [],
+                'plans' => [],
+                'data' => new \stdClass(),
+                'RDATA' => new \stdClass(),
+                'records' => new \stdClass(),
             ]);
         }
 
-        $result = PlanInfoFetchService::fetchMobilePlans((int) $post->provider_id, $stateId);
+        $result = PlanInfoFetchService::fetchMobilePlans($providerId, $stateId);
+        $payload = PlanInfoFetchService::appPlanPayload($result);
+        if (($payload['type'] ?? '') !== 'success' && $number !== '') {
+            $hlrState = PlanInfoFetchService::resolvePortalStateId('', $number);
+            if ($hlrState > 0 && $hlrState !== $stateId) {
+                $result = PlanInfoFetchService::fetchMobilePlans($providerId, $hlrState);
+                $payload = PlanInfoFetchService::appPlanPayload($result);
+            }
+        }
 
-        return response()->json(PlanInfoFetchService::appPlanPayload($result));
+        return response()->json($payload);
 
         } catch (\Throwable $e) {
             return response()->json([

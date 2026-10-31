@@ -516,7 +516,7 @@ class PlanInfoFetchService
             : null;
 
         $cacheTtl = self::cacheTtlFor($setting);
-        $cacheKey = 'plan_fetch:mobile:v3:'.$serviceKey.':'.$providerId.':'.$stateId;
+        $cacheKey = 'plan_fetch:mobile:v4:'.$serviceKey.':'.$providerId.':'.$stateId;
         if ($cacheTtl > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && !empty($cached['ok'])) {
@@ -551,8 +551,8 @@ class PlanInfoFetchService
                 continue;
             }
 
-            $circle = self::resolveCircleCode($api, $state);
-            if ($circle === '') {
+            $circles = self::circleCandidates($api, $state);
+            if ($circles === []) {
                 $lastResult = self::planFetchResult(
                     false,
                     'error',
@@ -566,6 +566,8 @@ class PlanInfoFetchService
                 continue;
             }
 
+            $attemptLabel = self::attemptLabel($index);
+            foreach ($circles as $circleIndex => $circle) {
             $url = self::buildMobilePlansUrl($api, (string) $operatorCode, $circle, false);
             if ($url === null) {
                 $lastResult = self::planFetchResult(
@@ -582,7 +584,6 @@ class PlanInfoFetchService
             }
 
             $orderId = 'ROP' . random_int(1111111111, 9999999999);
-            $attemptLabel = self::attemptLabel($index);
             $requestResult = self::executePlanApiRequest($url, 'Plans', $orderId, [
                 'operator' => (string) $operatorCode,
                 'circle' => urldecode($circle),
@@ -590,7 +591,7 @@ class PlanInfoFetchService
                 'state_id' => $stateId,
                 'api_id' => (int) $api->id,
                 'attempt' => $attemptLabel,
-                'timeout' => $timeout,
+                'timeout' => $circleIndex === 0 ? $timeout : min($timeout, 8),
             ]);
 
             $lastResult = $requestResult;
@@ -602,14 +603,15 @@ class PlanInfoFetchService
                 }
                 return $requestResult;
             }
+            }
 
             if (self::shouldContinueFailover($attempts, $index)) {
                 Log::info('Plan API attempt failed, trying next', [
                     'service_key' => $serviceKey,
                     'failed_api_id' => (int) $api->id,
                     'attempt' => $attemptLabel,
-                    'http_code' => $requestResult['http_code'],
-                    'message' => $requestResult['message'],
+                    'http_code' => $lastResult['http_code'] ?? null,
+                    'message' => $lastResult['message'] ?? null,
                 ]);
                 continue;
             }
@@ -1736,6 +1738,31 @@ class PlanInfoFetchService
         }
 
         return null;
+    }
+
+    /** @return list<string> */
+    private static function circleCandidates(object $api, object $state): array
+    {
+        $values = [
+            self::resolveCircleCode($api, $state),
+            trim((string) ($state->plan_api_code ?? '')),
+            trim((string) ($state->mplan_state_code ?? '')),
+            trim((string) ($state->state_name ?? '')),
+            self::planApiCircleCode($state),
+        ];
+        $out = [];
+        foreach ($values as $value) {
+            $value = trim((string) $value);
+            if ($value === '' || in_array($value, $out, true)) {
+                continue;
+            }
+            $out[] = $value;
+            if (count($out) >= 3) {
+                break;
+            }
+        }
+
+        return $out;
     }
 
     private static function resolveCircleCode(object $api, object $state): string
@@ -3250,10 +3277,43 @@ class PlanInfoFetchService
             'type' => $ok ? 'success' : 'error',
             'status' => $ok ? 'success' : 'error',
             'message' => $ok ? 'Fatch Successfully' : (string) ($result['message'] ?? 'No plans found for this operator and circle.'),
-            'data' => $data,
-            'RDATA' => $data,
-            'records' => $data,
+            'plans' => $flat,
+            'data' => $data === [] ? new \stdClass() : $data,
+            'RDATA' => $data === [] ? new \stdClass() : $data,
+            'records' => $data === [] ? new \stdClass() : $data,
         ];
+    }
+
+    public static function resolveMobileProviderId($raw, string $name = ''): int
+    {
+        $raw = trim((string) $raw);
+        $name = trim($name);
+        if ($raw !== '' && ctype_digit($raw)) {
+            $id = (int) $raw;
+            $exists = DB::table('providers')->where('id', $id)->where('service_id', 1)->where('status', 1)->exists();
+            if ($exists) {
+                return $id;
+            }
+            $byCode = DB::table('api_provider_codes as c')
+                ->join('providers as p', 'p.id', '=', 'c.provider_id')
+                ->where('c.provider_code', $raw)
+                ->where('p.service_id', 1)
+                ->where('p.status', 1)
+                ->value('p.id');
+            if ($byCode) {
+                return (int) $byCode;
+            }
+        }
+
+        $lookupName = $name !== '' ? $name : $raw;
+        if ($lookupName !== '' && ! ctype_digit($lookupName)) {
+            $match = self::matchMobileProviderByName($lookupName);
+            if ($match) {
+                return (int) $match->id;
+            }
+        }
+
+        return 0;
     }
 
     /**
