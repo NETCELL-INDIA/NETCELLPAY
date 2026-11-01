@@ -118,8 +118,8 @@ class ParentController extends Controller
         $rules = array(
             'outlet_name'  => 'required|string|max:70',
             'first_name'  => 'required|string|max:70',
-            'middle_name'  => 'string|max:70',
-            'last_name'  => 'string|max:70',
+            'middle_name'  => 'nullable|string|max:70',
+            'last_name'  => 'nullable|string|max:70',
             'date_of_birth'  => 'required',
             'mobile_number' => 'required|unique:users,mobile_number|digits:10',
             'email_address' => 'required|email|unique:users,email_address',
@@ -151,14 +151,24 @@ class ParentController extends Controller
         //echo "<pre>";print_r($post->all());die;
         if($post->edit_id==0){
             $user_f = DB::table('users')->where('id', $post->user_id)->first();
+            $requestedRole = (int) $post->role_id;
             if($user_f->role_id == 4){
-                $role_id = 5;
+                $role_id = in_array($requestedRole, [5, 6], true) ? $requestedRole : 6;
             }else if($user_f->role_id == 5){
                 $role_id = 6;
             }else{
                 $data['type'] = 'error';
                 $data['message'] = "Not Alowed Role Id Permission.";
                 return $data;
+            }
+
+            $middleName = trim((string) ($post->middle_name ?? ''));
+            if ($middleName === '-' || strcasecmp($middleName, 'na') === 0) {
+                $middleName = '';
+            }
+            $lastName = trim((string) ($post->last_name ?? ''));
+            if ($lastName === '') {
+                $lastName = trim((string) $post->first_name);
             }
 
             $profilePic = "avatar-2.png";
@@ -173,8 +183,8 @@ class ParentController extends Controller
                     'scheme_id'  => $user_f->scheme_id,
                     'outlet_name'  => $post->outlet_name,
                     'first_name'  => $post->first_name,
-                    'middle_name'  => $post->middle_name,
-                    'last_name'  => $post->last_name,
+                    'middle_name'  => $middleName,
+                    'last_name'  => $lastName,
                     'date_of_birth'  => $post->date_of_birth,
                     'mobile_number' => $post->mobile_number,
                     'email_address' => $post->email_address,
