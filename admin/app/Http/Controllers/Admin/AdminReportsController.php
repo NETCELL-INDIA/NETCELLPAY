@@ -139,13 +139,25 @@ class AdminReportsController extends Controller
                 $status = $list->status ?: '-';
                 $userName = e($list->outlet_name ?: $list->first_name ?: 'User');
                 $userMeta = e(($list->mobile_number ?: '-') . ' · ID:' . ($list->user_id ?: '-'));
-                $dt = $list->transaction_date ?: $list->created_at;
                 $mode = $hasPath ? ($list->path ?: '-') : ($list->fund_type ?: 'WEB');
-                $idsLine = e($list->operator_id ?: '-');
+                $operatorRef = trim((string) ($list->operator_id ?: ''));
+                $requestRef = trim((string) ($list->request_order_id ?: ''));
+                $idsLine = e($operatorRef !== '' ? $operatorRef : '-');
+                if ($requestRef !== '' && $requestRef !== $operatorRef) {
+                    $idsLine .= '<span class="live-id-sub">Req ' . e($requestRef) . '</span>';
+                }
+                $rowClass = 'live-row';
+                if (in_array($status, ['Pending', 'Under Proces', 'Under Process', 'Processing'], true)) {
+                    $rowClass .= ' is-pending';
+                } elseif (in_array($status, ['Failed', 'Failure'], true)) {
+                    $rowClass .= ' is-fail';
+                } elseif (in_array($status, ['Refunded', 'Refund'], true)) {
+                    $rowClass .= ' is-refund';
+                }
 
-                $rows .= '<tr data-number="' . e($list->number ?: '') . '">
+                $rows .= '<tr class="' . $rowClass . '" data-id="' . e($list->id) . '" data-number="' . e($list->number ?: '') . '">
                     <td><span class="live-id">' . e($list->order_id ?: ('R' . $list->id)) . '</span><span class="live-id-sub">#' . e($list->id) . '</span></td>
-                    <td>' . e($dt) . '</td>
+                    <td class="live-time">' . e($this->liveReportTime($list->transaction_date ?: $list->created_at)) . '</td>
                     <td><span class="live-user">' . $userName . '</span><span class="live-user-meta">' . $userMeta . '</span></td>
                     <td>' . e($list->provider_name ?: '-') . '</td>
                     <td>' . e($list->circle_name ?: '-') . '</td>
@@ -177,6 +189,20 @@ class AdminReportsController extends Controller
                 'last_page' => 1,
             ],
         ]);
+    }
+
+    private function liveReportTime($value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '-';
+        }
+        $raw = preg_replace('/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}):\d{1,3}$/', '$1', $raw) ?: $raw;
+        try {
+            return Carbon::parse($raw)->timezone('Asia/Kolkata')->format('d-m-Y h:i:s A');
+        } catch (\Throwable $e) {
+            return $raw;
+        }
     }
 
     private function liveSummaryFromRows($rows): array

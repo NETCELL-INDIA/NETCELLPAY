@@ -256,8 +256,48 @@
         }
         .live-table tbody tr:nth-child(even) td { background: #f8fafc; }
         .live-table tbody tr:hover td { background: #eef2ff; }
+        .live-table tbody tr.is-pending td { background: #fff8e6; }
+        .live-table tbody tr.is-fail td { background: #fff1f2; }
+        .live-table tbody tr.is-refund td { background: #eef5ff; }
+        .live-table tbody tr.live-row-new td {
+            animation: liveNew 2.4s ease;
+        }
+        @keyframes liveNew {
+            0% { background: #d1fae5; }
+            100% { background: #fff; }
+        }
+        .live-search {
+            height: 34px;
+            min-width: 190px;
+            border: 1px solid #d5deea;
+            border-radius: 8px;
+            padding: 0 10px;
+            font-size: 0.8rem;
+        }
+        .live-search:focus {
+            border-color: var(--live-blue);
+            box-shadow: 0 0 0 3px rgba(64,81,137,.14);
+            outline: none;
+        }
+        .live-tool-btn {
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid #d5deea;
+            background: #fff;
+            color: var(--live-blue);
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 0 10px;
+        }
+        .live-tool-btn:hover { background: #f3f6fb; }
+        .live-updated {
+            font-size: 0.72rem;
+            color: #5b6b8c;
+            font-weight: 700;
+            white-space: nowrap;
+        }
         .live-id { font-weight: 700; color: var(--live-blue); display: block; }
-        .live-id-sub { font-size: 0.68rem; color: #878a99; }
+        .live-id-sub { display: block; font-size: 0.68rem; color: #878a99; }
         .live-user { font-weight: 600; }
         .live-user-meta { display: block; font-size: 0.68rem; color: #878a99; font-weight: 500; }
         .live-amt { font-weight: 700; color: var(--live-success); white-space: nowrap; }
@@ -316,6 +356,9 @@
             </div>
         </div>
         <div class="live-top-filters">
+            <input type="text" id="searchText" class="live-search" placeholder="Number or order id" maxlength="40">
+            <button type="button" class="live-tool-btn" id="btnPause">Pause</button>
+            <span class="live-updated" id="liveUpdated">Waiting…</span>
             <select id="status" title="Status">
                 <option value="">All Status</option>
                 <option value="Success" style="color:#157347;font-weight:700">SUCCESS</option>
@@ -367,6 +410,8 @@ var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('conte
 var currentPage = 1;
 var lastPage = 1;
 var autoTimer = null;
+var livePaused = false;
+var seenIds = null;
 
 function filterPayload() {
     return {
@@ -374,7 +419,8 @@ function filterPayload() {
         show: 50,
         last50: 1,
         page: 1,
-        status: $('#status').val()
+        status: $('#status').val(),
+        search_text: $.trim($('#searchText').val() || '')
     };
 }
 
@@ -409,7 +455,10 @@ function fetchLive(silent) {
                 return;
             }
             $('#liveBody').html(res.rows);
+            markNewRows();
             renderSummary(res.summary || {});
+            var now = new Date();
+            $('#liveUpdated').text('Updated ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
             var p = res.pagination || {};
             currentPage = 1;
             lastPage = 1;
@@ -417,9 +466,41 @@ function fetchLive(silent) {
             $('#btnPrev, #btnNext').prop('disabled', true);
         },
         error: function () {
-            $('#liveBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
+            if (!silent) {
+                $('#liveBody').html('<tr><td colspan="11" class="text-center text-danger">Failed to load</td></tr>');
+            }
+            $('#liveUpdated').text('Refresh failed');
         }
     });
+}
+
+function markNewRows() {
+    var ids = [];
+    $('#liveBody tr[data-id]').each(function () {
+        ids.push(String($(this).attr('data-id')));
+    });
+    if (seenIds) {
+        ids.forEach(function (id) {
+            if (seenIds.indexOf(id) === -1) {
+                $('#liveBody tr[data-id="' + id + '"]').addClass('live-row-new');
+            }
+        });
+    }
+    seenIds = ids;
+}
+
+function setLivePaused(paused) {
+    livePaused = paused;
+    $('#livePulse').toggleClass('is-paused', paused);
+    $('#livePulseText').text(paused ? 'Paused' : 'Live');
+    $('#btnPause').text(paused ? 'Resume' : 'Pause');
+    if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+    }
+    if (!paused) {
+        autoTimer = setInterval(function () { fetchLive(true); }, 10000);
+    }
 }
 
 $(function () {
@@ -437,6 +518,17 @@ $(function () {
         currentPage = 1;
         fetchLive(false);
     });
+    var searchTimer = null;
+    $('#searchText').on('input', function () {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+            seenIds = null;
+            fetchLive(false);
+        }, 350);
+    });
+    $('#btnPause').on('click', function () {
+        setLivePaused(!livePaused);
+    });
     $('#btnPrev').on('click', function () {
         if (currentPage > 1) { currentPage--; fetchLive(false); }
     });
@@ -445,7 +537,7 @@ $(function () {
     });
 
     fetchLive(false);
-    autoTimer = setInterval(function () { fetchLive(true); }, 10000);
+    setLivePaused(false);
 });
 </script>
 </body>
