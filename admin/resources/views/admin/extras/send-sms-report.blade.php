@@ -98,6 +98,7 @@
 var csrf = '{{ csrf_token() }}';
 var currentPage = 1;
 var lastPage = 1;
+var smsDetails = [];
 
 function fetchSmsReport() {
     $('#smsBody').html('<tr><td colspan="7" class="text-center text-muted py-3">Loading...</td></tr>');
@@ -116,6 +117,7 @@ function fetchSmsReport() {
                 $('#smsBody').html('<tr><td colspan="7" class="text-center text-danger py-3">Failed to load</td></tr>');
                 return;
             }
+            smsDetails = res.details || [];
             $('#smsBody').html(res.rows);
             var p = res.pagination || {};
             currentPage = p.page || 1;
@@ -163,8 +165,15 @@ $(function () {
     });
 
     $(document).on('click', '.btn-view-sms-result', function () {
-        $('#smsResultBody').text($(this).data('result') || '');
-        $('#smsResultModal').modal('show');
+        var index = parseInt($(this).attr('data-detail-index'), 10);
+        var text = (!isNaN(index) && smsDetails[index]) ? smsDetails[index] : 'No API result was saved for this row.';
+        $('#smsResultBody').text(text);
+        var el = document.getElementById('smsResultModal');
+        if (window.bootstrap && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(el).show();
+        } else {
+            $('#smsResultModal').modal('show');
+        }
     });
 
     fetchSmsReport();
