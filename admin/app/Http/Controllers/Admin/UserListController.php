@@ -320,10 +320,10 @@ class UserListController extends Controller
             if($post->limit <= 50){
                 $limit = $post->limit; 
             }else{
-                $limit = 10;  
+                $limit = 30;  
             }
         }else{
-            $limit = 10; 
+            $limit = 30; 
         }
         $start= ($page-1) * $limit;
         $total_row = $query->get();
@@ -357,6 +357,7 @@ class UserListController extends Controller
                         <option ' . ($limit == "10" ? "selected" : "") . ' value="10">10</option>
                         <option ' . ($limit == "15" ? "selected" : "") . ' value="15">15</option>
                         <option ' . ($limit == "25" ? "selected" : "") . ' value="25">25</option>
+                        <option ' . ($limit == "30" ? "selected" : "") . ' value="30">30</option>
                         <option ' . ($limit == "50" ? "selected" : "") . ' value="50">50</option>
                     </select>
                     <span class="users-list-toolbar__label">entries</span>

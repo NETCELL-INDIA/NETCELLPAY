@@ -138,7 +138,7 @@
 
                         <div class="users-filter-field users-filter-field--btn">
 
-                            <button type="button" id="search_btn" class="btn btn-primary btn-sm w-100" onclick="fetchAll(1,10)">
+                            <button type="button" id="search_btn" class="btn btn-primary btn-sm w-100" onclick="fetchAll(1,30)">
 
                                 <i class="ri-search-line"></i> Search
 
@@ -1120,7 +1120,7 @@
        $("#status_kyc").val(urlParams.get('kyc')).change();
     }
 
-    fetchAll(1,10);
+    fetchAll(1,30);
 
     function capitalizeFirstLetter(string){
 
@@ -1233,7 +1233,7 @@
                 openUserDetails(user.id);
             } else if (result.dismiss === Swal.DismissReason.cancel) {
                 $('#list_keyword').val(user.mobile_number || user.outlet_name || user.name);
-                fetchAll(1, 10);
+                fetchAll(1, 30);
             }
         });
     }
@@ -1661,7 +1661,7 @@
 
                 Error_Msg("Updated",data.message,"success");
 
-                fetchAll(1,10);
+                fetchAll(1,30);
 
                 $("#fund_details_btn").text('Save Changes');
 
@@ -1995,7 +1995,7 @@
 
                     )
 
-                    fetchAll(1,10);
+                    fetchAll(1,30);
 
                 }else{
 
@@ -2084,7 +2084,7 @@
 
                 Error_Msg("Updated",data.message,"success");
 
-                fetchAll(1,10);
+                fetchAll(1,30);
 
                 $("#edit_details_btn").text('Save Changes');
 
