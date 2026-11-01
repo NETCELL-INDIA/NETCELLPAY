@@ -449,9 +449,9 @@ use Illuminate\Http\Request;
                 $content = trim($content);
 
                 $mediaFile = '';
-                if ($imageUrl !== '') {
+                if ($attachImage && $imageUrl !== '') {
                     $mediaFile = $imageUrl;
-                } elseif ($logoUrl !== '') {
+                } elseif ($attach && $logoUrl !== '') {
                     $mediaFile = $logoUrl;
                 }
                 $mediaCaption = $content !== '' ? $content : 'NETCELL PAY';
@@ -464,45 +464,29 @@ use Illuminate\Http\Request;
                     || str_contains($rawUrl, '{FILE}')
                     || str_contains($rawUrl, '{LOGO}');
 
-                $buildUrl = function (string $message, string $image, bool $asMedia) use ($rawUrl, $data, $templateId, $logoUrl, $hasMediaPlaceholder) {
+                $buildUrl = function (string $message, string $image) use ($rawUrl, $data, $templateId, $logoUrl) {
                     $u = $rawUrl;
                     $u = str_replace('{MOB}', (string) ($data['mobile_number'] ?? ''), $u);
-                    $u = str_replace('{MSG}', urlencode($message), $u);
-                    $u = str_replace('{TMP_ID}', $templateId, $u);
-                    $u = str_replace('{TMPID}', $templateId, $u);
-                    $u = str_replace('{LOGO}', urlencode($asMedia ? $image : $logoUrl), $u);
-                    $u = str_replace('{IMG}', urlencode($image), $u);
-                    $u = str_replace('{IMAGE}', urlencode($image), $u);
-                    $u = str_replace('{MEDIA}', urlencode($image), $u);
-                    $u = str_replace('{MEDIA_URL}', urlencode($image), $u);
-                    $u = str_replace('{FILE}', urlencode($image), $u);
-                    if ($asMedia && $image !== '' && ! $hasMediaPlaceholder) {
-                        if (preg_match('/([?&])type=text\b/i', $u)) {
-                            $u = preg_replace('/([?&])type=text\b/i', '$1type=image', $u);
-                        } elseif (! preg_match('/[?&]type=/i', $u)) {
-                            $u .= (str_contains($u, '?') ? '&' : '?').'type=image';
-                        }
-                        $name = basename((string) (parse_url($image, PHP_URL_PATH) ?: 'netcell.png'));
-                        $sep = str_contains($u, '?') ? '&' : '?';
-                        $u .= $sep.'file='.rawurlencode($image)
-                            .'&media_url='.rawurlencode($image)
-                            .'&caption='.rawurlencode($message)
-                            .'&filename='.rawurlencode($name)
-                            .'&mediatype=image';
-                    }
+                    $u = str_replace('{MSG}', rawurlencode($message), $u);
+                    $u = str_replace('{TMP_ID}', rawurlencode($templateId), $u);
+                    $u = str_replace('{TMPID}', rawurlencode($templateId), $u);
+                    $u = str_replace('{LOGO}', rawurlencode($image !== '' ? $image : $logoUrl), $u);
+                    $u = str_replace('{IMG}', rawurlencode($image), $u);
+                    $u = str_replace('{IMAGE}', rawurlencode($image), $u);
+                    $u = str_replace('{MEDIA}', rawurlencode($image), $u);
+                    $u = str_replace('{MEDIA_URL}', rawurlencode($image), $u);
+                    $u = str_replace('{FILE}', rawurlencode($image), $u);
 
                     return $u;
                 };
 
                 $header = [];
                 $parameters = '';
-                $sentMedia = false;
-                if ($mediaFile !== '') {
-                    Common::curl($buildUrl($mediaCaption, $mediaFile, true), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I0');
-                    $sentMedia = true;
+                if ($content !== '') {
+                    Common::curl($buildUrl($content, ''), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
                 }
-                if ($content !== '' && ! $sentMedia) {
-                    Common::curl($buildUrl($content, '', false), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999));
+                if ($mediaFile !== '' && $hasMediaPlaceholder) {
+                    Common::curl($buildUrl($mediaCaption, $mediaFile), $method, $parameters, $header, 'yes', 'WHATSAPP_URL', 'WAS'.date('YmdHis').rand(11111, 999999).'I0');
                 }
 
                 return 0;
