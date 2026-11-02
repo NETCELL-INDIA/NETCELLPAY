@@ -7,6 +7,27 @@
 @endcomponent
 
 <div class="row">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Bank details</h4>
+            </div>
+            <div class="card-body">
+                @forelse($banks as $bank)
+                    <div class="border rounded p-3 mb-3">
+                        <div class="fw-semibold">{{ $bank['bank_name'] }} — {{ $bank['bank_branch'] }}</div>
+                        <div>A/c name: {{ $bank['account_name'] }}</div>
+                        <div>A/c no: {{ $bank['account_number'] }}</div>
+                        <div>IFSC: {{ $bank['ifsc_code'] }}</div>
+                        <div>Type: {{ $bank['account_type'] }}</div>
+                    </div>
+                @empty
+                    <div class="text-muted mb-0">Bank details are not added yet. Add them in Admin → System → Banks and keep status ON.</div>
+                @endforelse
+                <a href="{{ url('users/fund/fund-request') }}" class="btn btn-light">Fund Request</a>
+            </div>
+        </div>
+    </div>
     <div class="col-lg-5">
         <div class="card">
             <div class="card-header">

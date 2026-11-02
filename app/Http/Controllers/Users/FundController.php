@@ -34,6 +34,7 @@ class FundController extends Controller
         return view('users.fund.add-money', [
             'company' => $company,
             'recent' => $recent,
+            'banks' => \helpers::depositBankDetails(),
             'upiOn' => $company && (int) ($company->payment_gateway ?? 0) === 1,
             'qrOn' => $company && (int) ($company->payment_gateway2 ?? 0) === 1,
         ]);

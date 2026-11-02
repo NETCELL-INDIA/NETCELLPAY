@@ -110,6 +110,8 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     //////
     Route::post('/v1/user-list',[ParentController::class,'fetchAll']);
     Route::post('/v1/bank-list',[ParentController::class,'bankList']);
+    Route::post('/v1/bank-details',[ParentController::class,'bankList']);
+    Route::post('/v1/company-banks',[ParentController::class,'bankList']);
     Route::post('/v1/add-user',[ParentController::class,'userlistUpdate']);
     Route::post('/v1/fund-transfer',[ParentController::class,'fundUpdate']);
     Route::post('/v1/search-user-list',[ParentController::class,'userListSearchUser']);

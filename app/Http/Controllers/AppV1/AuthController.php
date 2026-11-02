@@ -98,6 +98,16 @@ class AuthController extends Controller
         $compan_data['terms_and_conditions'] = $company->terms_and_conditions ?? '';
         $compan_data['privacy_policy'] = $company->privacy_policy ?? '';
         $compan_data['company_address'] = $company->company_address ?? '';
+        $depositBanks = \helpers::depositBankDetails();
+        $firstBank = $depositBanks[0] ?? [];
+        $compan_data['account_name'] = $firstBank['account_name'] ?? '';
+        $compan_data['account_number'] = $firstBank['account_number'] ?? '';
+        $compan_data['bank_name'] = $firstBank['bank_name'] ?? '';
+        $compan_data['bank_branch'] = $firstBank['bank_branch'] ?? '';
+        $compan_data['ifsc_code'] = $firstBank['ifsc_code'] ?? '';
+        $compan_data['ifsc'] = $firstBank['ifsc_code'] ?? '';
+        $compan_data['account_type'] = $firstBank['account_type'] ?? '';
+        $compan_data['bank_details'] = $depositBanks;
 
         $errors = [
             'name' => $user->first_name." ".$user->last_name,
@@ -118,6 +128,8 @@ class AuthController extends Controller
             'unread_notifications' => \helpers::countUnreadNotifications((int) $post->user_id),
             'sliders' =>   DB::table('sliders')->where('status',1)->where('deleted_at',0)->get(),
             'parent_id' =>  $user->parent_id,
+            'bank_details' => $depositBanks,
+            'banks' => $depositBanks,
             'whatsapp' =>'whatsapp://send/?phone=+919337692413&text=Hii',
             //   'pay_method' => [
             //   [
@@ -266,6 +278,9 @@ class AuthController extends Controller
                             'dth_provider' =>   \helpers::providersForApp(2),
                             'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
                             'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
+                            'bank_details' => \helpers::depositBankDetails(),
+                            'banks' => \helpers::depositBankDetails(),
+                            'banks' => \helpers::depositBankDetails(),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -563,6 +578,9 @@ class AuthController extends Controller
                             'dth_provider' =>   \helpers::providersForApp(2),
                             'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
                             'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
+                            'bank_details' => \helpers::depositBankDetails(),
+                            'banks' => \helpers::depositBankDetails(),
+                            'banks' => \helpers::depositBankDetails(),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -763,6 +781,8 @@ class AuthController extends Controller
                         'dth_provider' =>   \helpers::providersForApp(2),
                         'bbps_services' => \helpers::serviceCatalogItems('bbps', true),
                         'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
+                        'bank_details' => \helpers::depositBankDetails(),
+                        'banks' => \helpers::depositBankDetails(),
                     ];
                     // 
                     \helpers::recordLoginHistory((int) $user->id, 'APP');

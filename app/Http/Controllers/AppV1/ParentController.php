@@ -355,49 +355,22 @@ class ParentController extends Controller
 
     public function bankList(Request $post)
     {
+        $banks = \helpers::depositBankDetails();
+        $own = DB::table('banks')
+            ->where('deleted_at', '!=', 1)
+            ->where('user_id', (int) $post->user_id)
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
 
-        $rules = array(
-            'page' => 'required|numeric',
-            'limit' => 'required|numeric',
-        );
-
-        $validator = \Validator::make($post->all(), array_reverse($rules));
-        if ($validator->fails()) {
-            foreach ($validator->errors()->messages() as $key => $value) {
-                $error = $value[0];
-            }
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => $error
-            ));
-        }
-
-        if($post->page){
-            $page = $post->page; 
-        }else{
-            $page = 1; 
-        }
-
-        if($post->limit){
-            if($post->limit <= 50){
-                $limit = $post->limit; 
-            }else{
-                $limit = 10;  
-            }
-        }else{
-            $limit = 10; 
-        }
-        $start= ($page-1) * $limit;
-        $total_row = DB::table('banks')->where('deleted_at', '!=', 1)->where('user_id', $post->user_id)->get();
-        $total_row_count = $total_row->count();
-        $total_pages = ceil($total_row_count / $limit);
-        $list = DB::table('banks')->where('deleted_at', '!=' , 1)->where('user_id', $post->user_id)->orderBy('id', 'DESC')->offset($start)->limit($limit)->get();
-        $list_count = $list->count();
-        return response()->json(array(
-            'type' => 'success',  
-            'message' => "Fetch Successfully",
-            'data' => $list
-        ));
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Fetch Successfully',
+            'data' => $banks,
+            'banks' => $banks,
+            'bank_details' => $banks,
+            'my_banks' => $own,
+        ]);
     }
         
     

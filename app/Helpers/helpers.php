@@ -2294,6 +2294,44 @@ class helpers
         })->filter()->implode(' | ');
     }
 
+    /** Company deposit accounts saved in Admin → System → Banks (user id 1, status ON). */
+    public static function depositBankDetails(): array
+    {
+        try {
+            if (! Schema::hasTable('banks')) {
+                return [];
+            }
+            $rows = DB::table('banks')
+                ->where('user_id', 1)
+                ->where('status', 1)
+                ->where('deleted_at', '!=', 1)
+                ->orderByDesc('id')
+                ->get(['id', 'account_name', 'account_number', 'bank_name', 'bank_branch', 'ifsc_code', 'account_type', 'bank_logo', 'status']);
+            $base = rtrim((string) env('ADMIN_HOST'), '/');
+            $out = [];
+            foreach ($rows as $row) {
+                $logo = (string) ($row->bank_logo ?? '');
+                $out[] = [
+                    'id' => (int) $row->id,
+                    'account_name' => (string) $row->account_name,
+                    'account_number' => (string) $row->account_number,
+                    'bank_name' => (string) $row->bank_name,
+                    'bank_branch' => (string) $row->bank_branch,
+                    'ifsc_code' => (string) $row->ifsc_code,
+                    'ifsc' => (string) $row->ifsc_code,
+                    'account_type' => (string) $row->account_type,
+                    'bank_logo' => $logo,
+                    'bank_logo_url' => ($base !== '' && $logo !== '') ? $base.'/public/bank_logo/'.$logo : '',
+                    'status' => (int) $row->status,
+                ];
+            }
+
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
     public static function markNotificationsRead(int $userId, ?array $ids = null): void
     {
         if ($userId <= 0 || ! Schema::hasTable('messages')) {
