@@ -460,4 +460,65 @@ class FundController extends Controller
             'users' => $user
         ]);
     }
+
+    public function onlinePayments(Request $post)
+    {
+        $today = Carbon::today()->format('Y-m-d');
+        $from = (string) $post->get('from_date');
+        $to = (string) $post->get('to_date');
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $from = $today;
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $to = $from;
+        }
+        $status = (string) $post->get('status', 'All');
+        $statusMap = [
+            'Pending' => 'Pending',
+            'Success' => 'Transferred',
+            'Failed' => 'Rejected',
+        ];
+
+        $query = DB::table('fund_requests as f')
+            ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
+            ->whereIn('f.upi', [1, 2])
+            ->whereBetween('f.created_at', [$from.' 00:00:00', $to.' 23:59:59']);
+
+        $orderId = trim((string) $post->get('order_id'));
+        if ($orderId !== '') {
+            $query->where('f.order_id', $orderId);
+        }
+        $mobile = preg_replace('/\D/', '', (string) $post->get('mobile'));
+        if ($mobile !== '') {
+            $query->where('u.mobile_number', 'like', '%'.$mobile.'%');
+        }
+
+        $summary = (clone $query)->selectRaw("
+            SUM(CASE WHEN f.status = 'Pending' THEN f.amount ELSE 0 END) as pending_amt,
+            SUM(CASE WHEN f.status = 'Pending' THEN 1 ELSE 0 END) as pending_cnt,
+            SUM(CASE WHEN f.status = 'Transferred' THEN f.amount ELSE 0 END) as success_amt,
+            SUM(CASE WHEN f.status = 'Transferred' THEN 1 ELSE 0 END) as success_cnt,
+            SUM(CASE WHEN f.status = 'Rejected' THEN f.amount ELSE 0 END) as failed_amt,
+            SUM(CASE WHEN f.status = 'Rejected' THEN 1 ELSE 0 END) as failed_cnt
+        ")->first();
+
+        $list = clone $query;
+        if (isset($statusMap[$status])) {
+            $list->where('f.status', $statusMap[$status]);
+        }
+        $rows = $list->orderByDesc('f.id')->limit(200)->get([
+            'f.order_id', 'f.amount', 'f.status', 'f.upi', 'f.remark', 'f.decision_remark', 'f.created_at',
+            'u.first_name', 'u.last_name', 'u.outlet_name', 'u.mobile_number',
+        ]);
+
+        return view('admin.fund.online-payments', [
+            'rows' => $rows,
+            'summary' => $summary,
+            'from' => $from,
+            'to' => $to,
+            'status' => isset($statusMap[$status]) ? $status : 'All',
+            'orderId' => $orderId,
+            'mobile' => $mobile,
+        ]);
+    }
 }

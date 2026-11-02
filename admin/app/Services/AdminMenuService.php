@@ -94,8 +94,10 @@ class AdminMenuService
                 ['key' => 'users.login_history', 'label' => 'Login History', 'paths' => ['admin/users/login-history']],
             ]],
             ['key' => 'payments', 'label' => 'Payments', 'children' => [
+                ['key' => 'payments.gateway', 'label' => 'Payment Gateway', 'paths' => ['admin/system-settings/payment-gateway', 'admin/fund/online-payments']],
+                ['key' => 'payments.online', 'label' => 'Online Payments', 'paths' => ['admin/fund/online-payments']],
                 ['key' => 'payments.fund', 'label' => 'Fund Credit / Debit', 'paths' => ['admin/fund/credit-debit', 'admin/users/userlist/fundupdate']],
-                ['key' => 'payments.fund_request', 'label' => 'Pending Fund Requests', 'paths' => ['admin/fund/fund-request']],
+                ['key' => 'payments.fund_request', 'label' => 'Pending Fund Requests', 'paths' => ['admin/fund/fund-request', 'admin/fund/online-payments']],
                 ['key' => 'payments.fund_report', 'label' => 'Fund Transfer History', 'paths' => ['admin/fund/fund-report']],
             ]],
             ['key' => 'accounts', 'label' => 'Accounts Reports', 'children' => [

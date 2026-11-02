@@ -852,6 +852,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::get('admin/fund/fund-request',[FundController::class,'index']);
+    Route::get('admin/fund/online-payments',[FundController::class,'onlinePayments'])->name('adminOnlinePayments');
 
 
 

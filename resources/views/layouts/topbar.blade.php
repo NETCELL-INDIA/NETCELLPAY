@@ -57,13 +57,13 @@
                 @endphp
                 <form class="app-search nc-wallet-form mb-0">
                     <div class="position-relative">
-                        <button type="button" class="btn nc-wallet-btn LoadWallet {{ $headerLowBalance ? 'is-low-balance' : '' }}">
+                        <a href="{{ route('userAddMoney') }}" class="btn nc-wallet-btn LoadWallet {{ $headerLowBalance ? 'is-low-balance' : '' }}" title="Add Money">
                             <span class="wallet-icon-wrap"><i class="mdi mdi-wallet"></i></span>
                             <span class="text-start">
                                 <span class="d-block wallet-label">Wallet Balance</span>
                                 <span class="d-block wallet-amount">₹ {{ number_format($headerWallet, 2) }}</span>
                             </span>
-                        </button>
+                        </a>
                     </div>
                 </form>
             </div>
@@ -217,9 +217,9 @@
                         <a class="dropdown-item" href="{{ route('myProfile') }}"><i
                                 class="mdi mdi-account-circle text-muted fs-16 align-middle me-1"></i> <span
                                 class="align-middle">Profile</span></a>
-                                <a class="dropdown-item" id="addMoney"><i
+                                <a class="dropdown-item" href="{{ route('userAddMoney') }}"><i
                                 class="mdi mdi-wallet text-muted fs-16 align-middle me-1"></i> <span
-                                class="align-middle">Instant Load Money</span></a>
+                                class="align-middle">Add Money</span></a>
                         <a class="dropdown-item" href="{{ route('myProfileCommission') }}"><i
                                 class="mdi mdi-percent text-muted fs-16 align-middle me-1"></i> <span
                                 class="align-middle">My Commission</span></a>

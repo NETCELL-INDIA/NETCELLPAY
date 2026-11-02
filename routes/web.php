@@ -268,12 +268,14 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::post('users/users/banks/update',[BankController::class,'updateData'])->name('userBankUpdate');
     //Fund Request Routes 
     Route::get('users/fund/fund-request',[FundController::class,'index']);
+    Route::get('users/fund/add-money',[FundController::class,'addMoney'])->name('userAddMoney');
     Route::post('users/fund/fund-request/list',[FundController::class,'fetchAll'])->name('fundRequestList');
     Route::post('users/fund/fund-request/submit',[FundController::class,'fundRequestSubmit'])->name('fundRequestSubmit');
     Route::post('users/fund/fund-request/bank_list',[FundController::class,'fundRequestBankList'])->name('fundRequestBankList');
     //Fund Reports Routes 
     Route::get('users/fund/fund-report',[FundReportsController::class,'index']);
     Route::post('users/fund/fund-report/list',[FundReportsController::class,'fetchAll'])->name('fundReportsList');
+    Route::get('users/fund/fund-report/download',[FundReportsController::class,'download'])->name('fundReportsDownload');
     ///Add Money Online
     Route::post('users/fund/add-money/submit',[addMoneyController::class,'addMoneyRequestSubmit'])->name('addMoneyRequestSubmit');
 

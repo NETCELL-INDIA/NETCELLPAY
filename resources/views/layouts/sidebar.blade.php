@@ -92,6 +92,9 @@
                         <ul class="nav nav-sm flex-column">
                             
                             <li class="nav-item">
+                                <a href="{{ route('userAddMoney') }}" class="nav-link"> Add Money</a>
+                            </li>
+                            <li class="nav-item">
                                 <a href="{{ URL::asset('users/fund/fund-request') }}" class="nav-link"> Fund Request</a>
                             </li>
                             <li class="nav-item">

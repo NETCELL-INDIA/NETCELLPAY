@@ -223,4 +223,61 @@ class FundReportsController extends Controller
         
     }
 
+    public function download(Request $post)
+    {
+        $user = DB::table('users')->where('id', Session::get('user_id'))->whereNotIn('role_id', [1, 2])->first();
+        abort_unless($user, 403);
+
+        $today = Carbon::today()->format('Y-m-d');
+        $from = (string) $post->get('from_date');
+        $to = (string) $post->get('to_date');
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $from = $today;
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $to = $from;
+        }
+        $table = ((string) $post->get('tbl_type') === '1' && \Illuminate\Support\Facades\Schema::hasTable('backup_reports'))
+            ? 'backup_reports'
+            : 'reports';
+
+        $rows = DB::table($table)
+            ->where('user_id', $user->id)
+            ->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59'])
+            ->whereIn('transaction_type', ['Transfer Money', 'Receive Money', 'Upi Add Money', 'Self Money', 'Money Reverse', 'Reverse Money'])
+            ->orderByDesc('id')
+            ->limit(4000)
+            ->get([
+                'created_at', 'order_id', 'transaction_type', 'fund_type',
+                'total_amount', 'opening_balance', 'closing_balance', 'remark',
+            ]);
+
+        $csv = "date,order_id,type,credit_debit,amount,opening,closing,remark\n";
+        foreach ($rows as $row) {
+            $line = [
+                (string) $row->created_at,
+                (string) $row->order_id,
+                (string) $row->transaction_type,
+                (string) $row->fund_type,
+                (string) $row->total_amount,
+                (string) $row->opening_balance,
+                (string) $row->closing_balance,
+                (string) $row->remark,
+            ];
+            $csv .= implode(',', array_map(function ($value) {
+                $value = str_replace(["\r", "\n"], ' ', $value);
+                if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+                    $value = "'".$value;
+                }
+
+                return '"'.str_replace('"', '""', $value).'"';
+            }, $line))."\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="fund-report-'.$from.'-to-'.$to.'.csv"',
+        ]);
+    }
+
 }

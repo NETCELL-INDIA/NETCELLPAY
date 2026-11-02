@@ -294,6 +294,8 @@
                     <div class="collapse menu-dropdown" id="sidebarPayments">
                         <ul class="nav nav-sm flex-column">
                             <li class="nav-item"><a href="javascript:void(0)" class="nav-link LoadWallet" title="Add fund to your own wallet">Self Fund Add</a></li>
+                            @if(admin_can('payments.gateway') || admin_can('payments') || admin_can('system.settings'))<li class="nav-item"><a href="{{ URL::asset('admin/system-settings/payment-gateway') }}" class="nav-link">Payment Gateway</a></li>@endif
+                            @if(admin_can('payments.online') || admin_can('payments.fund_request') || admin_can('payments.gateway'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/online-payments') }}" class="nav-link">Online Payments</a></li>@endif
                             @if(admin_can('payments.fund'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/credit-debit') }}" class="nav-link">Fund Credit / Debit</a></li>@endif
                             @if(admin_can('payments.fund_request'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-request') }}" class="nav-link">Pending Fund Requests</a></li>@endif
                             @if(admin_can('payments.fund_report'))<li class="nav-item"><a href="{{ URL::asset('admin/fund/fund-report') }}" class="nav-link">Fund Transfer History</a></li>@endif

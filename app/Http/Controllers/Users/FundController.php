@@ -16,6 +16,29 @@ class FundController extends Controller
         return view('users.fund.fund-request');
     }
 
+    public function addMoney()
+    {
+        $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+        $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+        if (! $company) {
+            $company = DB::table('companies')->where('id', 1)->first();
+        }
+
+        $recent = DB::table('fund_requests')
+            ->where('user_id', Session::get('user_id'))
+            ->whereIn('upi', [1, 2])
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get(['order_id', 'amount', 'status', 'upi', 'created_at', 'decision_remark']);
+
+        return view('users.fund.add-money', [
+            'company' => $company,
+            'recent' => $recent,
+            'upiOn' => $company && (int) ($company->payment_gateway ?? 0) === 1,
+            'qrOn' => $company && (int) ($company->payment_gateway2 ?? 0) === 1,
+        ]);
+    }
+
     public function fetchAll(Request $post)
     {
 

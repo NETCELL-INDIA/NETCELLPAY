@@ -49,6 +49,7 @@
                             <div>
                                 <label class="form-label mb-0"></label>
                                 <button type="button" id="search_btn" class="form-control btn btn-secondary bg-gradient waves-effect waves-light" onclick="fetchAllSearch()">Search</button>
+                                <button type="button" class="form-control btn btn-outline-success mt-1" onclick="downloadFundCsv()">CSV</button>
                             </div>  
                         </div>
                     </div>                          
@@ -77,6 +78,14 @@
 @section('script')
 <script>
     fetchAll(1,10);
+    function downloadFundCsv() {
+        var q = new URLSearchParams({
+            from_date: $('#from_date').val() || '',
+            to_date: $('#to_date').val() || '',
+            tbl_type: $('#tbl_type').val() || '0'
+        });
+        window.location = '{{ url('users/fund/fund-report/download') }}?' + q.toString();
+    }
     function fetchAllSearch() {
         var from_date = $("#from_date").val();
         var to_date = $("#to_date").val();
