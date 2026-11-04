@@ -210,7 +210,7 @@ class UserListController extends Controller
 				$output .= '<tr>
                 <td>' . $i . '</td>
                 <td><img src="'.env('ADMIN_HOST')."/profile_pic/".$list->profile_pic.'" class="avatar-xs rounded-3 me-2"></td>
-                <td>' . $list->first_name . ' ' . $list->middle_name . ' ' . $list->last_name . '</td>
+                <td>' . e($this->personName($list->first_name, $list->middle_name, $list->last_name)) . '</td>
                 <td>' . $list->outlet_name . '</td>
                 <td>' . $role . '</td>
                 <td>' . $parent . '</td>
@@ -459,6 +459,23 @@ class UserListController extends Controller
             (float) $post->amount,
             (string) $post->remark
         ));
+    }
+
+    private function personName($first, $middle, $last): string
+    {
+        $parts = [];
+        foreach ([$first, $middle, $last] as $part) {
+            $part = trim((string) $part);
+            if ($part === '' || $part === '-' || strcasecmp($part, 'na') === 0) {
+                continue;
+            }
+            if ($parts !== [] && strcasecmp($parts[count($parts) - 1], $part) === 0) {
+                continue;
+            }
+            $parts[] = $part;
+        }
+
+        return implode(' ', $parts);
     }
 
 }

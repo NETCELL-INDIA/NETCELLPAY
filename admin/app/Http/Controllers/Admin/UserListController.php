@@ -392,7 +392,12 @@ class UserListController extends Controller
                     $roleSeqMap[(int) $row->id] ?? Common::getUserRoleSequence((int) $row->id, (int) $row->role_id)
                 );
 
-                $fullName = trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? ''));
+                $firstName = trim((string) ($row->first_name ?? ''));
+                $lastName = trim((string) ($row->last_name ?? ''));
+                if ($lastName !== '' && strcasecmp($lastName, $firstName) === 0) {
+                    $lastName = '';
+                }
+                $fullName = trim($firstName . ' ' . $lastName);
                 if ($fullName === '') {
                     $fullName = $row->outlet_name ?? '-';
                 }

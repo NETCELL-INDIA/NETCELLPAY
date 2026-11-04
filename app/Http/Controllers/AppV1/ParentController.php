@@ -104,6 +104,9 @@ class ParentController extends Controller
         ->limit($limit)
         ->get(['id','first_name','middle_name','last_name','outlet_name','email_address','mobile_number','wallet_balance','city','parent_id','role_id','status']);
         $list_count = $list->count();
+        $list->each(function ($row) {
+            $this->hideRepeatedName($row);
+        });
         return response()->json(array(
             'type' => 'success',  
             'message' => "Fetch Successfully",
@@ -162,13 +165,14 @@ class ParentController extends Controller
                 return $data;
             }
 
+            $firstName = trim((string) $post->first_name);
             $middleName = trim((string) ($post->middle_name ?? ''));
-            if ($middleName === '-' || strcasecmp($middleName, 'na') === 0) {
+            if ($middleName === '-' || strcasecmp($middleName, 'na') === 0 || strcasecmp($middleName, $firstName) === 0) {
                 $middleName = '';
             }
             $lastName = trim((string) ($post->last_name ?? ''));
-            if ($lastName === '') {
-                $lastName = trim((string) $post->first_name);
+            if ($lastName === '' || $lastName === '-' || strcasecmp($lastName, 'na') === 0 || strcasecmp($lastName, $firstName) === 0) {
+                $lastName = '';
             }
 
             $profilePic = "avatar-2.png";
@@ -182,7 +186,7 @@ class ParentController extends Controller
                     'role_id'  => $role_id,
                     'scheme_id'  => $user_f->scheme_id,
                     'outlet_name'  => $post->outlet_name,
-                    'first_name'  => $post->first_name,
+                    'first_name'  => $firstName,
                     'middle_name'  => $middleName,
                     'last_name'  => $lastName,
                     'date_of_birth'  => $post->date_of_birth,
@@ -325,6 +329,9 @@ class ParentController extends Controller
                 ->where('mobile_number', 'LIKE', '%'.$post->mobile_number.'%')
                 ->where('parent_id', $post->user_id)
                 ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'email_address', 'mobile_number', 'wallet_balance', 'city', 'parent_id', 'role_id', 'status']);
+            $user->each(function ($row) {
+                $this->hideRepeatedName($row);
+            });
         }
 
         return response()->json([
@@ -345,6 +352,9 @@ class ParentController extends Controller
                     $query->orWhere('mobile_number', 'LIKE', '%'.$post->mobile_number.'%');
                 })
                 ->get(['id', 'first_name', 'middle_name', 'last_name', 'outlet_name', 'email_address', 'mobile_number', 'wallet_balance', 'city', 'parent_id', 'role_id', 'status']);
+            $user->each(function ($row) {
+                $this->hideRepeatedName($row);
+            });
         }
 
         return response()->json([
@@ -372,6 +382,17 @@ class ParentController extends Controller
             'my_banks' => $own,
         ]);
     }
-        
-    
+
+    private function hideRepeatedName($row): void
+    {
+        $first = trim((string) ($row->first_name ?? ''));
+        $middle = trim((string) ($row->middle_name ?? ''));
+        $last = trim((string) ($row->last_name ?? ''));
+        if ($middle !== '' && strcasecmp($middle, $first) === 0) {
+            $row->middle_name = '';
+        }
+        if ($last !== '' && strcasecmp($last, $first) === 0) {
+            $row->last_name = '';
+        }
+    }
 }
