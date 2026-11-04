@@ -54,7 +54,7 @@ class LoginHistoryReportController extends Controller
             'u.last_name',
             'u.outlet_name',
             'u.mobile_number',
-            'r.name as role_name',
+            'r.role_name',
         ];
 
         foreach (['latitude', 'longitude'] as $column) {
@@ -75,8 +75,10 @@ class LoginHistoryReportController extends Controller
                 $name = $row->outlet_name ?: ('User #'.($row->id ?? ''));
             }
 
-            $lat = $row->latitude ?? null;
-            $lng = $row->longitude ?? null;
+            $lat = property_exists($row, 'latitude') ? $row->latitude : null;
+            $lng = property_exists($row, 'longitude') ? $row->longitude : null;
+            $row->latitude = $lat;
+            $row->longitude = $lng;
 
             $row->display_name = $name;
             $row->maps_url = Common::googleMapsUrl($lat, $lng);
