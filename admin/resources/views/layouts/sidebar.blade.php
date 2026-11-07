@@ -303,6 +303,24 @@
                     </div>
                 </li>
 
+                @if(admin_can('billing') || admin_can('payments') || admin_can('system.settings'))
+                <li class="nav-item">
+                    <a class="nav-link menu-link" href="#sidebarBilling" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarBilling">
+                        <i class="bx bx-receipt"></i> <span>Billing & Invoices</span>
+                    </a>
+                    <div class="collapse menu-dropdown" id="sidebarBilling">
+                        <ul class="nav nav-sm flex-column">
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing') }}" class="nav-link">Billing Dashboard</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing/receipts') }}" class="nav-link">Payment Receipts</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing/invoices') }}" class="nav-link">GST Tax Invoices</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing/credit-notes') }}" class="nav-link">Credit Notes</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing/settings') }}" class="nav-link">GST Settings</a></li>
+                            <li class="nav-item"><a href="{{ URL::asset('admin/billing/report') }}" class="nav-link">Invoice Reports</a></li>
+                        </ul>
+                    </div>
+                </li>
+                @endif
+
                 @if(admin_can('business') || admin_can('users') || admin_can('accounts'))
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarBusiness" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarBusiness">

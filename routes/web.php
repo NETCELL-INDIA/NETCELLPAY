@@ -5,6 +5,7 @@ use App\Http\Controllers\Users\AuthController;
 use App\Http\Controllers\Users\DashboardController;
 use App\Http\Controllers\Users\UserListController;
 use App\Http\Controllers\Users\FundController;
+use App\Http\Controllers\Users\BillingController;
 use App\Http\Controllers\Users\UserFundRequstController;
 use App\Http\Controllers\Users\FundReportsController;
 use App\Http\Controllers\Users\RechargeController;
@@ -170,6 +171,7 @@ Route::get('/refunds', function () use ($websiteCompany) {
 
 Route::any('recharge-callback/{api_id}',[CallBackController::class,'rechargeCallback'])->name('rechargeCallback');
 
+Route::get('billing/document/{token}',[BillingController::class,'shared'])->middleware('throttle:30,1')->name('billingDocument');
 Route::post('users/fund/add-money-status/{order_id}',[addMoneyController::class,'AddMoneyStatus'])->name('AddMoneyStatus');
 Route::get('users/fund/add-money-check-status/{order_id}',[addMoneyController::class,'AddMoneyCheckStatus'])->name('AddMoneyCheckStatus');
 /////
@@ -273,6 +275,9 @@ Route::group(['middleware' => userCheck::class], function () {
     Route::post('users/fund/fund-request/submit',[FundController::class,'fundRequestSubmit'])->name('fundRequestSubmit');
     Route::post('users/fund/fund-request/bank_list',[FundController::class,'fundRequestBankList'])->name('fundRequestBankList');
     //Fund Reports Routes 
+    Route::get('users/fund/receipts',[BillingController::class,'index'])->name('userPaymentReceipts');
+    Route::get('users/fund/receipts/{id}/pdf',[BillingController::class,'receiptPdf'])->whereNumber('id')->name('userReceiptPdf');
+    Route::get('users/fund/invoices/{id}/pdf',[BillingController::class,'invoicePdf'])->whereNumber('id')->name('userInvoicePdf');
     Route::get('users/fund/fund-report',[FundReportsController::class,'index']);
     Route::post('users/fund/fund-report/list',[FundReportsController::class,'fetchAll'])->name('fundReportsList');
     Route::get('users/fund/fund-report/download',[FundReportsController::class,'download'])->name('fundReportsDownload');

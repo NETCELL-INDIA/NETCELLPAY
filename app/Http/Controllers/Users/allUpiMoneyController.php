@@ -162,9 +162,14 @@ class allUpiMoneyController extends Controller
             $report = DB::table('fund_requests')->where('order_id', $post->order_id)->first();
             if($report){
                 if($report->status == "Transferred"){
+                    try {
+                        \App\Services\BillingDocumentService::issueForTransferredFund((int) $report->id);
+                    } catch (\Throwable $e) {
+                    }
+                    $data = \App\Services\BillingDocumentService::statusPayload($report);
                     $data['status'] = "Success";
                     $data['type'] = 'success';
-                    $data['message'] =  "wallet has been credited.";
+                    $data['message'] =  "Payment successful. Wallet has been credited.";
                     return response()->json($data);
                 }else if($report->status == "Rejected"){
                     $data['status'] = "Failed";
@@ -263,9 +268,14 @@ class allUpiMoneyController extends Controller
                         $update['decision_remark'] = "upi add money sucessfuly";
                         $update['transaction_number'] =  $post->order_id;
                         $update['decision_date'] = Carbon::now();
-                        $report = DB::table('fund_requests')->where('id', $report->id)->update($update);
+                        $fundRequestId = (int) $report->id;
+                        $report = DB::table('fund_requests')->where('id', $fundRequestId)->update($update);
                         ///Status Update in Fund Request End
                         DB::commit();
+                        try {
+                            \App\Services\BillingDocumentService::issueForTransferredFund($fundRequestId);
+                        } catch (\Throwable $e) {
+                        }
                         return response()->json(array(
                             'type' => 'success',  
                             'message' => "Your wallet has been credited."

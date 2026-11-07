@@ -94,11 +94,19 @@ class AdminMenuService
                 ['key' => 'users.login_history', 'label' => 'Login History', 'paths' => ['admin/users/login-history']],
             ]],
             ['key' => 'payments', 'label' => 'Payments', 'children' => [
-                ['key' => 'payments.gateway', 'label' => 'Payment Gateway', 'paths' => ['admin/system-settings/payment-gateway', 'admin/fund/online-payments']],
+                ['key' => 'payments.gateway', 'label' => 'Payment Gateway', 'paths' => ['admin/system-settings/payment-gateway', 'admin/fund/online-payments', 'admin/billing']],
                 ['key' => 'payments.online', 'label' => 'Online Payments', 'paths' => ['admin/fund/online-payments']],
                 ['key' => 'payments.fund', 'label' => 'Fund Credit / Debit', 'paths' => ['admin/fund/credit-debit', 'admin/users/userlist/fundupdate']],
-                ['key' => 'payments.fund_request', 'label' => 'Pending Fund Requests', 'paths' => ['admin/fund/fund-request', 'admin/fund/online-payments']],
+                ['key' => 'payments.fund_request', 'label' => 'Pending Fund Requests', 'paths' => ['admin/fund/fund-request', 'admin/fund/online-payments', 'admin/billing']],
                 ['key' => 'payments.fund_report', 'label' => 'Fund Transfer History', 'paths' => ['admin/fund/fund-report']],
+            ]],
+            ['key' => 'billing', 'label' => 'Billing & Invoices', 'children' => [
+                ['key' => 'billing.dashboard', 'label' => 'Billing Dashboard', 'paths' => ['admin/billing']],
+                ['key' => 'billing.receipts', 'label' => 'Payment Receipts', 'paths' => ['admin/billing/receipts']],
+                ['key' => 'billing.invoices', 'label' => 'GST Tax Invoices', 'paths' => ['admin/billing/invoices']],
+                ['key' => 'billing.credits', 'label' => 'Credit Notes', 'paths' => ['admin/billing/credit-notes']],
+                ['key' => 'billing.settings', 'label' => 'GST Settings', 'paths' => ['admin/billing/settings']],
+                ['key' => 'billing.report', 'label' => 'Invoice Reports', 'paths' => ['admin/billing/report']],
             ]],
             ['key' => 'accounts', 'label' => 'Accounts Reports', 'children' => [
                 ['key' => 'accounts.account_report', 'label' => 'Account Reports', 'paths' => ['admin/user-reports/account-report']],
@@ -118,7 +126,7 @@ class AdminMenuService
                 ['key' => 'complains.all', 'label' => 'All Complains', 'paths' => ['admin/support/complaint']],
             ]],
             ['key' => 'system', 'label' => 'System', 'children' => [
-                ['key' => 'system.settings', 'label' => 'System Setting', 'paths' => ['admin/system-settings']],
+                ['key' => 'system.settings', 'label' => 'System Setting', 'paths' => ['admin/system-settings', 'admin/billing']],
                 ['key' => 'system.banks', 'label' => 'Banks', 'paths' => ['admin/system/banks']],
                 ['key' => 'system.amount_block', 'label' => 'Amount Block', 'paths' => ['admin/system/amount-block', 'admin/system/operator-denomination-block', 'admin/system/user-operator-denomination-block', 'admin/system/denomination-block']],
                 ['key' => 'system.operator_denomination_block', 'label' => 'Operator Denomination Block', 'paths' => ['admin/system/operator-denomination-block', 'admin/system/denomination-block']],

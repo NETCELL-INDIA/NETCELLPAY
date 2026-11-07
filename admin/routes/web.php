@@ -65,6 +65,7 @@ use App\Http\Middleware\AdminCheck;
 
 
 use App\Http\Controllers\Admin\FundController;
+use App\Http\Controllers\Admin\BillingController;
 use App\Http\Controllers\Admin\FundCreditDebitController;
 use App\Http\Controllers\Admin\KycController;
 use App\Http\Controllers\Admin\UserServiceLockController;
@@ -853,6 +854,18 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::get('admin/fund/fund-request',[FundController::class,'index']);
     Route::get('admin/fund/online-payments',[FundController::class,'onlinePayments'])->name('adminOnlinePayments');
+    Route::get('admin/billing', [BillingController::class, 'dashboard'])->name('adminBilling');
+    Route::get('admin/billing/receipts', [BillingController::class, 'receipts'])->name('adminBillingReceipts');
+    Route::get('admin/billing/invoices', [BillingController::class, 'invoices'])->name('adminBillingInvoices');
+    Route::get('admin/billing/credit-notes', [BillingController::class, 'creditNotes'])->name('adminBillingCreditNotes');
+    Route::post('admin/billing/credit-notes', [BillingController::class, 'storeCreditNote'])->name('adminBillingCreditNoteStore');
+    Route::get('admin/billing/settings', [BillingController::class, 'settings'])->name('adminBillingSettings');
+    Route::post('admin/billing/settings', [BillingController::class, 'saveSettings'])->name('adminBillingSettingsSave');
+    Route::get('admin/billing/report', [BillingController::class, 'report'])->name('adminBillingReport');
+    Route::get('admin/billing/receipts/{id}/pdf', [BillingController::class, 'receiptPdf'])->whereNumber('id');
+    Route::get('admin/billing/invoices/{id}/pdf', [BillingController::class, 'invoicePdf'])->whereNumber('id');
+    Route::post('admin/billing/receipts/{id}/resend', [BillingController::class, 'resend'])->whereNumber('id');
+    Route::post('admin/billing/receipts/backfill', [BillingController::class, 'backfill'])->name('adminBillingBackfill');
 
 
 

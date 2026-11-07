@@ -14,6 +14,7 @@ use App\Http\Controllers\AppV1\ReportsController;
 use App\Http\Controllers\Users\WrongRechargeController;
 use App\Http\Controllers\AppV1\ServicesController;
 use App\Http\Controllers\AppV1\ParentController;
+use App\Http\Controllers\AppV1\BillingController as AppBillingController;
 use Illuminate\Support\Facades\Redirect;
 
 /*
@@ -100,6 +101,9 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/account-reports',[ReportsController::class,'fetchAllAccount']);
     Route::post('/v1/ledger-reports',[ReportsController::class,'fetchAllAccount']);
     Route::post('/v1/fund-reports',[ReportsController::class,'fetchAllFund']);
+    Route::post('/v1/payment-receipts',[AppBillingController::class,'receipts']);
+    Route::post('/v1/payment-receipts/{id}/download',[AppBillingController::class,'receiptDownload'])->whereNumber('id');
+    Route::post('/v1/gst-invoices/{id}/download',[AppBillingController::class,'invoiceDownload'])->whereNumber('id');
     Route::post('/v1/complaint-reports',[ReportsController::class,'fetchAllComplaints']);
     Route::post('/v1/fund-request-reports',[ReportsController::class,'fetchAllFundRequest']);
     Route::post('/v1/bill-payment-reports',[ReportsController::class,'fetchAllBillPayment']);

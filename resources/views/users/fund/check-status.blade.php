@@ -74,16 +74,17 @@
         <h1 id="status">Processing</h1>
         <p id="message">Loading...</p>
     </br>
+        <div id="docs"></div>
         <button class="button button1" onclick="homePage()">Back To Home</button>
     </div>
 </body>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script>
     function homePage(){
-       // window.location.replace("{{route('dashboardPage') }}");
+       window.location.href = "{{ url('users/dashboard') }}";
     }
     checkStatus();
-    setInterval(checkStatus, 5000);
+    var statusTimer = setInterval(checkStatus, 5000);
 function checkStatus() {
         $.ajax({
             url: '{{ route('AddMoneyStatus',$order_id) }}',
@@ -95,10 +96,18 @@ function checkStatus() {
                 if(res.type == "success"){
                     
                     if(res.status == "Success"){
-                        $('#status').text(res.status);
+                        $('#status').text('Payment Successful');
                         $('#message').text(res.message);
                         $('#icon').html('<i class="fa fa-check" style="font-size: 200px;color:green;"></i>');
                         document.getElementById("status").style.color="green";
+                        var docs = '';
+                        if (res.amount) docs += '<p>Amount added: Rs '+res.amount+'</p>';
+                        if (res.transaction_id) docs += '<p>Transaction ID: '+res.transaction_id+'</p>';
+                        if (res.wallet_balance) docs += '<p>Wallet balance: Rs '+res.wallet_balance+'</p>';
+                        if (res.receipt_url) docs += '<a class="button button1" href="'+res.receipt_url+'">View payment receipt</a>';
+                        if (res.invoice_url) docs += '<a class="button button1" href="'+res.invoice_url+'">View GST invoice</a>';
+                        $('#docs').html(docs);
+                        clearInterval(statusTimer);
                     }else if(res.status == "Failed"){
                         $('#status').text(res.status);
                         $('#message').text(res.message);

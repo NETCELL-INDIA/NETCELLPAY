@@ -100,6 +100,9 @@
                             <li class="nav-item">
                                 <a href="{{ URL::asset('users/fund/fund-report') }}" class="nav-link"> Fund Report</a>
                             </li>
+                            <li class="nav-item">
+                                <a href="{{ route('userPaymentReceipts') }}" class="nav-link"> Payment Receipts</a>
+                            </li>
                         </ul>
                     </div>
                 </li>
