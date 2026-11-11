@@ -769,6 +769,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
 
     Route::post('admin/system/apis/bulk-set-provider-code',[ApiController::class,'BulkUpdateProviderCode'])->name('apisBulkUpdateProviderCode');
+    Route::post('admin/system/apis/sun-direct-code',[ApiController::class,'setSunDirectCode'])->name('apisSetSunDirectCode');
 
 
 

@@ -496,6 +496,35 @@ class RechargeController extends Controller
 
 
 
+        if ((int) $provider->service_id === 2) {
+            $customerId = trim((string) (
+                $post->input('customer_id')
+                ?: $post->input('subscriber_id')
+                ?: $post->input('dth_number')
+                ?: $post->input('vc_number')
+                ?: ''
+            ));
+            if ($customerId !== '') {
+                $post->merge(['number' => $customerId]);
+            }
+            $dthNumber = trim((string) $post->number);
+            $registeredMobile = trim((string) ($user->mobile_number ?? ''));
+            if ($customerId === '' && $registeredMobile !== '' && $dthNumber === $registeredMobile) {
+                return response()->json(array(
+                    'status' => 'Failed',
+                    'type' => 'error',
+                    'message' => 'Enter the DTH Customer ID. Do not use the registered mobile number.'
+                ));
+            }
+            if ($dthNumber === '' || strlen($dthNumber) < 4) {
+                return response()->json(array(
+                    'status' => 'Failed',
+                    'type' => 'error',
+                    'message' => 'Enter the DTH Customer ID / Subscriber ID.'
+                ));
+            }
+        }
+
         $repeat = \App\Services\SystemSettingService::rechargeRepeatMessage($user->id, $post->number, $post->amount, $post->provider_id);
         if ($repeat) {
             return response()->json(array(

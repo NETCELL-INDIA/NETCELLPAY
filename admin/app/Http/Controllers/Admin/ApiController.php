@@ -465,6 +465,43 @@ class ApiController extends Controller
         return $data;
     }
 
+    public function setSunDirectCode(Request $post)
+    {
+        $apiId = (int) $post->input('api_id');
+        if ($apiId < 1) {
+            return response()->json(['type' => 'error', 'message' => 'Open an API first, then set the Sun Direct code.']);
+        }
+
+        $provider = DB::table('providers')
+            ->where(function ($q) {
+                $q->where('provider_name', 'like', '%sun direct%')
+                    ->orWhere('provider_name', 'like', '%sundirect%');
+            })
+            ->where(function ($q) {
+                $q->whereNull('deleted_at')->orWhere('deleted_at', '!=', 1);
+            })
+            ->orderByRaw('CASE WHEN service_id = 2 THEN 0 ELSE 1 END')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $provider) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Sun Direct was not found. Add a DTH provider named Sun Direct, then set code 20.',
+            ]);
+        }
+
+        DB::table('api_provider_codes')->updateOrInsert(
+            ['api_id' => $apiId, 'provider_id' => $provider->id],
+            ['api_id' => $apiId, 'provider_id' => $provider->id, 'provider_code' => '20']
+        );
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Sun Direct operator code set to 20 for '.$provider->provider_name.'. Mobile operator codes were not changed.',
+        ]);
+    }
+
 
     public function getData(Request $post)
     {

@@ -54,6 +54,17 @@ class CallBackController extends Controller
         }
 
         $mapped = \helpers::mapApiCallbackStatus($api, $actual);
+        if (\helpers::isRealChargeApi($api) || \helpers::isRealChargePayload($data)) {
+            $word = strtoupper(trim((string) $actual));
+            if (in_array($word, ['REFUND', 'REFUNDED'], true)) {
+                $mapped = 'Refunded';
+            } else {
+                $forced = \helpers::mapRealChargeStatus($actual);
+                if ($forced !== null) {
+                    $mapped = $forced;
+                }
+            }
+        }
         $operatorId = \helpers::sanitizeOperatorId(
             \helpers::apiArrayGet($data, $operatorKey)
             ?? $data['opid']
@@ -185,6 +196,12 @@ class CallBackController extends Controller
     {
         $data = $request->all();
         $raw = trim((string) $request->getContent());
+        if ($raw !== '' && ($raw[0] ?? '') === '<') {
+            $parsed = \helpers::supplierPayload($raw);
+            if ($parsed !== []) {
+                $data = array_merge($data, $parsed);
+            }
+        }
         if ($raw !== '') {
             $json = json_decode($raw, true);
             if (is_array($json)) {
@@ -209,6 +226,7 @@ class CallBackController extends Controller
             'order_id', 'OrderId', 'ORDER_ID', 'orderId',
             'refId', 'RefId', 'REFID', 'ref_id', 'reference', 'Reference',
             'request_order_id', 'requestOrderId', 'RequestOrderId',
+            'reqid', 'REQID', 'ReqId',
             'txnid', 'txnId', 'TxnId', 'TXNID', 'transactionId', 'TransactionId',
             'yourRequestId', 'AGENTID', 'AgentId',
         ] as $key) {
@@ -225,6 +243,13 @@ class CallBackController extends Controller
     {
         $pending = \helpers::rechargePendingStatuses();
         $candidates = [];
+        $realChargeId = \helpers::reportIdFromRealChargeRequestId($orderRef);
+        if ($realChargeId > 0) {
+            $report = DB::table('reports')->where('id', $realChargeId)->whereIn('status', $pending)->lockForUpdate()->first();
+            if ($report) {
+                return $report;
+            }
+        }
         if ($orderRef !== '') {
             $candidates[] = ['api_id' => $apiId, 'order_id' => $orderRef];
             if (Schema::hasColumn('reports', 'request_order_id')) {
@@ -257,6 +282,18 @@ class CallBackController extends Controller
     private function findReportByStatus(int $apiId, string $orderRef, string $operatorId, array $statuses)
     {
         $candidates = [];
+        $realChargeId = \helpers::reportIdFromRealChargeRequestId($orderRef);
+        if ($realChargeId > 0) {
+            $report = DB::table('reports')
+                ->where('id', $realChargeId)
+                ->whereIn('status', $statuses)
+                ->where('transaction_type', 'Recharge')
+                ->lockForUpdate()
+                ->first();
+            if ($report) {
+                return $report;
+            }
+        }
         if ($orderRef !== '') {
             $candidates[] = ['api_id' => $apiId, 'order_id' => $orderRef];
             $candidates[] = ['order_id' => $orderRef];

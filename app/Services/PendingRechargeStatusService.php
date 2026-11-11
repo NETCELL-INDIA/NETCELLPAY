@@ -104,16 +104,28 @@ class PendingRechargeStatusService
             return ['ok' => false, 'id' => $id, 'message' => 'Status API did not respond. Order left pending.'];
         }
 
-        $data = json_decode($body, true);
-        if (! is_array($data)) {
-            return ['ok' => false, 'id' => $id, 'message' => 'Status response was not JSON. Order left pending.'];
+        $data = \helpers::supplierPayload($body);
+        if ($data === []) {
+            return ['ok' => false, 'id' => $id, 'message' => 'Status response was not JSON or XML. Order left pending.'];
         }
 
         $actual = \helpers::apiArrayGet($data, $api->status_value ?? '');
+        if ($actual === null) {
+            $actual = \helpers::apiArrayGet($data, strtolower((string) ($api->status_value ?? '')));
+        }
         if ($actual === null && isset($data['Response'])) {
             $actual = $data['Response'];
         }
+        if ($actual === null && isset($data['status'])) {
+            $actual = $data['status'];
+        }
         $mapped = \helpers::mapApiLiveStatus($api, $actual, $data);
+        if (\helpers::isRealChargeApi($api, $url) || \helpers::isRealChargePayload($data)) {
+            $forced = \helpers::mapRealChargeStatus($actual);
+            if ($forced !== null) {
+                $mapped = $forced;
+            }
+        }
         if ($mapped === null || $mapped === 'Pending') {
             return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier still shows pending'];
         }
@@ -134,7 +146,10 @@ class PendingRechargeStatusService
             }
 
             $opId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
-            $msg = trim((string) ($data['Message'] ?? $data['message'] ?? ''));
+            if ($opId === '') {
+                $opId = \helpers::sanitizeOperatorId($data['field1'] ?? '');
+            }
+            $msg = trim((string) ($data['remark'] ?? $data['Message'] ?? $data['message'] ?? ''));
             $update = [
                 'status' => $mapped === 'Success' ? 'Success' : 'Failed',
                 'remark' => 'Status check: '.$mapped.($msg !== '' ? ' - '.$msg : ''),

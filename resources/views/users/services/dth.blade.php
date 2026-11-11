@@ -82,9 +82,9 @@
 
                                 <div>
 
-                                    <label class="form-label mb-0">DTH Number</label>
+                                    <label class="form-label mb-0">DTH Customer ID</label>
 
-                                    <input type="number" class="form-control" name="number" value="" id="number" placeholder="Enter DTH Number">
+                                    <input type="text" class="form-control" name="number" value="" id="number" maxlength="20" placeholder="Subscriber ID, not your mobile number">
 
                                 </div>
 

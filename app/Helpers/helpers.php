@@ -87,6 +87,7 @@ class helpers
             '{API_PASSWORD}' => (string) ($api->api_password ?? ''),
             '{API_KEY}' => (string) ($api->api_key ?? ''),
             '{NUMBER}' => (string) ($report->number ?? ''),
+            '{MN}' => (string) ($report->number ?? ''),
             '{PROVIDER_CODE}' => (string) $providerCode,
             '{STATE_CODE}' => (string) $stateCode,
             '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
@@ -96,7 +97,11 @@ class helpers
             '{USER_MOBILE}' => $mobile,
             '{USER_ID}' => (string) ($report->user_id ?? ''),
             '{AGENT_NAME}' => $agent,
+            '{REQID}' => self::realChargeRequestId($report),
         ];
+        if (self::isRealChargeApi($api, $url)) {
+            $replacements['{ORDER_ID}'] = $replacements['{REQID}'];
+        }
 
         return str_replace(array_keys($replacements), array_values($replacements), $url);
     }
@@ -142,6 +147,109 @@ class helpers
         }
 
         return $cur;
+    }
+
+    public static function isRealChargeApi($api, string $url = ''): bool
+    {
+        $hay = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '').' '.$url));
+
+        return str_contains($hay, 'realcharge')
+            || str_contains($hay, 'reqid=')
+            || str_contains($hay, '{reqid}');
+    }
+
+    public static function realChargeRequestId($report): string
+    {
+        $id = (int) ($report->id ?? 0);
+        if ($id < 1) {
+            return 'RC'.strtoupper(substr(md5((string) ($report->order_id ?? '0')), 0, 18));
+        }
+        $code = 'RC'.(string) $id;
+
+        return strlen($code) <= 20 ? $code : substr($code, 0, 20);
+    }
+
+    public static function reportIdFromRealChargeRequestId(string $reqid): int
+    {
+        $reqid = strtoupper(preg_replace('/[^A-Z0-9]/', '', $reqid) ?? '');
+        if (! str_starts_with($reqid, 'RC')) {
+            return 0;
+        }
+        $id = substr($reqid, 2);
+
+        return ctype_digit($id) ? (int) $id : 0;
+    }
+
+    public static function supplierPayload(string $body): array
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return [];
+        }
+        $json = json_decode($body, true);
+        if (is_array($json)) {
+            return $json;
+        }
+        if ($body[0] !== '<') {
+            return [];
+        }
+        $out = [];
+        $stripped = preg_replace('/\sxmlns(?::[A-Za-z0-9_]+)?="[^"]*"/i', '', $body) ?? $body;
+        $xml = @simplexml_load_string($stripped, 'SimpleXMLElement', LIBXML_NOCDATA);
+        if ($xml) {
+            $children = $xml->children();
+            if (count($children) === 0) {
+                foreach ($xml->getDocNamespaces(true) as $ns) {
+                    $children = $xml->children($ns);
+                    if (count($children) > 0) {
+                        break;
+                    }
+                }
+            }
+            foreach ($children as $child) {
+                $name = (string) $child->getName();
+                $value = trim((string) $child);
+                $out[$name] = $value;
+                $out[strtolower($name)] = $value;
+            }
+        }
+        if (! isset($out['status']) && preg_match_all('/<([A-Za-z0-9_:-]+)>([^<]*)<\/\1>/', $body, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = $match[1];
+                if (str_contains($name, ':')) {
+                    $name = substr($name, (int) strrpos($name, ':') + 1);
+                }
+                $value = trim(html_entity_decode($match[2], ENT_QUOTES | ENT_XML1, 'UTF-8'));
+                $out[$name] = $value;
+                $out[strtolower($name)] = $value;
+            }
+        }
+
+        return $out;
+    }
+
+    public static function isRealChargePayload(array $data): bool
+    {
+        $keys = array_change_key_case($data, CASE_LOWER);
+
+        return array_key_exists('status', $keys)
+            && (array_key_exists('reqid', $keys) || array_key_exists('field1', $keys) || array_key_exists('ec', $keys));
+    }
+
+    public static function mapRealChargeStatus($actual): ?string
+    {
+        $word = strtoupper(trim((string) $actual));
+        if (in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)) {
+            return 'Success';
+        }
+        if (in_array($word, ['FAILED', 'FAILURE', 'FAIL', 'REFUND', 'REFUNDED'], true)) {
+            return 'Failed';
+        }
+        if (in_array($word, ['PENDING', 'PROCESS', 'PROCESSING', 'ACCEPTED'], true)) {
+            return 'Pending';
+        }
+
+        return null;
     }
 
     public static function apiValueMatches($actual, $configured): bool
@@ -3231,6 +3339,9 @@ class helpers
             }
             $obj->provider_logo_url = $url;
             $obj->provider_down = (int) ($obj->provider_down ?? 0);
+            $isDth = (int) ($obj->service_id ?? 0) === 2;
+            $obj->number_label = $isDth ? 'DTH Customer ID' : 'Mobile Number';
+            $obj->number_param = $isDth ? 'customer_id' : 'number';
             $userId = (int) (Session::get('user_id') ?? 0);
             $obj->user_down = ($userId > 0 && self::isProviderDownForUser($obj->id ?? 0, $userId)) ? 1 : 0;
 

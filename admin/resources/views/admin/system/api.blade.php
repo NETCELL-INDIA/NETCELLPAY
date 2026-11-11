@@ -838,6 +838,7 @@
                     <div class="col-sm-4">
 
                         <label> Service Type</label>
+                        <div class="small text-muted mb-1">Mobile and DTH codes are separate. Choose DTH to edit DTH operator codes.</div>
 
                         <input type="hidden" name="api_id" id="api_id" value="">
 
@@ -847,6 +848,10 @@
 
                         </select>
 
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="d-block">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-primary" id="setSunDirectCode">Set Sun Direct code 20</button>
                     </div>
 
                 </div>
@@ -1361,6 +1366,25 @@
 
 
 
+    $(document).on('click', '#setSunDirectCode', function () {
+        var apiId = $('#api_id').val();
+        $.ajax({
+            url: '{{ route('apisSetSunDirectCode') }}',
+            method: 'post',
+            data: { _token: '{{ csrf_token() }}', api_id: apiId },
+            success: function (res) {
+                Error_Msg(res.type === 'success' ? 'Saved' : 'Not saved', res.message || 'Unable to set Sun Direct code.', res.type === 'success' ? 'success' : 'error');
+                if (res.type === 'success' && $('.service').val()) {
+                    fetchProviderCodeAll($('#api_id').val(), $('.service').val());
+                }
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Unable to set Sun Direct code.';
+                Error_Msg('Not saved', msg, 'error');
+            }
+        });
+    });
+
     function fatchApiAndService() {
 
         //$("#preloader").attr("style", "display:block");
@@ -1379,7 +1403,9 @@
 
                 $.each(res.service, function(k,v) {
 
-                    $('.service').append('<option value="' + v.id + '">' + v.service_name.toUpperCase() + '</option>');
+                    var name = String(v.service_name || '').toUpperCase();
+                    var group = name.indexOf('DTH') >= 0 ? 'DTH — ' : (name.indexOf('MOBILE') >= 0 || name.indexOf('PREPAID') >= 0 ? 'Mobile — ' : '');
+                    $('.service').append('<option value="' + v.id + '">' + group + name + '</option>');
 
                 });
 

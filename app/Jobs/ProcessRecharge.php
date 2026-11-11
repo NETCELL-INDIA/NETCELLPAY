@@ -163,25 +163,43 @@ class ProcessRecharge implements ShouldQueue
                     'order_id' => $report->order_id,
                 ];
 
-                if ($result && isset($result['response']) && $api_details->api_format == 'JSON') {
-                    $data = json_decode($result['response'], true);
-                    if (is_array($data)) {
+                $format = strtoupper(trim((string) ($api_details->api_format ?? '')));
+                $body = (string) ($result['response'] ?? '');
+                $looksSupplier = $format === 'JSON' || $format === 'XML' || str_starts_with(ltrim($body), '{') || str_starts_with(ltrim($body), '<');
+                if ($result && $body !== '' && $looksSupplier) {
+                    $data = \helpers::supplierPayload($body);
+                    if (is_array($data) && $data !== []) {
                         $status_key = $api_details->status_value;
                         $error_key = $api_details->error_value;
                         $actual = \helpers::apiArrayGet($data, $status_key);
+                        if ($actual === null) {
+                            $actual = \helpers::apiArrayGet($data, strtolower((string) $status_key));
+                        }
 
                         if ($actual === null && isset($data['Response'])) {
                             $actual = $data['Response'];
+                        }
+                        if ($actual === null && isset($data['status'])) {
+                            $actual = $data['status'];
                         }
                         if ($actual === null) {
                             $actual = \helpers::apiArrayGet($data, $error_key);
                         }
 
                         $mapped = \helpers::mapApiLiveStatus($api_details, $actual, $data);
+                        if (\helpers::isRealChargeApi($api_details, $url) || \helpers::isRealChargePayload($data)) {
+                            $forced = \helpers::mapRealChargeStatus($actual);
+                            if ($forced !== null) {
+                                $mapped = $forced;
+                            }
+                        }
                         if ($mapped) {
                             $update['status'] = $mapped;
                             $opId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api_details->operator_id_value) ?? '');
                             $apiOpId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api_details->order_id_value) ?? '');
+                            if ($opId === '') {
+                                $opId = \helpers::sanitizeOperatorId($data['field1'] ?? $data['FIELD1'] ?? '');
+                            }
                             // Do not store supplier API login as operator id — looks like "who recharged".
                             $apiUser = trim((string) ($api_details->api_username ?? ''));
                             if ($apiUser !== '' && strcasecmp($opId, $apiUser) === 0) {
@@ -189,7 +207,11 @@ class ProcessRecharge implements ShouldQueue
                             }
                             $update['operator_id'] = $opId;
                             $update['api_operator_id'] = $apiOpId;
-                            $msg = $data['Message'] ?? $data['message'] ?? '';
+                            $msg = $data['remark'] ?? $data['Message'] ?? $data['message'] ?? '';
+                            $ec = trim((string) ($data['ec'] ?? $data['EC'] ?? ''));
+                            if ($ec !== '' && $mapped === 'Failed') {
+                                $msg = trim($msg.' EC '.$ec);
+                            }
                             if ($mapped === 'Success') {
                                 $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                             } elseif ($mapped === 'Failed') {
