@@ -147,11 +147,13 @@
 
             <div class="modal-body">
 
-                <form action="#" method="POST" id="edit_details_form" enctype="multipart/form-data">
+                <form action="#" method="POST" id="edit_details_form" enctype="multipart/form-data" novalidate>
 
                     @csrf
 
                     <input type="hidden" name="edit_id" id="edit_id">
+
+                    <div id="api_form_error" class="alert alert-danger d-none"></div>
 
                     <div class="live-preview">
 
@@ -732,9 +734,9 @@
 
                                     <select class="form-select mb-3 status" aria-label="Default select example" name="status">
 
-                                        <option selected="">Select Status</option>
+                                        <option value="">Select Status</option>
 
-                                        <option value="1">Active</option>
+                                        <option value="1" selected>Active</option>
 
                                         <option value="0">Deactive</option>
 
@@ -1005,10 +1007,30 @@
 
             buttonsStyling: false,
 
-            showCloseButton: true
+            showCloseButton: true,
+
+            didOpen: function () {
+                var box = document.querySelector('.swal2-container');
+                if (box) box.style.zIndex = '20000';
+            }
 
         });
 
+    }
+
+    function showApiSaveError(message) {
+        var box = $('#api_form_error');
+        box.removeClass('d-none').text(message || 'Unable to save this API.');
+        var modalBody = document.querySelector('#detailsModal .modal-body');
+        if (modalBody) modalBody.scrollTop = 0;
+        Error_Msg('Not saved', message || 'Unable to save this API.', 'error');
+    }
+
+    function apiFieldLabel(el) {
+        var id = el.id || '';
+        var label = id ? $('label[for="' + id + '"]').first().text() : '';
+        label = $.trim(label).replace(/\*/g, '').replace(/:$/, '');
+        return label || el.name;
     }
 
     
@@ -1882,6 +1904,8 @@
 
                 $(".status").val(data.data.status).change();
 
+                $('#api_form_error').addClass('d-none').text('');
+
                 $('#detailsModalLabel').text('Edit Details');
 
                 $('#detailsModal').modal('show');
@@ -1910,6 +1934,39 @@
 
         e.preventDefault();
 
+        $('#api_form_error').addClass('d-none').text('');
+        var missing = [];
+        var firstMissing = null;
+        $('#edit_details_form').find('input, select, textarea').each(function () {
+            if (!this.name || this.type === 'hidden' || this.type === 'checkbox' || this.type === 'radio') return;
+            if (!this.required) return;
+            if ($.trim($(this).val() || '') === '') {
+                missing.push(apiFieldLabel(this));
+                $(this).addClass('is-invalid');
+                if (!firstMissing) firstMissing = this;
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+        if ($('#edit_details_form select[name="status"]').val() !== '0' && $('#edit_details_form select[name="status"]').val() !== '1') {
+            missing.unshift('Status: choose Active or Deactive');
+            if (!firstMissing) firstMissing = document.querySelector('#edit_details_form select[name="status"]');
+        }
+        ['api_url', 'balance_check_url', 'complaint_api_url'].forEach(function (name) {
+            var el = document.getElementById(name);
+            if (!el) return;
+            if ($.trim($(el).val() || '') === '') {
+                missing.push(apiFieldLabel(el));
+                $(el).addClass('is-invalid');
+                if (!firstMissing) firstMissing = el;
+            }
+        });
+        if (missing.length) {
+            if (firstMissing) firstMissing.scrollIntoView({ block: 'center' });
+            showApiSaveError('Fill these fields: ' + missing.join(', '));
+            return;
+        }
+
         const fd = new FormData(this);
 
         $("#edit_details_btn").text('Please wait...');
@@ -1936,13 +1993,15 @@
 
             if(data.type=="error"){
 
-                Error_Msg(capitalizeFirstLetter(data.type),data.message,data.type);
+                showApiSaveError(data.message || 'Unable to save this API.');
 
                 $("#edit_details_btn").text('Save Changes');
 
                 $('#edit_details_btn').prop('disabled', false);
 
             }else if(data.type=="success"){  
+
+                $('#api_form_error').addClass('d-none').text('');
 
                 Error_Msg("Updated","Updated Successfully!","success");
 
@@ -1958,7 +2017,7 @@
 
             }else{
 
-                Error_Msg("Oops...","Something went wrong!","error");
+                showApiSaveError('Unexpected response from the server.');
 
                 $("#edit_details_btn").text('Save Changes');
 
@@ -1968,11 +2027,14 @@
 
           },
 
-          error: function( jqXhr, textStatus, errorThrown ){
+          error: function( jqXhr ){
 
-            var msg = (jqXhr.responseJSON && jqXhr.responseJSON.message) ? jqXhr.responseJSON.message : "Something went wrong!";
+            var msg = (jqXhr.responseJSON && (jqXhr.responseJSON.message || jqXhr.responseJSON.error)) ? (jqXhr.responseJSON.message || jqXhr.responseJSON.error) : '';
+            if (!msg) {
+                msg = 'Save failed' + (jqXhr.status ? ' (HTTP ' + jqXhr.status + ')' : '') + '.';
+            }
 
-            Error_Msg("Oops...", msg, "error");
+            showApiSaveError(msg);
 
             $("#edit_details_btn").text('Save Changes');
 
@@ -1987,6 +2049,8 @@
     
 
     function createNew() {
+
+        $('#api_form_error').addClass('d-none').text('');
 
         $('#detailsModal').modal('show');
 

@@ -646,14 +646,52 @@ class ApiController extends Controller
             'status' => 'required|numeric|digits:1',
         );
 
-        $validator = \Validator::make($post->all(), array_reverse($rules));
+        $labels = [
+            'apiName' => 'API Name',
+            'api_username' => 'API Username',
+            'api_key' => 'API Key',
+            'api_url' => 'API URL',
+            'balance_check_url' => 'Balance Check URL',
+            'complaint_api_url' => 'Complaint API URL',
+            'complaint_api_method' => 'Complaint API Method',
+            'complaint_status_value' => 'Complaint Status Value',
+            'refund_value' => 'Refund Value',
+            'complaint_success_value' => 'Complaint Success Value',
+            'complaint_failed_value' => 'Complaint Failed Value',
+            'complaint_callback_status_value' => 'Complaint Callback Status Value',
+            'complaint_callback_success_value' => 'Complaint Callback Success Value',
+            'complaint_callback_failed_value' => 'Complaint Callback Failed Value',
+            'complaint_callback_remark' => 'Complaint Callback Remark',
+            'status_value' => 'Status Value',
+            'success_value' => 'Success Value',
+            'failed_value' => 'Failed Value',
+            'pending_value' => 'Pending Value',
+            'error_value' => 'Error Value',
+            'error_value_response' => 'Error Value Response',
+            'order_id_value' => 'Order ID Value',
+            'operator_id_value' => 'Operator ID Value',
+            'api_method' => 'Recharge API Method',
+            'api_format' => 'Recharge API Format',
+            'callback_status_value' => 'Callback Status Value',
+            'callback_success_value' => 'Callback Success Value',
+            'callback_failed_value' => 'Callback Failed Value',
+            'callback_order_id_value' => 'Callback Order ID Value',
+            'callback_operator_id_value' => 'Callback Operator ID Value',
+            'callback_remark' => 'Callback Remark',
+            'callback_api_method' => 'Callback API Method',
+            'callback_refund_value' => 'Callback Refund Value',
+            'api_type' => 'API Type',
+            'status' => 'Status',
+        ];
+        $validator = \Validator::make($post->all(), $rules);
         if ($validator->fails()) {
+            $messages = [];
             foreach ($validator->errors()->messages() as $key => $value) {
-                $error = $value[0];
+                $messages[] = ($labels[$key] ?? $key).': '.$value[0];
             }
             return response()->json(array(
                 'type' => 'error',
-                'message' => $error
+                'message' => implode(' ', $messages)
             ));
         }
 

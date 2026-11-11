@@ -90,7 +90,34 @@ class ApiSettingsController extends Controller
             $data['ip_address'] = '';
         }
 
-        DB::table('users')->where('id', $user->id)->update($data);
+        foreach (['callback_url', 'complaint_callback_url'] as $field) {
+            if (strlen($data[$field]) > 255) {
+                Session::flash('error', 'Not saved. '.$field.' is longer than 255 characters.');
+
+                return redirect()->back()->withInput();
+            }
+            if ($data[$field] !== '' && ! preg_match('#^https?://#i', $data[$field])) {
+                Session::flash('error', 'Not saved. '.$field.' must start with http:// or https://');
+
+                return redirect()->back()->withInput();
+            }
+        }
+
+        try {
+            foreach ([
+                'callback_url' => 'VARCHAR(255) NULL',
+                'complaint_callback_url' => 'VARCHAR(255) NULL',
+            ] as $column => $definition) {
+                if (! Schema::hasColumn('users', $column)) {
+                    DB::statement("ALTER TABLE `users` ADD COLUMN `{$column}` {$definition}");
+                }
+            }
+            DB::table('users')->where('id', $user->id)->update($data);
+        } catch (\Throwable $e) {
+            Session::flash('error', 'API settings were not saved. '.$e->getMessage());
+
+            return redirect()->back()->withInput();
+        }
 
         Session::flash('success', 'API settings saved successfully.');
 
