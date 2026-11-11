@@ -101,7 +101,7 @@ class SystemSettingController extends Controller
                 'add_money_charge_status' => $post->boolean('add_money_charge_status') ? '1' : '0',
             ]);
         } elseif ($page === 'payment-gateway') {
-            DB::table('companies')->where('id', 1)->update([
+            DB::table('companies')->update([
                 'payment_gateway' => (int) $post->payment_gateway,
                 'payment_gateway_min' => $post->payment_gateway_min,
                 'payment_gateway_max' => $post->payment_gateway_max,

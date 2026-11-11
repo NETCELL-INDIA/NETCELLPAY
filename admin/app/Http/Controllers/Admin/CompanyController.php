@@ -253,6 +253,18 @@ class CompanyController extends Controller
                 $invoiceLogo =  $post->old_invoice_logo;
             }
 
+            $paymentFields = [
+                'payment_gateway' => $post->payment_gateway,
+                'payment_gateway_min' => $post->payment_gateway_min,
+                'payment_gateway_max' => $post->payment_gateway_max,
+                'payment_gateway_key' => $post->payment_gateway_key,
+                'payment_gateway2' => $post->payment_gateway2,
+                'payment_gateway2_min' => $post->payment_gateway2_min,
+                'payment_gateway2_max' => $post->payment_gateway2_max,
+                'payment_gateway2_key' => $post->payment_gateway2_key,
+                'updated_at' => Carbon::now(),
+            ];
+            DB::table('companies')->update($paymentFields);
             $update = DB::table('companies')->whereIn('id', [1, 2])->update([
                 //'domain' => $post->domain,
                 'company_name' => $post->company_name,

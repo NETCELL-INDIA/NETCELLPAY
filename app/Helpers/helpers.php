@@ -2294,6 +2294,28 @@ class helpers
         })->filter()->implode(' | ');
     }
 
+    /** UPI and QR ids saved in Payment Gateway settings. API keys without @ are not sent to the app. */
+    public static function appPaymentIds(): array
+    {
+        $company = DB::table('companies')->where('id', 1)->first();
+        $upiKey = trim((string) ($company->payment_gateway_key ?? ''));
+        $qrKey = trim((string) ($company->payment_gateway2_key ?? ''));
+        $vpa = function (string $value): string {
+            return str_contains($value, '@') ? $value : '';
+        };
+
+        return [
+            'upi_id' => $vpa($upiKey),
+            'qr_upi_id' => $vpa($qrKey),
+            'upi_on' => $company && (int) ($company->payment_gateway ?? 0) === 1 ? 1 : 0,
+            'qr_on' => $company && (int) ($company->payment_gateway2 ?? 0) === 1 ? 1 : 0,
+            'upi_min' => (string) ($company->payment_gateway_min ?? ''),
+            'upi_max' => (string) ($company->payment_gateway_max ?? ''),
+            'qr_min' => (string) ($company->payment_gateway2_min ?? ''),
+            'qr_max' => (string) ($company->payment_gateway2_max ?? ''),
+        ];
+    }
+
     /** Company deposit accounts saved in Admin → System → Banks (user id 1, status ON). */
     public static function depositBankDetails(): array
     {

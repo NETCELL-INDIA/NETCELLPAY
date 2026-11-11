@@ -108,6 +108,9 @@ function checkStatus() {
                         if (res.invoice_url) docs += '<a class="button button1" href="'+res.invoice_url+'">View GST invoice</a>';
                         $('#docs').html(docs);
                         clearInterval(statusTimer);
+                    }else if(res.status == "Pending"){
+                        $('#status').text('Processing');
+                        $('#message').text(res.message || 'Waiting for the payment company to confirm this payment.');
                     }else if(res.status == "Failed"){
                         $('#status').text(res.status);
                         $('#message').text(res.message);

@@ -16,7 +16,7 @@ class allUpiMoneyController extends Controller
     public function addMoneyRequestSubmit(Request $post)
     {
 
-        $company = DB::table('companies')->where('status', "1")->where('domain', $_SERVER['HTTP_HOST'])->first();
+        $company = $this->gatewayCompany();
         $stopped = \App\Services\SystemSettingService::blockedMessage();
         if ($stopped) {
             return response()->json(array(
@@ -25,7 +25,7 @@ class allUpiMoneyController extends Controller
             ));
         }
         //return $company;
-        if($company->payment_gateway2 != 1){
+        if(! $company || (int) $company->payment_gateway2 !== 1){
             return response()->json(array(
                 'type' => 'error',  
                 'message' => "this service is disable. contact service provider"
@@ -112,7 +112,7 @@ class allUpiMoneyController extends Controller
                     ));
                 }
 
-                if ( $status != 201 ) {
+                if ( ! in_array((int) $status, [200, 201], true) ) {
                     $update_d['status'] = "Rejected";
                     $update_d['decision_by'] = 1;
                     $update_d['decision_remark'] = "Server is down.please try again.400";
@@ -125,20 +125,30 @@ class allUpiMoneyController extends Controller
                 }
                 curl_close($ch);
                 $response = json_decode($json_response, true);
-                if($response["status"] == true){    
-                    $data['pay_url'] = $response["result"]["payment_url"];
+                $payUrl = '';
+                if (is_array($response)) {
+                    $payUrl = (string) ($response['result']['payment_url'] ?? $response['results']['payment_url'] ?? $response['data']['payment_url'] ?? '');
+                }
+                $gatewayStatus = is_array($response) ? ($response['status'] ?? false) : false;
+                $started = $payUrl !== '' && ($gatewayStatus === true || $gatewayStatus === 'true' || $gatewayStatus === 'success');
+                if($started){
+                    $data['pay_url'] = $payUrl;
                     $data['type'] = 'success';
                     $data['message'] =  "Link generate sucessfuly.";
                     return response()->json($data);
                 }else{
+                    $gatewayMessage = is_array($response) ? (string) ($response['message'] ?? $response['msg'] ?? '') : '';
+                    if ($gatewayMessage === '') {
+                        $gatewayMessage = 'Payment link was not returned. Check the QR key in Payment Gateway settings.';
+                    }
                     $update_d['status'] = "Rejected";
                     $update_d['decision_by'] = 1;
-                    $update_d['decision_remark'] = $response['message'];
+                    $update_d['decision_remark'] = $gatewayMessage;
                     $update_d['decision_date'] = Carbon::now();
                     DB::table('fund_requests')->where('order_id', $order_id)->update($update_d);
                     return response()->json(array(
                         'type' => 'error',  
-                        'message' => $response['message']
+                        'message' => $gatewayMessage
                     ));
                 }
             }else{
@@ -158,8 +168,9 @@ class allUpiMoneyController extends Controller
     public function AddMoneyStatus(Request $post,$order_id)
     {  
 
-        if($order_id){
-            $report = DB::table('fund_requests')->where('order_id', $post->order_id)->first();
+        $lookupId = trim((string) ($order_id !== '' ? $order_id : $post->input('order_id')));
+        if($lookupId !== ''){
+            $report = DB::table('fund_requests')->where('order_id', $lookupId)->first();
             if($report){
                 if($report->status == "Transferred"){
                     try {
@@ -179,7 +190,7 @@ class allUpiMoneyController extends Controller
                 }else if($report->status == "Pending"){
                     $data['status'] = "Pending";
                     $data['type'] = 'success';
-                    $data['message'] =  "transaction is hold contact service provider.";
+                    $data['message'] =  "Waiting for the payment company to confirm this payment.";
                     return response()->json($data);
                 }else{
                     return response()->json(array(
@@ -215,15 +226,21 @@ class allUpiMoneyController extends Controller
         // Log::info(file_get_contents("php://input"));
        // echo "<pre>";print_r($post->all());die;
        if($post->ip() !="198.38.88.206"){
+            Log::warning('QR add-money callback rejected', [
+                'ip' => $post->ip(),
+                'order' => $this->callbackValue($post, ['order_id', 'orderId']),
+            ]);
             return response()->json(array(
                 'type' => 'error',  
                 'message' => "please point ip address."
             ));
        }
-        if($post->order_id){
-            $report = DB::table('fund_requests')->where('order_id', $post->order_id)->where('status', 'Pending')->first();
+        $orderId = $this->callbackValue($post, ['order_id', 'orderId']);
+        $status = strtoupper($this->callbackValue($post, ['status']));
+        if($orderId !== ''){
+            $report = DB::table('fund_requests')->where('order_id', $orderId)->where('status', 'Pending')->where('upi', 2)->first();
             if($report){
-                if($post->status == "SUCCESS"){
+                if(in_array($status, ['SUCCESS', 'SUCCESSFUL', 'CAPTURED', 'PAID', 'COMPLETED'], true)){
                     DB::beginTransaction();
                     try {
                         ///Report by first reciver by
@@ -266,7 +283,7 @@ class allUpiMoneyController extends Controller
                         $update['status'] = "Transferred";
                         $update['decision_by'] = 1;
                         $update['decision_remark'] = "upi add money sucessfuly";
-                        $update['transaction_number'] =  $post->order_id;
+                        $update['transaction_number'] =  $orderId;
                         $update['decision_date'] = Carbon::now();
                         $fundRequestId = (int) $report->id;
                         $report = DB::table('fund_requests')->where('id', $fundRequestId)->update($update);
@@ -288,10 +305,10 @@ class allUpiMoneyController extends Controller
                         ));
                     }
                     
-                }else if($post->status == "FAILED"||$post->status == "FAILURE"){
+                }else if(in_array($status, ['FAILED', 'FAILURE', 'FAIL', 'CANCELLED', 'CANCELED'], true)){
                     $update['status'] = "Rejected";
                     $update['decision_by'] = 1;
-                    $update['transaction_number'] = $post->order_id;
+                    $update['transaction_number'] = $orderId;
                     $update['decision_remark'] = "instant add money rejected";
                     $update['decision_date'] = Carbon::now();
                     $report = DB::table('fund_requests')->where('id', $report->id)->update($update);
@@ -317,6 +334,38 @@ class allUpiMoneyController extends Controller
                 'message' => "order id not found."
             ));
         }
+    }
+
+    private function gatewayCompany()
+    {
+        $company = DB::table('companies')->where('id', 1)->first();
+        if ($company) {
+            return $company;
+        }
+        $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+        $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+
+        return $company ?: DB::table('companies')->where('status', '1')->first();
+    }
+
+    private function callbackValue(Request $post, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $value = $post->input($key);
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+        $raw = json_decode((string) $post->getContent(), true);
+        if (is_array($raw)) {
+            foreach ($keys as $key) {
+                if (isset($raw[$key]) && is_scalar($raw[$key]) && trim((string) $raw[$key]) !== '') {
+                    return trim((string) $raw[$key]);
+                }
+            }
+        }
+
+        return '';
     }
 
 

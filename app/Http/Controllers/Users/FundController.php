@@ -18,10 +18,10 @@ class FundController extends Controller
 
     public function addMoney()
     {
-        $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
-        $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
+        $company = DB::table('companies')->where('id', 1)->first();
         if (! $company) {
-            $company = DB::table('companies')->where('id', 1)->first();
+            $host = (string) (request()->getHost() ?: ($_SERVER['HTTP_HOST'] ?? ''));
+            $company = DB::table('companies')->where('status', '1')->where('domain', $host)->first();
         }
 
         $recent = DB::table('fund_requests')

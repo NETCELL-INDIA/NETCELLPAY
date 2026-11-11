@@ -15,6 +15,8 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'recharge-callback/*',
         'recharge-callback',
+        'add-money/callback-status',
+        'all-upi-add-money/callback-status',
     ];
 
     /**

@@ -167,7 +167,8 @@ Route::get('/refunds', function () use ($websiteCompany) {
 });
 ////Website End
 ///All Callback Url Start
-///Route::any('add-money/callback-status',[addMoneyController::class,'AddMoneyCallback'])->name('AddMoneyCallback');
+Route::any('add-money/callback-status',[addMoneyController::class,'AddMoneyCallback']);
+Route::any('all-upi-add-money/callback-status',[allUpiMoneyController::class,'AddMoneyCallback']);
 
 Route::any('recharge-callback/{api_id}',[CallBackController::class,'rechargeCallback'])->name('rechargeCallback');
 

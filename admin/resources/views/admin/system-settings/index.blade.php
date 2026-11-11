@@ -222,6 +222,18 @@
                         </div>
                     </div>
                 @elseif($page === 'payment-gateway')
+                    @php
+                        $portalBase = function_exists('user_portal_base_url') ? rtrim((string) user_portal_base_url(), '/') : '';
+                        if ($portalBase === '') {
+                            $portalBase = 'https://netcellpay.in';
+                        }
+                    @endphp
+                    <div class="alert alert-primary">
+                        <div class="fw-semibold mb-2">Callback URLs for the payment company</div>
+                        <div class="mb-1">UPI: <code>{{ $portalBase }}/api/add-money/callback-status</code></div>
+                        <div>QR: <code>{{ $portalBase }}/api/all-upi-add-money/callback-status</code></div>
+                        <div class="small mt-2 mb-0">Give these to the payment company. Opening them in a browser shows “please point ip address”. Only their server IP can confirm a payment and credit the wallet.</div>
+                    </div>
                     <div class="ss-grid">
                         <div class="ss-field">
                             <label>Payment Gateway UPI</label>

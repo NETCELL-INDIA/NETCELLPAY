@@ -108,6 +108,7 @@ class AuthController extends Controller
         $compan_data['ifsc'] = $firstBank['ifsc_code'] ?? '';
         $compan_data['account_type'] = $firstBank['account_type'] ?? '';
         $compan_data['bank_details'] = $depositBanks;
+        $compan_data = array_merge($compan_data, \helpers::appPaymentIds());
 
         $errors = [
             'name' => $user->first_name." ".$user->last_name,
@@ -130,6 +131,7 @@ class AuthController extends Controller
             'parent_id' =>  $user->parent_id,
             'bank_details' => $depositBanks,
             'banks' => $depositBanks,
+            'payment' => \helpers::appPaymentIds(),
             'whatsapp' =>'whatsapp://send/?phone=+919337692413&text=Hii',
             //   'pay_method' => [
             //   [
@@ -280,7 +282,7 @@ class AuthController extends Controller
                             'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                             'bank_details' => \helpers::depositBankDetails(),
                             'banks' => \helpers::depositBankDetails(),
-                            'banks' => \helpers::depositBankDetails(),
+                            'payment' => \helpers::appPaymentIds(),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -580,7 +582,7 @@ class AuthController extends Controller
                             'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                             'bank_details' => \helpers::depositBankDetails(),
                             'banks' => \helpers::depositBankDetails(),
-                            'banks' => \helpers::depositBankDetails(),
+                            'payment' => \helpers::appPaymentIds(),
                         ];
                         $data['type'] = 'success';
                         $data['message'] = "Login Sucessfuly";
@@ -783,6 +785,7 @@ class AuthController extends Controller
                         'recharge_services' => \helpers::serviceCatalogItems('recharge', true),
                         'bank_details' => \helpers::depositBankDetails(),
                         'banks' => \helpers::depositBankDetails(),
+                        'payment' => \helpers::appPaymentIds(),
                     ];
                     // 
                     \helpers::recordLoginHistory((int) $user->id, 'APP');
