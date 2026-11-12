@@ -99,6 +99,8 @@
                                 <th style="width: 80px;">Logo</th>
                                 <th>Operator Name</th>
                                 <th>Operator Type</th>
+                                <th>Minimum Amount</th>
+                                <th>Maximum Amount</th>
                                 <th style="width: 100px;" class="text-center">Status</th>
                                 <th style="width: 110px;" class="text-center">Operator Down</th>
                                 <th style="width: 150px;" class="text-center">User Wise Down</th>
@@ -107,7 +109,7 @@
                         </thead>
                         <tbody id="operatorTableBody">
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">Loading...</td>
+                                <td colspan="9" class="text-center text-muted py-4">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -156,6 +158,14 @@
                                 <option value="0">UP</option>
                                 <option value="1">DOWN</option>
                             </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="min_amount" class="form-label">Minimum Amount <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="min_amount" id="min_amount" min="0.01" step="0.01" value="1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="max_amount" class="form-label">Maximum Amount <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="max_amount" id="max_amount" min="0.01" step="0.01" value="10000" required>
                         </div>
                         <div class="col-md-6">
                             <label for="logo" class="form-label">Operator Logo</label>
@@ -269,6 +279,14 @@ function showMessage(type, message) {
     }
 }
 
+function money(value) {
+    var amount = Number(value);
+    if (!isFinite(amount)) {
+        return '-';
+    }
+    return '₹ ' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function statusButton(row) {
     var isOn = Number(row.status) === 1;
     return '<button type="button" class="badge rounded-pill border-0 operator-status-btn ' + (isOn ? 'text-bg-success' : 'text-bg-danger') + ' toggleOperatorStatus" ' +
@@ -285,7 +303,7 @@ function renderOperators(rows) {
     operators = {};
 
     if (!rows || !rows.length) {
-        $('#operatorTableBody').html('<tr><td colspan="7" class="text-center text-muted py-4">No operators found</td></tr>');
+        $('#operatorTableBody').html('<tr><td colspan="9" class="text-center text-muted py-4">No operators found</td></tr>');
         return;
     }
 
@@ -296,6 +314,8 @@ function renderOperators(rows) {
             '<td><img src="' + esc(row.logo_url || defaultLogo) + '" class="operator-logo" alt="' + esc(row.operator_name) + '" onerror="this.src=\'' + defaultLogo + '\'"></td>' +
             '<td class="fw-semibold">' + esc(row.operator_name) + '</td>' +
             '<td>' + (row.operator_type ? esc(row.operator_type) : '<span class="text-muted">-</span>') + '</td>' +
+            '<td>' + money(row.min_amount) + '</td>' +
+            '<td>' + money(row.max_amount) + '</td>' +
             '<td class="text-center">' + statusButton(row) + '</td>' +
             '<td class="text-center">' + downButton(row) + '</td>' +
             '<td class="text-center">' +
@@ -370,6 +390,8 @@ function setOperatorForm(row) {
     $('#operator_type').val(row.service_id);
     $('#status').val(String(row.status));
     $('#provider_down').val(String(Number(row.provider_down) === 1 ? 1 : 0));
+    $('#min_amount').val(row.min_amount != null ? row.min_amount : 1);
+    $('#max_amount').val(row.max_amount != null ? row.max_amount : 10000);
     $('#logoPreview').attr('src', row.logo_url || defaultLogo);
     $('#removeLogoBtn').toggle(!!row.provider_logo);
     $('#operatorModalTitle').text('Edit Operator');
@@ -558,6 +580,17 @@ $('#removeLogoBtn').on('click', function () {
 
 $('#operatorForm').on('submit', function (e) {
     e.preventDefault();
+
+    var minAmount = Number($('#min_amount').val());
+    var maxAmount = Number($('#max_amount').val());
+    if (!isFinite(minAmount) || minAmount <= 0) {
+        showMessage('error', 'Minimum Amount must be greater than 0.');
+        return;
+    }
+    if (!isFinite(maxAmount) || maxAmount < minAmount) {
+        showMessage('error', 'Maximum Amount must be greater than or equal to Minimum Amount.');
+        return;
+    }
 
     var formData = new FormData(this);
     var logoInput = document.getElementById('logo');

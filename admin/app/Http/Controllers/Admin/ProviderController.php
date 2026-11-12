@@ -215,8 +215,18 @@ class ProviderController extends Controller
 
     public function getData(Request $post)
     {
+        \Helper::ensureOperatorAmountColumns();
         $get = DB::table('providers')->where('id', $post->id)->first();
         if($get){
+            if (! isset($get->min_amount) || (float) $get->min_amount <= 0) {
+                $get->min_amount = (float) (($get->minium_amount ?? 0) > 0 ? $get->minium_amount : 1);
+            }
+            if (! isset($get->max_amount) || (float) $get->max_amount <= 0) {
+                $get->max_amount = (float) (($get->maxium_amount ?? 0) > 0 ? $get->maxium_amount : 10000);
+            }
+            if ((float) $get->max_amount < (float) $get->min_amount) {
+                $get->max_amount = $get->min_amount;
+            }
             $data['type'] = 'success';
             $data['message'] = "Get sucessfuly";
             $data['data'] = $get;
@@ -248,6 +258,7 @@ class ProviderController extends Controller
 
     public function updateData(Request $post)
     {
+        \Helper::ensureOperatorAmountColumns();
         $rules = array(
             'provider_name'  => 'required',
             'service_name'  => 'required|numeric',
@@ -274,6 +285,20 @@ class ProviderController extends Controller
                 'message' => $error
             ));
         }
+        if (! is_numeric($post->minium_amount) || (float) $post->minium_amount <= 0) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Minimum Amount must be greater than 0.',
+            ]);
+        }
+        if (! is_numeric($post->maxium_amount) || (float) $post->maxium_amount < (float) $post->minium_amount) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'Maximum Amount must be greater than or equal to Minimum Amount.',
+            ]);
+        }
+        $minAmount = round((float) $post->minium_amount, 2);
+        $maxAmount = round((float) $post->maxium_amount, 2);
         //return $post->amount_type;
         if($post->edit_id==0){
             $provider_logo = '';
@@ -287,8 +312,10 @@ class ProviderController extends Controller
                 'backup_api_id' => $post->backup_api_name,
                 'backup_api2_id' => $post->backup_api2_name,
                 'backup_api3_id' => $post->backup_api3_name,
-                'minium_amount' => $post->minium_amount,
-                'maxium_amount' => $post->maxium_amount,
+                'minium_amount' => $minAmount,
+                'maxium_amount' => $maxAmount,
+                'min_amount' => $minAmount,
+                'max_amount' => $maxAmount,
                 'provider_down' => $post->provider_down,
                 'amount_type' => $post->amount_type,
                 'amount_value' => $post->amount_value,
@@ -314,8 +341,10 @@ class ProviderController extends Controller
                 'backup_api_id' => $post->backup_api_name,
                 'backup_api2_id' => $post->backup_api2_name,
                 'backup_api3_id' => $post->backup_api3_name,
-                'minium_amount' => $post->minium_amount,
-                'maxium_amount' => $post->maxium_amount,
+                'minium_amount' => $minAmount,
+                'maxium_amount' => $maxAmount,
+                'min_amount' => $minAmount,
+                'max_amount' => $maxAmount,
                 'provider_down' => $post->provider_down,
                 'amount_type' => $post->amount_type,
                 'amount_value' => $post->amount_value,

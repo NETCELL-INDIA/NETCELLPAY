@@ -3344,6 +3344,11 @@ class helpers
             });
 
         $cols = ['id', 'provider_name', 'provider_logo', 'service_id', 'status', 'provider_down'];
+        foreach (['min_amount', 'max_amount', 'minium_amount', 'maxium_amount'] as $amountColumn) {
+            if (Schema::hasColumn('providers', $amountColumn)) {
+                $cols[] = $amountColumn;
+            }
+        }
         if (Schema::hasColumn('providers', 'sort_order')) {
             $query->orderBy('providers.sort_order');
         }
@@ -3480,6 +3485,50 @@ class helpers
         return ['', ''];
     }
 
+    public static function operatorAmountLimits($provider): array
+    {
+        $min = 1.0;
+        $max = 10000.0;
+        if (isset($provider->min_amount) && is_numeric($provider->min_amount) && (float) $provider->min_amount > 0) {
+            $min = (float) $provider->min_amount;
+        } elseif (isset($provider->minium_amount) && is_numeric($provider->minium_amount) && (float) $provider->minium_amount > 0) {
+            $min = (float) $provider->minium_amount;
+        }
+        if (isset($provider->max_amount) && is_numeric($provider->max_amount) && (float) $provider->max_amount > 0) {
+            $max = (float) $provider->max_amount;
+        } elseif (isset($provider->maxium_amount) && is_numeric($provider->maxium_amount) && (float) $provider->maxium_amount > 0) {
+            $max = (float) $provider->maxium_amount;
+        }
+        if ($max < $min) {
+            $max = $min;
+        }
+
+        return ['min' => $min, 'max' => $max];
+    }
+
+    public static function operatorAmountLimitMessage($provider, $amount): ?string
+    {
+        if (! $provider) {
+            return null;
+        }
+        $limits = self::operatorAmountLimits($provider);
+        $value = (float) $amount;
+        $name = trim((string) ($provider->provider_name ?? 'this operator'));
+        if ($name === '') {
+            $name = 'this operator';
+        }
+        $minText = rtrim(rtrim(number_format($limits['min'], 2, '.', ''), '0'), '.');
+        $maxText = rtrim(rtrim(number_format($limits['max'], 2, '.', ''), '0'), '.');
+        if ($value < $limits['min']) {
+            return 'Minimum amount for '.$name.' is ₹'.$minText.'.';
+        }
+        if ($value > $limits['max']) {
+            return 'Maximum amount for '.$name.' is ₹'.$maxText.'.';
+        }
+
+        return null;
+    }
+
     public static function providerLogoUrl(?string $logo): string
     {
         return function_exists('provider_logo_url')
@@ -3499,6 +3548,9 @@ class helpers
             }
             $obj->provider_logo_url = $url;
             $obj->provider_down = (int) ($obj->provider_down ?? 0);
+            $limits = self::operatorAmountLimits($obj);
+            $obj->min_amount = $limits['min'];
+            $obj->max_amount = $limits['max'];
             $isDth = (int) ($obj->service_id ?? 0) === 2;
             $obj->number_label = $isDth ? 'DTH Customer ID' : 'Mobile Number';
             $obj->number_param = $isDth ? 'customer_id' : 'number';

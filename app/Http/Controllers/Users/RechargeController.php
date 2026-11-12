@@ -409,6 +409,15 @@ class RechargeController extends Controller
 
 
 
+        $amountLimit = \helpers::operatorAmountLimitMessage($provider, $post->amount);
+        if ($amountLimit) {
+            return response()->json(array(
+                'status' => 'Failed',
+                'type' => 'error',
+                'message' => $amountLimit
+            ));
+        }
+
         $denomBlock = \helpers::blockedDenominationMessage($user->id ?? 0, $post->provider_id, $post->amount);
         if ($denomBlock) {
             return response()->json(array(

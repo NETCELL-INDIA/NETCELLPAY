@@ -19,6 +19,36 @@ use Illuminate\Support\Str;
 class Helper {
 
 
+    public static function ensureOperatorAmountColumns(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('providers')) {
+            return;
+        }
+
+        $schema = \Illuminate\Support\Facades\Schema::class;
+        $addMin = ! $schema::hasColumn('providers', 'min_amount');
+        $addMax = ! $schema::hasColumn('providers', 'max_amount');
+        if ($addMin) {
+            $schema::table('providers', function ($table) {
+                $table->decimal('min_amount', 12, 2)->default(1);
+            });
+        }
+        if ($addMax) {
+            $schema::table('providers', function ($table) {
+                $table->decimal('max_amount', 12, 2)->default(10000);
+            });
+        }
+        if ($addMin && $schema::hasColumn('providers', 'minium_amount')) {
+            DB::statement('UPDATE providers SET min_amount = CASE WHEN minium_amount > 0 THEN minium_amount ELSE 1 END');
+        }
+        if ($addMax && $schema::hasColumn('providers', 'maxium_amount')) {
+            DB::statement('UPDATE providers SET max_amount = CASE WHEN maxium_amount > 0 THEN maxium_amount ELSE 10000 END');
+        }
+        if ($addMin || $addMax) {
+            DB::statement('UPDATE providers SET max_amount = min_amount WHERE max_amount < min_amount');
+        }
+    }
+
     public static function pt($data)
      {
         return $data;

@@ -22,6 +22,12 @@ class OperatorRoutingController extends Controller
         $this->ensureUserDownTable();
         $this->ensureOperatorTypeColumn();
         $this->ensureProviderDownColumn();
+        $this->ensureAmountColumns();
+    }
+
+    private function ensureAmountColumns(): void
+    {
+        \Helper::ensureOperatorAmountColumns();
     }
 
     private function ensureProviderDownColumn(): void
@@ -189,6 +195,8 @@ class OperatorRoutingController extends Controller
                 'providers.provider_logo',
                 'providers.status',
                 'providers.provider_down',
+                'providers.min_amount',
+                'providers.max_amount',
             ])
             ->map(function ($row) {
                 $row->logo_url = $this->logoUrl($row->provider_logo ?? '');
@@ -218,8 +226,17 @@ class OperatorRoutingController extends Controller
             'backup_api3_id' => 'nullable|numeric|min:0',
             'status' => 'required|in:0,1',
             'provider_down' => 'nullable|in:0,1',
+            'min_amount' => 'required|numeric|gt:0',
+            'max_amount' => 'required|numeric|gte:min_amount',
             'logo' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'remove_logo' => 'nullable|boolean',
+        ], [
+            'min_amount.required' => 'Minimum Amount is required.',
+            'min_amount.numeric' => 'Minimum Amount must be a number.',
+            'min_amount.gt' => 'Minimum Amount must be greater than 0.',
+            'max_amount.required' => 'Maximum Amount is required.',
+            'max_amount.numeric' => 'Maximum Amount must be a number.',
+            'max_amount.gte' => 'Maximum Amount must be greater than or equal to Minimum Amount.',
         ]);
 
         $operatorId = (int) ($request->operator_id ?: 0);
@@ -281,8 +298,16 @@ class OperatorRoutingController extends Controller
             'status' => (int) $request->status,
             'provider_down' => (int) ($request->input('provider_down', $operator?->provider_down ?? 0)),
             'provider_logo' => $logoName,
+            'min_amount' => round((float) $request->min_amount, 2),
+            'max_amount' => round((float) $request->max_amount, 2),
             'updated_at' => now(),
         ];
+        if (Schema::hasColumn('providers', 'minium_amount')) {
+            $payload['minium_amount'] = $payload['min_amount'];
+        }
+        if (Schema::hasColumn('providers', 'maxium_amount')) {
+            $payload['maxium_amount'] = $payload['max_amount'];
+        }
 
         if (!$operator || $hasApiFields) {
             foreach ($apiIds as $column => $apiId) {
@@ -297,8 +322,6 @@ class OperatorRoutingController extends Controller
             $message = 'Operator updated successfully.';
         } else {
             $payload += [
-                'minium_amount' => 1,
-                'maxium_amount' => 100000,
                 'provider_down' => 0,
                 'amount_type' => 'Commission Percent',
                 'amount_value' => 0,
@@ -322,6 +345,8 @@ class OperatorRoutingController extends Controller
             'type' => 'success',
             'message' => $message,
             'logo_url' => $this->logoUrl($logoName),
+            'min_amount' => $payload['min_amount'],
+            'max_amount' => $payload['max_amount'],
         ]);
     }
 
