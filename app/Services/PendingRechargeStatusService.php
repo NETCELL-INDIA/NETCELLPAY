@@ -64,13 +64,25 @@ class PendingRechargeStatusService
         }
 
         $api = DB::table('apis')->where('id', (int) $report->api_id)->first();
+        if (! $api) {
+            self::touchChecked($id);
+
+            return ['ok' => false, 'id' => $id, 'message' => 'Status check URL is not set for this API'];
+        }
         $statusUrl = trim((string) ($api->status_check_url ?? ''));
+        $rechargeTemplate = trim((string) ($api->api_url ?? ''));
+        if ($statusUrl === '' || $statusUrl === '0' || $statusUrl === $rechargeTemplate) {
+            $derived = \helpers::realChargeDerivedUrl($api, 'GetRechargeStatus');
+            if (is_string($derived) && $derived !== '') {
+                $statusUrl = $derived;
+            }
+        }
         if (! $api || $statusUrl === '') {
             self::touchChecked($id);
 
             return ['ok' => false, 'id' => $id, 'message' => 'Status check URL is not set for this API'];
         }
-        if (trim((string) ($api->api_url ?? '')) !== '' && $statusUrl === trim((string) $api->api_url)) {
+        if ($rechargeTemplate !== '' && $statusUrl === $rechargeTemplate) {
             self::touchChecked($id);
 
             return ['ok' => false, 'id' => $id, 'message' => 'Status URL matches the recharge URL, so it was not called'];
@@ -119,13 +131,8 @@ class PendingRechargeStatusService
         if ($actual === null && isset($data['status'])) {
             $actual = $data['status'];
         }
-        $mapped = \helpers::mapApiLiveStatus($api, $actual, $data);
-        if (\helpers::isRealChargeApi($api, $url) || \helpers::isRealChargePayload($data)) {
-            $forced = \helpers::mapRealChargeStatus($actual);
-            if ($forced !== null) {
-                $mapped = $forced;
-            }
-        }
+        $decision = \helpers::realChargeStatusDecision($api, $report, $data, $actual);
+        $mapped = $decision ?? \helpers::mapApiLiveStatus($api, $actual, $data);
         if ($mapped === null || $mapped === 'Pending') {
             return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier still shows pending'];
         }

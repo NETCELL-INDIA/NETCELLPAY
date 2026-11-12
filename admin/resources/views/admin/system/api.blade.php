@@ -264,7 +264,7 @@
 
                                 <div>
 
-                                    <label for="status_check_url" class="col-form-label">Status Check URL (optional): {ORDER_ID},{REQUEST_ORDER_ID},{NUMBER},{AMOUNT},{API_USERNAME},{API_KEY}. Do not paste the recharge URL here.</label>
+                                    <label for="status_check_url" class="col-form-label">Status Check URL (optional): {REQID},{ORDER_ID},{NUMBER},{AMOUNT},{API_KEY}. RealCharge can stay empty. Do not paste the recharge URL here.</label>
 
                                     <textarea class="form-control" name="status_check_url" id="status_check_url"></textarea>
 
@@ -296,7 +296,7 @@
 
                                 <div>
 
-                                    <label for="complaint_api_url" class="col-form-label">Complaint Api URL: {ORDER_ID},{SUBJECT}</label>
+                                    <label for="complaint_api_url" class="col-form-label">Complaint Api URL: {REQID},{ORDER_ID},{SUBJECT}. RealCharge can stay empty.</label>
 
                                     <textarea class="form-control" name="complaint_api_url" id="complaint_api_url"></textarea>
 

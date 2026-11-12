@@ -1786,118 +1786,13 @@ class RechargeController extends Controller
 
                     $api_details = DB::table('apis')->where('id', $report->api_id)->first();
 
-                    $url = $api_details->complaint_api_url;
+                    return response()->json([
 
-                    if ($url != 0 || $url != "") {
+                        'type' => 'success',
 
-                        $url = str_replace('{API_USERNAME}', '' . $api_details->api_username . '', $url);
+                        'message' => \helpers::notifySupplierComplaint($api_details, $report, (string) $post->subject, $request_id),
 
-                        $url = str_replace('{API_PASSWORD}', '' . $api_details->api_password . '', $url);
-
-                        $url = str_replace('{API_KEY}', '' . $api_details->api_key . '', $url);
-
-                        $url = str_replace('{ORDER_ID}', '' . $report->order_id . '', $url);
-
-                        $url = str_replace('{SUBJECT}', '' . $post->subject . '', $url);
-
-                        $method = $api_details->complaint_api_method;
-
-                        $header = [];
-
-                        $parameters = "";
-
-                        if (isset($url) && isset($parameters) && isset($method) && isset($header)) {
-
-                            $logFlag = ((int) ($api_details->store_log ?? 0) === 1) ? 'yes' : 'no';
-                            $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, "COMPLAINT_URL", $request_id);
-
-                            if ($result['code'] != 200) {
-
-                                return response()->json(array(
-
-                                    'type' => 'success',
-
-                                    'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.Normal"
-
-                                ));
-
-                            } else {
-
-                                $data = json_decode($result['response'], true);
-
-                                $status = $api_details->complaint_status_value;
-
-                                if (isset($data[$status])) {
-
-                                    if ($data[$status] == $api_details->complaint_success_value) {
-
-                                        return response()->json(array(
-
-                                            'type' => 'success',
-
-                                            'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.200"
-
-                                        ));
-
-                                    } else if ($data[$status] == $api_details->complaint_failed_value) {
-
-                                        return response()->json(array(
-
-                                            'type' => 'success',
-
-                                            'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.400"
-
-                                        ));
-
-                                    } else {
-
-                                        return response()->json(array(
-
-                                            'type' => 'success',
-
-                                            'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.Pending"
-
-                                        ));
-
-                                    }
-
-                                } else {
-
-                                    return response()->json(array(
-
-                                        'type' => 'success',
-
-                                        'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.Api"
-
-                                    ));
-
-                                }
-
-                            }
-
-                        } else {
-
-                            return response()->json(array(
-
-                                'type' => 'success',
-
-                                'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.500"
-
-                            ));
-
-                        }
-
-                    } else {
-
-                        return response()->json(array(
-
-                            'type' => 'success',
-
-                            'message' => "Complaint Submit Successfully up to 3 Working Day Any Response.Normal"
-
-                        ));
-
-                    }
+                    ]);
 
                 }
 
@@ -1907,7 +1802,7 @@ class RechargeController extends Controller
 
                     'type' => 'error',
 
-                    'message' => $th
+                    'message' => 'Unable to submit complaint. Please try again.'
 
                 ));
 

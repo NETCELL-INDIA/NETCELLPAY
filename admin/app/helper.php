@@ -893,7 +893,7 @@ class Helper {
     /**
      * Replace API URL placeholders including retailer identity (for backup/failover).
      */
-    public static function applyApiUrlPlaceholders(string $url, $api, $report, $providerCode = '', $stateCode = ''): string
+    public static function applyApiUrlPlaceholders(string $url, $api, $report, $providerCode = '', $stateCode = '', array $extra = []): string
     {
         $user = null;
         if ($report && ! empty($report->user_id)) {
@@ -915,6 +915,7 @@ class Helper {
             '{API_PASSWORD}' => (string) ($api->api_password ?? ''),
             '{API_KEY}' => (string) ($api->api_key ?? ''),
             '{NUMBER}' => (string) ($report->number ?? ''),
+            '{MN}' => (string) ($report->number ?? ''),
             '{PROVIDER_CODE}' => (string) $providerCode,
             '{STATE_CODE}' => (string) $stateCode,
             '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
@@ -924,9 +925,208 @@ class Helper {
             '{USER_MOBILE}' => $mobile,
             '{USER_ID}' => (string) ($report->user_id ?? ''),
             '{AGENT_NAME}' => $agent,
+            '{REQID}' => self::outboundRequestId($api, $report),
+            '{SUBJECT}' => rawurlencode((string) ($extra['subject'] ?? '')),
         ];
+        if (self::isRealChargeApi($api, $url)) {
+            $replacements['{ORDER_ID}'] = $replacements['{REQID}'];
+        }
 
         return str_replace(array_keys($replacements), array_values($replacements), $url);
+    }
+
+    public static function isRealChargeApi($api, string $url = ''): bool
+    {
+        $hay = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '').' '.$url));
+
+        return str_contains($hay, 'realcharge')
+            || str_contains($hay, 'reqid=')
+            || str_contains($hay, '{reqid}');
+    }
+
+    public static function realChargeRequestId($report): string
+    {
+        $id = (int) ($report->id ?? 0);
+        if ($id < 1) {
+            return 'RC'.strtoupper(substr(md5((string) ($report->order_id ?? '0')), 0, 18));
+        }
+        $code = 'RC'.(string) $id;
+
+        return strlen($code) <= 20 ? $code : substr($code, 0, 20);
+    }
+
+    public static function loggedSupplierReqId($report): string
+    {
+        $orderId = trim((string) ($report->order_id ?? ''));
+        if ($orderId === '' || ! \Illuminate\Support\Facades\Schema::hasTable('apilogs')) {
+            return '';
+        }
+        try {
+            $rows = DB::table('apilogs')->where('txnid', $orderId)->orderBy('id')->limit(8)->get(['url', 'request']);
+        } catch (\Throwable $e) {
+            return '';
+        }
+        foreach ($rows as $row) {
+            $hay = (string) ($row->url ?? '').' '.(string) ($row->request ?? '');
+            if (preg_match('/(?:^|[?&])reqid=([^&\s]+)/i', $hay, $m)) {
+                $req = rawurldecode($m[1]);
+                if ($req !== '' && $req[0] !== '{' && stripos($req, 'redact') === false && stripos($req, 'hidden') === false) {
+                    return substr($req, 0, 40);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    public static function outboundRequestId($api, $report): string
+    {
+        $logged = self::loggedSupplierReqId($report);
+        if ($logged !== '') {
+            return $logged;
+        }
+        if (self::isRealChargeApi($api, '')) {
+            return self::realChargeRequestId($report);
+        }
+
+        return (string) ($report->order_id ?? '');
+    }
+
+    public static function realChargeDerivedUrl($api, string $method): ?string
+    {
+        $template = trim((string) ($api->api_url ?? ''));
+        if (! self::isRealChargeApi($api, $template)) {
+            return null;
+        }
+        $parts = parse_url($template);
+        if (! is_array($parts) || empty($parts['host']) || empty($parts['path'])) {
+            return null;
+        }
+        if (! preg_match('#/apiservice\.asmx/#i', (string) $parts['path'])) {
+            return null;
+        }
+        $path = preg_replace('#/[^/?]+$#', '/'.$method, (string) $parts['path']);
+        if (! is_string($path) || strcasecmp($path, (string) $parts['path']) === 0) {
+            return null;
+        }
+        $query = [];
+        parse_str((string) ($parts['query'] ?? ''), $query);
+        $token = '{API_KEY}';
+        foreach ($query as $key => $value) {
+            if (strcasecmp((string) $key, 'apiToken') === 0 && (string) $value !== '') {
+                $token = (string) $value;
+                break;
+            }
+        }
+        $pairs = ['apiToken='.$token, 'reqid={REQID}'];
+        if (strcasecmp($method, 'RegisterComplaint') === 0) {
+            $pairs[] = 'reason={SUBJECT}';
+        }
+        $scheme = $parts['scheme'] ?? 'https';
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+        return $scheme.'://'.$parts['host'].$port.$path.'?'.implode('&', $pairs);
+    }
+
+    public static function supplierPayload(string $body): array
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return [];
+        }
+        $json = json_decode($body, true);
+        if (is_array($json)) {
+            return $json;
+        }
+        if ($body[0] !== '<') {
+            return [];
+        }
+        $out = [];
+        $stripped = preg_replace('/\sxmlns(?::[A-Za-z0-9_]+)?="[^"]*"/i', '', $body) ?? $body;
+        $xml = @simplexml_load_string($stripped, 'SimpleXMLElement', LIBXML_NOCDATA);
+        if ($xml) {
+            $children = $xml->children();
+            if (count($children) === 0) {
+                foreach ($xml->getDocNamespaces(true) as $ns) {
+                    $children = $xml->children($ns);
+                    if (count($children) > 0) {
+                        break;
+                    }
+                }
+            }
+            foreach ($children as $child) {
+                $name = (string) $child->getName();
+                $value = trim((string) $child);
+                $out[$name] = $value;
+                $out[strtolower($name)] = $value;
+            }
+            if ($out === []) {
+                $text = trim((string) $xml);
+                if ($text !== '') {
+                    $out['message'] = $text;
+                    $out['status'] = $text;
+                }
+            }
+        }
+        if (! isset($out['status']) && preg_match_all('/<([A-Za-z0-9_:-]+)>([^<]*)<\/\1>/', $body, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = $match[1];
+                if (str_contains($name, ':')) {
+                    $name = substr($name, (int) strrpos($name, ':') + 1);
+                }
+                $value = trim(html_entity_decode($match[2], ENT_QUOTES | ENT_XML1, 'UTF-8'));
+                $out[$name] = $value;
+                $out[strtolower($name)] = $value;
+            }
+        }
+
+        return $out;
+    }
+
+    public static function isRealChargePayload(array $data): bool
+    {
+        $keys = array_change_key_case($data, CASE_LOWER);
+
+        return array_key_exists('status', $keys)
+            && (array_key_exists('reqid', $keys) || array_key_exists('field1', $keys) || array_key_exists('ec', $keys));
+    }
+
+    public static function mapRealChargeStatus($actual): ?string
+    {
+        $word = strtoupper(trim((string) $actual));
+        if (in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)) {
+            return 'Success';
+        }
+        if (in_array($word, ['FAILED', 'FAILURE', 'FAIL', 'REFUND', 'REFUNDED'], true)) {
+            return 'Failed';
+        }
+        if (in_array($word, ['PENDING', 'PROCESS', 'PROCESSING', 'ACCEPTED'], true)) {
+            return 'Pending';
+        }
+
+        return null;
+    }
+
+    public static function realChargeStatusDecision($api, $report, array $data, $actual): ?string
+    {
+        if (! self::isRealChargeApi($api, '') && ! self::isRealChargePayload($data)) {
+            return null;
+        }
+        $remark = strtolower(trim((string) ($data['remark'] ?? $data['message'] ?? $data['Message'] ?? '')));
+        if (preg_match('/not found|invalid req|no record|no transaction|does not exist|no recharge/', $remark)) {
+            return 'Pending';
+        }
+        $forced = self::mapRealChargeStatus($actual);
+        $responseReq = strtoupper(trim((string) ($data['reqid'] ?? $data['REQID'] ?? '')));
+        $sent = strtoupper(self::outboundRequestId($api, $report));
+        if ($responseReq !== '' && $sent !== '' && $responseReq !== $sent) {
+            return 'Pending';
+        }
+        if ($forced === 'Failed' && $responseReq === '') {
+            return 'Pending';
+        }
+
+        return $forced ?? 'Pending';
     }
 
     public static function ApiProviderCode($api_id, $provider_id)
