@@ -216,13 +216,26 @@ Dashboard
     <div class="col-lg-5">
         <div class="dash-panel">
             <div class="panel-head">
-                <h5>Today's Contribution</h5>
+                <h5>Today's Top Operators Sales</h5>
                 <button type="button" class="refresh-btn" onclick="fetchAllSearch()" title="Refresh">
                     <i class="ri-refresh-line"></i>
                 </button>
             </div>
-            <div id="contribution-chart"></div>
-            <div class="contribution-legend" id="contribution-legend"></div>
+            <div class="table-responsive">
+                <table class="table table-sm dash-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>SR NO</th>
+                            <th>OPERATOR</th>
+                            <th>TXNS</th>
+                            <th>SALES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="today-top-operators-body">
+                        <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -297,21 +310,13 @@ Dashboard
     <div class="col-lg-4">
         <div class="dash-panel">
             <div class="panel-head">
-                <h5>Top Operators</h5>
-                <button type="button" class="refresh-btn" onclick="fetchAllSearch()"><i class="ri-refresh-line"></i></button>
+                <h5>Today's Contribution</h5>
+                <button type="button" class="refresh-btn" onclick="fetchAllSearch()" title="Refresh">
+                    <i class="ri-refresh-line"></i>
+                </button>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm dash-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>OPERATOR</th>
-                            <th>TXNS</th>
-                            <th>MRP</th>
-                        </tr>
-                    </thead>
-                    <tbody id="top-operators-body"></tbody>
-                </table>
-            </div>
+            <div id="contribution-chart"></div>
+            <div class="contribution-legend" id="contribution-legend"></div>
         </div>
     </div>
     <div class="col-lg-4">
@@ -395,7 +400,7 @@ Dashboard
                     renderBalance(res.balances || []);
                     renderAccounts(res.accounts || []);
                     renderRecharges(res.recharges || []);
-                    renderTop('#top-operators-body', res.top_operators || []);
+                    renderTodayOperators(res.top_operators || []);
                     renderTop('#top-retailers-body', res.top_retailers || []);
                     renderTop('#top-api-body', res.top_api_users || []);
                     $("#dash-announcement").text(res.announcement || '');
@@ -508,6 +513,20 @@ Dashboard
         } else {
             $("#contribution-chart").html('<p class="text-muted text-center my-4">Chart library not loaded</p>');
         }
+    }
+
+    function renderTodayOperators(rows) {
+        var html = '';
+        var list = (rows || []).slice(0, 8);
+        if (!list.length) {
+            html = '<tr><td colspan="4" class="text-center text-muted">No successful sales today</td></tr>';
+        } else {
+            list.forEach(function (row, idx) {
+                html += '<tr><td>' + (idx + 1) + '</td><td>' + (row.name || '-') + '</td><td>' +
+                    Number(row.txns || 0) + '</td><td>' + money(row.mrp) + '</td></tr>';
+            });
+        }
+        $("#today-top-operators-body").html(html);
     }
 
     function renderTop(selector, rows) {

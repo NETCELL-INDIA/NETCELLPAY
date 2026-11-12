@@ -619,7 +619,7 @@ class DashboardController extends Controller
             }
 
             return $q->orderByDesc('mrp')
-                ->limit(5)
+                ->limit(8)
                 ->get()
                 ->map(function ($row) {
                     return [
