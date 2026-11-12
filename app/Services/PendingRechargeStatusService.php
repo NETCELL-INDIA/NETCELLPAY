@@ -131,8 +131,28 @@ class PendingRechargeStatusService
         if ($actual === null && isset($data['status'])) {
             $actual = $data['status'];
         }
-        $decision = \helpers::realChargeStatusDecision($api, $report, $data, $actual);
-        $mapped = $decision ?? \helpers::mapApiLiveStatus($api, $actual, $data);
+        $robo = (\helpers::isMroboticsApi($api, $url) || \helpers::isMroboticsPayload($data))
+            ? \helpers::mroboticsOutcome($data)
+            : null;
+        if ($robo) {
+            if ($robo['session']) {
+                \helpers::alertMroboticsSession($report, $robo['reason']);
+            }
+            $mapped = $robo['status'];
+            if ($mapped === 'Pending') {
+                DB::table('reports')->where('id', $id)->update(\helpers::safeReportApiUpdate([
+                    'remark' => \helpers::mroboticsRemark('MRobotics status check', $robo),
+                    'updated_at' => Carbon::now(),
+                    'status_checked_at' => Carbon::now(),
+                ]));
+
+                return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => $robo['session']
+                    ? 'MRobotics session expired. Contact MRobotics to login again. Order left pending.'
+                    : 'Supplier still shows pending'];
+            }
+        }
+        $decision = $robo ? null : \helpers::realChargeStatusDecision($api, $report, $data, $actual);
+        $mapped = $mapped ?? $decision ?? \helpers::mapApiLiveStatus($api, $actual, $data);
         if ($mapped === null || $mapped === 'Pending') {
             return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier still shows pending'];
         }
@@ -154,9 +174,9 @@ class PendingRechargeStatusService
 
             $opId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
             if ($opId === '') {
-                $opId = \helpers::sanitizeOperatorId($data['field1'] ?? '');
+                $opId = \helpers::sanitizeOperatorId($data['field1'] ?? $data['tnx_id'] ?? $data['opid'] ?? '');
             }
-            $msg = trim((string) ($data['remark'] ?? $data['Message'] ?? $data['message'] ?? ''));
+            $msg = trim((string) ($data['response'] ?? $data['remark'] ?? $data['Message'] ?? $data['message'] ?? ''));
             $update = [
                 'status' => $mapped === 'Success' ? 'Success' : 'Failed',
                 'remark' => 'Status check: '.$mapped.($msg !== '' ? ' - '.$msg : ''),

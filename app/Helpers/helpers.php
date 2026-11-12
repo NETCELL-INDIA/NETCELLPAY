@@ -412,6 +412,150 @@ class helpers
         return null;
     }
 
+    public static function isMroboticsApi($api, string $url = ''): bool
+    {
+        $hay = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '').' '.$url));
+
+        return str_contains($hay, 'mrobotics');
+    }
+
+    public static function isMroboticsPayload(array $data): bool
+    {
+        $keys = array_change_key_case($data, CASE_LOWER);
+
+        return array_key_exists('status', $keys)
+            && (array_key_exists('tnx_id', $keys) || array_key_exists('lapu_id', $keys) || array_key_exists('response', $keys));
+    }
+
+    public static function mroboticsSessionMessage(string $text): bool
+    {
+        $text = strtolower($text);
+
+        return str_contains($text, 'session is not valid') || str_contains($text, 'please login again');
+    }
+
+    /**
+     * @return array{status: string, session: bool, final_failure: bool, reason: string, tnx_id: string, lapu_id: string, provider_txn: string}|null
+     */
+    public static function mroboticsOutcome(array $data): ?array
+    {
+        if (! self::isMroboticsPayload($data)) {
+            return null;
+        }
+        $keys = array_change_key_case($data, CASE_LOWER);
+        $statusWord = strtolower(trim((string) ($keys['status'] ?? '')));
+        $reason = trim((string) ($keys['response'] ?? $keys['message'] ?? $keys['errormessage'] ?? ''));
+        $tnx = trim((string) ($keys['tnx_id'] ?? $keys['txn_id'] ?? ''));
+        $lapu = trim((string) ($keys['lapu_id'] ?? ''));
+        $providerTxn = trim((string) ($keys['opid'] ?? $keys['operator_id'] ?? $keys['operatorid'] ?? $keys['provider_txn'] ?? $tnx));
+        $session = self::mroboticsSessionMessage($reason.' '.$statusWord);
+        $status = 'Pending';
+        $final = false;
+        if ($session) {
+            $status = 'Pending';
+        } elseif (in_array($statusWord, ['success', 'successful', 'successfull'], true)) {
+            $status = 'Success';
+        } elseif (in_array($statusWord, ['failure', 'failed', 'fail'], true)) {
+            $status = 'Failed';
+            $final = true;
+        }
+
+        return [
+            'status' => $status,
+            'session' => $session,
+            'final_failure' => $final,
+            'reason' => $reason,
+            'tnx_id' => $tnx,
+            'lapu_id' => $lapu,
+            'provider_txn' => $providerTxn,
+        ];
+    }
+
+    public static function mroboticsRemark(string $prefix, array $outcome): string
+    {
+        $parts = [];
+        if (($outcome['reason'] ?? '') !== '') {
+            $parts[] = $outcome['reason'];
+        }
+        if (($outcome['tnx_id'] ?? '') !== '') {
+            $parts[] = 'tnx_id='.$outcome['tnx_id'];
+        }
+        if (($outcome['lapu_id'] ?? '') !== '') {
+            $parts[] = 'lapu_id='.$outcome['lapu_id'];
+        }
+        if (($outcome['provider_txn'] ?? '') !== '' && ($outcome['provider_txn'] ?? '') !== ($outcome['tnx_id'] ?? '')) {
+            $parts[] = 'provider_txn='.$outcome['provider_txn'];
+        }
+        $text = trim($prefix.($parts !== [] ? ' - '.implode(' | ', $parts) : ''));
+
+        return mb_substr($text, 0, 240);
+    }
+
+    public static function mroboticsStoredResponse(string $orderId): string
+    {
+        $orderId = trim($orderId);
+        if ($orderId === '' || ! \Illuminate\Support\Facades\Schema::hasTable('apilogs')) {
+            return '';
+        }
+        try {
+            $rows = DB::table('apilogs')->where('txnid', $orderId)->orderByDesc('id')->limit(8)->get(['response', 'modal']);
+        } catch (\Throwable $e) {
+            return '';
+        }
+        foreach ($rows as $row) {
+            if (strcasecmp((string) ($row->modal ?? ''), 'MROBOTICS_SESSION') === 0) {
+                continue;
+            }
+            $body = trim((string) ($row->response ?? ''));
+            if ($body !== '' && self::mroboticsOutcome(self::supplierPayload($body))) {
+                return $body;
+            }
+        }
+
+        return '';
+    }
+
+    public static function alertMroboticsSession($report, string $reason): void
+    {
+        $orderId = trim((string) ($report->order_id ?? ''));
+        $text = 'MRobotics session expired. Contact MRobotics to login again. Do not send this recharge again until they restore the session.'
+            .($orderId !== '' ? ' Order '.$orderId.'.' : '')
+            .($reason !== '' ? ' '.$reason : '');
+        $text = mb_substr($text, 0, 500);
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('apilogs')) {
+                DB::table('apilogs')->insert([
+                    'url' => 'mrobotics-session',
+                    'modal' => 'MROBOTICS_SESSION',
+                    'txnid' => $orderId !== '' ? $orderId : (string) ($report->id ?? ''),
+                    'header' => '',
+                    'request' => '',
+                    'response' => $text,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+        }
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('messages')) {
+                return;
+            }
+            DB::table('messages')->insert([
+                'user_id' => 1,
+                'to_user_id' => 1,
+                'subject' => 'MRobotics session expired',
+                'msg_source' => 'SYSTEM',
+                'template_id' => '',
+                'content' => $text,
+                'status' => 0,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
     public static function apiValueMatches($actual, $configured): bool
     {
         if ($actual === null || $configured === null || $configured === '') {

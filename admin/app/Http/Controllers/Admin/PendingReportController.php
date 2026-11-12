@@ -593,6 +593,13 @@ class PendingReportController extends Controller
                 return ['ok' => false, 'message' => 'Provider code missing for API "'.($api->api_name ?? $apiId).'". Set operator code in API Provider Codes.'];
             }
 
+            if (\Helper::isMroboticsApi($api, $url)) {
+                $checked = $this->mroboticsBeforeRetry($api, $report);
+                if (! empty($checked['stop'])) {
+                    return ['ok' => (bool) ($checked['ok'] ?? false), 'message' => (string) ($checked['message'] ?? 'MRobotics recharge was not sent again.')];
+                }
+            }
+
             $method = strtoupper(trim($api->api_method ?: 'GET'));
             $modal = $isRehit ? 'REHIT' : 'RESEND';
             $result = \Helper::curl($url, $method, '', [], 'yes', $modal, $report->order_id);
@@ -613,9 +620,20 @@ class PendingReportController extends Controller
             $apiMsg = '';
             $remark = ($isRehit ? 'Rehit' : 'Resend').' via '.($api->api_name ?? 'API');
 
-            if ($response !== '' && strtoupper((string) ($api->api_format ?? '')) === 'JSON') {
+            if ($response !== '' && (strtoupper((string) ($api->api_format ?? '')) === 'JSON' || str_starts_with(ltrim($response), '{'))) {
                 $data = json_decode($response, true);
                 if (is_array($data)) {
+                    $robo = \Helper::isMroboticsApi($api, $url) ? \Helper::mroboticsOutcome($data) : null;
+                    if ($robo && $robo['session']) {
+                        \Helper::alertMroboticsSession($report, $robo['reason']);
+                        DB::table('reports')->where('id', $report->id)->update([
+                            'status' => 'Pending',
+                            'remark' => \Helper::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $robo),
+                            'updated_at' => Carbon::now(),
+                        ]);
+
+                        return ['ok' => false, 'message' => 'MRobotics session expired. Contact MRobotics to login again. Recharge was not treated as failed.'];
+                    }
                     $actual = \Helper::apiArrayGet($data, $api->status_value ?? '');
                     if ($actual === null && isset($data['Response'])) {
                         $actual = $data['Response'];
@@ -694,5 +712,72 @@ class PendingReportController extends Controller
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    private function mroboticsBeforeRetry(object $api, object $report): array
+    {
+        $statusUrl = trim((string) ($api->status_check_url ?? ''));
+        if ($statusUrl === '' || $statusUrl === '0' || $statusUrl === trim((string) ($api->api_url ?? ''))) {
+            return [
+                'stop' => true,
+                'ok' => false,
+                'message' => 'MRobotics recharge was not sent again. Add a status check URL, then verify this order. Contact MRobotics if the session has expired.',
+            ];
+        }
+        try {
+            $providerCode = \Helper::ApiProviderCode($api->id, $report->provider_id);
+            $stateCode = \Helper::ApiStateCode($api->id, $report->state_id ?? 0);
+            $url = \Helper::applyApiUrlPlaceholders($statusUrl, $api, $report, $providerCode, $stateCode);
+        } catch (\Throwable $e) {
+            return ['stop' => true, 'ok' => false, 'message' => 'MRobotics status check could not be built. Recharge was not sent again.'];
+        }
+        $method = strtoupper(trim((string) ($api->status_check_method ?? 'GET')));
+        if (! in_array($method, ['GET', 'POST'], true)) {
+            $method = 'GET';
+        }
+        $result = \Helper::curl($url, $method, '', [], 'yes', 'StatusCheck', (string) $report->order_id);
+        $body = (string) ($result['response'] ?? '');
+        $data = \Helper::supplierPayload($body);
+        $robo = \Helper::mroboticsOutcome($data);
+        if (! $robo) {
+            return ['stop' => true, 'ok' => false, 'message' => 'MRobotics status was not confirmed. Recharge was not sent again.'];
+        }
+        if ($robo['session']) {
+            \Helper::alertMroboticsSession($report, $robo['reason']);
+            DB::table('reports')->where('id', $report->id)->update([
+                'remark' => \Helper::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $robo),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            return ['stop' => true, 'ok' => false, 'message' => 'MRobotics session expired. Contact MRobotics to login again. Recharge was not sent again.'];
+        }
+        if ($robo['status'] === 'Success' || $robo['final_failure']) {
+            $remark = \Helper::mroboticsRemark($robo['status'] === 'Success' ? 'MRobotics status confirmed Success' : 'MRobotics status confirmed Failed', $robo);
+            DB::table('reports')->where('id', $report->id)->update([
+                'status' => $robo['status'],
+                'remark' => $remark,
+                'operator_id' => $robo['provider_txn'] !== '' ? $robo['provider_txn'] : ($report->operator_id ?? ''),
+                'updated_at' => Carbon::now(),
+            ]);
+            if ($robo['status'] === 'Success') {
+                try {
+                    \Helper::SetCommission($report->id);
+                } catch (\Throwable $e) {
+                }
+            } else {
+                try {
+                    \Helper::refund_row($report->id);
+                } catch (\Throwable $e) {
+                }
+            }
+
+            return ['stop' => true, 'ok' => true, 'message' => $remark];
+        }
+        $reason = strtolower($robo['reason']);
+        if (preg_match('/not found|no transaction|no record|does not exist/', $reason)) {
+            return ['stop' => false];
+        }
+
+        return ['stop' => true, 'ok' => false, 'message' => 'MRobotics still has no final status. Recharge was not sent again.'];
     }
 }

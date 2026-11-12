@@ -84,6 +84,29 @@ class ProcessRecharge implements ShouldQueue
                 }
             }
 
+            if (! empty($report->order_id)) {
+                $sameOrder = DB::table('reports')
+                    ->where('order_id', $report->order_id)
+                    ->where('id', '!=', $report->id)
+                    ->where('transaction_type', 'Recharge')
+                    ->where('id', '<', $report->id)
+                    ->orderBy('id')
+                    ->first();
+                if ($sameOrder) {
+                    DB::table('reports')->where('id', $report->id)->update([
+                        'status' => 'Failed',
+                        'remark' => 'Duplicate order '.$report->order_id.' was not sent to the provider again.',
+                        'updated_at' => Carbon::now(),
+                    ]);
+                    try {
+                        \helpers::refund_row($report->id);
+                    } catch (\Throwable $e) {
+                    }
+
+                    return;
+                }
+            }
+
             if ($report->status === 'Pending') {
                 DB::table('reports')->where('id', $report->id)->update([
                     'status' => 'Under Process',
@@ -138,10 +161,28 @@ class ProcessRecharge implements ShouldQueue
                 $parameters = '';
 
                 $logFlag = 'yes';
-                $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
+                $isMrobotics = \helpers::isMroboticsApi($api_details, $url);
+                $stored = $isMrobotics ? \helpers::mroboticsStoredResponse((string) $report->order_id) : '';
+                if ($stored !== '') {
+                    $result = ['response' => $stored, 'error' => '', 'code' => 200];
+                } else {
+                    $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
+                }
 
                 // Transient error → try next backup API (do not abort the whole failover chain).
                 if ((empty($result['response']) && !empty($result['error'])) || empty($result['response']) || (isset($result['code']) && $result['code'] >= 500)) {
+                    if ($isMrobotics) {
+                        $final_result = [
+                            'status' => 'Pending',
+                            'operator_id' => '',
+                            'remark' => 'MRobotics did not confirm this recharge. It was not sent again.',
+                        ];
+                        DB::table('reports')->where('id', $this->report_id)->update(\helpers::safeReportApiUpdate(array_merge([
+                            'api_id' => $try_api_id,
+                            'updated_at' => Carbon::now(),
+                        ], $final_result)));
+                        break;
+                    }
                     $final_result = [
                         'status' => 'Failed',
                         'operator_id' => '',
@@ -187,7 +228,12 @@ class ProcessRecharge implements ShouldQueue
                         }
 
                         $mapped = \helpers::mapApiLiveStatus($api_details, $actual, $data);
-                        if (\helpers::isRealChargeApi($api_details, $url) || \helpers::isRealChargePayload($data)) {
+                        $robo = (\helpers::isMroboticsApi($api_details, $url) || \helpers::isMroboticsPayload($data))
+                            ? \helpers::mroboticsOutcome($data)
+                            : null;
+                        if ($robo) {
+                            $mapped = $robo['status'];
+                        } elseif (\helpers::isRealChargeApi($api_details, $url) || \helpers::isRealChargePayload($data)) {
                             $forced = \helpers::mapRealChargeStatus($actual);
                             if ($forced !== null) {
                                 $mapped = $forced;
@@ -212,7 +258,28 @@ class ProcessRecharge implements ShouldQueue
                             if ($ec !== '' && $mapped === 'Failed') {
                                 $msg = trim($msg.' EC '.$ec);
                             }
-                            if ($mapped === 'Success') {
+                            if ($robo) {
+                                if ($robo['provider_txn'] !== '') {
+                                    $update['operator_id'] = \helpers::sanitizeOperatorId($robo['provider_txn']);
+                                }
+                                if ($robo['tnx_id'] !== '') {
+                                    $update['api_operator_id'] = \helpers::sanitizeOperatorId($robo['tnx_id']);
+                                }
+                                $prefix = $robo['session']
+                                    ? 'MRobotics session expired. Contact MRobotics to login again.'
+                                    : ($mapped === 'Success'
+                                        ? $this->service.' Successful For Rs. '.$report->total_amount.' Number '.$report->number
+                                        : ($mapped === 'Failed'
+                                            ? $this->service.' Failed For Rs. '.$report->total_amount.' Number '.$report->number
+                                            : $this->service.' Pending For Rs. '.$report->total_amount.' Number '.$report->number));
+                                $update['remark'] = \helpers::mroboticsRemark($prefix, $robo);
+                                if ($robo['session']) {
+                                    \helpers::alertMroboticsSession($report, $robo['reason']);
+                                }
+                                if ($mapped === 'Failed' && \helpers::isApiPartnerPath($report->path ?? '')) {
+                                    $update['callback_status'] = 0;
+                                }
+                            } elseif ($mapped === 'Success') {
                                 $update['remark'] = trim($this->service . ' Successful For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
                             } elseif ($mapped === 'Failed') {
                                 $update['remark'] = trim($this->service . ' Failed For Rs. ' . $report->total_amount . ' Number ' . $report->number . ($msg ? ' - ' . $msg : ''));
@@ -267,6 +334,9 @@ class ProcessRecharge implements ShouldQueue
 
                 if ($update['status'] == 'Failed') {
                     $final_result = $update;
+                    if ($isMrobotics) {
+                        break;
+                    }
                     continue;
                 }
 

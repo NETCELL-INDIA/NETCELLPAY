@@ -848,7 +848,9 @@ class RechargeReportsController extends Controller
 
                     - ' . $service->service_name . ' -  '.$list->path.' - ('.$list->ip_address.')</br>
 
-                    API : ' . $api . ' 
+                    API : ' . $api . ' </br>
+
+                    ' . e((string) ($list->remark ?? '')) . '
 
                 </td>
 
