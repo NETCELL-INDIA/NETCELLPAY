@@ -118,19 +118,23 @@ class addMoneyController extends Controller
                     ));
                 }
 
+                curl_close($curl);
+                $response = json_decode($json_response, true);
                 if ( $status != 200 ) {
+                    $gatewayMessage = is_array($response) ? trim((string) ($response['msg'] ?? $response['message'] ?? '')) : '';
+                    if ($gatewayMessage === '') {
+                        $gatewayMessage = 'Payment gateway returned HTTP '.$status.'.';
+                    }
                     $update_d['status'] = "Rejected";
                     $update_d['decision_by'] = 1;
-                    $update_d['decision_remark'] = "Server is down.please try again.400";
+                    $update_d['decision_remark'] = mb_substr($gatewayMessage, 0, 240);
                     $update_d['decision_date'] = Carbon::now();
                     DB::table('fund_requests')->where('order_id', $order_id)->update($update_d);
                     return response()->json(array(
-                        'type' => 'error',  
-                        'message' => "Server is down.please try again.400"
+                        'type' => 'error',
+                        'message' => $gatewayMessage
                     ));
                 }
-                curl_close($curl);
-                $response = json_decode($json_response, true);
                 $payUrl = '';
                 if (is_array($response)) {
                     $payUrl = (string) ($response['data']['paymentUrl'] ?? $response['data']['payment_url'] ?? $response['paymentUrl'] ?? '');

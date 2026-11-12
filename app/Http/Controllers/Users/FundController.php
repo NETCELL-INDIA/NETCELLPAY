@@ -36,7 +36,7 @@ class FundController extends Controller
             'recent' => $recent,
             'banks' => \helpers::depositBankDetails(),
             'upiOn' => $company && (int) ($company->payment_gateway ?? 0) === 1,
-            'qrOn' => $company && (int) ($company->payment_gateway2 ?? 0) === 1,
+            'qrOn' => false,
         ]);
     }
 

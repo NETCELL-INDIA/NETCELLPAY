@@ -2777,7 +2777,7 @@ class helpers
             'upi_id' => $vpa($upiKey),
             'qr_upi_id' => $vpa($qrKey),
             'upi_on' => $company && (int) ($company->payment_gateway ?? 0) === 1 ? 1 : 0,
-            'qr_on' => $company && (int) ($company->payment_gateway2 ?? 0) === 1 ? 1 : 0,
+            'qr_on' => 0,
             'upi_min' => (string) ($company->payment_gateway_min ?? ''),
             'upi_max' => (string) ($company->payment_gateway_max ?? ''),
             'qr_min' => (string) ($company->payment_gateway2_min ?? ''),
