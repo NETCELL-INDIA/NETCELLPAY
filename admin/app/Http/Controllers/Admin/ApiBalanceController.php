@@ -75,17 +75,17 @@ class ApiBalanceController extends Controller
         curl_close($curl);
 
         $raw = ($response !== false && $response !== '') ? (string) $response : ($err ?: 'Empty response');
-        $parsed = $this->parseBalance($raw);
+        $parsed = admin_live_balance($raw);
 
         if ((int) ($api->store_log ?? 0) === 1 && Schema::hasTable('apilogs')) {
             try {
                 DB::table('apilogs')->insert([
-                    'url' => $url,
+                    'url' => admin_redact_secrets($url),
                     'modal' => 'BALANCE_CHECK',
                     'txnid' => $api->id,
                     'header' => '',
                     'request' => '',
-                    'response' => mb_substr($raw, 0, 65000),
+                    'response' => mb_substr(admin_redact_secrets($raw), 0, 65000),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                 ]);
@@ -95,43 +95,8 @@ class ApiBalanceController extends Controller
 
         return response()->json([
             'type' => 'success',
-            'balance' => $parsed,
-            'raw' => mb_substr($raw, 0, 2000),
+            'balance' => $parsed['balance'],
+            'raw' => $parsed['raw'],
         ]);
-    }
-
-    private function parseBalance(string $raw): string
-    {
-        $data = json_decode($raw, true);
-        if (is_array($data)) {
-            $found = $this->findNumeric($data, ['balance', 'Balance', 'wallet', 'Wallet', 'available_balance', 'AvailableBalance', 'bal', 'amount']);
-            if ($found !== null) {
-                return '₹ '.number_format((float) $found, 2);
-            }
-        }
-        if (preg_match('/"(?:balance|wallet|available_balance)"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)/i', $raw, $m)) {
-            return '₹ '.number_format((float) $m[1], 2);
-        }
-
-        return 'See response';
-    }
-
-    private function findNumeric(array $data, array $keys): ?float
-    {
-        foreach ($keys as $key) {
-            if (isset($data[$key]) && is_numeric($data[$key])) {
-                return (float) $data[$key];
-            }
-        }
-        foreach ($data as $val) {
-            if (is_array($val)) {
-                $n = $this->findNumeric($val, $keys);
-                if ($n !== null) {
-                    return $n;
-                }
-            }
-        }
-
-        return null;
     }
 }

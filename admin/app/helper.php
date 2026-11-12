@@ -1705,6 +1705,143 @@ if (! function_exists('recharge_report_money')) {
     }
 }
 
+if (! function_exists('admin_redact_secrets')) {
+    function admin_redact_secrets(string $text): string
+    {
+        return preg_replace(
+            '/([?&](?:apiToken|apitoken|token|password|passwd|apikey|api_key|key|secret)=)[^&\s<"\']+/i',
+            '$1[hidden]',
+            $text
+        ) ?? $text;
+    }
+}
+
+if (! function_exists('admin_live_balance')) {
+    /**
+     * Balance cell text for the API Live Balance table.
+     * JSON stays as-is for Bizpay. RealCharge Wallet XML uses Wallet.main when status is SUCCESS.
+     *
+     * @return array{balance: string, raw: string}
+     */
+    function admin_live_balance(string $raw): array
+    {
+        $raw = trim($raw);
+        $safeRaw = mb_substr(admin_redact_secrets($raw), 0, 500);
+
+        $json = json_decode($raw, true);
+        if (is_array($json)) {
+            $found = admin_live_balance_numeric($json, ['balance', 'Balance', 'wallet', 'Wallet', 'available_balance', 'AvailableBalance', 'bal', 'amount']);
+            if ($found !== null) {
+                return ['balance' => '₹ '.number_format($found, 2), 'raw' => $safeRaw];
+            }
+        }
+
+        if (preg_match('/"(?:balance|wallet|available_balance)"\s*:\s*"?([0-9]+(?:\.[0-9]+)?)/i', $raw, $m)) {
+            return ['balance' => '₹ '.number_format((float) $m[1], 2), 'raw' => $safeRaw];
+        }
+
+        $wallet = admin_realcharge_wallet($raw);
+        if ($wallet !== null) {
+            $status = strtoupper(trim((string) ($wallet['status'] ?? '')));
+            $remark = trim((string) ($wallet['remark'] ?? ''));
+            $summary = 'status='.$status
+                .'; main='.(string) ($wallet['main'] ?? '')
+                .'; dmr='.(string) ($wallet['dmr'] ?? '')
+                .($remark !== '' ? '; remark='.$remark : '');
+            if ($status === 'SUCCESS' && isset($wallet['main']) && is_numeric($wallet['main'])) {
+                return ['balance' => '₹ '.number_format((float) $wallet['main'], 2), 'raw' => $summary];
+            }
+            if ($status !== '' && $status !== 'SUCCESS') {
+                return ['balance' => $remark !== '' ? $remark : 'Balance check failed', 'raw' => $summary];
+            }
+
+            return ['balance' => 'Balance response could not be read', 'raw' => $summary];
+        }
+
+        if ($raw !== '' && $raw[0] === '<') {
+            return ['balance' => 'Balance response could not be read', 'raw' => $safeRaw];
+        }
+
+        return ['balance' => 'See response', 'raw' => $safeRaw];
+    }
+}
+
+if (! function_exists('admin_live_balance_numeric')) {
+    function admin_live_balance_numeric(array $data, array $keys): ?float
+    {
+        foreach ($keys as $key) {
+            if (isset($data[$key]) && is_numeric($data[$key])) {
+                return (float) $data[$key];
+            }
+        }
+        foreach ($data as $val) {
+            if (is_array($val)) {
+                $n = admin_live_balance_numeric($val, $keys);
+                if ($n !== null) {
+                    return $n;
+                }
+            }
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('admin_realcharge_wallet')) {
+    function admin_realcharge_wallet(string $raw): ?array
+    {
+        $raw = trim($raw);
+        if ($raw === '' || $raw[0] !== '<') {
+            return null;
+        }
+
+        try {
+            $stripped = preg_replace('/\sxmlns(?::[A-Za-z0-9_]+)?="[^"]*"/i', '', $raw) ?? $raw;
+            $xml = @simplexml_load_string($stripped, 'SimpleXMLElement', LIBXML_NOCDATA);
+            if ($xml) {
+                $node = null;
+                if (strcasecmp($xml->getName(), 'Wallet') === 0) {
+                    $node = $xml;
+                } else {
+                    foreach ($xml->children() as $child) {
+                        if (strcasecmp($child->getName(), 'Wallet') === 0) {
+                            $node = $child;
+                            break;
+                        }
+                    }
+                }
+                if ($node) {
+                    $out = [];
+                    foreach ($node->children() as $child) {
+                        $out[strtolower($child->getName())] = trim((string) $child);
+                    }
+                    if (isset($out['status']) || isset($out['main'])) {
+                        return $out;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! preg_match('/<Wallet\b[^>]*>(.*?)<\/Wallet>/is', $raw, $block)) {
+            return null;
+        }
+        $out = [];
+        if (preg_match_all('/<([A-Za-z0-9_:-]+)>([^<]*)<\/\1>/', $block[1], $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $name = strtolower($match[1]);
+                if (str_contains($name, ':')) {
+                    $name = substr($name, (int) strrpos($name, ':') + 1);
+                }
+                $out[$name] = trim(html_entity_decode($match[2], ENT_QUOTES | ENT_XML1, 'UTF-8'));
+            }
+        }
+
+        return isset($out['status']) || isset($out['main']) ? $out : null;
+    }
+}
+
 if (! function_exists('admin_can')) {
     function admin_can(string $key): bool
     {

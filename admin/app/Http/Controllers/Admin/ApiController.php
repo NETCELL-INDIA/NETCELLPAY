@@ -546,15 +546,16 @@ class ApiController extends Controller
                 $err = curl_error($curl);
                 curl_close($curl);
 
+                $body = ($response !== false && $response !== '') ? (string) $response : ($err ?: 'Empty response');
                 if ((int) ($get->store_log ?? 0) === 1 && Schema::hasTable('apilogs')) {
                     try {
                         DB::table('apilogs')->insert([
-                            'url' => $balanceUrl,
+                            'url' => admin_redact_secrets($balanceUrl),
                             'modal' => 'BALANCE_CHECK',
                             'txnid' => $get->id,
                             'header' => '',
                             'request' => '',
-                            'response' => $response,
+                            'response' => mb_substr(admin_redact_secrets($body), 0, 65000),
                             'created_at' => Carbon::now(),
                             'updated_at' => Carbon::now(),
                         ]);
@@ -562,8 +563,9 @@ class ApiController extends Controller
                     }
                 }
 
+                $parsed = admin_live_balance($body);
                 $data['type'] = 'success';
-                $data['message'] = ($response !== '' && $response !== false) ? $response : ($err ?: 'Empty response');
+                $data['message'] = str_starts_with(ltrim($body), '<') ? $parsed['balance'] : admin_redact_secrets($body);
             }else{
                 $data['type'] = 'error';
                 $data['message'] = "Something went wrong!";
