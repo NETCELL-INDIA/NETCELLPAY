@@ -186,7 +186,7 @@ Dashboard
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-lg-7">
+    <div class="col-lg-4">
         <div class="dash-panel">
             <div class="panel-head">
                 <h5>Today's Statistics</h5>
@@ -213,7 +213,7 @@ Dashboard
             </div>
         </div>
     </div>
-    <div class="col-lg-5">
+    <div class="col-lg-4">
         <div class="dash-panel">
             <div class="panel-head">
                 <h5>Today's Top Operators Sales</h5>
@@ -236,6 +236,18 @@ Dashboard
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="dash-panel">
+            <div class="panel-head">
+                <h5>Today's Contribution</h5>
+                <button type="button" class="refresh-btn" onclick="fetchAllSearch()" title="Refresh">
+                    <i class="ri-refresh-line"></i>
+                </button>
+            </div>
+            <div id="contribution-chart"></div>
+            <div class="contribution-legend" id="contribution-legend"></div>
         </div>
     </div>
 </div>
@@ -307,19 +319,7 @@ Dashboard
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-lg-4">
-        <div class="dash-panel">
-            <div class="panel-head">
-                <h5>Today's Contribution</h5>
-                <button type="button" class="refresh-btn" onclick="fetchAllSearch()" title="Refresh">
-                    <i class="ri-refresh-line"></i>
-                </button>
-            </div>
-            <div id="contribution-chart"></div>
-            <div class="contribution-legend" id="contribution-legend"></div>
-        </div>
-    </div>
-    <div class="col-lg-4">
+    <div class="col-lg-6">
         <div class="dash-panel">
             <div class="panel-head">
                 <h5>Top Retailers (Recharge)</h5>
@@ -339,7 +339,7 @@ Dashboard
             </div>
         </div>
     </div>
-    <div class="col-lg-4">
+    <div class="col-lg-6">
         <div class="dash-panel">
             <div class="panel-head">
                 <h5>Top API Users (Recharge)</h5>
@@ -470,7 +470,7 @@ Dashboard
 
         var allPlaceholder = labels.length === 1 && labels[0] === 'No Success';
         var options = {
-            chart: { type: 'donut', height: 280 },
+            chart: { type: 'donut', height: 240 },
             labels: labels,
             series: series,
             colors: chartColors,
