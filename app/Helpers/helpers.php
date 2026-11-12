@@ -2008,6 +2008,19 @@ class helpers
         return 'Unable to submit complaint for this recharge.';
     }
 
+    public static function complaintDisplayStatus(string $status): string
+    {
+        $word = strtolower(trim($status));
+        if (in_array($word, ['sloved', 'solved', 'closed', 'clear', 'cleared'], true)) {
+            return 'Clear';
+        }
+        if ($word === 'under review') {
+            return 'Under Review';
+        }
+
+        return 'Open';
+    }
+
     public static function closeOpenComplaintsForReport(int $reportId, string $remark, string $status = 'Closed'): void
     {
         if ($reportId <= 0) {

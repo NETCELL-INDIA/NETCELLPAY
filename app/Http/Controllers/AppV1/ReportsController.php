@@ -477,89 +477,60 @@ class ReportsController extends Controller
 
     public function fetchAllComplaints(Request $post)
     {
-
-        $rules = array(
-            'page' => 'required|numeric',
-            'limit' => 'required|numeric',
-        );
-
-        $validator = \Validator::make($post->all(), array_reverse($rules));
-        if ($validator->fails()) {
-            foreach ($validator->errors()->messages() as $key => $value) {
-                $error = $value[0];
-            }
-            return response()->json(array(
-                'type' => 'error',  
-                'message' => $error
-            ));
+        $this->mergeJsonBody($post);
+        $userId = $this->resolveAppUserId($post);
+        if ($userId <= 0) {
+            return response()->json([
+                'type' => 'error',
+                'message' => 'user_id or login_key is required.',
+            ]);
         }
 
-        if($post->from_date){
-            $from_date = $post->from_date." 00:00:00";
-            $to_date = $post->to_date." 23:59:59";
-        }else{
-            $from_date = Carbon::today()->format('Y-m-d')." 00:00:00";
-            $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
-            $table = "complaints";
-        } 
-        
+        [$page, $limit] = $this->resolveAppPaging($post, 50, 50);
+
         $query = DB::table('complaints')
-        ->select(
-            'complaints.id',
-            'complaints.request_id',
-            'complaints.created_at',
-            'complaints.decision_date',
-            'complaints.decision_remark',
-            'complaints.status',
-            'complaints.report_id',
-            ///
-            'd.id as d_id',
-            'd.outlet_name as d_outlet_name',
-            'd.mobile_number as d_mobile_number',
-            'd.first_name as d_first_name',
-            'd.last_name as d_last_name',
-            'd.middle_name as d_middle_name',
-            'd.email_address as d_email_address',
-            ///
-            's.service_name as service_name',
-        )
-        ->leftJoin('users as d','d.id','=','complaints.decision_by')
-        ->leftJoin('services as s','s.id','=','complaints.service_id')
-        ->where('complaints.user_id', $post->user_id)->whereBetween('complaints.created_at', [$from_date,$to_date])
-        ;
+            ->select(
+                'complaints.id',
+                'complaints.request_id',
+                'complaints.order_id',
+                'complaints.subject',
+                'complaints.created_at',
+                'complaints.decision_date',
+                'complaints.decision_remark',
+                'complaints.status',
+                'complaints.report_id',
+                'd.id as d_id',
+                'd.outlet_name as d_outlet_name',
+                'd.mobile_number as d_mobile_number',
+                'd.first_name as d_first_name',
+                'd.last_name as d_last_name',
+                'd.middle_name as d_middle_name',
+                'd.email_address as d_email_address',
+                's.service_name as service_name',
+            )
+            ->leftJoin('users as d', 'd.id', '=', 'complaints.decision_by')
+            ->leftJoin('services as s', 's.id', '=', 'complaints.service_id')
+            ->where('complaints.user_id', $userId);
 
-        if($post->page){
-            $page = $post->page; 
-        }else{
-            $page = 1; 
+        $number = trim((string) ($post->input('request_id') ?: $post->input('complaint_number')));
+        if ($number !== '') {
+            $query->where('complaints.request_id', $number);
         }
 
-        if($post->limit){
-            if($post->limit <= 50){
-                $limit = $post->limit; 
-            }else{
-                $limit = 10;  
-            }
-        }else{
-            $limit = 10; 
+        $start = ($page - 1) * $limit;
+        $list = $query->orderByDesc('complaints.id')->offset($start)->limit($limit)->get();
+        foreach ($list as $row) {
+            $stored = (string) ($row->status ?? '');
+            $row->ticket_status = $stored;
+            $row->status = \helpers::complaintDisplayStatus($stored);
+            $row->complaint_number = (string) ($row->request_id ?? '');
         }
 
-        if($post->request_id != ""){
-            $query->where('complaints.request_id', $post->request_id);
-        }
-        $start= ($page-1) * $limit;
-
-
-
-        $list =  $query->orderBy('complaints.id', 'DESC')->offset($start)->limit($limit)->get();
-
-
-
-        return response()->json(array(
-            'type' => "success",  
-            'message' => "Fetch Successfuly.",
-            'data' => $list
-        ));
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Fetch Successfuly.',
+            'data' => $list,
+        ]);
     }
 
     public function fetchAllFundRequest(Request $post)

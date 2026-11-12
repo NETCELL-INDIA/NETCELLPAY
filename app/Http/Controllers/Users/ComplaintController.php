@@ -33,19 +33,9 @@ class ComplaintController extends Controller
             return '<h4 class="text-center text-secondary my-3">'.$error.'</h4>';
         }
 
-        if($post->from_date){
-            $from_date = $post->from_date." 00:00:00";
-            $to_date = $post->to_date." 23:59:59";
-            if($post->tbl_type == 0){
-                $table = "complaints";
-            }else{
-                $table = "backup_complaints";
-            }
-        }else{
-            $from_date = Carbon::today()->format('Y-m-d')." 00:00:00";
-            $to_date = Carbon::today()->format('Y-m-d')." 23:59:59";
-            $table = "complaints";
-        }  
+        $table = ((int) ($post->tbl_type ?? 0) === 1 && \Illuminate\Support\Facades\Schema::hasTable('backup_complaints'))
+            ? 'backup_complaints'
+            : 'complaints';
 
         if($post->page){
             $page = $post->page; 
@@ -53,20 +43,16 @@ class ComplaintController extends Controller
             $page = 1; 
         }
 
-        if($post->limit){
-            if($post->limit <= 50){
-                $limit = $post->limit; 
-            }else{
-                $limit = 10;  
-            }
-        }else{
-            $limit = 10; 
+        $limit = (int) ($post->limit ?: 50);
+        if ($limit < 1 || $limit > 50) {
+            $limit = 50;
         }
         $start= ($page-1) * $limit;
-        $total_row = DB::table($table)->where('user_id', Session::get('user_id'))
-        ->whereBetween('created_at', [$from_date,$to_date])
-        ->orderBy('id', 'DESC')->get();
-        $total_row_count = $total_row->count();
+        $countQuery = DB::table($table)->where('user_id', Session::get('user_id'));
+        if ($post->filled('from_date') && $post->filled('to_date')) {
+            $countQuery->whereBetween('created_at', [$post->from_date.' 00:00:00', $post->to_date.' 23:59:59']);
+        }
+        $total_row_count = (int) $countQuery->count();
         $total_pages = ceil($total_row_count / $limit);
         $page_link = '';
         for ($i1=1; $i1<=$total_pages; $i1++) {
@@ -80,10 +66,11 @@ class ComplaintController extends Controller
             $page_link .= '<li class="page-item "><a href="javascript:void(0)" class="page-link '.$act.'" '.$d.'>'.$i1.'</a></li>';
         };
         
-        $list = DB::table($table)
-        ->where('user_id', Session::get('user_id'))->whereBetween('created_at', [$from_date,$to_date])
-        //->where('complaint_id',"!=",0)
-        ->offset($start)->limit($limit)->get();
+        $listQuery = DB::table($table)->where('user_id', Session::get('user_id'));
+        if ($post->filled('from_date') && $post->filled('to_date')) {
+            $listQuery->whereBetween('created_at', [$post->from_date.' 00:00:00', $post->to_date.' 23:59:59']);
+        }
+        $list = $listQuery->orderByDesc('id')->offset($start)->limit($limit)->get();
         //echo "<pre>";print_r($list);die;
         $list_count = $list->count();
         $output = '';
@@ -138,11 +125,10 @@ class ComplaintController extends Controller
                     $d_mobile_number = "-";
                 }
 
-                if($list->status == "Sloved"){
+                $shownStatus = \helpers::complaintDisplayStatus((string) $list->status);
+                if($shownStatus == "Clear"){
                     $bg = "success";
-                }elseif ($list->status == "Closed") {
-                    $bg = "danger";
-                }elseif ($list->status == "Open") {
+                }elseif ($shownStatus == "Open") {
                     $bg = "warning";    
                 }else{
                     $bg = "primary";
@@ -160,7 +146,7 @@ class ComplaintController extends Controller
                         Remark : ' . $list->decision_remark . ' </br>
                     </td>
                     <td>
-                        <span class="badge rounded-pill text-bg-' . $bg . '">' . $list->status . '</span>
+                        <span class="badge rounded-pill text-bg-' . $bg . '">' . e($shownStatus) . '</span>
                     </td>
               </tr>';
               $i++;

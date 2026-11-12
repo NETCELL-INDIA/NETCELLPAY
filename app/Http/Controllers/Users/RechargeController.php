@@ -1794,13 +1794,16 @@ class RechargeController extends Controller
                 if ($complaint) {
 
                     $api_details = DB::table('apis')->where('id', $report->api_id)->first();
+                    $note = \helpers::notifySupplierComplaint($api_details, $report, (string) $post->subject, $request_id);
 
                     return response()->json([
-
                         'type' => 'success',
-
-                        'message' => \helpers::notifySupplierComplaint($api_details, $report, (string) $post->subject, $request_id),
-
+                        'message' => 'Complaint number '.$request_id.' created. '.$note,
+                        'complaint_number' => $request_id,
+                        'request_id' => $request_id,
+                        'complaint_id' => $complaint,
+                        'order_id' => $report->order_id,
+                        'status' => 'Open',
                     ]);
 
                 }

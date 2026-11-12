@@ -29,13 +29,13 @@
                         <div class="col-lg-5">
                             <div>
                                 <label class="form-label mb-0">From Date</label>
-                                <input type="date" class="form-control" name="from_date" value="{{\Carbon\Carbon::today()->format('Y-m-d')}}" id="from_date">
+                                <input type="date" class="form-control" name="from_date" value="" id="from_date">
                             </div>
                         </div>
                         <div class="col-lg-5">
                             <div>
                                 <label class="form-label mb-0">To Date </label>
-                                <input type="date" class="form-control" name="to_date" value="{{\Carbon\Carbon::today()->format('Y-m-d')}}"id="to_date">
+                                <input type="date" class="form-control" name="to_date" value="" id="to_date">
                             </div>  
                         </div>
                         <div class="col-lg-2">
@@ -90,7 +90,7 @@
 @endsection
 @section('script')
 <script>
-    fetchAll(1,10);
+    fetchAll(1,50);
     function fetchAllSearch() {
         var from_date = $("#from_date").val();
         var to_date = $("#to_date").val();
@@ -104,7 +104,7 @@
                 from_date : from_date,
                 to_date : to_date,
                 page : 1,
-                limit : 10,
+                limit : 50,
                 tbl_type : tbl_type,
                 _token: '{{csrf_token()}}',
             },

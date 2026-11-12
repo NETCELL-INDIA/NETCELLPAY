@@ -116,7 +116,7 @@
 @endsection
 @section('script')
 <script>
-    fetchAll(1,10);
+    fetchAll(1,50);
     function complaintPayload(page, limit) {
         return {
             from_date: $("#from_date").val() || '',
@@ -125,7 +125,7 @@
             retailer: $("#retailer").val() || '',
             status: $("#status_type").val() || 'Pending',
             page: page || 1,
-            limit: limit || 10,
+            limit: limit || 50,
             tbl_type: 0,
             _token: '{{csrf_token()}}'
         };
