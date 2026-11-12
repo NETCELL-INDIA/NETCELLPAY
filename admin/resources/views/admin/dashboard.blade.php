@@ -515,6 +515,10 @@ Dashboard
         }
     }
 
+    function dashText(value) {
+        return $('<div>').text(value == null ? '' : value).html();
+    }
+
     function renderTodayOperators(rows) {
         var html = '';
         var list = (rows || []).slice(0, 8);
@@ -522,7 +526,7 @@ Dashboard
             html = '<tr><td colspan="4" class="text-center text-muted">No successful sales today</td></tr>';
         } else {
             list.forEach(function (row, idx) {
-                html += '<tr><td>' + (idx + 1) + '</td><td>' + (row.name || '-') + '</td><td>' +
+                html += '<tr><td>' + (idx + 1) + '</td><td>' + dashText(row.name || '-') + '</td><td>' +
                     Number(row.txns || 0) + '</td><td>' + money(row.mrp) + '</td></tr>';
             });
         }

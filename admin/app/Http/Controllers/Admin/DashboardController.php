@@ -595,38 +595,48 @@ class DashboardController extends Controller
     private function topOperators(string $from_date, string $to_date): array
     {
         try {
-            $hasProviders = Schema::hasTable('providers');
             $q = DB::table('reports as r')
                 ->whereBetween('r.created_at', [$from_date, $to_date])
                 ->whereIn('r.transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
-                ->where('r.status', 'Success');
+                ->whereRaw("LOWER(TRIM(r.status)) = 'success'");
 
-            if ($hasProviders) {
+            if (Schema::hasTable('providers')) {
                 $q->leftJoin('providers as p', 'p.id', '=', 'r.provider_id')
+                    ->groupBy('r.provider_id')
                     ->select(
-                        DB::raw("COALESCE(NULLIF(p.provider_name,''), CONCAT('Operator #', COALESCE(r.provider_id,0)), 'Unknown Operator') as name"),
+                        'r.provider_id',
+                        DB::raw("MAX(p.provider_name) as provider_name"),
                         DB::raw('COUNT(r.id) as txns'),
-                        DB::raw('COALESCE(SUM(r.total_amount),0) as mrp')
-                    )
-                    ->groupBy(DB::raw("COALESCE(NULLIF(p.provider_name,''), CONCAT('Operator #', COALESCE(r.provider_id,0)), 'Unknown Operator')"));
+                        DB::raw('COALESCE(SUM(r.total_amount), 0) as sales')
+                    );
             } else {
-                $q->select(
-                    DB::raw("COALESCE(CONCAT('Operator #', r.provider_id), 'Unknown Operator') as name"),
-                    DB::raw('COUNT(r.id) as txns'),
-                    DB::raw('COALESCE(SUM(r.total_amount),0) as mrp')
-                )
-                    ->groupBy('r.provider_id');
+                $q->groupBy('r.provider_id')
+                    ->select(
+                        'r.provider_id',
+                        DB::raw("'' as provider_name"),
+                        DB::raw('COUNT(r.id) as txns'),
+                        DB::raw('COALESCE(SUM(r.total_amount), 0) as sales')
+                    );
             }
 
-            return $q->orderByDesc('mrp')
+            return $q->orderByRaw('COALESCE(SUM(r.total_amount), 0) DESC')
                 ->limit(8)
                 ->get()
                 ->map(function ($row) {
+                    $name = trim((string) ($row->provider_name ?? ''));
+                    $id = (int) ($row->provider_id ?? 0);
+                    if ($name === '') {
+                        $name = $id > 0 ? 'Operator #'.$id : 'Unknown Operator';
+                    }
+
                     return [
-                        'name' => $row->name ?: 'Unknown Operator',
-                        'txns' => (int) $row->txns,
-                        'mrp' => (float) $row->mrp,
+                        'name' => $name,
+                        'txns' => (int) ($row->txns ?? 0),
+                        'mrp' => (float) ($row->sales ?? 0),
                     ];
+                })
+                ->filter(function ($row) {
+                    return $row['txns'] > 0;
                 })
                 ->values()
                 ->all();
