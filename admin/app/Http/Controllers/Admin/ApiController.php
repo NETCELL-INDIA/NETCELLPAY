@@ -526,36 +526,20 @@ class ApiController extends Controller
             //echo "<pre>";print_r($get->balance_check_url);die;
 
             if($get->balance_check_url){
-                $balanceUrl = (string) $get->balance_check_url;
-                $balanceUrl = str_replace('{API_USERNAME}', (string) ($get->api_username ?? ''), $balanceUrl);
-                $balanceUrl = str_replace('{API_PASSWORD}', (string) ($get->api_password ?? ''), $balanceUrl);
-                $balanceUrl = str_replace('{API_KEY}', (string) ($get->api_key ?? ''), $balanceUrl);
-
-                $curl = curl_init();
-                curl_setopt_array($curl, array(
-                  CURLOPT_URL => $balanceUrl,
-                  CURLOPT_RETURNTRANSFER => true,
-                  CURLOPT_ENCODING => '',
-                  CURLOPT_MAXREDIRS => 10,
-                  CURLOPT_TIMEOUT => 30,
-                  CURLOPT_FOLLOWLOCATION => true,
-                  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-                  CURLOPT_CUSTOMREQUEST => $get->api_method ?: 'GET',
-                ));
-                $response = curl_exec($curl);
-                $err = curl_error($curl);
-                curl_close($curl);
-
-                $body = ($response !== false && $response !== '') ? (string) $response : ($err ?: 'Empty response');
+                $result = admin_fetch_live_balance($get);
+                if (! $result['ok']) {
+                    $data['type'] = 'error';
+                    $data['message'] = $result['message'];
+                } else {
                 if ((int) ($get->store_log ?? 0) === 1 && Schema::hasTable('apilogs')) {
                     try {
                         DB::table('apilogs')->insert([
-                            'url' => admin_redact_secrets($balanceUrl),
+                            'url' => $result['log_url'],
                             'modal' => 'BALANCE_CHECK',
                             'txnid' => $get->id,
                             'header' => '',
-                            'request' => '',
-                            'response' => mb_substr(admin_redact_secrets($body), 0, 65000),
+                            'request' => $result['log_request'],
+                            'response' => mb_substr(admin_redact_secrets($result['raw']), 0, 65000),
                             'created_at' => Carbon::now(),
                             'updated_at' => Carbon::now(),
                         ]);
@@ -563,9 +547,9 @@ class ApiController extends Controller
                     }
                 }
 
-                $parsed = admin_live_balance($body);
                 $data['type'] = 'success';
-                $data['message'] = str_starts_with(ltrim($body), '<') ? $parsed['balance'] : admin_redact_secrets($body);
+                $data['message'] = $result['balance'];
+                }
             }else{
                 $data['type'] = 'error';
                 $data['message'] = "Something went wrong!";

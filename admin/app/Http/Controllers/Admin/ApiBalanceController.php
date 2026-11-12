@@ -51,41 +51,20 @@ class ApiBalanceController extends Controller
         if (! $api) {
             return response()->json(['type' => 'error', 'message' => 'API not found']);
         }
-        $url = trim((string) ($api->balance_check_url ?? ''));
-        if ($url === '' || $url === '0') {
-            return response()->json(['type' => 'error', 'message' => 'Balance check URL not set']);
+        $result = admin_fetch_live_balance($api);
+        if (! $result['ok']) {
+            return response()->json(['type' => 'error', 'message' => $result['message']]);
         }
-        $url = str_replace(
-            ['{API_USERNAME}', '{API_PASSWORD}', '{API_KEY}'],
-            [(string) ($api->api_username ?? ''), (string) ($api->api_password ?? ''), (string) ($api->api_key ?? '')],
-            $url
-        );
-
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 25,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_CUSTOMREQUEST => $api->api_method ?: 'GET',
-        ]);
-        $response = curl_exec($curl);
-        $err = curl_error($curl);
-        curl_close($curl);
-
-        $raw = ($response !== false && $response !== '') ? (string) $response : ($err ?: 'Empty response');
-        $parsed = admin_live_balance($raw);
 
         if ((int) ($api->store_log ?? 0) === 1 && Schema::hasTable('apilogs')) {
             try {
                 DB::table('apilogs')->insert([
-                    'url' => admin_redact_secrets($url),
+                    'url' => $result['log_url'],
                     'modal' => 'BALANCE_CHECK',
                     'txnid' => $api->id,
                     'header' => '',
-                    'request' => '',
-                    'response' => mb_substr(admin_redact_secrets($raw), 0, 65000),
+                    'request' => $result['log_request'],
+                    'response' => mb_substr(admin_redact_secrets($result['raw']), 0, 65000),
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
                 ]);
@@ -95,8 +74,8 @@ class ApiBalanceController extends Controller
 
         return response()->json([
             'type' => 'success',
-            'balance' => $parsed['balance'],
-            'raw' => $parsed['raw'],
+            'balance' => $result['balance'],
+            'raw' => $result['raw'],
         ]);
     }
 }

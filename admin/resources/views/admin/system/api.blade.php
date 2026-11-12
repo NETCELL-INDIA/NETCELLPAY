@@ -252,7 +252,7 @@
 
                                 <div>
 
-                                    <label for="balance_check_url" class="col-form-label">Balance Check URL: {API_USERNAME},{API_PASSWORD},{API_KEY}</label>
+                                    <label for="balance_check_url" class="col-form-label">Balance Check URL: {API_USERNAME},{API_PASSWORD},{API_KEY}. MRobotics Lapu: https://mrobotics.in/api/lapu_balance?lapu_id=1 — the saved API Key is sent as api_token by POST.</label>
 
                                     <textarea class="form-control" name="balance_check_url" id="balance_check_url"></textarea>
 

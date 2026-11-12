@@ -1938,11 +1938,179 @@ if (! function_exists('recharge_report_money')) {
 if (! function_exists('admin_redact_secrets')) {
     function admin_redact_secrets(string $text): string
     {
-        return preg_replace(
-            '/([?&](?:apiToken|apitoken|token|password|passwd|apikey|api_key|key|secret)=)[^&\s<"\']+/i',
+        $text = preg_replace(
+            '/((?:^|[?&\s])(?:api[_-]?token|apiToken|apitoken|token|password|passwd|apikey|api_key|key|secret)=)[^&\s<"\']+/i',
             '$1[hidden]',
             $text
         ) ?? $text;
+
+        return $text;
+    }
+}
+
+if (! function_exists('admin_is_mrobotics_lapu')) {
+    function admin_is_mrobotics_lapu(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+
+        return str_contains($host, 'mrobotics.') && str_contains($path, 'lapu_balance');
+    }
+}
+
+if (! function_exists('admin_mrobotics_api_token')) {
+    /**
+     * @return array{token: string, error: string}
+     */
+    function admin_mrobotics_api_token(object $api, string $template): array
+    {
+        $token = trim((string) ($api->api_key ?? ''));
+        if ($token === '' && str_contains($template, '{API_PASSWORD}')) {
+            $token = trim((string) ($api->api_password ?? ''));
+        }
+        if ($token === '') {
+            return ['token' => '', 'error' => 'MRobotics API token is empty. Save the provider token in API Key.'];
+        }
+        if (str_contains($token, '{') || str_contains($token, '}')) {
+            return ['token' => '', 'error' => 'MRobotics API token is still a placeholder. Save the provider token in API Key.'];
+        }
+        if (preg_match('/%(?![0-9A-Fa-f]{2})/', $token)) {
+            return ['token' => '', 'error' => 'MRobotics API token is not encoded correctly. Save the full provider token again.'];
+        }
+        if (str_contains($token, '%')) {
+            $decoded = rawurldecode($token);
+            if ($decoded === '' || preg_match('/%(?![0-9A-Fa-f]{2})/', $decoded) || str_contains($decoded, '%')) {
+                return ['token' => '', 'error' => 'MRobotics API token is not encoded correctly. Save the full provider token again.'];
+            }
+            $token = $decoded;
+        }
+        $token = trim($token);
+        if ($token === '' || preg_match('/\s/u', $token) || str_ends_with($token, '...') || str_ends_with($token, '…')) {
+            return ['token' => '', 'error' => 'MRobotics API token looks empty or truncated. Save the full provider token in API Key.'];
+        }
+
+        return ['token' => $token, 'error' => ''];
+    }
+}
+
+if (! function_exists('admin_mrobotics_lapu_id')) {
+    function admin_mrobotics_lapu_id(string $template): string
+    {
+        $query = [];
+        parse_str((string) parse_url($template, PHP_URL_QUERY), $query);
+        foreach ($query as $key => $value) {
+            if (strcasecmp((string) $key, 'lapu_id') === 0 && preg_match('/^[1-9][0-9]*$/', trim((string) $value))) {
+                return (string) (int) $value;
+            }
+        }
+
+        return '1';
+    }
+}
+
+if (! function_exists('admin_fetch_live_balance')) {
+    /**
+     * @return array{ok: bool, message: string, balance: string, raw: string, log_url: string, log_request: string}
+     */
+    function admin_fetch_live_balance(object $api): array
+    {
+        $template = trim((string) ($api->balance_check_url ?? ''));
+        if ($template === '' || $template === '0') {
+            return ['ok' => false, 'message' => 'Balance check URL not set', 'balance' => '', 'raw' => '', 'log_url' => '', 'log_request' => ''];
+        }
+        if (admin_is_mrobotics_lapu($template)) {
+            return admin_fetch_mrobotics_lapu_balance($api, $template);
+        }
+
+        $url = str_replace(
+            ['{API_USERNAME}', '{API_PASSWORD}', '{API_KEY}'],
+            [(string) ($api->api_username ?? ''), (string) ($api->api_password ?? ''), (string) ($api->api_key ?? '')],
+            $template
+        );
+        $method = strtoupper(trim((string) ($api->api_method ?: 'GET')));
+        if (! in_array($method, ['GET', 'POST'], true)) {
+            $method = 'GET';
+        }
+        $body = admin_balance_http($url, $method, '', []);
+        $parsed = admin_live_balance($body['response'] !== '' ? $body['response'] : ($body['error'] ?: 'Empty response'));
+
+        return [
+            'ok' => true,
+            'message' => '',
+            'balance' => $parsed['balance'],
+            'raw' => $parsed['raw'],
+            'log_url' => admin_redact_secrets($url),
+            'log_request' => '',
+        ];
+    }
+}
+
+if (! function_exists('admin_fetch_mrobotics_lapu_balance')) {
+    function admin_fetch_mrobotics_lapu_balance(object $api, string $template): array
+    {
+        $token = admin_mrobotics_api_token($api, $template);
+        if ($token['error'] !== '') {
+            return ['ok' => false, 'message' => $token['error'], 'balance' => $token['error'], 'raw' => $token['error'], 'log_url' => '', 'log_request' => ''];
+        }
+        $lapuId = admin_mrobotics_lapu_id($template);
+        $scheme = 'https';
+        $host = (string) parse_url($template, PHP_URL_HOST);
+        $path = (string) (parse_url($template, PHP_URL_PATH) ?: '/api/lapu_balance');
+        $url = $scheme.'://'.$host.$path;
+        $form = http_build_query([
+            'api_token' => $token['token'],
+            'lapu_id' => $lapuId,
+        ], '', '&', PHP_QUERY_RFC3986);
+        $result = admin_balance_http($url, 'POST', $form, ['Content-Type: application/x-www-form-urlencoded']);
+        $response = $result['response'] !== '' ? $result['response'] : ($result['error'] ?: 'Empty response');
+        $parsed = admin_live_balance($response);
+        $json = json_decode($response, true);
+        $reportedMethod = is_array($json) ? trim((string) ($json['current_method'] ?? '')) : '';
+        $raw = $parsed['raw'];
+        if ($reportedMethod !== '' && ! str_contains(strtolower($raw), 'current_method')) {
+            $raw = 'current_method: '.$reportedMethod.'; '.$raw;
+        }
+
+        return [
+            'ok' => true,
+            'message' => '',
+            'balance' => $parsed['balance'],
+            'raw' => mb_substr(admin_redact_secrets($raw), 0, 500),
+            'log_url' => $url,
+            'log_request' => 'lapu_id='.$lapuId.'; content-type=application/x-www-form-urlencoded',
+        ];
+    }
+}
+
+if (! function_exists('admin_balance_http')) {
+    function admin_balance_http(string $url, string $method, string $body, array $headers): array
+    {
+        $curl = curl_init();
+        $options = [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 25,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => $headers,
+        ];
+        if ($method === 'POST') {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = $body;
+            if (defined('CURL_REDIR_POST_ALL')) {
+                $options[CURLOPT_POSTREDIR] = CURL_REDIR_POST_ALL;
+            }
+        }
+        curl_setopt_array($curl, $options);
+        $response = curl_exec($curl);
+        $error = curl_error($curl);
+        curl_close($curl);
+
+        return [
+            'response' => ($response !== false && $response !== '') ? (string) $response : '',
+            'error' => (string) $error,
+        ];
     }
 }
 
@@ -1960,9 +2128,23 @@ if (! function_exists('admin_live_balance')) {
 
         $json = json_decode($raw, true);
         if (is_array($json)) {
+            $safeRaw = mb_substr(admin_redact_secrets(admin_balance_json_text($json)), 0, 500);
             $found = admin_live_balance_numeric($json, ['balance', 'Balance', 'wallet', 'Wallet', 'available_balance', 'AvailableBalance', 'bal', 'amount']);
             if ($found !== null) {
                 return ['balance' => '₹ '.number_format($found, 2), 'raw' => $safeRaw];
+            }
+            $message = '';
+            foreach (['message', 'Message', 'errorMessage', 'remark'] as $messageKey) {
+                if (isset($json[$messageKey]) && is_string($json[$messageKey]) && trim($json[$messageKey]) !== '') {
+                    $message = trim($json[$messageKey]);
+                    break;
+                }
+            }
+            if ($message === '' && isset($json['error']) && is_string($json['error'])) {
+                $message = trim($json['error']);
+            }
+            if ($message !== '') {
+                return ['balance' => $message, 'raw' => $safeRaw];
             }
         }
 
@@ -1993,6 +2175,32 @@ if (! function_exists('admin_live_balance')) {
         }
 
         return ['balance' => 'See response', 'raw' => $safeRaw];
+    }
+}
+
+if (! function_exists('admin_balance_json_text')) {
+    function admin_balance_json_text(array $data): string
+    {
+        $clean = admin_balance_hide_secrets($data);
+        $text = json_encode($clean, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return is_string($text) ? $text : '';
+    }
+}
+
+if (! function_exists('admin_balance_hide_secrets')) {
+    function admin_balance_hide_secrets(array $data): array
+    {
+        $out = [];
+        foreach ($data as $key => $value) {
+            if (is_string($key) && preg_match('/token|password|secret|api[_-]?key/i', $key)) {
+                $out[$key] = '[hidden]';
+                continue;
+            }
+            $out[$key] = is_array($value) ? admin_balance_hide_secrets($value) : $value;
+        }
+
+        return $out;
     }
 }
 
