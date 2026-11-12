@@ -83,7 +83,7 @@ class addMoneyController extends Controller
                     "apiKey"=> $key,
                     "amount"=> (int)$post->amount, 
                     "paymentNote"=> "Upi Add Money",
-                    "customerName"=> "SMART",
+                    "customerName"=> trim((string) ($user->outlet_name ?: trim($user->first_name.' '.$user->last_name))) ?: 'NETCELL PAY',
                     "customerEmail"=> $user->email_address,
                     "customerNumber"=> $user->mobile_number,
                     "redirectUrl"=> route('AddMoneyCheckStatus',$order_id),
