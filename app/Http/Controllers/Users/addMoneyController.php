@@ -88,29 +88,33 @@ class addMoneyController extends Controller
                     "customerNumber"=> $user->mobile_number,
                     "redirectUrl"=> route('AddMoneyCheckStatus',$order_id),
                 ));
-                $url = "https://pay.onegateway.in/payment/initiate";
+                $url = "https://api.allrecharge.app/payment/initiate";
                  $curl = curl_init($url);
                  curl_setopt($curl, CURLOPT_HEADER, false);
                  curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 15);
+                 curl_setopt($curl, CURLOPT_TIMEOUT, 30);
                  curl_setopt($curl, CURLOPT_HTTPHEADER,
-                        array("Content-type: application/json"));
+                        array("Content-Type: application/json", "Accept: application/json"));
                  curl_setopt($curl, CURLOPT_POST, true);
                  curl_setopt($curl, CURLOPT_POSTFIELDS, $content);
                  $json_response = curl_exec($curl);
                  $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                 $curlError = curl_error($curl);
                 //  echo "<pre>";print_r($content);
                 // echo "<pre>";print_r($json_response);
                 // echo "<pre>";print_r($status);
                 // die;
-                if($json_response == ''){
+                if($json_response === false || $json_response === ''){
                     $update_d['status'] = "Rejected";
                     $update_d['decision_by'] = 1;
-                    $update_d['decision_remark'] = "Server is down.please try again.Blank";
+                    $update_d['decision_remark'] = $curlError !== '' ? mb_substr($curlError, 0, 240) : 'Payment gateway did not respond.';
                     $update_d['decision_date'] = Carbon::now();
                     DB::table('fund_requests')->where('order_id', $order_id)->update($update_d);
+                    curl_close($curl);
                     return response()->json(array(
-                        'type' => 'error',  
-                        'message' => "Server is down.please try again.Blank"
+                        'type' => 'error',
+                        'message' => 'Payment gateway did not respond. Please try again.'
                     ));
                 }
 
