@@ -53,8 +53,20 @@ class CallBackController extends Controller
             $actual = $data['status'] ?? $data['Status'] ?? $data['STATUS'] ?? null;
         }
 
-        $mapped = \helpers::mapApiCallbackStatus($api, $actual);
-        if (\helpers::isRealChargeApi($api) || \helpers::isRealChargePayload($data)) {
+        $responseText = $data['response'] ?? '';
+        if (! is_string($responseText)) {
+            $responseText = '';
+        }
+        $robo = null;
+        if (\helpers::isMroboticsApi($api) || \helpers::mroboticsSessionMessage($responseText.' '.(string) $actual)) {
+            $robo = \helpers::mroboticsOutcome($data);
+        }
+        if ($robo && $robo['session']) {
+            $mapped = 'Pending';
+        } else {
+            $mapped = $robo ? $robo['status'] : \helpers::mapApiCallbackStatus($api, $actual);
+        }
+        if (! $robo && (\helpers::isRealChargeApi($api) || \helpers::isRealChargePayload($data))) {
             $word = strtoupper(trim((string) $actual));
             if (in_array($word, ['REFUND', 'REFUNDED'], true)) {
                 $mapped = 'Refunded';
@@ -117,13 +129,24 @@ class CallBackController extends Controller
             }
 
             if ($mapped === 'Pending') {
-                DB::table('reports')->where('id', $report->id)->update([
+                $touch = [
                     'callback_response' => $update['callback_response'],
                     'updated_at' => Carbon::now(),
-                ]);
+                ];
+                if ($robo && $robo['session']) {
+                    $touch['status'] = 'Pending';
+                    $touch['remark'] = \helpers::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $robo);
+                    if ($robo['provider_txn'] !== '') {
+                        $touch['operator_id'] = \helpers::sanitizeOperatorId($robo['provider_txn']);
+                    }
+                    \helpers::alertMroboticsSession($report, $robo['reason']);
+                }
+                DB::table('reports')->where('id', $report->id)->update($touch);
                 DB::commit();
 
-                return response()->json(['type' => 'success', 'message' => 'status left as Pending']);
+                return response()->json(['type' => 'success', 'message' => $robo && $robo['session']
+                    ? 'MRobotics session expired. Order left pending.'
+                    : 'status left as Pending']);
             }
 
             if ($partnerOnly) {

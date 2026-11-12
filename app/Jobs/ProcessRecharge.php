@@ -107,6 +107,25 @@ class ProcessRecharge implements ShouldQueue
                 }
             }
 
+            $storedEarly = \helpers::mroboticsStoredResponse((string) ($report->order_id ?? ''));
+            if ($storedEarly !== '') {
+                $early = \helpers::mroboticsOutcome(\helpers::supplierPayload($storedEarly));
+                if ($early && $early['session']) {
+                    $hold = [
+                        'status' => 'Pending',
+                        'remark' => \helpers::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $early),
+                        'updated_at' => Carbon::now(),
+                    ];
+                    if ($early['provider_txn'] !== '') {
+                        $hold['operator_id'] = \helpers::sanitizeOperatorId($early['provider_txn']);
+                    }
+                    DB::table('reports')->where('id', $report->id)->update(\helpers::safeReportApiUpdate($hold));
+                    \helpers::alertMroboticsSession($report, $early['reason']);
+
+                    return;
+                }
+            }
+
             if ($report->status === 'Pending') {
                 DB::table('reports')->where('id', $report->id)->update([
                     'status' => 'Under Process',

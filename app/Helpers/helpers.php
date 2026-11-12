@@ -444,10 +444,28 @@ class helpers
         }
         $keys = array_change_key_case($data, CASE_LOWER);
         $statusWord = strtolower(trim((string) ($keys['status'] ?? '')));
-        $reason = trim((string) ($keys['response'] ?? $keys['message'] ?? $keys['errormessage'] ?? ''));
+        $responseRaw = $keys['response'] ?? null;
+        $reason = is_string($responseRaw) || is_numeric($responseRaw)
+            ? trim((string) $responseRaw)
+            : trim((string) ($keys['message'] ?? $keys['errormessage'] ?? ''));
         $tnx = trim((string) ($keys['tnx_id'] ?? $keys['txn_id'] ?? ''));
         $lapu = trim((string) ($keys['lapu_id'] ?? ''));
-        $providerTxn = trim((string) ($keys['opid'] ?? $keys['operator_id'] ?? $keys['operatorid'] ?? $keys['provider_txn'] ?? $tnx));
+        $providerTxn = trim((string) ($keys['opid'] ?? $keys['operator_id'] ?? $keys['operatorid'] ?? $keys['provider_txn'] ?? ''));
+        if ($providerTxn === '') {
+            $providerTxn = $tnx;
+        }
+        if ($providerTxn === '') {
+            $recordId = trim((string) ($keys['id'] ?? ''));
+            $skip = array_filter([
+                $lapu,
+                trim((string) ($keys['user_id'] ?? '')),
+                trim((string) ($keys['company_id'] ?? '')),
+                trim((string) ($keys['amount'] ?? '')),
+            ], fn ($v) => $v !== '');
+            if ($recordId !== '' && $recordId !== '0' && ! in_array($recordId, $skip, true)) {
+                $providerTxn = $recordId;
+            }
+        }
         $session = self::mroboticsSessionMessage($reason.' '.$statusWord);
         $status = 'Pending';
         $final = false;
@@ -524,6 +542,13 @@ class helpers
         $text = mb_substr($text, 0, 500);
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('apilogs')) {
+                $already = $orderId !== '' && DB::table('apilogs')
+                    ->where('txnid', $orderId)
+                    ->where('modal', 'MROBOTICS_SESSION')
+                    ->exists();
+                if ($already) {
+                    return;
+                }
                 DB::table('apilogs')->insert([
                     'url' => 'mrobotics-session',
                     'modal' => 'MROBOTICS_SESSION',
@@ -598,9 +623,16 @@ class helpers
         $status = strtolower(trim((string) $actual));
         $msg = '';
         if (is_array($payload)) {
-            $msg = strtolower((string) ($payload['message'] ?? $payload['Message'] ?? $payload['msg'] ?? $payload['error'] ?? ''));
+            $responseText = $payload['response'] ?? '';
+            if (is_array($responseText)) {
+                $responseText = '';
+            }
+            $msg = strtolower(trim((string) $responseText.' '.($payload['message'] ?? $payload['Message'] ?? $payload['msg'] ?? $payload['error'] ?? '')));
         } elseif (is_string($payload)) {
             $msg = strtolower($payload);
+        }
+        if (self::mroboticsSessionMessage($msg.' '.$status)) {
+            return false;
         }
         if ($msg !== '') {
             foreach ([
@@ -623,6 +655,18 @@ class helpers
 
     public static function mapApiLiveStatus($api, $actual, $payload = null): ?string
     {
+        if (is_array($payload)) {
+            $responseText = $payload['response'] ?? '';
+            if (! is_string($responseText)) {
+                $responseText = '';
+            }
+            if (self::mroboticsSessionMessage($responseText.' '.(string) $actual)) {
+                return 'Pending';
+            }
+            if (self::isMroboticsApi($api) && ($robo = self::mroboticsOutcome($payload))) {
+                return $robo['status'];
+            }
+        }
         if (self::apiValueMatches($actual, $api->success_value ?? '')) {
             return self::apiSwitchOn($api, 'success_switch') ? 'Success' : 'Pending';
         }
