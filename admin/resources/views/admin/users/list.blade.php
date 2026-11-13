@@ -816,7 +816,7 @@
                                     <label for="post_office_select" class="form-label">Post Office:</label>
 
                                     <select class="form-select" id="post_office_select">
-                                        <option value="">Select post office</option>
+                                        <option value="">Select village</option>
                                     </select>
 
                                 </div>
@@ -2237,7 +2237,7 @@
     function resetPostOfficeChoices() {
         _pinOffices = [];
         var select = $("#post_office_select");
-        select.empty().append($('<option>').val('').text('Select post office'));
+        select.empty().append($('<option>').val('').text('Select village'));
     }
 
     function showSavedPostOffice(name) {
@@ -2291,15 +2291,21 @@
                 }
 
                 _pinOffices = offices;
+                var nameCount = {};
+                offices.forEach(function (office) {
+                    var place = office.village_town || office.post_office || '';
+                    nameCount[place] = (nameCount[place] || 0) + 1;
+                });
                 var select = $("#post_office_select");
                 select.empty();
                 if (offices.length > 1) {
-                    select.append($('<option>').val('').text('Select post office'));
+                    select.append($('<option>').val('').text('Select village'));
                 }
                 offices.forEach(function (office, index) {
-                    var label = office.post_office || 'Post office';
-                    if (office.branch_type) label += ' — ' + office.branch_type;
-                    if (office.delivery_status) label += ' (' + office.delivery_status + ')';
+                    var label = office.village_town || office.post_office || 'Village';
+                    if (nameCount[label] > 1 && office.branch_type) {
+                        label += ' — ' + office.branch_type;
+                    }
                     select.append($('<option>').val(String(index)).text(label));
                 });
 
