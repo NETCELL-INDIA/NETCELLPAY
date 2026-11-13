@@ -801,7 +801,7 @@
 
                                     <input type="text" class="form-control" name="pincode" id="pincode" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="Enter 6-digit PIN" autocomplete="postal-code">
 
-                                    <small class="text-muted" id="pincode_hint">Enter PIN to auto-fill Area, City, State, District</small>
+                                    <small class="text-muted" id="pincode_hint">Enter a 6-digit PIN to load post offices</small>
 
                                 </div>
 
@@ -813,11 +813,67 @@
 
                                 <div>
 
-                                    <label for="area_locality" class="form-label">Area Locality: <a style="color: red">*</a></label>
+                                    <label for="post_office_select" class="form-label">Post Office:</label>
 
-                                    <input type="text" class="form-control" name="area_locality" id="area_locality" required="required" list="area_locality_list">
+                                    <select class="form-select" id="post_office_select">
+                                        <option value="">Select post office</option>
+                                    </select>
 
-                                    <datalist id="area_locality_list"></datalist>
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
+                                    <label for="post_office" class="form-label">Post Office Name:</label>
+
+                                    <input type="text" class="form-control" name="post_office" id="post_office">
+
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
+                                    <label for="area_locality" class="form-label">Area / Locality: <a style="color: red">*</a></label>
+
+                                    <input type="text" class="form-control" name="area_locality" id="area_locality" required="required">
+
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
+                                    <label for="village_town" class="form-label">Village / Town:</label>
+
+                                    <input type="text" class="form-control" name="village_town" id="village_town">
+
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
+                                    <label for="taluk" class="form-label">Taluk / Sub-District:</label>
+
+                                    <input type="text" class="form-control" name="taluk" id="taluk">
 
                                 </div>
 
@@ -843,6 +899,20 @@
 
                                 <div>
 
+                                    <label for="district" class="form-label">District: <a style="color: red">*</a></label>
+
+                                    <input type="text" class="form-control" name="district" id="district" required="required">
+
+                                </div>
+
+                            </div>
+
+                            <!--end col-->
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
                                     <label for="state" class="form-label">State: <a style="color: red">*</a></label>
 
                                     <input type="text" class="form-control" name="state" id="state" required="required">
@@ -857,9 +927,9 @@
 
                                 <div>
 
-                                    <label for="district" class="form-label">District: <a style="color: red">*</a></label>
+                                    <label for="country" class="form-label">Country:</label>
 
-                                    <input type="text" class="form-control" name="district" id="district" required="required">
+                                    <input type="text" class="form-control" name="country" id="country">
 
                                 </div>
 
@@ -1268,11 +1338,16 @@
                 $(".gender").val(data.data.gender).change();
                 $("#flat_door_no").val(data.data.flat_door_no);
                 $("#road_street").val(data.data.road_street);
+                $("#post_office").val(data.data.post_office || '');
                 $("#area_locality").val(data.data.area_locality);
+                $("#village_town").val(data.data.village_town || '');
+                $("#taluk").val(data.data.taluk || '');
                 $("#city").val(data.data.city);
                 $("#state").val(data.data.state);
                 $("#district").val(data.data.district);
+                $("#country").val(data.data.country || '');
                 $("#pincode").val(data.data.pincode || '');
+                showSavedPostOffice(data.data.post_office || '');
                 $("#minium_balance").val(data.data.minium_balance);
                 $(".kyc_status").val(data.data.kyc_status).change();
                 $("#bank_account_number").val(data.data.bank_account_number);
@@ -2143,9 +2218,9 @@
 
         setUserPasswordMode(true);
 
-        $("#area_locality_list").empty();
+        resetPostOfficeChoices();
 
-        $("#pincode_hint").text('Enter PIN to auto-fill Area, City, State, District').removeClass('text-danger text-success');
+        $("#pincode_hint").text('Enter a 6-digit PIN to load post offices').removeClass('text-danger text-success');
 
         setBankDetailsEnabled(true);
 
@@ -2155,15 +2230,48 @@
 
     }
 
-    // PIN → auto-fill Area Locality, City, State, District
     var _pinLookupTimer = null;
     var _pinLookupLast = '';
+    var _pinOffices = [];
+
+    function resetPostOfficeChoices() {
+        _pinOffices = [];
+        var select = $("#post_office_select");
+        select.empty().append($('<option>').val('').text('Select post office'));
+    }
+
+    function showSavedPostOffice(name) {
+        resetPostOfficeChoices();
+        if (!name) return;
+        $("#post_office_select").append($('<option>').val('saved').text(name)).val('saved');
+    }
+
+    function clearPostalFields() {
+        $("#post_office, #area_locality, #village_town, #taluk, #city, #district, #state, #country").val('');
+    }
+
+    function applyPostalOffice(office) {
+        if (!office) return;
+        $("#post_office").val(office.post_office || '');
+        $("#area_locality").val(office.area_locality || '');
+        $("#village_town").val(office.village_town || '');
+        $("#taluk").val(office.taluk || '');
+        $("#city").val(office.city || '');
+        $("#district").val(office.district || '');
+        $("#state").val(office.state || '');
+        $("#country").val(office.country || '');
+    }
 
     function fillFromPincode(pin) {
         pin = String(pin || '').replace(/\D/g, '');
-        if (pin.length !== 6) return;
+        if (pin.length !== 6) {
+            $("#pincode_hint").text('Enter a valid 6-digit PIN code.').addClass('text-danger').removeClass('text-success');
+            return;
+        }
         if (pin === _pinLookupLast) return;
         _pinLookupLast = pin;
+        clearPostalFields();
+        resetPostOfficeChoices();
 
         $("#pincode_hint").text('Looking up PIN...').removeClass('text-danger text-success');
 
@@ -2175,22 +2283,33 @@
                 _token: '{{ csrf_token() }}'
             },
             success: function (res) {
-                if (res.type === 'success' && res.data) {
-                    $("#area_locality").val(res.data.area_locality || '');
-                    $("#city").val(res.data.city || '');
-                    $("#state").val(res.data.state || '');
-                    $("#district").val(res.data.district || '');
-
-                    var list = $("#area_locality_list");
-                    list.empty();
-                    (res.data.localities || []).forEach(function (name) {
-                        list.append($('<option>').attr('value', name));
-                    });
-
-                    $("#pincode_hint").text('Address filled from PIN ' + pin).addClass('text-success').removeClass('text-danger');
-                } else {
+                var offices = (res.type === 'success' && res.data && res.data.offices) ? res.data.offices : [];
+                if (!offices.length) {
                     _pinLookupLast = '';
-                    $("#pincode_hint").text(res.message || 'PIN not found').addClass('text-danger').removeClass('text-success');
+                    $("#pincode_hint").text((res && res.message) ? res.message : 'PIN not found').addClass('text-danger').removeClass('text-success');
+                    return;
+                }
+
+                _pinOffices = offices;
+                var select = $("#post_office_select");
+                select.empty();
+                if (offices.length > 1) {
+                    select.append($('<option>').val('').text('Select post office'));
+                }
+                offices.forEach(function (office, index) {
+                    var label = office.post_office || 'Post office';
+                    if (office.branch_type) label += ' — ' + office.branch_type;
+                    if (office.delivery_status) label += ' (' + office.delivery_status + ')';
+                    select.append($('<option>').val(String(index)).text(label));
+                });
+
+                if (offices.length === 1) {
+                    select.val('0');
+                    applyPostalOffice(offices[0]);
+                    $("#pincode_hint").text('Location filled from ' + (offices[0].post_office || pin) + '.').addClass('text-success').removeClass('text-danger');
+                } else {
+                    select.val('');
+                    $("#pincode_hint").text('This PIN has ' + offices.length + ' post offices. Select the correct one.').removeClass('text-danger text-success');
                 }
             },
             error: function () {
@@ -2200,6 +2319,14 @@
         });
     }
 
+    $(document).on('change', '#post_office_select', function () {
+        var index = $(this).val();
+        if (index === '' || index === 'saved' || !_pinOffices[index]) return;
+        applyPostalOffice(_pinOffices[index]);
+        var office = _pinOffices[index];
+        $("#pincode_hint").text('Location filled from ' + (office.post_office || 'the selected post office') + '.').addClass('text-success').removeClass('text-danger');
+    });
+
     $(document).on('input', '#pincode', function () {
         var pin = $(this).val().replace(/\D/g, '').slice(0, 6);
         $(this).val(pin);
@@ -2208,12 +2335,19 @@
             _pinLookupTimer = setTimeout(function () { fillFromPincode(pin); }, 250);
         } else {
             _pinLookupLast = '';
-            $("#pincode_hint").text('Enter PIN to auto-fill Area, City, State, District').removeClass('text-danger text-success');
+            clearPostalFields();
+            resetPostOfficeChoices();
+            $("#pincode_hint").text(pin.length ? 'Enter a valid 6-digit PIN code.' : 'Enter a 6-digit PIN to load post offices').toggleClass('text-danger', pin.length > 0).removeClass('text-success');
         }
     });
 
     $(document).on('blur', '#pincode', function () {
-        fillFromPincode($(this).val());
+        var pin = $(this).val().replace(/\D/g, '');
+        if (pin.length === 6) {
+            fillFromPincode(pin);
+        } else if (pin.length) {
+            $("#pincode_hint").text('Enter a valid 6-digit PIN code.').addClass('text-danger').removeClass('text-success');
+        }
     });
 
     // Bank Account Details ON/OFF

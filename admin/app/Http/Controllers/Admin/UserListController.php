@@ -599,6 +599,9 @@ class UserListController extends Controller
 
     public function updateData(Request $post)
     {
+        $post->merge([
+            'pincode' => preg_replace('/\D+/', '', (string) $post->input('pincode', '')),
+        ]);
         $bankEnabled = $post->input('bank_details_enabled', '0') === '1';
         $editId = (int) $post->edit_id;
         $isEdit = $editId > 0;
@@ -626,6 +629,7 @@ class UserListController extends Controller
             'gender'  => 'required|string|max:70',
             'flat_door_no'  => '',
             'road_street'  => '',
+            'pincode'  => 'required|digits:6',
             'area_locality'  => 'required',
             'city'  => 'required',
             'state'  => 'required',
@@ -741,9 +745,13 @@ class UserListController extends Controller
                     'flat_door_no'  => $post->flat_door_no ?: '',
                     'road_street'  => $post->road_street ?: '',
                     'pincode'  => preg_replace('/\D+/', '', (string) $post->pincode),
+                    'post_office'  => trim((string) $post->input('post_office', '')),
                     'area_locality'  => $post->area_locality,
+                    'village_town'  => trim((string) $post->input('village_town', '')),
+                    'taluk'  => trim((string) $post->input('taluk', '')),
                     'city'  => $post->city,
                     'state'  => $post->state,
+                    'country'  => trim((string) $post->input('country', '')),
                     'register_by'  => "Admin",
                     'district'  => $post->district,
                     'minium_balance'  => $post->minium_balance,
@@ -817,9 +825,13 @@ class UserListController extends Controller
                     'flat_door_no'  => $post->flat_door_no ?: '',
                     'road_street'  => $post->road_street ?: '',
                     'pincode'  => preg_replace('/\D+/', '', (string) $post->pincode),
+                    'post_office'  => trim((string) $post->input('post_office', '')),
                     'area_locality'  => $post->area_locality,
+                    'village_town'  => trim((string) $post->input('village_town', '')),
+                    'taluk'  => trim((string) $post->input('taluk', '')),
                     'city'  => $post->city,
                     'state'  => $post->state,
+                    'country'  => trim((string) $post->input('country', '')),
                     'district'  => $post->district,
                     'minium_balance'  => $post->minium_balance,
                     'kyc_status'  => $post->kyc_status,
@@ -1353,7 +1365,7 @@ class UserListController extends Controller
     }
 
     /**
-     * Lookup Indian PIN code → area, city, state, district
+     * Indian PIN → every post office from the postal API. Nothing is guessed.
      */
     public function lookupPincode(Request $post)
     {
@@ -1367,12 +1379,14 @@ class UserListController extends Controller
 
         try {
             $url = 'https://api.postalpincode.in/pincode/' . $pin;
-            $json = null;
+            $raw = false;
+            $err = '';
 
             if (function_exists('curl_init')) {
                 $ch = curl_init($url);
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_CONNECTTIMEOUT => 8,
                     CURLOPT_TIMEOUT => 12,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_SSL_VERIFYPEER => false,
@@ -1381,65 +1395,61 @@ class UserListController extends Controller
                 $raw = curl_exec($ch);
                 $err = curl_error($ch);
                 curl_close($ch);
-                if ($raw === false) {
-                    return response()->json([
-                        'type' => 'error',
-                        'message' => 'PIN lookup failed: ' . ($err ?: 'network error'),
-                    ]);
-                }
-                $json = json_decode($raw, true);
             } else {
                 $raw = @file_get_contents($url);
-                $json = $raw ? json_decode($raw, true) : null;
             }
 
-            if (!is_array($json) || empty($json[0]) || ($json[0]['Status'] ?? '') !== 'Success') {
+            if ($raw === false || $raw === null || $raw === '') {
                 return response()->json([
                     'type' => 'error',
-                    'message' => $json[0]['Message'] ?? 'No records found for this PIN.',
+                    'message' => 'PIN lookup failed. ' . ($err !== '' ? $err : 'The postal service did not respond.'),
                 ]);
             }
 
-            $offices = $json[0]['PostOffice'] ?? [];
-            if (!is_array($offices) || !count($offices)) {
+            $json = json_decode($raw, true);
+            if (!is_array($json) || empty($json[0]) || ($json[0]['Status'] ?? '') !== 'Success') {
+                $message = is_array($json) ? trim((string) ($json[0]['Message'] ?? '')) : '';
+                return response()->json([
+                    'type' => 'error',
+                    'message' => $message !== '' ? $message : 'No records found for this PIN.',
+                ]);
+            }
+
+            $rows = $json[0]['PostOffice'] ?? [];
+            if (!is_array($rows) || !count($rows)) {
                 return response()->json([
                     'type' => 'error',
                     'message' => 'No post offices found for this PIN.',
                 ]);
             }
 
-            // Prefer a Delivery branch if available
-            $primary = $offices[0];
-            foreach ($offices as $office) {
-                if (($office['DeliveryStatus'] ?? '') === 'Delivery') {
-                    $primary = $office;
-                    break;
+            $offices = [];
+            foreach ($rows as $office) {
+                if (!is_array($office)) {
+                    continue;
                 }
+                $mapped = $this->postalOfficeFields($office, $pin);
+                if ($mapped['post_office'] === '') {
+                    continue;
+                }
+                $offices[] = $mapped;
             }
 
-            $localities = [];
-            foreach ($offices as $office) {
-                $name = trim((string) ($office['Name'] ?? ''));
-                if ($name !== '' && !in_array($name, $localities, true)) {
-                    $localities[] = $name;
-                }
+            if (!count($offices)) {
+                return response()->json([
+                    'type' => 'error',
+                    'message' => 'No post offices found for this PIN.',
+                ]);
             }
-
-            $district = trim((string) ($primary['District'] ?? ''));
-            $state = trim((string) ($primary['State'] ?? ''));
-            $block = trim((string) ($primary['Block'] ?? ''));
-            $city = ($block !== '' && strtoupper($block) !== 'NA') ? $block : $district;
 
             return response()->json([
                 'type' => 'success',
-                'message' => 'PIN details loaded',
+                'message' => count($offices) === 1
+                    ? 'Location loaded from the post office.'
+                    : 'Select the correct post office.',
                 'data' => [
                     'pincode' => $pin,
-                    'area_locality' => trim((string) ($primary['Name'] ?? '')),
-                    'city' => $city,
-                    'state' => $state,
-                    'district' => $district,
-                    'localities' => $localities,
+                    'offices' => $offices,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -1448,6 +1458,36 @@ class UserListController extends Controller
                 'message' => 'Unable to fetch PIN details. Try again.',
             ]);
         }
+    }
+
+    /**
+     * Fields taken only from one India Post office record.
+     */
+    private function postalOfficeFields(array $office, string $pin): array
+    {
+        $clean = function ($value): string {
+            $value = trim((string) $value);
+            if ($value === '' || strcasecmp($value, 'NA') === 0 || strcasecmp($value, 'N/A') === 0 || $value === 'NULL') {
+                return '';
+            }
+            return $value;
+        };
+
+        $name = $clean($office['Name'] ?? '');
+
+        return [
+            'pincode' => $clean($office['Pincode'] ?? '') ?: $pin,
+            'post_office' => $name,
+            'area_locality' => $name,
+            'village_town' => $name,
+            'taluk' => $clean($office['Block'] ?? ''),
+            'district' => $clean($office['District'] ?? ''),
+            'state' => $clean($office['State'] ?? ''),
+            'country' => $clean($office['Country'] ?? ''),
+            'city' => $name,
+            'branch_type' => $clean($office['BranchType'] ?? ''),
+            'delivery_status' => $clean($office['DeliveryStatus'] ?? ''),
+        ];
     }
 
     protected function userPublicSummary($user)
@@ -1598,6 +1638,10 @@ class UserListController extends Controller
             'callback_url' => 'VARCHAR(255) NULL',
             'api_key' => 'VARCHAR(191) NULL',
             'pincode' => 'VARCHAR(10) NULL',
+            'post_office' => 'VARCHAR(120) NULL',
+            'village_town' => 'VARCHAR(120) NULL',
+            'taluk' => 'VARCHAR(120) NULL',
+            'country' => 'VARCHAR(60) NULL',
             'login_key' => 'VARCHAR(191) NULL',
             'otp_limit' => 'INT NULL DEFAULT 0',
             'wallet_balance' => 'DECIMAL(12,2) NOT NULL DEFAULT 0',
