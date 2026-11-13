@@ -222,40 +222,7 @@
                         </div>
                     </div>
                 @elseif($page === 'payment-gateway')
-                    @php
-                        $portalBase = function_exists('user_portal_base_url') ? rtrim((string) user_portal_base_url(), '/') : '';
-                        if ($portalBase === '') {
-                            $portalBase = 'https://netcellpay.in';
-                        }
-                    @endphp
-                    <div class="alert alert-primary">
-                        <div class="fw-semibold mb-2">Callback URLs for the payment company</div>
-                        <div class="mb-1">UPI: <code>{{ $portalBase }}/api/add-money/callback-status</code></div>
-                        <div>QR: <code>{{ $portalBase }}/api/all-upi-add-money/callback-status</code></div>
-                        <div class="small mt-2 mb-0">Give these to the payment company. Opening them in a browser shows “please point ip address”. Only their server IP can confirm a payment and credit the wallet.</div>
-                    </div>
-                    <div class="ss-grid">
-                        <div class="ss-field">
-                            <label>Payment Gateway UPI</label>
-                            <select class="form-select" name="payment_gateway">
-                                <option value="1" {{ (int)($company->payment_gateway ?? 0) === 1 ? 'selected' : '' }}>ON</option>
-                                <option value="0" {{ (int)($company->payment_gateway ?? 0) === 0 ? 'selected' : '' }}>OFF</option>
-                            </select>
-                        </div>
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway_min', 'label' => 'UPI Min', 'icon' => 'ri-arrow-down-line', 'value' => $company->payment_gateway_min ?? ''])
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway_max', 'label' => 'UPI Max', 'icon' => 'ri-arrow-up-line', 'value' => $company->payment_gateway_max ?? ''])
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway_key', 'label' => 'UPI Key', 'icon' => 'ri-key-2-line', 'value' => $company->payment_gateway_key ?? ''])
-                        <div class="ss-field">
-                            <label>Payment Gateway QR</label>
-                            <select class="form-select" name="payment_gateway2">
-                                <option value="1" {{ (int)($company->payment_gateway2 ?? 0) === 1 ? 'selected' : '' }}>ON</option>
-                                <option value="0" {{ (int)($company->payment_gateway2 ?? 0) === 0 ? 'selected' : '' }}>OFF</option>
-                            </select>
-                        </div>
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway2_min', 'label' => 'QR Min', 'icon' => 'ri-arrow-down-line', 'value' => $company->payment_gateway2_min ?? ''])
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway2_max', 'label' => 'QR Max', 'icon' => 'ri-arrow-up-line', 'value' => $company->payment_gateway2_max ?? ''])
-                        @include('admin.system-settings._field', ['name' => 'payment_gateway2_key', 'label' => 'QR Key', 'icon' => 'ri-key-2-line', 'value' => $company->payment_gateway2_key ?? ''])
-                    </div>
+                    <div class="alert alert-warning mb-0">Online UPI payment is turned off. Retailers add money with Fund Request to the company bank account.</div>
                 @elseif($page === 'min-add-money')
                     <div class="ss-grid">
                         @include('admin.system-settings._field', ['name' => 'min_add_money', 'label' => 'Minimum Add Money', 'icon' => 'ri-money-rupee-circle-line', 'value' => $settings['min_add_money']])

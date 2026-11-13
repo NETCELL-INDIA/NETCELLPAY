@@ -102,14 +102,8 @@ class SystemSettingController extends Controller
             ]);
         } elseif ($page === 'payment-gateway') {
             DB::table('companies')->update([
-                'payment_gateway' => (int) $post->payment_gateway,
-                'payment_gateway_min' => $post->payment_gateway_min,
-                'payment_gateway_max' => $post->payment_gateway_max,
-                'payment_gateway_key' => (string) $post->payment_gateway_key,
-                'payment_gateway2' => (int) $post->payment_gateway2,
-                'payment_gateway2_min' => $post->payment_gateway2_min,
-                'payment_gateway2_max' => $post->payment_gateway2_max,
-                'payment_gateway2_key' => (string) $post->payment_gateway2_key,
+                'payment_gateway' => 0,
+                'payment_gateway2' => 0,
                 'updated_at' => now(),
             ]);
         } elseif ($page === 'min-add-money') {

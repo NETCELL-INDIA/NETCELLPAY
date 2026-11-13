@@ -34,29 +34,19 @@
                 <h4 class="card-title mb-0">Add Money Online</h4>
             </div>
             <div class="card-body">
-                @if(!$upiOn && !$qrOn)
+                @if(!$upiOn)
                     <div class="alert alert-warning mb-0">Payment gateway is off. Use Fund Request, or contact support.</div>
                 @else
                     <form id="addMoneyPageForm">
                         @csrf
                         <div class="mb-3">
                             <label class="form-label">Payment method</label>
-                            @if($upiOn)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="gateway" id="gwUpi" value="upi" checked>
-                                    <label class="form-check-label" for="gwUpi">
-                                        UPI — ₹{{ $company->payment_gateway_min }} to ₹{{ $company->payment_gateway_max }}
-                                    </label>
-                                </div>
-                            @endif
-                            @if($qrOn)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="gateway" id="gwQr" value="qr" {{ $upiOn ? '' : 'checked' }}>
-                                    <label class="form-check-label" for="gwQr">
-                                        QR — ₹{{ $company->payment_gateway2_min }} to ₹{{ $company->payment_gateway2_max }}
-                                    </label>
-                                </div>
-                            @endif
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="gateway" id="gwUpi" value="upi" checked>
+                                <label class="form-check-label" for="gwUpi">
+                                    UPI — ₹{{ $company->payment_gateway_min }} to ₹{{ $company->payment_gateway_max }}
+                                </label>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Amount</label>
@@ -110,10 +100,7 @@
 <script>
 $('#addMoneyPageForm').on('submit', function (e) {
     e.preventDefault();
-    var gateway = $('input[name="gateway"]:checked').val();
-    var url = gateway === 'qr'
-        ? '{{ route('allUpiAddMoneyRequestSubmit') }}'
-        : '{{ route('addMoneyRequestSubmit') }}';
+    var url = '{{ route('addMoneyRequestSubmit') }}';
     var btn = $('#addMoneyPageBtn');
     btn.prop('disabled', true).text('Please wait...');
     $.ajax({

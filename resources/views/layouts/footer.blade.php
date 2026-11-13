@@ -33,7 +33,7 @@
         $("#addMoney_details_btn").text('Please wait...');
         $('#addMoney_details_btn').prop('disabled', true);
         $.ajax({
-          url: '{{ route('allUpiAddMoneyRequestSubmit') }}',
+          url: '{{ route('addMoneyRequestSubmit') }}',
           method: 'post',
           data: fd,
           cache: false,

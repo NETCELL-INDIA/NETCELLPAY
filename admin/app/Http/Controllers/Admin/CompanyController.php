@@ -194,16 +194,7 @@ class CompanyController extends Controller
             'company_icon' => 'mimes:jpeg,jpg,png|max:10000',
             'invoice_logo' => 'mimes:jpeg,jpg,png|max:10000',
             'apk_file_name'  => 'required',
-            'payment_gateway'  => 'required|numeric',
-            'payment_gateway_min'  => 'required|numeric|min:1',
-            'payment_gateway_max'  => 'required|numeric|min:1',
-            'payment_gateway_key'  => 'required',
 
-            'payment_gateway2'  => 'required|numeric',
-            'payment_gateway2_min'  => 'required|numeric|min:1',
-            'payment_gateway2_max'  => 'required|numeric|min:1',
-            'payment_gateway2_key'  => 'required',
-            
             'sms_api_method'  => 'required',
             'sms_request_url'  => 'required',
             'whatsapp_api_method'  => 'required',
@@ -254,14 +245,8 @@ class CompanyController extends Controller
             }
 
             $paymentFields = [
-                'payment_gateway' => $post->payment_gateway,
-                'payment_gateway_min' => $post->payment_gateway_min,
-                'payment_gateway_max' => $post->payment_gateway_max,
-                'payment_gateway_key' => $post->payment_gateway_key,
-                'payment_gateway2' => $post->payment_gateway2,
-                'payment_gateway2_min' => $post->payment_gateway2_min,
-                'payment_gateway2_max' => $post->payment_gateway2_max,
-                'payment_gateway2_key' => $post->payment_gateway2_key,
+                'payment_gateway' => 0,
+                'payment_gateway2' => 0,
                 'updated_at' => Carbon::now(),
             ];
             DB::table('companies')->update($paymentFields);
@@ -278,14 +263,8 @@ class CompanyController extends Controller
                 'company_icon' => $companyIcon,
                 'invoice_logo' => $invoiceLogo,
                 'apk_file_name' => $post->apk_file_name,
-                'payment_gateway' => $post->payment_gateway,
-                'payment_gateway_min' => $post->payment_gateway_min,
-                'payment_gateway_max' => $post->payment_gateway_max,
-                'payment_gateway_key' => $post->payment_gateway_key,
-                'payment_gateway2' => $post->payment_gateway2,
-                'payment_gateway2_min' => $post->payment_gateway2_min,
-                'payment_gateway2_max' => $post->payment_gateway2_max,
-                'payment_gateway2_key' => $post->payment_gateway2_key,
+                'payment_gateway' => 0,
+                'payment_gateway2' => 0,
                 'sms_api_method' => $post->sms_api_method,
                 'sms_request_url' => $post->sms_request_url,
                 'whatsapp_api_method' => $post->whatsapp_api_method,
