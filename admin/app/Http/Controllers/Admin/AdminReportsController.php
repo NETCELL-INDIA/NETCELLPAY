@@ -143,6 +143,14 @@ class AdminReportsController extends Controller
                 $operatorRef = trim((string) ($list->operator_id ?: ''));
                 $requestRef = trim((string) ($list->request_order_id ?: ''));
                 $idsLine = e($operatorRef !== '' ? $operatorRef : '-');
+                $providerTx = trim((string) ($list->provider_txid ?? ''));
+                $providerRecharge = trim((string) ($list->provider_recharge_id ?? ''));
+                if ($providerTx !== '' && $providerTx !== $operatorRef) {
+                    $idsLine .= '<span class="live-id-sub">Txn ' . e($providerTx) . '</span>';
+                }
+                if ($providerRecharge !== '') {
+                    $idsLine .= '<span class="live-id-sub">Recharge ' . e($providerRecharge) . '</span>';
+                }
                 if ($requestRef !== '' && $requestRef !== $operatorRef) {
                     $idsLine .= '<span class="live-id-sub">Req ' . e($requestRef) . '</span>';
                 }

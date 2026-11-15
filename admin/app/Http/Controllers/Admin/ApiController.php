@@ -751,6 +751,7 @@ class ApiController extends Controller
             'error_value_response' => $post->error_value_response,
             'order_id_value' => $post->order_id_value,
             'operator_id_value' => $post->operator_id_value,
+            'recharge_id_value' => trim((string) ($post->recharge_id_value ?? '')),
             'api_method' => $post->api_method,
             'api_format' => $post->api_format,
             'callback_status_value' => $post->callback_status_value,
@@ -831,6 +832,13 @@ class ApiController extends Controller
                 }
             } catch (\Throwable $e) {
             }
+        }
+
+        try {
+            if (!Schema::hasColumn('apis', 'recharge_id_value')) {
+                DB::statement('ALTER TABLE `apis` ADD COLUMN `recharge_id_value` VARCHAR(64) NULL');
+            }
+        } catch (\Throwable $e) {
         }
 
         try {

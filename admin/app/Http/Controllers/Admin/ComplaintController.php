@@ -322,6 +322,18 @@ class ComplaintController extends Controller
                         <td>'.$report->operator_id.'</td>
                     </tr>
                     <tr class="table-'.$table_bg.'">
+                        <td>Portal Order ID : </td>
+                        <td>'.e((string) (($report->provider_req_id ?? '') !== '' ? $report->provider_req_id : ($report->order_id ?: '-'))).'</td>
+                    </tr>
+                    <tr class="table-'.$table_bg.'">
+                        <td>Provider Transaction ID : </td>
+                        <td>'.e((string) (($report->provider_txid ?? '') !== '' ? $report->provider_txid : ($report->operator_id ?: '-'))).'</td>
+                    </tr>
+                    <tr class="table-'.$table_bg.'">
+                        <td>Provider Recharge ID : </td>
+                        <td>'.e((string) (($report->provider_recharge_id ?? '') !== '' ? $report->provider_recharge_id : '-')).'</td>
+                    </tr>
+                    <tr class="table-'.$table_bg.'">
                         <td>Status : </td>
                         <td>
                             '.report_status_html($report->status).'

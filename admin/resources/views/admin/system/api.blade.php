@@ -552,6 +552,18 @@
 
                                 <div>
 
+                                    <label for="recharge_id_value" class="col-form-label">Recharge ID Value:</label>
+
+                                    <input type="text" class="form-control" name="recharge_id_value" id="recharge_id_value" placeholder="recharge_id">
+
+                                </div>
+
+                            </div>
+
+                            <div class="col-xxl-3 col-md-6">
+
+                                <div>
+
                                     <label for="api_method" class="col-form-label">Recharge Api Method:</label>
 
                                     <select name="api_method" id="api_method" class="form-control">
@@ -1887,6 +1899,8 @@
                 $("#order_id_value").val(data.data.order_id_value);
 
                 $("#operator_id_value").val(data.data.operator_id_value);
+
+                $("#recharge_id_value").val(data.data.recharge_id_value || '');
 
                 $("#api_method").val(data.data.api_method).change();
 

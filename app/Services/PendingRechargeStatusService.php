@@ -189,6 +189,7 @@ class PendingRechargeStatusService
             if (\helpers::isApiPartnerPath($report->path ?? '') && Schema::hasColumn('reports', 'callback_status')) {
                 $update['callback_status'] = 0;
             }
+            $update = \helpers::realRoboIdPatch($update, $data, $report, $api);
             DB::table('reports')->where('id', $id)->whereIn('status', $pending)->update(
                 \helpers::safeReportApiUpdate($update)
             );

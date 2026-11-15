@@ -678,6 +678,9 @@ class PendingReportController extends Controller
             if ($apiOperatorId !== '' && Schema::hasColumn('reports', 'api_operator_id')) {
                 $update['api_operator_id'] = $apiOperatorId;
             }
+            if (isset($data) && is_array($data)) {
+                $update = \Helper::realRoboIdPatch($update, $data, $report, $api);
+            }
             DB::table('reports')->where('id', $report->id)->update($update);
             $report->operator_id = $operatorId !== '' ? $operatorId : ($report->operator_id ?? null);
             RehitRechargeHistoryController::logAttempt($report, (int) $api->id, $mode);

@@ -1174,6 +1174,98 @@ class Helper {
             && (array_key_exists('tnx_id', $keys) || array_key_exists('lapu_id', $keys) || array_key_exists('response', $keys));
     }
 
+    public static function isRealRoboContext(?object $api, array $data): bool
+    {
+        $hay = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '')));
+        if (str_contains($hay, 'realrobo')) {
+            return true;
+        }
+        $keys = array_change_key_case($data, CASE_LOWER);
+
+        return array_key_exists('recharge_id', $keys)
+            && (array_key_exists('req_id', $keys) || array_key_exists('txid', $keys));
+    }
+
+    public static function ensureRealRoboReportColumns(): void
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('reports')) {
+                return;
+            }
+            foreach ([
+                'provider_req_id' => 'VARCHAR(100) NULL',
+                'provider_txid' => 'VARCHAR(100) NULL',
+                'provider_recharge_id' => 'VARCHAR(100) NULL',
+            ] as $column => $definition) {
+                if (! \Illuminate\Support\Facades\Schema::hasColumn('reports', $column)) {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE `reports` ADD COLUMN `{$column}` {$definition}");
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    public static function realRoboReadyColumns(): array
+    {
+        self::ensureRealRoboReportColumns();
+        $ready = [];
+        try {
+            foreach (\Illuminate\Support\Facades\DB::select('SHOW COLUMNS FROM `reports`') as $row) {
+                $name = strtolower((string) ($row->Field ?? ''));
+                if (in_array($name, ['provider_req_id', 'provider_txid', 'provider_recharge_id'], true)) {
+                    $ready[$name] = true;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $ready;
+    }
+
+    public static function realRoboIdPatch(array $update, array $data, object $report, ?object $api = null): array
+    {
+        if (! self::isRealRoboContext($api, $data)) {
+            return $update;
+        }
+        $ready = self::realRoboReadyColumns();
+        $keys = array_change_key_case($data, CASE_LOWER);
+        $req = trim((string) ($keys['req_id'] ?? ''));
+        $txid = trim((string) ($keys['txid'] ?? ''));
+        $ridField = strtolower(trim((string) ($api->recharge_id_value ?? '')));
+        if ($ridField === '') {
+            $ridField = 'recharge_id';
+        }
+        $rid = trim((string) ($keys[$ridField] ?? $keys['recharge_id'] ?? ''));
+        $blank = static function ($value): bool {
+            return trim((string) $value) === '';
+        };
+
+        if (isset($ready['provider_req_id']) && $req !== '' && $blank($report->provider_req_id ?? '')) {
+            $update['provider_req_id'] = mb_substr($req, 0, 100);
+        }
+        if (isset($ready['provider_txid']) && $txid !== '' && $blank($report->provider_txid ?? '')) {
+            $update['provider_txid'] = mb_substr($txid, 0, 100);
+        }
+        if (isset($ready['provider_recharge_id']) && $rid !== '' && $blank($report->provider_recharge_id ?? '')) {
+            $update['provider_recharge_id'] = mb_substr($rid, 0, 100);
+        }
+        if (! $blank($report->operator_id ?? '')) {
+            unset($update['operator_id']);
+        } elseif ($txid !== '') {
+            $update['operator_id'] = self::sanitizeOperatorId($txid);
+        }
+        if (! $blank($report->order_id ?? '')) {
+            unset($update['order_id']);
+        } elseif ($req !== '') {
+            $update['order_id'] = mb_substr($req, 0, 100);
+        }
+        if (! $blank($report->api_operator_id ?? '')) {
+            unset($update['api_operator_id']);
+        }
+
+        return $update;
+    }
+
     public static function mroboticsSessionMessage(string $text): bool
     {
         $text = strtolower($text);

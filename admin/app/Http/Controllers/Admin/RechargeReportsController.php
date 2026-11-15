@@ -204,6 +204,19 @@ class RechargeReportsController extends Controller
                 $reqId = e($list->request_order_id ?: '-');
                 $st = e($status);
                 $orderId = e($list->order_id ?: ('R' . $list->id));
+                $providerReq = trim((string) ($list->provider_req_id ?? ''));
+                $providerTx = trim((string) ($list->provider_txid ?? ''));
+                $providerRecharge = trim((string) ($list->provider_recharge_id ?? ''));
+                if ($providerReq !== '' || $providerTx !== '' || $providerRecharge !== '') {
+                    $idCell = '<span>Order: ' . $orderId . '</span>'
+                        . '<span>Txn: ' . e($providerTx !== '' ? $providerTx : ($list->operator_id ?: '-')) . '</span>'
+                        . '<span>Recharge: ' . e($providerRecharge !== '' ? $providerRecharge : '-') . '</span>';
+                    if ($providerReq !== '' && $providerReq !== (string) $list->order_id) {
+                        $idCell .= '<span>Req: ' . e($providerReq) . '</span>';
+                    }
+                } else {
+                    $idCell = '<span>' . $opId . '</span><span>' . $reqId . '</span>';
+                }
 
                 $action = '<div class="recharge-action-cell">'
                     . $this->actionStageHtml($list)
@@ -234,7 +247,7 @@ class RechargeReportsController extends Controller
                     <td class="text-end recharge-balance">' . (function_exists('recharge_report_money') ? recharge_report_money($list->closing_balance ?? 0) : number_format((float) ($list->closing_balance ?? 0), 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
                     <td>' . e($list->api_name ?: '-') . '</td>
-                    <td class="recharge-ids"><span>' . $opId . '</span><span>' . $reqId . '</span></td>
+                    <td class="recharge-ids">' . $idCell . '</td>
                     <td>' . $mode . '</td>
                     <td>' . $action . '</td>
                 </tr>';
@@ -839,6 +852,10 @@ class RechargeReportsController extends Controller
                     Req Order Id : '.$list->request_order_id.' </br>
 
                     Order Id : '.$list->order_id.' </br>
+
+                    Txn ID : '.e((string) (($list->provider_txid ?? '') !== '' ? $list->provider_txid : ($list->operator_id ?: '-'))).' </br>
+
+                    Recharge ID : '.e((string) (($list->provider_recharge_id ?? '') !== '' ? $list->provider_recharge_id : '-')).' </br>
 
                     Date/Time : '.$list->transaction_date.' </br>
 

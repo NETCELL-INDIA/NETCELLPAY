@@ -128,6 +128,8 @@ class CallBackController extends Controller
                 return response()->json(['type' => 'error', 'message' => 'record not found or already finalized.']);
             }
 
+            $update = \helpers::realRoboIdPatch($update, $data, $report, $api);
+
             if ($mapped === 'Pending') {
                 $touch = [
                     'callback_response' => $update['callback_response'],
@@ -140,6 +142,11 @@ class CallBackController extends Controller
                         $touch['operator_id'] = \helpers::sanitizeOperatorId($robo['provider_txn']);
                     }
                     \helpers::alertMroboticsSession($report, $robo['reason']);
+                }
+                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id'] as $idColumn) {
+                    if (array_key_exists($idColumn, $update)) {
+                        $touch[$idColumn] = $update[$idColumn];
+                    }
                 }
                 DB::table('reports')->where('id', $report->id)->update($touch);
                 DB::commit();
@@ -156,6 +163,11 @@ class CallBackController extends Controller
                 ];
                 if ($operatorId !== '' && empty($report->operator_id)) {
                     $touch['operator_id'] = $operatorId;
+                }
+                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id'] as $idColumn) {
+                    if (array_key_exists($idColumn, $update)) {
+                        $touch[$idColumn] = $update[$idColumn];
+                    }
                 }
                 DB::table('reports')->where('id', $report->id)->update($touch);
                 DB::commit();
