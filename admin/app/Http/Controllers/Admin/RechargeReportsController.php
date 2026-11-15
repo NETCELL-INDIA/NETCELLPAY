@@ -2439,7 +2439,8 @@ class RechargeReportsController extends Controller
                     }
                 })
                 ->where(function ($q) {
-                    $q->whereNotIn('modal', ['Roffer', 'ROFFER', 'ROF', 'DTH INFO', 'PLAN', 'Plan', 'Plans'])
+                    $q->whereNotIn('modal', ['Roffer', 'ROFFER', 'ROF', 'DTH INFO', 'PLAN', 'Plan', 'Plans', 'MROBOTICS_SESSION'])
+                        ->where('url', 'not like', 'mrobotics-session%')
                         ->where('txnid', 'not like', 'ROF%')
                         ->where('url', 'not like', '%plans.php%')
                         ->where('url', 'not like', '%offer=roffer%')

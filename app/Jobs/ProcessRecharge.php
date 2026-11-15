@@ -182,10 +182,52 @@ class ProcessRecharge implements ShouldQueue
                 $logFlag = 'yes';
                 $isMrobotics = \helpers::isMroboticsApi($api_details, $url);
                 $stored = $isMrobotics ? \helpers::mroboticsStoredResponse((string) $report->order_id) : '';
+                $sendLock = null;
                 if ($stored !== '') {
                     $result = ['response' => $stored, 'error' => '', 'code' => 200];
+                } elseif ($isMrobotics && \helpers::mroboticsRequestAlreadyLogged((string) $report->order_id)) {
+                    $final_result = [
+                        'status' => 'Pending',
+                        'operator_id' => (string) ($report->operator_id ?? ''),
+                        'remark' => 'MRobotics was already called for this order. It was not sent again.',
+                    ];
+                    DB::table('reports')->where('id', $this->report_id)->update(\helpers::safeReportApiUpdate(array_merge([
+                        'api_id' => $try_api_id,
+                        'updated_at' => Carbon::now(),
+                    ], $final_result)));
+                    break;
                 } else {
-                    $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
+                    if ($isMrobotics) {
+                        try {
+                            $sendLock = \Illuminate\Support\Facades\Cache::lock('mrobotics-send-'.(int) $report->id, 120);
+                            if (! $sendLock->get()) {
+                                $final_result = [
+                                    'status' => 'Pending',
+                                    'operator_id' => (string) ($report->operator_id ?? ''),
+                                    'remark' => 'MRobotics request is already running. It was not sent again.',
+                                ];
+                                DB::table('reports')->where('id', $this->report_id)->update(\helpers::safeReportApiUpdate(array_merge([
+                                    'api_id' => $try_api_id,
+                                    'updated_at' => Carbon::now(),
+                                ], $final_result)));
+                                break;
+                            }
+                            $stored = \helpers::mroboticsStoredResponse((string) $report->order_id);
+                        } catch (\Throwable $e) {
+                            $sendLock = null;
+                        }
+                    }
+                    if ($stored !== '') {
+                        $result = ['response' => $stored, 'error' => '', 'code' => 200];
+                    } else {
+                        $result = \helpers::curl($url, $method, $parameters, $header, $logFlag, $this->service, $report->order_id);
+                    }
+                    if ($sendLock) {
+                        try {
+                            $sendLock->release();
+                        } catch (\Throwable $e) {
+                        }
+                    }
                 }
 
                 // Transient error → try next backup API (do not abort the whole failover chain).

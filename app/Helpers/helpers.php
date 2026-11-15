@@ -633,6 +633,23 @@ class helpers
         return '';
     }
 
+    public static function mroboticsRequestAlreadyLogged(string $orderId): bool
+    {
+        $orderId = trim($orderId);
+        if ($orderId === '' || ! \Illuminate\Support\Facades\Schema::hasTable('apilogs')) {
+            return false;
+        }
+        try {
+            return DB::table('apilogs')
+                ->where('txnid', $orderId)
+                ->where('modal', '!=', 'MROBOTICS_SESSION')
+                ->where('url', 'like', '%mrobotics%')
+                ->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public static function alertMroboticsSession($report, string $reason): void
     {
         $orderId = trim((string) ($report->order_id ?? ''));
