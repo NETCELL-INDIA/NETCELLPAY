@@ -2439,8 +2439,14 @@ class RechargeReportsController extends Controller
                     }
                 })
                 ->where(function ($q) {
-                    $q->whereNotIn('modal', ['Roffer', 'ROFFER', 'ROF', 'DTH INFO', 'PLAN', 'Plan', 'Plans', 'MROBOTICS_SESSION'])
+                    $q->whereNotIn('modal', [
+                        'Roffer', 'ROFFER', 'ROF', 'DTH INFO', 'PLAN', 'Plan', 'Plans', 'MROBOTICS_SESSION',
+                        'USER_RECHARGE_CALLBACK', 'RechargeCallback', 'RechargeCallbackError',
+                    ])
+                        ->where('modal', 'not like', '%CALLBACK%')
                         ->where('url', 'not like', 'mrobotics-session%')
+                        ->where('url', 'not like', '%/callback/%')
+                        ->where('url', 'not like', '%recharge-callback%')
                         ->where('txnid', 'not like', 'ROF%')
                         ->where('url', 'not like', '%plans.php%')
                         ->where('url', 'not like', '%offer=roffer%')
@@ -2451,6 +2457,12 @@ class RechargeReportsController extends Controller
                 ->orderByDesc('id')
                 ->limit(40)
                 ->get();
+            $providerLogs = $logs->filter(function ($log) {
+                return in_array((string) ($log->modal ?? ''), ['Recharge', 'Bill Pay', 'Bill Payment'], true);
+            })->values();
+            if ($providerLogs->isNotEmpty()) {
+                $logs = $providerLogs->take(1);
+            }
         }
 
         if ($logs->isEmpty()) {
