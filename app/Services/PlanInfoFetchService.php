@@ -1065,6 +1065,10 @@ class PlanInfoFetchService
                 .'&operatorCode='.urlencode($opcode);
         }
 
+        if (str_contains($host, 'mplan') && strcasecmp((string) $opcode, 'Sundirect') === 0) {
+            $opcode = 'Sun Direct';
+        }
+
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($opcode)
             . '&tel=' . urlencode($number);
