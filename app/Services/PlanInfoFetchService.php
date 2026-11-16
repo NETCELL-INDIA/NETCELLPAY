@@ -3190,7 +3190,23 @@ class PlanInfoFetchService
         if (is_array($payload) && $payload !== []) {
             $isList = array_key_exists(0, $payload);
             if ($isList && is_array($payload[0] ?? null)) {
-                return self::hlrResult(true, 'Fatch Successfully', $payload[0], $apiId, $body);
+                $row = $payload[0];
+                $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
+                $rowMessage = trim((string) ($row['desc'] ?? $row['msg'] ?? $row['message'] ?? ''));
+                $hasCustomer = trim((string) ($row['customername'] ?? $row['customerName'] ?? $row['name'] ?? '')) !== ''
+                    || trim((string) ($row['balance'] ?? '')) !== ''
+                    || trim((string) ($row['monthlyrecharge'] ?? '')) !== '';
+                if (! $hasCustomer && ($rowStatus === '0' || $rowMessage !== '')) {
+                    return self::hlrResult(
+                        false,
+                        $rowMessage !== '' ? $rowMessage : 'DTH customer details not found for this number.',
+                        [],
+                        $apiId,
+                        $body
+                    );
+                }
+
+                return self::hlrResult(true, 'Fatch Successfully', $row, $apiId, $body);
             }
             if (!$isList) {
                 return self::hlrResult(true, 'Fatch Successfully', $payload, $apiId, $body);
