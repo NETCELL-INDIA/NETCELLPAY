@@ -1067,8 +1067,8 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect only. MPlan's /api/v2/dth_info redirects to the homepage,
-        // so MPlan stays on /api/Dthinfo.php and sends the operator code there.
+        // PlanConnect only. MPlan customer info uses /apiv2/dth_info below.
+        // The old /api/v2/dth_info path redirects to the homepage.
         if (! str_contains($host, 'mplan') && (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false)) {
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
@@ -1076,10 +1076,19 @@ class PlanInfoFetchService
         }
 
         if (str_contains($host, 'mplan')) {
-            $infoCode = self::mplanDthInfoCode($providerName);
-            if ($infoCode !== null) {
-                $opcode = $infoCode;
+            $infoCode = self::resolveMplanDthInfoCode((int) $api->id, $providerId, $providerName);
+            if ($infoCode === null) {
+                return null;
             }
+            $origin = 'https://www.mplan.in';
+            $parts = parse_url($rawUrl);
+            if (is_array($parts) && ! empty($parts['host'])) {
+                $origin = ($parts['scheme'] ?? 'https').'://'.$parts['host'];
+            }
+
+            return $origin.'/apiv2/dth_info?apikey='.urlencode($key)
+                .'&vc_number='.urlencode($number)
+                .'&operator_code='.urlencode($infoCode);
         }
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
@@ -3111,7 +3120,26 @@ class PlanInfoFetchService
     }
 
     /**
-     * MPlan Dthinfo.php operator codes from the DTH info docs.
+     * Operator code saved for this MPlan API in Admin Operator Management.
+     * Documented codes are used only when that API has no numeric code saved.
+     * Dish TV 6, Tata Play 7, Videocon 11, Sun Direct 12, Airtel Digital TV 24.
+     */
+    private static function resolveMplanDthInfoCode($apiId, int $providerId, string $providerName): ?string
+    {
+        $saved = DB::table('api_provider_codes')
+            ->where('api_id', $apiId)
+            ->where('provider_id', $providerId)
+            ->value('provider_code');
+        $saved = trim((string) $saved);
+        if ($saved !== '' && $saved !== '0' && is_numeric($saved)) {
+            return $saved;
+        }
+
+        return self::mplanDthInfoCode($providerName);
+    }
+
+    /**
+     * MPlan apiv2/dth_info operator codes.
      * Dish TV is 6. Tata Play 7, Videocon 11, Sun Direct 12, Airtel Digital TV 24.
      */
     private static function mplanDthInfoCode(string $providerName): ?string
@@ -3204,12 +3232,57 @@ class PlanInfoFetchService
 
     /**
      * @param  array<string, mixed>  $row
+     * @return array<string, scalar|null>
+     */
+    private static function presentDthInfoRow(array $row): array
+    {
+        $labels = [
+            'customername' => 'Customer Name',
+            'name' => 'Customer Name',
+            'monthlyrecharge' => 'Monthly Recharge',
+            'monthly' => 'Monthly Recharge',
+            'balance' => 'Balance',
+            'subscriberstatus' => 'Subscriber Status',
+            'customerstatus' => 'Subscriber Status',
+            'nextrechargedate' => 'Next Recharge Date',
+            'lastrechargeamount' => 'Last Recharge Amount',
+            'lastrechargedate' => 'Last Recharge Date',
+            'planname' => 'Plan Name',
+            'plan' => 'Plan Name',
+        ];
+        $out = [];
+        $used = [];
+        foreach ($row as $key => $value) {
+            if (! is_scalar($value) && $value !== null) {
+                continue;
+            }
+            $norm = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
+            if ($norm === 'status' && in_array(strtolower(trim((string) $value)), ['0', '1', 'true', 'false'], true)) {
+                continue;
+            }
+            $label = $labels[$norm] ?? null;
+            if ($label !== null) {
+                if (isset($used[$label])) {
+                    continue;
+                }
+                $used[$label] = true;
+                $out[$label] = $value;
+                continue;
+            }
+            $out[$key] = $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
      * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}|null
      */
     private static function dthInfoRowResult(array $row, int $apiId, string $body): ?array
     {
         if (self::dthInfoHasCustomer($row)) {
-            return self::hlrResult(true, 'Fatch Successfully', $row, $apiId, $body);
+            return self::hlrResult(true, 'Fatch Successfully', self::presentDthInfoRow($row), $apiId, $body);
         }
 
         $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
@@ -3303,6 +3376,8 @@ class PlanInfoFetchService
             $records = $data['records'] ?? null;
             if (is_array($records) && is_array($records[0] ?? null)) {
                 $failMessage = trim((string) ($records[0]['msg'] ?? $records[0]['message'] ?? ''));
+            } elseif (is_array($records)) {
+                $failMessage = trim((string) ($records['msg'] ?? $records['message'] ?? $records['desc'] ?? ''));
             }
             if ($failMessage === '') {
                 $failMessage = trim((string) ($data['message'] ?? $data['msg'] ?? ''));

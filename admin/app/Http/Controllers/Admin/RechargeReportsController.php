@@ -2452,6 +2452,8 @@ class RechargeReportsController extends Controller
                         ->where('url', 'not like', '%offer=roffer%')
                         ->where('url', 'not like', '%/plans%')
                         ->where('url', 'not like', '%Dthinfo%')
+                        ->where('url', 'not like', '%/apiv2/dth_info%')
+                        ->where('url', 'not like', '%/dth_info%')
                         ->where('url', 'not like', '%Dthheavy%');
                 })
                 ->orderByDesc('id')

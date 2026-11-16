@@ -381,6 +381,9 @@ class PlanInfoFetchService
         $message = $ok
             ? "Config OK — {$ready} API slot(s) ready. Cache {$row->cache_ttl}s, timeout {$row->timeout_seconds}s. Hits OK/Fail: ".(int) ($row->success_count ?? 0).'/'.(int) ($row->fail_count ?? 0)
             : 'No usable API in chain. Select API 1 (and backups) then Save.';
+        if ($serviceKey === 'dth_customer') {
+            $message .= ' MPlan customer info calls https://www.mplan.in/apiv2/dth_info with apikey, vc_number and the operator code saved for that API. DTH plans, offers and recharge are not changed.';
+        }
 
         return ['ok' => $ok, 'message' => $message, 'chain' => $chain, 'api_id' => $firstReadyId];
     }
