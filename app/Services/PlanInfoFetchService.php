@@ -1057,6 +1057,16 @@ class PlanInfoFetchService
             return null;
         }
 
+        // MPlan v2: /api/v2/DTH_info?apikey=&vc_number=&operator_code=
+        if (str_contains($host, 'mplan')) {
+            $scheme = parse_url($rawUrl, PHP_URL_SCHEME) ?: 'https';
+            $hostName = parse_url($rawUrl, PHP_URL_HOST) ?: 'www.mplan.in';
+
+            return $scheme.'://'.$hostName.'/api/v2/DTH_info?apikey='.urlencode($key)
+                .'&vc_number='.urlencode($number)
+                .'&operator_code='.urlencode((string) $opcode);
+        }
+
         // PlanConnect: /api/dthInfo?apiKey=&token=&vcNo=&operatorCode=
         if (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false) {
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
@@ -3039,25 +3049,34 @@ class PlanInfoFetchService
 
     /**
      * PlanAPI DTH opcodes: 24 Airtel, 25 Dish, 27 Sun, 28 Tata Sky, 29 Videocon.
-     * MPlan Dthinfo.php uses operator names such as Tatasky.
+     * MPlan v2 DTH_info uses operator_code. Dish TV is 0 and Tata Play is 7.
      */
     private static function resolveDthOpcode($apiId, int $providerId, string $providerName, bool $planApiNumeric): ?string
     {
         $mapped = \helpers::PlanProviderCode($apiId, $providerId);
-        if ($mapped !== 0 && $mapped !== '' && $mapped !== null && (string) $mapped !== '0') {
-            if ($planApiNumeric && !is_numeric((string) $mapped)) {
-                return self::planApiDthOpcode($providerName);
-            }
-            if (!$planApiNumeric && is_numeric((string) $mapped)) {
-                return self::mplanDthOperator($providerName) ?? (string) $mapped;
+        $saved = ($mapped !== 0 && $mapped !== '' && $mapped !== null && (string) $mapped !== '0')
+            ? (string) $mapped
+            : null;
+
+        if ($planApiNumeric) {
+            if ($saved !== null && is_numeric($saved)) {
+                return $saved;
             }
 
-            return (string) $mapped;
+            return self::planApiDthOpcode($providerName);
         }
 
-        return $planApiNumeric
-            ? self::planApiDthOpcode($providerName)
-            : self::mplanDthOperator($providerName);
+        if ($saved !== null) {
+            if (is_numeric($saved)) {
+                return $saved;
+            }
+            $fromSavedName = self::mplanDthOperator($saved);
+            if ($fromSavedName !== null) {
+                return $fromSavedName;
+            }
+        }
+
+        return self::mplanDthOperator($providerName);
     }
 
     private static function planApiDthOpcode(string $providerName): ?string
@@ -3088,20 +3107,11 @@ class PlanInfoFetchService
     private static function mplanDthOperator(string $providerName): ?string
     {
         $name = strtolower($providerName);
-        if (str_contains($name, 'tata')) {
-            return 'Tatasky';
-        }
-        if (str_contains($name, 'airtel')) {
-            return 'Airteldth';
-        }
         if (str_contains($name, 'dish')) {
-            return 'Dishtv';
+            return '0';
         }
-        if (str_contains($name, 'sun')) {
-            return 'Sundirect';
-        }
-        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
-            return 'Videocon';
+        if (str_contains($name, 'tata')) {
+            return '7';
         }
 
         return null;
@@ -3144,6 +3154,26 @@ class PlanInfoFetchService
         $data = json_decode($body, true);
         if (!is_array($data)) {
             return self::hlrResult(false, 'Invalid response from DTH info API.', [], $apiId, $body);
+        }
+
+        $statusWord = strtolower(trim((string) ($data['status'] ?? '')));
+        if (in_array($statusWord, ['0', 'false', 'failed', 'fail', 'error'], true)) {
+            $failMessage = '';
+            $records = $data['records'] ?? null;
+            if (is_array($records) && is_array($records[0] ?? null)) {
+                $failMessage = trim((string) ($records[0]['msg'] ?? $records[0]['message'] ?? ''));
+            }
+            if ($failMessage === '') {
+                $failMessage = trim((string) ($data['message'] ?? $data['msg'] ?? ''));
+            }
+
+            return self::hlrResult(
+                false,
+                $failMessage !== '' ? $failMessage : 'DTH customer details not found for this number.',
+                [],
+                $apiId,
+                $body
+            );
         }
 
         $apiMessage = self::responseErrorMessage($body);
