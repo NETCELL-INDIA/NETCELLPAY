@@ -954,15 +954,10 @@ class PlanInfoFetchService
             $serviceKey === 'dth_heavy_refresh' ? 6 : 7,
             true
         );
-        if ($serviceKey === 'dth_customer' && self::providerNameHas($providerId, 'sun')) {
-            $attempts = self::onlyPlanApiAttempts($attempts);
-        }
 
         $lastMessage = $serviceKey === 'dth_heavy_refresh'
             ? 'Unable to refresh DTH info. Please try again.'
-            : ($serviceKey === 'dth_customer' && $attempts === []
-                ? 'Sun Direct customer info needs the Plan API.'
-                : 'Unable to fetch DTH info. Please try again.');
+            : 'Unable to fetch DTH info. Please try again.';
         $lastApiId = null;
 
         foreach ($attempts as $index => $attempt) {
@@ -975,10 +970,8 @@ class PlanInfoFetchService
                 ? self::buildDthHeavyUrl($api, $providerId, $number)
                 : self::buildDthInfoUrl($api, $providerId, $number);
 
-            if ($url === null || ($serviceKey === 'dth_customer' && self::providerNameHas($providerId, 'sun') && str_contains(strtolower($url), 'mplan.in'))) {
-                $lastMessage = $url === null
-                    ? 'DTH operator code is not mapped for this provider. Contact admin.'
-                    : 'Sun Direct customer info is available from Plan API.';
+            if ($url === null) {
+                $lastMessage = 'DTH operator code is not mapped for this provider. Contact admin.';
                 $lastApiId = (int) $api->id;
                 continue;
             }
@@ -1744,63 +1737,6 @@ class PlanInfoFetchService
         }
 
         return false;
-    }
-
-    private static function providerNameHas(int $providerId, string $needle): bool
-    {
-        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
-
-        return str_contains($name, strtolower($needle));
-    }
-
-    private static function isPlanApiRecord(object $api): bool
-    {
-        $url = strtolower((string) ($api->api_url ?? ''));
-        $name = strtolower((string) ($api->api_name ?? ''));
-
-        return str_contains($url, 'planapi.in')
-            || str_contains($url, 'planapi')
-            || str_contains($name, 'planapi')
-            || str_contains($name, 'plan api');
-    }
-
-    /**
-     * Sun Direct customer details are on PlanAPI. MPlan answers Customer Not Found for the same VC.
-     *
-     * @param  list<array{api_id: mixed, username: mixed, password: mixed}>  $attempts
-     * @return list<array{api_id: mixed, username: mixed, password: mixed}>
-     */
-    private static function onlyPlanApiAttempts(array $attempts): array
-    {
-        $plan = [];
-        $seen = [];
-
-        foreach ($attempts as $attempt) {
-            $id = self::nullableApiId($attempt['api_id'] ?? null);
-            if ($id === null || isset($seen[$id])) {
-                continue;
-            }
-            $row = DB::table('apis')->where('id', $id)->first(['id', 'api_name', 'api_url']);
-            if (! $row || ! self::isPlanApiRecord($row)) {
-                continue;
-            }
-            $seen[$id] = true;
-            $plan[] = $attempt;
-        }
-
-        if ($plan === [] && Schema::hasTable('apis')) {
-            $rows = DB::table('apis')->where('status', 1)->orderBy('id')->get(['id', 'api_name', 'api_url']);
-            foreach ($rows as $row) {
-                $id = (int) $row->id;
-                if (isset($seen[$id]) || ! self::isPlanApiRecord($row)) {
-                    continue;
-                }
-                $plan[] = ['api_id' => $id, 'username' => null, 'password' => null];
-                break;
-            }
-        }
-
-        return $plan;
     }
 
     private static function explicitPlanFamily(object $api): ?string
