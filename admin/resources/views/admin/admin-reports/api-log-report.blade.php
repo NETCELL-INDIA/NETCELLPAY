@@ -166,6 +166,9 @@
     }
 
     function prettyLog(raw) {
+        if (raw != null && typeof raw === 'object') {
+            try { return JSON.stringify(raw, null, 2); } catch (e) { return '—'; }
+        }
         raw = raw == null ? '' : String(raw);
         if (!raw) return '—';
         try { return JSON.stringify(JSON.parse(raw), null, 2); } catch (e) { return raw; }

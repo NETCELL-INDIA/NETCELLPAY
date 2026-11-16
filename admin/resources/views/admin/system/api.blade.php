@@ -1490,12 +1490,18 @@
     var apiRequestLogsCache = [];
 
     function clipApiText(str, len) {
+        if (str != null && typeof str === 'object') {
+            try { str = JSON.stringify(str); } catch (e) { str = ''; }
+        }
         str = String(str == null ? '' : str).replace(/\s+/g, ' ').trim();
         if (!str || str === '""' || str === '[]') return '-';
         return str.length > len ? str.slice(0, len) + '…' : str;
     }
 
     function escapeApiHtml(str) {
+        if (str != null && typeof str === 'object') {
+            try { str = JSON.stringify(str); } catch (e) { str = ''; }
+        }
         return String(str == null ? '' : str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')

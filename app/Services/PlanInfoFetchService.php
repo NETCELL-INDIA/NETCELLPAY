@@ -1067,7 +1067,7 @@ class PlanInfoFetchService
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($opcode)
-            . '&offer=roffer&tel=' . urlencode($number);
+            . '&tel=' . urlencode($number);
     }
 
     public static function buildDthHeavyUrl(object $api, int $providerId, string $number): ?string
@@ -3116,6 +3116,32 @@ class PlanInfoFetchService
     }
 
     /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, scalar|null>
+     */
+    private static function flattenDthInfoRow(array $row): array
+    {
+        $flat = [];
+        foreach ($row as $key => $value) {
+            if (is_array($value)) {
+                $parts = [];
+                foreach ($value as $childKey => $child) {
+                    if (is_scalar($child) || $child === null) {
+                        $parts[] = $childKey.': '.trim((string) $child);
+                    }
+                }
+                $flat[$key] = $parts !== [] ? implode(', ', $parts) : '';
+                continue;
+            }
+            if (is_scalar($value) || $value === null) {
+                $flat[$key] = $value;
+            }
+        }
+
+        return $flat;
+    }
+
+    /**
      * @param  array{response?: mixed, code?: mixed, error?: mixed}  $result
      * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}
      */
@@ -3149,8 +3175,9 @@ class PlanInfoFetchService
             return self::hlrResult(false, 'Empty response from DTH info API.', [], $apiId, $body);
         }
 
-        if (stripos($body, 'Object Moved') !== false || stripos($body, '<html') !== false) {
-            return self::hlrResult(false, 'DTH info URL was not accepted. The provider sent a redirect instead of customer details.', [], $apiId, $body);
+        $trimmed = trim($body);
+        if ($trimmed === '[object Object]' || stripos($trimmed, 'Object Moved') !== false || stripos($trimmed, '<html') !== false) {
+            return self::hlrResult(false, 'DTH info did not return customer details. Try the DTH customer ID again.', [], $apiId, $body);
         }
 
         $data = json_decode($body, true);
@@ -3192,7 +3219,7 @@ class PlanInfoFetchService
         if (is_array($payload) && $payload !== []) {
             $isList = array_key_exists(0, $payload);
             if ($isList && is_array($payload[0] ?? null)) {
-                $row = $payload[0];
+                $row = self::flattenDthInfoRow($payload[0]);
                 $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
                 $rowMessage = trim((string) ($row['desc'] ?? $row['msg'] ?? $row['message'] ?? ''));
                 $hasCustomer = trim((string) ($row['customername'] ?? $row['customerName'] ?? $row['name'] ?? '')) !== ''
@@ -3211,7 +3238,7 @@ class PlanInfoFetchService
                 return self::hlrResult(true, 'Fatch Successfully', $row, $apiId, $body);
             }
             if (!$isList) {
-                return self::hlrResult(true, 'Fatch Successfully', $payload, $apiId, $body);
+                return self::hlrResult(true, 'Fatch Successfully', self::flattenDthInfoRow($payload), $apiId, $body);
             }
         }
 
