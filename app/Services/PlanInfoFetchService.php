@@ -1057,18 +1057,9 @@ class PlanInfoFetchService
             return null;
         }
 
-        // MPlan v2: /api/v2/DTH_info?apikey=&vc_number=&operator_code=
-        if (str_contains($host, 'mplan')) {
-            $scheme = parse_url($rawUrl, PHP_URL_SCHEME) ?: 'https';
-            $hostName = parse_url($rawUrl, PHP_URL_HOST) ?: 'www.mplan.in';
-
-            return $scheme.'://'.$hostName.'/api/v2/DTH_info?apikey='.urlencode($key)
-                .'&vc_number='.urlencode($number)
-                .'&operator_code='.urlencode((string) $opcode);
-        }
-
-        // PlanConnect: /api/dthInfo?apiKey=&token=&vcNo=&operatorCode=
-        if (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false) {
+        // PlanConnect only. MPlan's /api/v2/DTH_info redirects to the homepage,
+        // so MPlan stays on /api/Dthinfo.php below.
+        if (! str_contains($host, 'mplan') && (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false)) {
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
                 .'&operatorCode='.urlencode($opcode);
@@ -3049,7 +3040,7 @@ class PlanInfoFetchService
 
     /**
      * PlanAPI DTH opcodes: 24 Airtel, 25 Dish, 27 Sun, 28 Tata Sky, 29 Videocon.
-     * MPlan v2 DTH_info uses operator_code. Dish TV is 0 and Tata Play is 7.
+     * MPlan Dthinfo.php expects an operator name such as Sundirect, not a numeric code.
      */
     private static function resolveDthOpcode($apiId, int $providerId, string $providerName, bool $planApiNumeric): ?string
     {
@@ -3066,17 +3057,15 @@ class PlanInfoFetchService
             return self::planApiDthOpcode($providerName);
         }
 
-        if ($saved !== null) {
-            if (is_numeric($saved)) {
-                return $saved;
-            }
-            $fromSavedName = self::mplanDthOperator($saved);
-            if ($fromSavedName !== null) {
-                return $fromSavedName;
-            }
+        $named = self::mplanDthOperator($providerName);
+        if ($named !== null) {
+            return $named;
+        }
+        if ($saved !== null && ! is_numeric($saved)) {
+            return self::mplanDthOperator($saved) ?? $saved;
         }
 
-        return self::mplanDthOperator($providerName);
+        return null;
     }
 
     private static function planApiDthOpcode(string $providerName): ?string
@@ -3107,11 +3096,20 @@ class PlanInfoFetchService
     private static function mplanDthOperator(string $providerName): ?string
     {
         $name = strtolower($providerName);
-        if (str_contains($name, 'dish')) {
-            return '0';
-        }
         if (str_contains($name, 'tata')) {
-            return '7';
+            return 'Tatasky';
+        }
+        if (str_contains($name, 'airtel')) {
+            return 'Airteldth';
+        }
+        if (str_contains($name, 'dish')) {
+            return 'Dishtv';
+        }
+        if (str_contains($name, 'sun')) {
+            return 'Sundirect';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return 'Videocon';
         }
 
         return null;
@@ -3149,6 +3147,10 @@ class PlanInfoFetchService
 
         if ($body === '') {
             return self::hlrResult(false, 'Empty response from DTH info API.', [], $apiId, $body);
+        }
+
+        if (stripos($body, 'Object Moved') !== false || stripos($body, '<html') !== false) {
+            return self::hlrResult(false, 'DTH info URL was not accepted. The provider sent a redirect instead of customer details.', [], $apiId, $body);
         }
 
         $data = json_decode($body, true);
