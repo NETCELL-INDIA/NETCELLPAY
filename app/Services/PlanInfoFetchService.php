@@ -987,6 +987,15 @@ class PlanInfoFetchService
             }
             $result = \helpers::curl($url, 'GET', '', $headers, 'yes', $modal, $orderId);
             $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
+            if ($serviceKey !== 'dth_heavy_refresh') {
+                foreach (self::mplanSunInfoFallbackUrls($url) as $fallbackUrl) {
+                    if (self::dthInfoHasCustomer($parsed['data'] ?? [])) {
+                        break;
+                    }
+                    $result = \helpers::curl($fallbackUrl, 'GET', '', $headers, 'yes', $modal, $orderId);
+                    $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
+                }
+            }
             $lastApiId = (int) $api->id;
             $lastMessage = $parsed['message'];
 
@@ -1063,10 +1072,6 @@ class PlanInfoFetchService
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
                 .'&operatorCode='.urlencode($opcode);
-        }
-
-        if (str_contains($host, 'mplan') && strcasecmp((string) $opcode, 'Sundirect') === 0) {
-            $opcode = 'Sun Direct';
         }
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
@@ -3120,6 +3125,75 @@ class PlanInfoFetchService
     }
 
     /**
+     * MPlan accepts more than one Sun Direct operator spelling. The first call uses
+     * Sundirect. These run only when that response has no customer fields.
+     *
+     * @return list<string>
+     */
+    private static function mplanSunInfoFallbackUrls(string $url): array
+    {
+        if (! str_contains(strtolower($url), 'mplan') || ! preg_match('/[?&]operator=Sundirect(?:&|$)/i', $url)) {
+            return [];
+        }
+
+        $urls = [];
+        foreach (['SunDirect', 'Sun Direct'] as $name) {
+            $fallback = preg_replace('/([?&]operator=)[^&]*/', '$1'.rawurlencode($name), $url, 1);
+            if (is_string($fallback) && $fallback !== $url) {
+                $urls[] = $fallback;
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private static function dthInfoHasCustomer(array $row): bool
+    {
+        foreach ($row as $key => $value) {
+            if (! is_scalar($value) && $value !== null) {
+                continue;
+            }
+            $name = strtolower((string) $key);
+            if (! in_array($name, ['customername', 'name', 'balance', 'monthlyrecharge', 'planname', 'nextrechargedate', 'lastrechargeamount'], true)) {
+                continue;
+            }
+            if (trim((string) $value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array{ok: bool, message: string, data: array, api_id: int|null, response: string|null}|null
+     */
+    private static function dthInfoRowResult(array $row, int $apiId, string $body): ?array
+    {
+        if (self::dthInfoHasCustomer($row)) {
+            return self::hlrResult(true, 'Fatch Successfully', $row, $apiId, $body);
+        }
+
+        $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
+        $rowMessage = trim((string) ($row['desc'] ?? $row['msg'] ?? $row['message'] ?? ''));
+        if (in_array($rowStatus, ['0', 'false', 'failed', 'fail', 'error'], true) || $rowMessage !== '') {
+            return self::hlrResult(
+                false,
+                $rowMessage !== '' ? $rowMessage : 'DTH customer details not found for this number.',
+                [],
+                $apiId,
+                $body
+            );
+        }
+
+        return null;
+    }
+
+    /**
      * @param  array<string, mixed>  $row
      * @return array<string, scalar|null>
      */
@@ -3223,26 +3297,16 @@ class PlanInfoFetchService
         if (is_array($payload) && $payload !== []) {
             $isList = array_key_exists(0, $payload);
             if ($isList && is_array($payload[0] ?? null)) {
-                $row = self::flattenDthInfoRow($payload[0]);
-                $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
-                $rowMessage = trim((string) ($row['desc'] ?? $row['msg'] ?? $row['message'] ?? ''));
-                $hasCustomer = trim((string) ($row['customername'] ?? $row['customerName'] ?? $row['name'] ?? '')) !== ''
-                    || trim((string) ($row['balance'] ?? '')) !== ''
-                    || trim((string) ($row['monthlyrecharge'] ?? '')) !== '';
-                if (! $hasCustomer && ($rowStatus === '0' || $rowMessage !== '')) {
-                    return self::hlrResult(
-                        false,
-                        $rowMessage !== '' ? $rowMessage : 'DTH customer details not found for this number.',
-                        [],
-                        $apiId,
-                        $body
-                    );
+                $rowResult = self::dthInfoRowResult(self::flattenDthInfoRow($payload[0]), $apiId, $body);
+                if ($rowResult !== null) {
+                    return $rowResult;
                 }
-
-                return self::hlrResult(true, 'Fatch Successfully', $row, $apiId, $body);
             }
             if (!$isList) {
-                return self::hlrResult(true, 'Fatch Successfully', self::flattenDthInfoRow($payload), $apiId, $body);
+                $rowResult = self::dthInfoRowResult(self::flattenDthInfoRow($payload), $apiId, $body);
+                if ($rowResult !== null) {
+                    return $rowResult;
+                }
             }
         }
 
