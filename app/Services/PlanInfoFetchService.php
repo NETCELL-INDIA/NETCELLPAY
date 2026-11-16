@@ -91,9 +91,64 @@ class PlanInfoFetchService
             'default_timeout' => 25,
         ],
         'dth_customer' => [
-            'label' => 'DTH Customer Fetch',
+            'label' => 'DTH Customer Fetch (Other)',
             'is_routing' => false,
             'sort' => 8,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_customer_airtel' => [
+            'label' => 'DTH Customer Fetch (Airtel DTH)',
+            'is_routing' => false,
+            'sort' => 9,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_customer_dish' => [
+            'label' => 'DTH Customer Fetch (Dish TV)',
+            'is_routing' => false,
+            'sort' => 10,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_customer_sun' => [
+            'label' => 'DTH Customer Fetch (Sun Direct)',
+            'is_routing' => false,
+            'sort' => 11,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_customer_tata' => [
+            'label' => 'DTH Customer Fetch (Tata Sky)',
+            'is_routing' => false,
+            'sort' => 12,
+            'default_primary' => 6,
+            'default_backup' => 7,
+            'default_backup2' => 8,
+            'default_backup3' => self::STOP_API_ID,
+            'default_cache_ttl' => 120,
+            'default_timeout' => 30,
+        ],
+        'dth_customer_videocon' => [
+            'label' => 'DTH Customer Fetch (Videocon D2H)',
+            'is_routing' => false,
+            'sort' => 13,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
@@ -104,7 +159,7 @@ class PlanInfoFetchService
         'dth_plan_list' => [
             'label' => 'DTH Plan List',
             'is_routing' => false,
-            'sort' => 9,
+            'sort' => 14,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
@@ -115,7 +170,7 @@ class PlanInfoFetchService
         'dth_heavy_refresh' => [
             'label' => 'DTH Heavy Refresh',
             'is_routing' => false,
-            'sort' => 10,
+            'sort' => 15,
             'default_primary' => 6,
             'default_backup' => 7,
             'default_backup2' => 8,
@@ -219,22 +274,70 @@ class PlanInfoFetchService
                 continue;
             }
 
-            DB::table('plan_info_fetch_settings')->insert([
-                'service_key' => $key,
-                'service_label' => $meta['label'],
-                'primary_api_id' => $meta['default_primary'],
-                'backup_api_id' => $meta['default_backup'],
-                'backup2_api_id' => $meta['default_backup2'] ?? null,
-                'backup3_api_id' => $meta['default_backup3'] ?? self::STOP_API_ID,
-                'is_enabled' => true,
-                'cache_ttl' => (int) ($meta['default_cache_ttl'] ?? 0),
-                'timeout_seconds' => (int) ($meta['default_timeout'] ?? 30),
-                'is_routing' => $meta['is_routing'],
-                'sort_order' => $meta['sort'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            DB::table('plan_info_fetch_settings')->insert(self::serviceDefaultRow($key, $meta));
         }
+    }
+
+    /**
+     * @param  array{label: string, is_routing: bool, sort: int, default_primary?: int|null, default_backup?: int|null, default_backup2?: int|null, default_backup3?: int|null, default_cache_ttl?: int, default_timeout?: int}  $meta
+     * @return array<string, mixed>
+     */
+    private static function serviceDefaultRow(string $key, array $meta): array
+    {
+        $row = [
+            'service_key' => $key,
+            'service_label' => $meta['label'],
+            'primary_api_id' => $meta['default_primary'] ?? null,
+            'backup_api_id' => $meta['default_backup'] ?? null,
+            'backup2_api_id' => $meta['default_backup2'] ?? null,
+            'backup3_api_id' => $meta['default_backup3'] ?? self::STOP_API_ID,
+            'is_enabled' => true,
+            'cache_ttl' => (int) ($meta['default_cache_ttl'] ?? 0),
+            'timeout_seconds' => (int) ($meta['default_timeout'] ?? 30),
+            'is_routing' => $meta['is_routing'],
+            'sort_order' => $meta['sort'],
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (str_starts_with($key, 'dth_customer_')) {
+            $parent = DB::table('plan_info_fetch_settings')->where('service_key', 'dth_customer')->first();
+            if ($parent) {
+                foreach ([
+                    'primary_api_id', 'primary_username', 'primary_password',
+                    'backup_api_id', 'backup_username', 'backup_password',
+                    'backup2_api_id', 'backup2_username', 'backup2_password',
+                    'backup3_api_id', 'backup3_username', 'backup3_password',
+                    'is_enabled', 'cache_ttl', 'timeout_seconds',
+                ] as $field) {
+                    $row[$field] = $parent->{$field};
+                }
+            }
+        }
+
+        return $row;
+    }
+
+    public static function dthCustomerServiceKey(int $providerId): string
+    {
+        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
+        if (str_contains($name, 'airtel')) {
+            return 'dth_customer_airtel';
+        }
+        if (str_contains($name, 'dish')) {
+            return 'dth_customer_dish';
+        }
+        if (str_contains($name, 'sun')) {
+            return 'dth_customer_sun';
+        }
+        if (str_contains($name, 'tata')) {
+            return 'dth_customer_tata';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return 'dth_customer_videocon';
+        }
+
+        return 'dth_customer';
     }
 
     public static function allSettings()
@@ -934,6 +1037,18 @@ class PlanInfoFetchService
     public static function fetchDthService(string $serviceKey, int $providerId, string $number): array
     {
         self::ensureTable();
+
+        if ($serviceKey === 'dth_customer') {
+            $specific = self::dthCustomerServiceKey($providerId);
+            if ($specific !== 'dth_customer') {
+                if (! DB::table('plan_info_fetch_settings')->where('service_key', $specific)->exists()) {
+                    self::seedDefaults();
+                }
+                if (DB::table('plan_info_fetch_settings')->where('service_key', $specific)->exists()) {
+                    $serviceKey = $specific;
+                }
+            }
+        }
 
         if (!self::isServiceEnabled($serviceKey)) {
             return [
