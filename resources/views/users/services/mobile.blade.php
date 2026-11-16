@@ -110,11 +110,11 @@
 
                                 <div>
 
-                                    <label class="form-label mb-0">State </label>
+                                    <label class="form-label mb-0">Circle </label>
 
                                     <select class="form-control state_id" name="state_id" id="state_id">
 
-                                        <option value="" selected>Select State</option>
+                                        <option value="" selected>Select Circle</option>
 
                                     </select>
 
@@ -274,7 +274,7 @@
 
                                 <tr>
 
-                                    <th>State Name : </th>
+                                    <th>Circle : </th>
 
                                     <th id="cd_state"></th>
 
@@ -924,7 +924,7 @@
 
             } else if (state_id == "") {
 
-                Error_Msg("Oops...", "Please Select State", "error");
+                Error_Msg("Oops...", "Please Select Circle", "error");
 
             } else if (amount == "") {
 
@@ -1430,7 +1430,7 @@
 
             if (state_id == "") {
 
-                Error_Msg("Oops...", "Please Select State", "error");
+                Error_Msg("Oops...", "Please Select Circle", "error");
 
             } else if (provider_id == "") {
 
