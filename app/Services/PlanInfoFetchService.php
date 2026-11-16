@@ -1067,12 +1067,19 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect only. MPlan's /api/v2/DTH_info redirects to the homepage,
-        // so MPlan stays on /api/Dthinfo.php below.
+        // PlanConnect only. MPlan's /api/v2/dth_info redirects to the homepage,
+        // so MPlan stays on /api/Dthinfo.php and sends the operator code there.
         if (! str_contains($host, 'mplan') && (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false)) {
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
                 .'&operatorCode='.urlencode($opcode);
+        }
+
+        if (str_contains($host, 'mplan')) {
+            $infoCode = self::mplanDthInfoCode($providerName);
+            if ($infoCode !== null) {
+                $opcode = $infoCode;
+            }
         }
 
         return $base . '/Dthinfo.php?apikey=' . urlencode($key)
@@ -3098,6 +3105,32 @@ class PlanInfoFetchService
         }
         if (str_contains($name, 'big tv') || str_contains($name, 'bigtv')) {
             return '26';
+        }
+
+        return null;
+    }
+
+    /**
+     * MPlan Dthinfo.php operator codes from the DTH info docs.
+     * Dish TV is 6. Tata Play 7, Videocon 11, Sun Direct 12, Airtel Digital TV 24.
+     */
+    private static function mplanDthInfoCode(string $providerName): ?string
+    {
+        $name = strtolower($providerName);
+        if (str_contains($name, 'tata')) {
+            return '7';
+        }
+        if (str_contains($name, 'airtel')) {
+            return '24';
+        }
+        if (str_contains($name, 'dish')) {
+            return '6';
+        }
+        if (str_contains($name, 'sun')) {
+            return '12';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return '11';
         }
 
         return null;
