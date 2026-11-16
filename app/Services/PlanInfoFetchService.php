@@ -1070,9 +1070,14 @@ class PlanInfoFetchService
         // PlanConnect only. MPlan customer info uses /apiv2/dth_info below.
         // The old /api/v2/dth_info path redirects to the homepage.
         if (! str_contains($host, 'mplan') && (self::isPlanConnectHost($host) || stripos($rawUrl, 'dthInfo') !== false)) {
+            $connectCode = self::planConnectDthOpcode((int) $api->id, $providerId, $providerName);
+            if ($connectCode === null) {
+                return null;
+            }
+
             return $base.'/dthInfo?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
-                .'&operatorCode='.urlencode($opcode);
+                .'&operatorCode='.urlencode($connectCode);
         }
 
         if (str_contains($host, 'mplan')) {
@@ -1091,9 +1096,7 @@ class PlanInfoFetchService
                 .'&operator_code='.urlencode($infoCode);
         }
 
-        return $base . '/Dthinfo.php?apikey=' . urlencode($key)
-            . '&operator=' . urlencode($opcode)
-            . '&tel=' . urlencode($number);
+        return null;
     }
 
     public static function buildDthHeavyUrl(object $api, int $providerId, string $number): ?string
@@ -3065,6 +3068,32 @@ class PlanInfoFetchService
     }
 
     /**
+     * PlanConnect dthInfo operator codes. These are not MPlan codes and not recharge ids.
+     * Airtel DTH ATDTH, Dish TV DISHTV, Sun Direct SUNDTH, Tata Sky TATASKY, Videocon D2H VDDTH.
+     */
+    private static function planConnectDthOpcode($apiId, int $providerId, string $providerName): ?string
+    {
+        $name = strtolower($providerName);
+        if (str_contains($name, 'airtel')) {
+            return 'ATDTH';
+        }
+        if (str_contains($name, 'dish')) {
+            return 'DISHTV';
+        }
+        if (str_contains($name, 'sun')) {
+            return 'SUNDTH';
+        }
+        if (str_contains($name, 'tata')) {
+            return 'TATASKY';
+        }
+        if (str_contains($name, 'videocon') || str_contains($name, 'd2h')) {
+            return 'VDDTH';
+        }
+
+        return null;
+    }
+
+    /**
      * PlanAPI DTH opcodes: 24 Airtel, 25 Dish, 27 Sun, 28 Tata Sky, 29 Videocon.
      * MPlan Dthinfo.php expects an operator name such as Sundirect, not a numeric code.
      */
@@ -3131,7 +3160,10 @@ class PlanInfoFetchService
             ->where('provider_id', $providerId)
             ->value('provider_code');
         $saved = trim((string) $saved);
-        if ($saved !== '' && $saved !== '0' && is_numeric($saved)) {
+        $name = strtolower($providerName);
+        $videoconRechargeId = (str_contains($name, 'videocon') || str_contains($name, 'd2h'))
+            && in_array($saved, ['8', '9', '10'], true);
+        if ($saved !== '' && $saved !== '0' && is_numeric($saved) && ! $videoconRechargeId) {
             return $saved;
         }
 
