@@ -855,9 +855,17 @@
         }
 
         function showDthInfo(data) {
+            var source = data || {};
+            if (source.DATA && typeof source.DATA === 'object') {
+                source = source.DATA;
+            } else if (source.records && typeof source.records === 'object' && !$.isArray(source.records)) {
+                source = source.records;
+            } else if ($.isArray(source.records) && source.records[0]) {
+                source = source.records[0];
+            }
             var rows = '';
             var monthly = '';
-            $.each(data || {}, function(key, val) {
+            $.each(source, function(key, val) {
                 if (val === null || val === '' || typeof val === 'object') {
                     return;
                 }

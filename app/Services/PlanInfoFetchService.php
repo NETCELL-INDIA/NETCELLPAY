@@ -954,6 +954,9 @@ class PlanInfoFetchService
             $serviceKey === 'dth_heavy_refresh' ? 6 : 7,
             true
         );
+        if ($serviceKey === 'dth_customer' && self::providerNameHas($providerId, 'sun')) {
+            $attempts = self::planApiAttemptsFirst($attempts);
+        }
 
         $lastMessage = $serviceKey === 'dth_heavy_refresh'
             ? 'Unable to refresh DTH info. Please try again.'
@@ -998,8 +1001,9 @@ class PlanInfoFetchService
             }
             $lastApiId = (int) $api->id;
             $lastMessage = $parsed['message'];
+            $customerReady = $serviceKey !== 'dth_customer' || self::dthInfoHasCustomer($parsed['data'] ?? []);
 
-            if ($parsed['ok']) {
+            if ($parsed['ok'] && $customerReady) {
                 if ($serviceKey === 'dth_heavy_refresh' && trim((string) ($parsed['message'] ?? '')) === '') {
                     $parsed['message'] = 'Heavy Refresh Successfully Completed';
                 }
@@ -1736,6 +1740,54 @@ class PlanInfoFetchService
         }
 
         return false;
+    }
+
+    private static function providerNameHas(int $providerId, string $needle): bool
+    {
+        $name = strtolower((string) DB::table('providers')->where('id', $providerId)->value('provider_name'));
+
+        return str_contains($name, strtolower($needle));
+    }
+
+    /**
+     * Sun Direct customer details come from PlanAPI. Try that API before MPlan.
+     *
+     * @param  list<array{api_id: mixed, username: mixed, password: mixed}>  $attempts
+     * @return list<array{api_id: mixed, username: mixed, password: mixed}>
+     */
+    private static function planApiAttemptsFirst(array $attempts): array
+    {
+        $plan = [];
+        $rest = [];
+        $seen = [];
+
+        foreach ($attempts as $attempt) {
+            $id = self::nullableApiId($attempt['api_id'] ?? null);
+            if ($id === null || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $row = DB::table('apis')->where('id', $id)->first(['id', 'api_name', 'api_url']);
+            if ($row && self::explicitPlanFamily($row) === 'planapi') {
+                $plan[] = $attempt;
+            } else {
+                $rest[] = $attempt;
+            }
+        }
+
+        if ($plan === [] && Schema::hasTable('apis')) {
+            $rows = DB::table('apis')->where('status', 1)->orderBy('id')->get(['id', 'api_name', 'api_url']);
+            foreach ($rows as $row) {
+                $id = (int) $row->id;
+                if (isset($seen[$id]) || self::explicitPlanFamily($row) !== 'planapi') {
+                    continue;
+                }
+                array_unshift($plan, ['api_id' => $id, 'username' => null, 'password' => null]);
+                break;
+            }
+        }
+
+        return array_merge($plan, $rest);
     }
 
     private static function explicitPlanFamily(object $api): ?string
@@ -3156,8 +3208,8 @@ class PlanInfoFetchService
             if (! is_scalar($value) && $value !== null) {
                 continue;
             }
-            $name = strtolower((string) $key);
-            if (! in_array($name, ['customername', 'name', 'balance', 'monthlyrecharge', 'planname', 'nextrechargedate', 'lastrechargeamount'], true)) {
+            $name = strtolower((string) preg_replace('/[^a-z0-9]/i', '', (string) $key));
+            if (! in_array($name, ['customername', 'name', 'balance', 'monthly', 'monthlyrecharge', 'plan', 'planname', 'nextrechargedate', 'lastrechargeamount', 'rmn'], true)) {
                 continue;
             }
             if (trim((string) $value) !== '') {
