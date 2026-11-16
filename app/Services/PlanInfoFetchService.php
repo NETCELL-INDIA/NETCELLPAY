@@ -3122,7 +3122,7 @@ class PlanInfoFetchService
     /**
      * Operator code saved for this MPlan API in Admin Operator Management.
      * Documented codes are used only when that API has no numeric code saved.
-     * Dish TV 6, Tata Play 7, Videocon 11, Sun Direct 12, Airtel Digital TV 24.
+     * Dish TV 6, Tata Play 7, Videocon d2h 11, Sun Direct 12, Airtel Digital TV 24.
      */
     private static function resolveMplanDthInfoCode($apiId, int $providerId, string $providerName): ?string
     {
@@ -3140,7 +3140,7 @@ class PlanInfoFetchService
 
     /**
      * MPlan apiv2/dth_info operator codes.
-     * Dish TV is 6. Tata Play 7, Videocon 11, Sun Direct 12, Airtel Digital TV 24.
+     * Dish TV is 6. Tata Play 7, Videocon d2h 11, Sun Direct 12, Airtel Digital TV 24.
      */
     private static function mplanDthInfoCode(string $providerName): ?string
     {
