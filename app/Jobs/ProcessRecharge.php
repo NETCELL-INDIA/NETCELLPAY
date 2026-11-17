@@ -158,6 +158,13 @@ class ProcessRecharge implements ShouldQueue
 
                 $provider_code = \helpers::ApiProviderCode($try_api_id, $this->provider_id);
                 $state_code = \helpers::ApiStateCode($try_api_id, $report->state_id);
+                if (\helpers::isMroboticsApi($api_details, (string) ($api_details->api_url ?? ''))
+                    && ($state_code === 0 || $state_code === '0' || $state_code === '' || $state_code === null)) {
+                    $circleName = DB::table('states')->where('id', (int) $report->state_id)->value('state_name');
+                    if (is_string($circleName) && trim($circleName) !== '') {
+                        $state_code = trim($circleName);
+                    }
+                }
 
                 $url = \helpers::applyApiUrlPlaceholders(
                     (string) $api_details->api_url,

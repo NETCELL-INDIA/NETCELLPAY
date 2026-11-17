@@ -150,11 +150,8 @@ class RechargeController extends Controller
             ));
 
         }
-		if(!$post->state_id){
-
-			$post['state_id'] = 40;
-
-        } 
+		$resolvedState = PlanInfoFetchService::resolvePortalStateId($post->input('state_id'), (string) $post->number);
+		$post['state_id'] = $resolvedState > 0 ? $resolvedState : 40; 
         if (isset($post->api_key)) {
 
             $rules = array(

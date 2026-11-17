@@ -3243,21 +3243,7 @@ class helpers
                     }
                 }
             }else if($route == 'state_wize'){
-                if (!\Illuminate\Support\Facades\Schema::hasTable('state_wize_switch')) {
-                    return 0;
-                }
-                $chk_state_wize_switch = DB::table('state_wize_switch')->where('provider_id', $post->provider_id)->where('state_id', $post->state_id)->where('status', 1)->first();
-                if ($chk_state_wize_switch) {
-                    $amounts = explode(",", $chk_state_wize_switch->amount);
-                    foreach ($amounts as $amount) {
-                        if ($post->amount == $amount) {
-                            $route_api_id = $chk_state_wize_switch->api_id;
-                        }
-                    }
-                    if($chk_state_wize_switch->amount == 0 ||$chk_state_wize_switch->amount == ""){
-                        $route_api_id = $chk_state_wize_switch->api_id;
-                    }
-                }
+                $route_api_id = self::stateWiseApiId($post, $user);
             }else{
                 $provider = DB::table('providers')->where('id', $post->provider_id)->first();
                 $route_api_id = (int) ($provider->api_id ?? 0);
@@ -3266,6 +3252,103 @@ class helpers
             return 0;
         }
         return $route_api_id;
+    }
+
+    public static function stateWiseApiId($post, $user): int
+    {
+        $providerId = (int) ($post->provider_id ?? 0);
+        $stateId = (int) ($post->state_id ?? 0);
+        $amount = (float) ($post->amount ?? 0);
+        $userId = (int) ($user->id ?? 0);
+        if ($providerId <= 0 || $stateId <= 0) {
+            return 0;
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('state_wize_switch')) {
+                $rows = DB::table('state_wize_switch')
+                    ->where('provider_id', $providerId)
+                    ->where('status', 1)
+                    ->whereIn('state_id', [$stateId, 0])
+                    ->orderByRaw('CASE WHEN state_id = ? THEN 0 ELSE 1 END', [$stateId])
+                    ->orderByDesc('id')
+                    ->get();
+                $allAmountsApi = 0;
+                foreach ($rows as $row) {
+                    if (! self::routingAmountMatches((string) ($row->amount ?? ''), $amount)) {
+                        continue;
+                    }
+                    if (self::routingAmountIsAll((string) ($row->amount ?? ''))) {
+                        if ($allAmountsApi === 0) {
+                            $allAmountsApi = (int) $row->api_id;
+                        }
+                        continue;
+                    }
+
+                    return (int) $row->api_id;
+                }
+                if ($allAmountsApi > 0) {
+                    return $allAmountsApi;
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('general_routings')) {
+                $rows = DB::table('general_routings')
+                    ->where('status', 'Active')
+                    ->where('provider_id', $providerId)
+                    ->where('circle_id', $stateId)
+                    ->orderBy('priority')
+                    ->orderByDesc('id')
+                    ->get();
+                foreach ($rows as $row) {
+                    $rowUser = (int) ($row->user_id ?? 0);
+                    if ($rowUser > 0 && $rowUser !== $userId) {
+                        continue;
+                    }
+                    if (! self::routingAmountMatches((string) ($row->amounts ?? ''), $amount)) {
+                        continue;
+                    }
+                    $apiId = (int) trim(explode(',', (string) ($row->primary_api_ids ?? ''))[0]);
+                    if ($apiId > 0) {
+                        return $apiId;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return 0;
+    }
+
+    public static function routingAmountIsAll(string $amounts): bool
+    {
+        $amounts = trim($amounts);
+
+        return $amounts === '' || $amounts === '0' || $amounts === '*' || strcasecmp($amounts, 'all') === 0;
+    }
+
+    public static function routingAmountMatches(string $amounts, float $amount): bool
+    {
+        if (self::routingAmountIsAll($amounts)) {
+            return true;
+        }
+        foreach (preg_split('/\s*,\s*/', $amounts) as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+            if (str_contains($part, '-')) {
+                [$from, $to] = array_pad(explode('-', $part, 2), 2, '');
+                if (is_numeric($from) && is_numeric($to) && $amount >= (float) $from && $amount <= (float) $to) {
+                    return true;
+                }
+            } elseif (is_numeric($part) && abs($amount - (float) $part) < 0.001) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static function normalizeUserPin($pin): string
