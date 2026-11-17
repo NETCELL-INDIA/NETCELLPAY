@@ -873,9 +873,9 @@ class RechargeController extends Controller
 
                                                             $data_show['type'] = "success";
 
-                                                            $data_show['remark'] = $api_result['remark'];
+                                                            $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
 
-                                                            $data_show['message'] = $api_result['remark'];
+                                                            $data_show['message'] = $data_show['remark'];
 
                                                             $data_show['commission'] = 0;
 
@@ -921,9 +921,9 @@ class RechargeController extends Controller
 
                                                 $data_show['type'] = "success";
 
-                                                $data_show['remark'] = $api_result['remark'];
+                                                $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
 
-                                                $data_show['message'] = $api_result['remark'];
+                                                $data_show['message'] = $data_show['remark'];
 
                                                 $data_show['commission'] = 0;
 
@@ -969,9 +969,9 @@ class RechargeController extends Controller
 
                                     $data_show['type'] = "success";
 
-                                    $data_show['remark'] = $api_result['remark'];
+                                    $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
 
-                                    $data_show['message'] = $api_result['remark'];
+                                    $data_show['message'] = $data_show['remark'];
 
                                     $data_show['commission'] = 0;
 
@@ -1025,9 +1025,9 @@ class RechargeController extends Controller
 
                         $data_show['type'] = "success";
 
-                        $data_show['remark'] = $api_result['remark'];
+                        $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
 
-                        $data_show['message'] = $api_result['remark'];
+                        $data_show['message'] = $data_show['remark'];
 
                         $data_show['commission'] = 0;
 
@@ -1542,6 +1542,10 @@ class RechargeController extends Controller
             $data['provider'] = $provider->provider_name . " - " . $service->service_name . " - " . $reports->path;
 
             $data['provider_name'] = $provider->provider_name;
+
+            if (in_array((string) ($reports->transaction_type ?? ''), ['Recharge', 'Bill Pay'], true)) {
+                $reports->remark = \helpers::retailerRechargeMessage($reports->status, $reports->total_amount, $reports->number, $reports->transaction_type);
+            }
 
             $data['data'] = $reports;
 

@@ -826,6 +826,28 @@ class helpers
         return 'Pending';
     }
 
+    public static function retailerRechargeMessage($status, $amount = null, $number = null, $kind = 'Recharge'): string
+    {
+        $kind = stripos((string) $kind, 'bill') !== false ? 'Bill Payment' : 'Recharge';
+        $statusWord = strtolower(trim((string) $status));
+        $detail = '';
+        if ($amount !== null && $amount !== '') {
+            $detail .= ' for Rs. '.$amount;
+        }
+        if ($number !== null && trim((string) $number) !== '') {
+            $detail .= ' on '.trim((string) $number);
+        }
+
+        if (in_array($statusWord, ['success', 'successful'], true)) {
+            return $kind.' Successful'.$detail.'.';
+        }
+        if (in_array($statusWord, ['failed', 'failure', 'fail', 'refunded'], true)) {
+            return $kind.' Failed'.$detail.'. The amount has been refunded to your wallet.';
+        }
+
+        return $kind.' Pending'.$detail.'.';
+    }
+
     public static function isApiPartnerPath($path): bool
     {
         return strcasecmp(trim((string) $path), 'Api') === 0;

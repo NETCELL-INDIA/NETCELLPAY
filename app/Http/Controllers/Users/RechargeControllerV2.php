@@ -350,8 +350,8 @@ class RechargeControllerV2 extends Controller
                                     }
                                     $data_show['operator_id'] = $api_result['operator_id'];
                                     $data_show['type'] = "success";
-                                    $data_show['remark'] = $api_result['remark'];
-                                    $data_show['message'] = $api_result['remark'];
+                                    $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
+                                    $data_show['message'] = $data_show['remark'];
                                     $data_show['commission'] = 0;
                                     $data_show['id'] = $report;
                                     $data_show['date_time'] = Carbon::now();
@@ -373,8 +373,8 @@ class RechargeControllerV2 extends Controller
                         }
                         $data_show['operator_id'] = $api_result['operator_id'];
                         $data_show['type'] = "success";
-                        $data_show['remark'] = $api_result['remark'];
-                        $data_show['message'] = $api_result['remark'];
+                        $data_show['remark'] = \helpers::retailerRechargeMessage($api_result['status'] ?? '', $total_amount, $post->number ?? '');
+                        $data_show['message'] = $data_show['remark'];
                         $data_show['commission'] = 0;
                         $data_show['id'] = $report;
                         $data_show['date_time'] = Carbon::now();
@@ -623,6 +623,9 @@ class RechargeControllerV2 extends Controller
             $data['message'] = "Get sucessfuly";
             $data['provider'] = $provider->provider_name." - ".$service->service_name." - ".$reports->path;
             $data['provider_name'] = $provider->provider_name;
+            if (in_array((string) ($reports->transaction_type ?? ''), ['Recharge', 'Bill Pay'], true)) {
+                $reports->remark = \helpers::retailerRechargeMessage($reports->status, $reports->total_amount, $reports->number, $reports->transaction_type);
+            }
             $data['data'] = $reports;
         }else{
             $data['type'] = 'error';

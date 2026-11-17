@@ -144,13 +144,17 @@ class AccountReportsController extends Controller
                 $debitCell = ($list->fund_type == 'Debit')
                     ? '<span class="text-danger fw-bold">₹ '.number_format($amt, 2).'</span>'
                     : '—';
-				$output .= '<tr>
+                $remark = (string) $list->remark;
+                if (in_array((string) $list->transaction_type, ['Recharge', 'Bill Pay'], true)) {
+                    $remark = \helpers::retailerRechargeMessage($list->status, $list->total_amount ?? $list->amount, $list->number ?? '', $list->transaction_type);
+                }
+                $output .= '<tr>
                 <td>' . e($list->transaction_date) . '</td>
                 <td>' . e($list->order_id) . '</td>
                 <td>
                     <span class="badge badge-gradient-info">' . e($list->transaction_type) . '</span>
                 </td>
-                <td>' . e($list->remark) . '</td>
+                <td>' . e($remark) . '</td>
                 <td class="text-end">' . $creditCell . '</td>
                 <td class="text-end">' . $debitCell . '</td>
                 <td class="text-end"> ₹ ' . number_format((float) $list->opening_balance, 2) . '</td>

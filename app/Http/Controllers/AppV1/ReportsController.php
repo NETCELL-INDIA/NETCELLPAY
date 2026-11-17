@@ -363,6 +363,11 @@ class ReportsController extends Controller
 
             $start = ($page - 1) * $limit;
             $list = $query->orderBy('reports.id', 'DESC')->offset($start)->limit($limit)->get();
+            foreach ($list as $row) {
+                if (in_array((string) ($row->transaction_type ?? ''), ['Recharge', 'Bill Pay'], true)) {
+                    $row->remark = \helpers::retailerRechargeMessage($row->status, $row->total_amount, $row->number ?? '', $row->transaction_type);
+                }
+            }
 
             return response()->json([
                 'type' => 'success',

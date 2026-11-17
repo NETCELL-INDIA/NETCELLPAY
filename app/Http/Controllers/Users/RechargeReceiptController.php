@@ -45,7 +45,7 @@ class RechargeReceiptController extends Controller
             'Operator ID: '.($report->operator_id ?: '-'),
             'Status: '.($report->status ?? ''),
             'Amount: Rs '.number_format((float) ($report->total_amount ?? $report->amount), 2, '.', ''),
-            'Remark: '.($report->remark ?? ''),
+            'Remark: '.\helpers::retailerRechargeMessage($report->status, $report->total_amount, $report->number, $report->transaction_type),
             'Support: '.($company->support_number ?? ''),
             'This is a transaction receipt. It is not a tax invoice.',
         ];
