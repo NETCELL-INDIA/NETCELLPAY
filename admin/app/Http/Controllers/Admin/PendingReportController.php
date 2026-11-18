@@ -23,15 +23,17 @@ class PendingReportController extends Controller
     private function rechargeApis()
     {
         $q = DB::table('apis')
-            ->where('deleted_at', '!=', 1)
             ->where('status', 1)
+            ->where(function ($w) {
+                $w->whereNull('deleted_at')->orWhere('deleted_at', '!=', 1);
+            })
             ->orderBy('api_name');
 
         if (Schema::hasColumn('apis', 'api_type')) {
             $q->where(function ($w) {
                 $w->whereNull('api_type')
                     ->orWhere('api_type', '')
-                    ->orWhere('api_type', 'recharge');
+                    ->orWhereRaw("LOWER(api_type) = 'recharge'");
             });
         }
 
@@ -135,7 +137,7 @@ class PendingReportController extends Controller
                     <td class="text-nowrap">
                         <button type="button" class="btn btn-sm btn-outline-info btn-check-status" data-id="' . e($list->id) . '" title="Ask supplier status. Does not send the recharge again.">Status</button>
                         <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '" title="Same API again">Resend</button>
-                        <button type="button" class="btn btn-sm btn-primary btn-row-rehit" data-id="' . e($list->id) . '" data-api-id="' . e((string) ($list->api_id ?? '')) . '" title="Rehit with selected / auto API">Rehit</button>
+                        <button type="button" class="btn btn-sm btn-primary btn-row-rehit" data-id="' . e($list->id) . '" data-api-id="' . e((string) ($list->api_id ?? '')) . '" title="Send this pending recharge to the API selected above">Resend</button>
                         <button type="button" class="btn btn-sm btn-outline-warning btn-check-callback" data-id="' . e($list->id) . '" data-order-id="' . e($list->order_id ?: '') . '">Callback</button>
                         <button type="button" class="btn btn-sm btn-outline-success btn-mark-success" data-id="' . e($list->id) . '" data-operator-id="' . e((string) ($list->operator_id ?? '')) . '">Success</button>
                         <button type="button" class="btn btn-sm btn-outline-danger btn-mark" data-id="' . e($list->id) . '" data-status="Failed">Fail</button>
@@ -424,6 +426,7 @@ class PendingReportController extends Controller
                 }
                 $apiId = (int) $resolved['api_id'];
                 $apiName = (string) ($resolved['api_name'] ?? $apiId);
+                $originalApiId = (int) ($report->api_id ?? 0);
 
                 DB::table('reports')->where('id', $id)->update([
                     'api_id' => $apiId,
@@ -433,7 +436,7 @@ class PendingReportController extends Controller
                 $report->api_id = $apiId;
                 DB::commit();
 
-                $sent = $this->sendToApi($report, $apiId, 'REHIT');
+                $sent = $this->sendToApi($report, $apiId, 'REHIT', $originalApiId);
                 if (! empty($sent['ok'])) {
                     $ok++;
                     $details[] = ($report->order_id ?: '#'.$id).' → '.$apiName.' → '.($sent['status'] ?? 'Pending').(($sent['message'] ?? '') !== '' ? ' ('.$sent['message'].')' : '');
@@ -563,7 +566,7 @@ class PendingReportController extends Controller
         return false;
     }
 
-    private function sendToApi(object $report, int $apiId, string $mode = 'RESEND'): array
+    private function sendToApi(object $report, int $apiId, string $mode = 'RESEND', int $originalApiId = 0): array
     {
         $api = DB::table('apis')->where('id', $apiId)->first();
         if (! $api || (int) $api->status !== 1) {
@@ -583,17 +586,26 @@ class PendingReportController extends Controller
         try {
             $providerCode = \Helper::ApiProviderCode($api->id, $report->provider_id);
             $stateCode = \Helper::ApiStateCode($api->id, $report->state_id ?? 0);
+            $template = $url;
+            if (\Helper::isMroboticsApi($api, $template)
+                && ($stateCode === 0 || $stateCode === '0' || $stateCode === '' || $stateCode === null)) {
+                $circleName = DB::table('states')->where('id', (int) ($report->state_id ?? 0))->value('state_name');
+                if (is_string($circleName) && trim($circleName) !== '') {
+                    $stateCode = trim($circleName);
+                }
+            }
 
-            $url = \Helper::applyApiUrlPlaceholders($url, $api, $report, $providerCode, $stateCode);
+            $url = \Helper::applyApiUrlPlaceholders($template, $api, $report, $providerCode, $stateCode);
 
             if (preg_match('/\{[A-Z0-9_]+\}/', $url)) {
                 return ['ok' => false, 'message' => 'API URL still has unreplaced placeholders. Check provider/state codes for this API.'];
             }
-            if ((string) $providerCode === '' || (string) $providerCode === '0') {
+            if (str_contains($template, '{PROVIDER_CODE}') && ((string) $providerCode === '' || (string) $providerCode === '0')) {
                 return ['ok' => false, 'message' => 'Provider code missing for API "'.($api->api_name ?? $apiId).'". Set operator code in API Provider Codes.'];
             }
 
-            if (\Helper::isMroboticsApi($api, $url)) {
+            $switchingApi = $originalApiId > 0 && $apiId !== $originalApiId;
+            if (! $switchingApi && \Helper::isMroboticsApi($api, $url)) {
                 $checked = $this->mroboticsBeforeRetry($api, $report);
                 if (! empty($checked['stop'])) {
                     return ['ok' => (bool) ($checked['ok'] ?? false), 'message' => (string) ($checked['message'] ?? 'MRobotics recharge was not sent again.')];

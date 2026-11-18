@@ -77,14 +77,14 @@
     <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <select class="form-select" id="rehit_api_id" style="width:auto;min-width:220px;" title="API used for Rehit">
+                <select class="form-select" id="rehit_api_id" style="width:auto;min-width:220px;" title="Pending recharge is sent again to this API">
                     <option value="auto">Auto (Routing Rehit API)</option>
                     <option value="same">Same API (current)</option>
                     @foreach($apis as $a)
                         <option value="{{ $a->id }}">{{ $a->api_name }}</option>
                     @endforeach
                 </select>
-                <button type="button" class="btn btn-primary" id="btnRehit" title="Rehit selected rows">Rehit Selected</button>
+                <button type="button" class="btn btn-primary" id="btnRehit" title="Send the selected pending recharges to the API chosen above">Resend on selected API</button>
                 <button type="button" class="btn btn-info" id="btnCheckStatus" title="Ask the supplier status URL. Does not send the recharge again.">Check status</button>
                 <span class="text-muted small d-none d-md-inline">Rehit never auto-refunds if API says Failed</span>
                 <div class="d-flex align-items-center gap-1">
@@ -397,12 +397,12 @@ $(function () {
         if (!ids.length) { alert('Select at least one transaction'); return; }
         if (!apiId) { alert('Select Rehit mode: Auto, Same API, or a specific API'); return; }
         var apiLabel = $('#rehit_api_id option:selected').text();
-        if (!confirm('Rehit ' + ids.length + ' transaction(s) via:\n' + apiLabel + '\n\nNote: If API returns Failed, status stays Pending (no auto refund).')) {
+        if (!confirm('Send ' + ids.length + ' pending recharge(s) again to:\n' + apiLabel + '\n\nThe selected API receives this order. A Failed reply stays Pending and is not refunded.')) {
             return;
         }
         $btn = $btn || $('#btnRehit');
-        idleLabel = idleLabel || 'Rehit Selected';
-        $btn.prop('disabled', true).text('Rehit...');
+        idleLabel = idleLabel || 'Resend on selected API';
+        $btn.prop('disabled', true).text('Sending...');
         $.ajax({
             url: '{{ route("pendingReportRehit") }}',
             method: 'POST',
@@ -425,7 +425,7 @@ $(function () {
     }
 
     $('#btnRehit').on('click', function () {
-        doRehit(selectedIds(), $(this), 'Rehit Selected');
+        doRehit(selectedIds(), $(this), 'Resend on selected API');
     });
 
     function checkSupplierStatus(ids, $btn, idleLabel) {
@@ -458,7 +458,7 @@ $(function () {
 
     $(document).on('click', '.btn-row-rehit', function () {
         var id = $(this).data('id');
-        doRehit([String(id)], $(this), 'Rehit');
+        doRehit([String(id)], $(this), 'Resend');
     });
 
     $(document).on('click', '.btn-resend', function () {
