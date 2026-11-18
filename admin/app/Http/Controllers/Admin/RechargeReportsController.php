@@ -2460,10 +2460,12 @@ class RechargeReportsController extends Controller
                 ->limit(40)
                 ->get();
             $providerLogs = $logs->filter(function ($log) {
-                return in_array((string) ($log->modal ?? ''), ['Recharge', 'Bill Pay', 'Bill Payment'], true);
+                return in_array((string) ($log->modal ?? ''), [
+                    'Recharge', 'Bill Pay', 'Bill Payment', 'REHIT', 'RESEND', 'StatusCheck',
+                ], true);
             })->values();
             if ($providerLogs->isNotEmpty()) {
-                $logs = $providerLogs->take(1);
+                $logs = $providerLogs->take(8);
             }
         }
 
