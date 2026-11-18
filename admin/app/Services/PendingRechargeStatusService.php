@@ -99,18 +99,23 @@ class PendingRechargeStatusService
         if ($actual === null) {
             $actual = \Helper::apiArrayGet($data, strtolower((string) ($api->status_value ?? '')));
         }
-        if ($actual === null && isset($data['Response'])) {
+        if ($actual === null && isset($data['Response']) && ! is_array($data['Response'])) {
             $actual = $data['Response'];
         }
-        if ($actual === null && isset($data['status'])) {
+        if ($actual === null && isset($data['status']) && ! is_array($data['status'])) {
             $actual = $data['status'];
         }
+        $remark = strtolower(trim((string) ($data['remark'] ?? $data['message'] ?? $data['Message'] ?? $data['response'] ?? '')));
+        $notFound = preg_match('/not found|invalid req|no record|no transaction|does not exist|no recharge/', $remark) === 1;
         $decision = \Helper::realChargeStatusDecision($api, $report, $data, $actual);
         $mapped = $decision ?? \Helper::mapApiLiveStatus($api, $actual, $data);
-        if ($decision !== 'Pending' && (
-            \Helper::apiValueMatches($actual, $api->success_value ?? '')
-            || in_array(strtoupper(trim((string) $actual)), ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)
-        )) {
+        if (\Helper::isMroboticsPayload($data)) {
+            $robo = \Helper::mroboticsOutcome($data);
+            if ($robo && ! $robo['session'] && $robo['status'] === 'Success') {
+                $mapped = 'Success';
+            }
+        }
+        if (! $notFound && self::payloadSaysSuccess($data, $api)) {
             $mapped = 'Success';
         }
         if ($mapped === null || $mapped === 'Pending') {
@@ -134,7 +139,7 @@ class PendingRechargeStatusService
 
             $opId = \Helper::sanitizeOperatorId(\Helper::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
             if ($opId === '') {
-                $opId = \Helper::sanitizeOperatorId($data['field1'] ?? '');
+                $opId = \Helper::sanitizeOperatorId($data['field1'] ?? $data['opid'] ?? $data['operatorRef'] ?? $data['txnId'] ?? $data['txid'] ?? '');
             }
             $msg = trim((string) ($data['remark'] ?? $data['Message'] ?? $data['message'] ?? ''));
             $status = $mapped === 'Success' ? 'Success' : 'Failed';
@@ -188,6 +193,67 @@ class PendingRechargeStatusService
                 ? 'Marked Success from supplier status'
                 : 'Marked Failed and refunded from supplier status',
         ];
+    }
+
+    public static function payloadSaysSuccess(array $data, object $api): bool
+    {
+        $statusNames = [
+            'status', 'txnstatus', 'transstatus', 'transactionstatus', 'rechargestatus',
+            'trstatus', 'responsestatus', 'statuscode', 'resstatus',
+        ];
+        $sawSuccess = false;
+        foreach (self::statusCandidates($data) as $item) {
+            if (! in_array($item['name'], $statusNames, true)) {
+                continue;
+            }
+            $value = $item['value'];
+            if (\Helper::apiValueMatches($value, $api->success_value ?? '')) {
+                $sawSuccess = true;
+                continue;
+            }
+            $word = strtoupper(trim($value));
+            if (in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)) {
+                $sawSuccess = true;
+            }
+        }
+
+        return $sawSuccess;
+    }
+
+    /** @return list<array{name:string,value:string}> */
+    private static function statusCandidates(array $data): array
+    {
+        $names = [
+            'status', 'txnstatus', 'transstatus', 'transactionstatus', 'rechargestatus',
+            'trstatus', 'responsestatus', 'statuscode', 'resstatus',
+        ];
+        $found = [];
+        $walk = function ($node, int $depth) use (&$walk, &$found, $names): void {
+            if ($depth > 4 || ! is_array($node)) {
+                return;
+            }
+            foreach ($node as $key => $value) {
+                if (is_array($value)) {
+                    $walk($value, $depth + 1);
+                    continue;
+                }
+                if (! is_scalar($value)) {
+                    continue;
+                }
+                $name = strtolower(preg_replace('/[^a-z]/', '', (string) $key) ?? '');
+                if (! in_array($name, $names, true)) {
+                    continue;
+                }
+                $text = trim((string) $value);
+                if ($text === '') {
+                    continue;
+                }
+                $found[] = ['name' => $name, 'value' => $text];
+            }
+        };
+        $walk($data, 0);
+
+        return $found;
     }
 
     public static function refundReport(int $reportId, string $remark): bool

@@ -657,7 +657,7 @@ class PendingReportController extends Controller
                         $heldPending = $decision === 'Pending';
                     }
                 }
-                if (! $heldPending && $this->supplierSaidSuccess($actual, $api)) {
+                if (! $heldPending && ($this->supplierSaidSuccess($actual, $api) || PendingRechargeStatusService::payloadSaysSuccess($data, $api))) {
                     $mapped = 'Success';
                 }
                 if ($mapped) {
