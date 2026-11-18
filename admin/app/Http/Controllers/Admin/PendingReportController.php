@@ -631,49 +631,62 @@ class PendingReportController extends Controller
             $apiOperatorId = '';
             $apiMsg = '';
             $remark = ($isRehit ? 'Rehit' : 'Resend').' via '.($api->api_name ?? 'API');
+            $data = \Helper::supplierPayload($response);
 
-            if ($response !== '' && (strtoupper((string) ($api->api_format ?? '')) === 'JSON' || str_starts_with(ltrim($response), '{'))) {
-                $data = json_decode($response, true);
-                if (is_array($data)) {
-                    $robo = \Helper::isMroboticsApi($api, $url) ? \Helper::mroboticsOutcome($data) : null;
-                    if ($robo && $robo['session']) {
-                        \Helper::alertMroboticsSession($report, $robo['reason']);
-                        DB::table('reports')->where('id', $report->id)->update([
-                            'status' => 'Pending',
-                            'remark' => \Helper::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $robo),
-                            'updated_at' => Carbon::now(),
-                        ]);
+            if ($data !== []) {
+                $robo = (\Helper::isMroboticsApi($api, $url) || \Helper::isMroboticsPayload($data))
+                    ? \Helper::mroboticsOutcome($data)
+                    : null;
+                if ($robo && $robo['session']) {
+                    \Helper::alertMroboticsSession($report, $robo['reason']);
+                    DB::table('reports')->where('id', $report->id)->update([
+                        'status' => 'Pending',
+                        'remark' => \Helper::mroboticsRemark('MRobotics session expired. Contact MRobotics to login again.', $robo),
+                        'updated_at' => Carbon::now(),
+                    ]);
 
-                        return ['ok' => false, 'message' => 'MRobotics session expired. Contact MRobotics to login again. Recharge was not treated as failed.'];
-                    }
-                    $actual = \Helper::apiArrayGet($data, $api->status_value ?? '');
-                    if ($actual === null && isset($data['Response'])) {
-                        $actual = $data['Response'];
-                    }
-                    if ($actual === null) {
-                        $actual = \Helper::apiArrayGet($data, $api->error_value ?? '');
-                    }
-                    $mapped = \Helper::mapApiLiveStatus($api, $actual, $data);
-                    if ($mapped) {
-                        $status = $mapped;
-                    }
-                    $operatorId = (string) (\Helper::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
-                    $apiOperatorId = (string) (\Helper::apiArrayGet($data, $api->order_id_value ?? '') ?? '');
-                    $apiMsg = (string) ($data['Message'] ?? $data['message'] ?? $data['msg'] ?? '');
-                    if ($status === 'Success') {
-                        $remark = ($isRehit ? 'Rehit' : 'Resend').' successful'.($apiMsg ? ' - '.$apiMsg : '');
-                    } elseif ($status === 'Failed') {
-                        // Rehit: keep Pending + no auto-refund (first hit may still be live at operator).
-                        if ($isRehit) {
-                            $status = 'Pending';
-                            $remark = 'Rehit API returned Failed — left Pending (no refund). Check Callback / mark Fail manually.'.($apiMsg ? ' — '.$apiMsg : '');
-                        } else {
-                            $remark = 'Resend failed'.($apiMsg ? ' - '.$apiMsg : '');
-                        }
-                    } else {
-                        $remark = ($isRehit ? 'Rehit' : 'Resend').' via '.($api->api_name ?? 'API').' — Pending'.($apiMsg ? ' - '.$apiMsg : '');
+                    return ['ok' => false, 'message' => 'MRobotics session expired. Contact MRobotics to login again. Recharge was not treated as failed.'];
+                }
+                $actual = $this->supplierStatusValue($data, $api);
+                $mapped = $robo ? $robo['status'] : \Helper::mapApiLiveStatus($api, $actual, $data);
+                $heldPending = false;
+                if (! $robo && (\Helper::isRealChargeApi($api, $url) || \Helper::isRealChargePayload($data))) {
+                    $decision = \Helper::realChargeStatusDecision($api, $report, $data, $actual);
+                    if ($decision !== null) {
+                        $mapped = $decision;
+                        $heldPending = $decision === 'Pending';
                     }
                 }
+                if (! $heldPending && $this->supplierSaidSuccess($actual, $api)) {
+                    $mapped = 'Success';
+                }
+                if ($mapped) {
+                    $status = $mapped;
+                }
+                $operatorId = (string) (\Helper::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
+                if ($operatorId === '') {
+                    $operatorId = (string) ($data['field1'] ?? $data['opid'] ?? $data['operatorRef'] ?? $data['txnId'] ?? '');
+                }
+                $apiOperatorId = (string) (\Helper::apiArrayGet($data, $api->order_id_value ?? '') ?? '');
+                $apiMsg = (string) ($data['Message'] ?? $data['message'] ?? $data['msg'] ?? $data['remark'] ?? '');
+                if ($robo && $robo['provider_txn'] !== '') {
+                    $operatorId = $robo['provider_txn'];
+                }
+                if ($status === 'Success') {
+                    $remark = ($isRehit ? 'Rehit' : 'Resend').' successful'.($apiMsg ? ' - '.$apiMsg : '');
+                } elseif ($status === 'Failed') {
+                    if ($isRehit) {
+                        $status = 'Pending';
+                        $remark = 'Rehit API returned Failed — left Pending (no refund). Check Callback / mark Fail manually.'.($apiMsg ? ' — '.$apiMsg : '');
+                    } else {
+                        $remark = 'Resend failed'.($apiMsg ? ' - '.$apiMsg : '');
+                    }
+                } else {
+                    $remark = ($isRehit ? 'Rehit' : 'Resend').' via '.($api->api_name ?? 'API').' — Pending'.($apiMsg ? ' - '.$apiMsg : '');
+                }
+            } elseif ($response !== '' && $this->supplierSaidSuccess(trim(strip_tags($response)), $api)) {
+                $status = 'Success';
+                $remark = ($isRehit ? 'Rehit' : 'Resend').' successful';
             } elseif ($response === '') {
                 $remark = ($isRehit ? 'Rehit' : 'Resend').' via '.($api->api_name ?? 'API').' — no response, left Pending';
             }
@@ -697,6 +710,16 @@ class PendingReportController extends Controller
             $report->operator_id = $operatorId !== '' ? $operatorId : ($report->operator_id ?? null);
             RehitRechargeHistoryController::logAttempt($report, (int) $api->id, $mode);
 
+            if ($status === 'Pending') {
+                $checked = PendingRechargeStatusService::checkOne((int) $report->id);
+                if (($checked['status'] ?? '') === 'Success') {
+                    return [
+                        'ok' => true,
+                        'status' => 'Success',
+                        'message' => (string) ($checked['message'] ?? 'Marked Success from supplier status'),
+                    ];
+                }
+            }
             if ($status === 'Success') {
                 try {
                     \Helper::SetCommission($report->id);
@@ -794,5 +817,45 @@ class PendingReportController extends Controller
         }
 
         return ['stop' => true, 'ok' => false, 'message' => 'MRobotics still has no final status. Recharge was not sent again.'];
+    }
+
+    private function supplierStatusValue(array $data, object $api)
+    {
+        $actual = \Helper::apiArrayGet($data, $api->status_value ?? '');
+        if ($actual === null) {
+            $actual = \Helper::apiArrayGet($data, strtolower((string) ($api->status_value ?? '')));
+        }
+        if ($actual === null && isset($data['Response']) && ! is_array($data['Response'])) {
+            $actual = $data['Response'];
+        }
+        if ($actual === null && isset($data['status']) && ! is_array($data['status'])) {
+            $actual = $data['status'];
+        }
+        if ($actual === null && isset($data['Status']) && ! is_array($data['Status'])) {
+            $actual = $data['Status'];
+        }
+        if ($actual === null && isset($data['data']) && is_array($data['data'])) {
+            foreach (['status', 'Status', 'STATUS', 'Response'] as $key) {
+                if (isset($data['data'][$key]) && ! is_array($data['data'][$key])) {
+                    $actual = $data['data'][$key];
+                    break;
+                }
+            }
+        }
+        if ($actual === null) {
+            $actual = \Helper::apiArrayGet($data, $api->error_value ?? '');
+        }
+
+        return $actual;
+    }
+
+    private function supplierSaidSuccess($actual, object $api): bool
+    {
+        if (\Helper::apiValueMatches($actual, $api->success_value ?? '')) {
+            return true;
+        }
+        $word = strtoupper(trim((string) $actual));
+
+        return in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true);
     }
 }

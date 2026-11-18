@@ -107,6 +107,12 @@ class PendingRechargeStatusService
         }
         $decision = \Helper::realChargeStatusDecision($api, $report, $data, $actual);
         $mapped = $decision ?? \Helper::mapApiLiveStatus($api, $actual, $data);
+        if ($decision !== 'Pending' && (
+            \Helper::apiValueMatches($actual, $api->success_value ?? '')
+            || in_array(strtoupper(trim((string) $actual)), ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)
+        )) {
+            $mapped = 'Success';
+        }
         if ($mapped === null || $mapped === 'Pending') {
             return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier still shows pending'];
         }
