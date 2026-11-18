@@ -136,7 +136,6 @@ class PendingReportController extends Controller
                     <td>' . e($list->api_name ?: '-') . '</td>
                     <td class="text-nowrap">
                         <button type="button" class="btn btn-sm btn-outline-info btn-check-status" data-id="' . e($list->id) . '" title="Ask supplier status. Does not send the recharge again.">Status</button>
-                        <button type="button" class="btn btn-sm btn-outline-primary btn-resend" data-id="' . e($list->id) . '" title="Same API again">Resend</button>
                         <button type="button" class="btn btn-sm btn-primary btn-row-rehit" data-id="' . e($list->id) . '" data-api-id="' . e((string) ($list->api_id ?? '')) . '" title="Send this pending recharge to the API selected above">Resend</button>
                         <button type="button" class="btn btn-sm btn-outline-warning btn-check-callback" data-id="' . e($list->id) . '" data-order-id="' . e($list->order_id ?: '') . '">Callback</button>
                         <button type="button" class="btn btn-sm btn-outline-success btn-mark-success" data-id="' . e($list->id) . '" data-operator-id="' . e((string) ($list->operator_id ?? '')) . '">Success</button>

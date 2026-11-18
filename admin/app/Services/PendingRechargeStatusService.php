@@ -52,6 +52,10 @@ class PendingRechargeStatusService
             }
         }
         if (! $api || $statusUrl === '') {
+            $logged = self::successFromLatestLog($report, $api);
+            if ($logged !== null) {
+                return self::applyMappedStatus($id, $api ?? (object) ['operator_id_value' => '', 'id' => 0], $logged, 'Success');
+            }
             self::touchChecked($id);
 
             return ['ok' => false, 'id' => $id, 'message' => 'Status check URL is not set for this API'];
@@ -86,13 +90,17 @@ class PendingRechargeStatusService
         self::touchChecked($id);
         $result = \Helper::curl($url, $method, '', [], 'yes', 'StatusCheck', (string) ($report->order_id ?: $id));
         $body = (string) ($result['response'] ?? '');
-        if ($body === '' || ! empty($result['error'])) {
-            return ['ok' => false, 'id' => $id, 'message' => 'Status API did not respond. Order left pending.'];
-        }
-
-        $data = \Helper::supplierPayload($body);
+        $data = $body !== '' ? \Helper::supplierPayload($body) : [];
         if ($data === []) {
-            return ['ok' => false, 'id' => $id, 'message' => 'Status response was not JSON or XML. Order left pending.'];
+            $logged = self::successFromLatestLog($report, $api);
+            if ($logged !== null) {
+                return self::applyMappedStatus($id, $api, $logged, 'Success');
+            }
+            $why = ($body === '' || ! empty($result['error']))
+                ? 'Status API did not respond. Order left pending.'
+                : 'Status response was not JSON or XML. Order left pending.';
+
+            return ['ok' => false, 'id' => $id, 'message' => $why];
         }
 
         $actual = \Helper::apiArrayGet($data, $api->status_value ?? '');
@@ -113,13 +121,33 @@ class PendingRechargeStatusService
             $robo = \Helper::mroboticsOutcome($data);
             if ($robo && ! $robo['session'] && $robo['status'] === 'Success') {
                 $mapped = 'Success';
+            } elseif ($robo && $robo['final_failure']) {
+                $mapped = 'Failed';
             }
         }
-        if (! $notFound && self::payloadSaysSuccess($data, $api)) {
+        if ($notFound) {
+            $mapped = ($mapped === 'Failed') ? 'Failed' : 'Pending';
+        } elseif (self::payloadSaysSuccess($data, $api)) {
             $mapped = 'Success';
         }
+        if (($mapped === null || $mapped === 'Pending') && ! self::payloadSaysFailed($data)) {
+            $logged = self::successFromLatestLog($report, $api);
+            if ($logged !== null) {
+                $data = $logged;
+                $mapped = 'Success';
+            }
+        }
         if ($mapped === null || $mapped === 'Pending') {
-            return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier still shows pending'];
+            $shown = trim(strip_tags((string) ($actual ?? '')));
+            $shown = trim((string) preg_replace('/\s+/', ' ', $shown));
+            if ($shown === '') {
+                $shown = 'pending';
+            }
+            if (strlen($shown) > 80) {
+                $shown = substr($shown, 0, 80);
+            }
+
+            return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Supplier status: '.$shown];
         }
 
         return self::applyMappedStatus($id, $api, $data, $mapped);
@@ -201,23 +229,76 @@ class PendingRechargeStatusService
             'status', 'txnstatus', 'transstatus', 'transactionstatus', 'rechargestatus',
             'trstatus', 'responsestatus', 'statuscode', 'resstatus',
         ];
+        $messageNames = ['message', 'msg', 'remark'];
         $sawSuccess = false;
+        $messageSuccess = false;
+        $statusBlocks = false;
         foreach (self::statusCandidates($data) as $item) {
-            if (! in_array($item['name'], $statusNames, true)) {
-                continue;
-            }
             $value = $item['value'];
-            if (\Helper::apiValueMatches($value, $api->success_value ?? '')) {
-                $sawSuccess = true;
-                continue;
-            }
             $word = strtoupper(trim($value));
-            if (in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)) {
-                $sawSuccess = true;
+            $isWord = in_array($word, ['SUCCESS', 'SUCCESSFUL', 'SUCCESSFULL'], true)
+                || \Helper::apiValueMatches($value, $api->success_value ?? '');
+            $messageHit = $isWord || (
+                preg_match('/\bsuccess(?:ful|full)?\b/i', $value) === 1
+                && preg_match('/\b(not|un)\s*success|\bfail|\bpending\b/i', $value) !== 1
+            );
+            if (in_array($item['name'], $statusNames, true)) {
+                if ($isWord) {
+                    $sawSuccess = true;
+                } elseif (in_array($word, ['PENDING', 'PROCESS', 'PROCESSING', 'FAILED', 'FAILURE', 'FAIL', '0', '2', '3'], true) && ! $isWord) {
+                    $statusBlocks = true;
+                }
+            } elseif (in_array($item['name'], $messageNames, true) && $messageHit) {
+                $messageSuccess = true;
             }
         }
 
-        return $sawSuccess;
+        return $sawSuccess || ($messageSuccess && ! $statusBlocks);
+    }
+
+    public static function payloadSaysFailed(array $data): bool
+    {
+        foreach (self::statusCandidates($data) as $item) {
+            $word = strtoupper(trim($item['value']));
+            if (in_array($word, ['FAILED', 'FAILURE', 'FAIL', 'REFUNDED', 'REFUND'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function successFromLatestLog(object $report, ?object $api): ?array
+    {
+        $orderId = trim((string) ($report->order_id ?? ''));
+        if ($orderId === '' || ! Schema::hasTable('apilogs') || ! $api) {
+            return null;
+        }
+        try {
+            $rows = DB::table('apilogs')
+                ->where('txnid', $orderId)
+                ->whereNotIn('modal', ['StatusCheck', 'MROBOTICS_SESSION', 'notification-error'])
+                ->orderByDesc('id')
+                ->limit(8)
+                ->get(['response']);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        foreach ($rows as $row) {
+            $body = trim((string) ($row->response ?? ''));
+            if ($body === '' || str_starts_with($body, '{"curl_error"')) {
+                continue;
+            }
+            $payload = \Helper::supplierPayload($body);
+            if ($payload === [] && preg_match('/\bSuccess(?:ful|full)?\b/i', $body) === 1 && preg_match('/\b(fail|pending)\b/i', $body) !== 1 && strlen($body) < 400 && ! str_contains($body, '<')) {
+                $payload = ['status' => 'Success'];
+            }
+            if ($payload !== [] && self::payloadSaysSuccess($payload, $api) && ! self::payloadSaysFailed($payload)) {
+                return $payload;
+            }
+        }
+
+        return null;
     }
 
     /** @return list<array{name:string,value:string}> */
@@ -225,7 +306,7 @@ class PendingRechargeStatusService
     {
         $names = [
             'status', 'txnstatus', 'transstatus', 'transactionstatus', 'rechargestatus',
-            'trstatus', 'responsestatus', 'statuscode', 'resstatus',
+            'trstatus', 'responsestatus', 'statuscode', 'resstatus', 'message', 'msg', 'remark',
         ];
         $found = [];
         $walk = function ($node, int $depth) use (&$walk, &$found, $names): void {
