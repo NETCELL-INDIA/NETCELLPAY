@@ -122,7 +122,7 @@ class ConsumptionReportController extends Controller
         $filename = 'consumption-report-' . date('Ymd-His') . '.csv';
         return response()->stream(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['SR NO', 'OPERATOR', 'CIRCLE', 'TXNS', 'MRP']);
+            fputcsv($out, ['SR NO', 'OPERATOR', 'STATE', 'TXNS', 'MRP']);
             $i = 1;
             foreach ($rows as $row) {
                 fputcsv($out, [$i++, $row->provider_name, $row->circle_name, $row->txns, $row->mrp]);

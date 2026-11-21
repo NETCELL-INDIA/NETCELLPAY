@@ -131,7 +131,7 @@ class AmountwiseReportController extends Controller
         $filename = 'amountwise-report-' . date('Ymd-His') . '.csv';
         return response()->stream(function () use ($rows, $grand) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['SR NO', 'OPERATOR', 'CIRCLE', 'API', 'STATUS', 'MRP', 'NO OF TXNS', 'TOTAL MRP', 'PERCENTAGE']);
+            fputcsv($out, ['SR NO', 'OPERATOR', 'STATE', 'API', 'STATUS', 'MRP', 'NO OF TXNS', 'TOTAL MRP', 'PERCENTAGE']);
             $i = 1;
             foreach ($rows as $row) {
                 $pct = $grand > 0 ? ((float) $row->total_mrp / $grand) * 100 : 0;

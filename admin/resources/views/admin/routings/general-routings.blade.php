@@ -29,9 +29,9 @@ General Routings
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="form-label fw-semibold">Circle</label>
+                <label class="form-label fw-semibold">State</label>
                 <select class="form-select" id="filter_circle">
-                    <option value="">All Circle</option>
+                    <option value="">All States</option>
                     @foreach($circles as $c)
                         <option value="{{ $c->id }}">{{ $c->state_name }}</option>
                     @endforeach
@@ -77,7 +77,7 @@ General Routings
                 <thead class="table-dark">
                     <tr>
                         <th>Operator</th>
-                        <th>Circle</th>
+                        <th>State</th>
                         <th>User</th>
                         <th>Amounts</th>
                         <th>Primary APIs</th>
@@ -127,9 +127,9 @@ General Routings
                             </select>
                         </div>
                         <div class="col-lg-3">
-                            <label class="form-label">Circle</label>
+                            <label class="form-label">State</label>
                             <select class="form-select" name="circle_id" id="form_circle">
-                                <option value="0">All Circles</option>
+                                <option value="0">All States</option>
                                 @foreach($circles as $c)
                                     <option value="{{ $c->id }}">{{ $c->state_name }}</option>
                                 @endforeach

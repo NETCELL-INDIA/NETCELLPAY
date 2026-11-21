@@ -13,8 +13,8 @@
             <div class="col-md-2"><label class="form-label mb-0">Operator</label>
                 <select class="form-select" id="provider_id"><option value="">Select Operator</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->provider_name }}</option>@endforeach</select>
             </div>
-            <div class="col-md-2"><label class="form-label mb-0">Circle</label>
-                <select class="form-select" id="circle_id"><option value="">Select Circle</option>@foreach($circles as $c)<option value="{{ $c->id }}">{{ $c->state_name }}</option>@endforeach</select>
+            <div class="col-md-2"><label class="form-label mb-0">State</label>
+                <select class="form-select" id="circle_id"><option value="">Select State</option>@foreach($circles as $c)<option value="{{ $c->id }}">{{ $c->state_name }}</option>@endforeach</select>
             </div>
             <div class="col-md-auto d-flex gap-2">
                 <button type="button" class="btn btn-success" id="btnSubmit">Submit</button>

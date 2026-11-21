@@ -61,7 +61,7 @@
             <div class="col-md-auto">
                 <div class="form-check mt-4">
                     <input class="form-check-input" type="checkbox" id="circle_wise" value="1">
-                    <label class="form-check-label" for="circle_wise">Circle Wise</label>
+                    <label class="form-check-label" for="circle_wise">State Wise</label>
                 </div>
             </div>
             <div class="col-md-auto d-flex gap-2">
@@ -101,7 +101,7 @@
                     <tr>
                         <th>SR NO</th>
                         <th>OPERATOR</th>
-                        <th>CIRCLE</th>
+                        <th>STATE</th>
                         <th>TXNS</th>
                         <th>MRP</th>
                         <th>MARGIN</th>

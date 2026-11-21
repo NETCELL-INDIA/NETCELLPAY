@@ -134,7 +134,7 @@
                         <th>Date</th>
                         <th>User</th>
                         <th>Operator</th>
-                        <th>Circle</th>
+                        <th>State</th>
                         <th>Number</th>
                         <th class="text-end">Amount</th>
                         <th class="text-end">Commission</th>
@@ -382,7 +382,7 @@ function editStatus(id, status, operator_id, meta) {
     if (meta.row_id) parts.push('#' + meta.row_id);
     if (meta.amount !== undefined && meta.amount !== '') parts.push('Amount: ₹' + meta.amount);
     if (meta.provider) parts.push('Operator: ' + meta.provider);
-    if (meta.circle) parts.push('Circle: ' + meta.circle);
+    if (meta.circle) parts.push('State: ' + meta.circle);
     if (meta.user) parts.push('User: ' + meta.user);
     if (meta.api) parts.push('API: ' + meta.api);
     if (meta.date) parts.push(meta.date);

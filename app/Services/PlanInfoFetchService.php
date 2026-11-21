@@ -3145,20 +3145,11 @@ class PlanInfoFetchService
             ?? ($data['data']['operator'] ?? null)
             ?? ($data['data']['operatorName'] ?? null)
         );
-        $circleName = self::hlrNonEmpty(
-            $data['Circle']
-            ?? $data['circle']
-            ?? $data['circleName']
-            ?? $data['CircleName']
-            ?? $data['state']
-            ?? $data['State']
-            ?? ($data['data']['Circle'] ?? null)
-            ?? ($data['data']['circle'] ?? null)
-            ?? ($data['data']['circleName'] ?? null)
-            ?? ($data['data']['CircleName'] ?? null)
-            ?? ($data['data']['state'] ?? null)
-            ?? ($data['data']['State'] ?? null)
-        );
+        $stateName = self::hlrLocationName($data, ['state', 'statename', 'state_name']);
+        $circleName = $stateName ?? self::hlrLocationName($data, ['circle', 'circlename', 'circle_name']);
+        if ($stateName !== null) {
+            $circleCode = null;
+        }
 
         if ($opCode === null && $operatorName === null) {
             $message = ($apiMessage !== null && $apiMessage !== '')
@@ -3187,6 +3178,10 @@ class PlanInfoFetchService
         }
         if ($circleName !== null) {
             $data['Circle'] = $circleName;
+            $data['State'] = $circleName;
+        }
+        if ($stateName !== null) {
+            unset($data['CircleCode']);
         }
 
         return self::hlrResult(true, 'Get Successfully', $data, $apiId, $body);
@@ -3646,6 +3641,47 @@ class PlanInfoFetchService
         );
     }
 
+    /**
+     * Operator lookup sends both Circle and State. Circle was Andaman for Karnataka numbers.
+     * State is the portal circle.
+     *
+     * @param  list<string>  $keys
+     */
+    private static function hlrLocationName(array $data, array $keys): ?string
+    {
+        $sources = [$data];
+        if (isset($data['data']) && is_array($data['data']) && ! array_is_list($data['data'])) {
+            $sources[] = $data['data'];
+        }
+        if (isset($data['records']) && is_array($data['records']) && ! array_is_list($data['records'])) {
+            $sources[] = $data['records'];
+        }
+        foreach ($sources as $source) {
+            $lower = array_change_key_case($source, CASE_LOWER);
+            foreach ($keys as $key) {
+                $value = self::hlrPlaceName($lower[strtolower($key)] ?? null);
+                if ($value !== null) {
+                    return $value;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function hlrPlaceName($value): ?string
+    {
+        $value = self::hlrNonEmpty($value);
+        if ($value === null || ctype_digit($value)) {
+            return null;
+        }
+        if (preg_match('/^(success|failed|failure|fail|pending|error|true|false|active|ok|yes|no)$/i', $value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
     private static function hlrNonEmpty($value): ?string
     {
         if ($value === null) {
@@ -3776,9 +3812,10 @@ class PlanInfoFetchService
     public static function mapHlrToPortal(?int $apiId, array $data): array
     {
         $opCode = self::hlrNonEmpty($data['OpCode'] ?? null);
-        $circleCode = self::hlrNonEmpty($data['CircleCode'] ?? null);
         $operatorName = self::hlrNonEmpty($data['Operator'] ?? $data['operator'] ?? null);
-        $circleName = self::hlrNonEmpty($data['Circle'] ?? $data['circle'] ?? null);
+        $stateName = self::hlrLocationName($data, ['state', 'statename', 'state_name']);
+        $circleName = $stateName ?? self::hlrLocationName($data, ['circle', 'circlename', 'circle_name']);
+        $circleCode = $stateName !== null ? null : self::hlrNonEmpty($data['CircleCode'] ?? null);
 
         $provider = null;
         if ($apiId && $opCode !== null) {
@@ -3902,21 +3939,7 @@ class PlanInfoFetchService
             }
         }
 
-        $best = null;
-        $bestLen = 0;
-        foreach ($states as $state) {
-            $value = self::normalizeLookupName((string) ($state->state_name ?? ''));
-            if (strlen($value) < 4) {
-                continue;
-            }
-            $matched = str_starts_with($needle, $value) || str_starts_with($value, $needle);
-            if ($matched && strlen($value) > $bestLen) {
-                $best = $state;
-                $bestLen = strlen($value);
-            }
-        }
-
-        return $best;
+        return null;
     }
 
     private static function normalizeLookupName(string $name): string

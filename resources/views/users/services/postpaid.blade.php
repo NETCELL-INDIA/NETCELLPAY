@@ -31,9 +31,9 @@
                             </select>
                         </div>
                         <div class="col-lg-2">
-                            <label class="form-label mb-0">Circle</label>
+                            <label class="form-label mb-0">State</label>
                             <select class="form-control" id="state_id">
-                                <option value="">Select Circle</option>
+                                <option value="">Select State</option>
                             </select>
                         </div>
                         <div class="col-lg-2">
@@ -106,7 +106,7 @@
                 } else {
                     $('#operator_down_note').hide();
                 }
-                $('#state_id').empty().append('<option value="">Select Circle</option>');
+                $('#state_id').empty().append('<option value="">Select State</option>');
                 $.each(res.state || [], function (k, v) {
                     $('#state_id').append('<option value="' + v.id + '">' + v.state_name + '</option>');
                 });

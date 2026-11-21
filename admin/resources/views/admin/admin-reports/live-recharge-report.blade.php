@@ -378,7 +378,7 @@
                         <th>Date &amp; Time</th>
                         <th>User Details</th>
                         <th>Operator</th>
-                        <th>Circle</th>
+                        <th>State</th>
                         <th>Number</th>
                         <th>MRP</th>
                         <th>Status</th>

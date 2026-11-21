@@ -47,7 +47,7 @@
                     <label class="form-label" for="provider_id">Operator</label>
                     <label class="recharge-child-check" for="circle_wise">
                         <input class="form-check-input" type="checkbox" id="circle_wise">
-                        <span>Circle wise</span>
+                        <span>State wise</span>
                     </label>
                 </div>
                 <select class="form-select form-select-sm" id="provider_id"><option value="">All</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->provider_name }}</option>@endforeach</select>
@@ -70,7 +70,7 @@
             <span class="text-muted small">entries</span></div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped mb-0">
-                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>CIRCLE</th><th>TXNS</th><th>MRP</th></tr></thead>
+                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>STATE</th><th>TXNS</th><th>MRP</th></tr></thead>
                 <tbody id="body"><tr><td colspan="5" class="text-center text-muted py-4">No data available in table</td></tr></tbody>
             </table>
         </div>

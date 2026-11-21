@@ -226,7 +226,7 @@ class MarginReportController extends Controller
 
         $callback = function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['SR NO', 'OPERATOR', 'CIRCLE', 'TXNS', 'MRP', 'MARGIN', 'CHILD MARGIN', 'SURCHARGE', 'BONUS', 'R-OFFER']);
+            fputcsv($out, ['SR NO', 'OPERATOR', 'STATE', 'TXNS', 'MRP', 'MARGIN', 'CHILD MARGIN', 'SURCHARGE', 'BONUS', 'R-OFFER']);
             $i = 1;
             foreach ($rows as $row) {
                 fputcsv($out, [

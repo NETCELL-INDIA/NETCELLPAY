@@ -308,7 +308,7 @@ class RechargeReportsController extends Controller
 
         $callback = function () use ($reports) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'Circle', 'Number', 'Recharge', 'Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
+            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'State', 'Number', 'Recharge', 'Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
             foreach ($reports as $list) {
                 fputcsv($out, [
                     $list->order_id ?: ('R' . $list->id),

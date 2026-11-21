@@ -15,10 +15,10 @@
             <div class="col-md-3"><label class="form-label mb-0">User / Client</label><select class="form-select" id="user_id"><option value=""></option></select></div>
             <div class="col-md-2"><label class="form-label mb-0">Service Type</label><select class="form-select" id="service_id"><option value="">All Services</option>@foreach($services as $s)<option value="{{ $s->id }}">{{ strtoupper($s->service_name) }}</option>@endforeach</select></div>
             <div class="col-md-2"><label class="form-label mb-0">Operator</label><select class="form-select" id="provider_id"><option value="">Select Operator</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->provider_name }}</option>@endforeach</select></div>
-            <div class="col-md-2"><label class="form-label mb-0">Circle</label><select class="form-select" id="circle_id"><option value="">Select Circle</option>@foreach($circles as $c)<option value="{{ $c->id }}">{{ $c->state_name }}</option>@endforeach</select></div>
+            <div class="col-md-2"><label class="form-label mb-0">State</label><select class="form-select" id="circle_id"><option value="">Select State</option>@foreach($circles as $c)<option value="{{ $c->id }}">{{ $c->state_name }}</option>@endforeach</select></div>
             <div class="col-md-2"><label class="form-label mb-0">Status</label><select class="form-select" id="status"><option value="">Select Status</option><option value="Success">Success</option><option value="Pending">Pending</option><option value="Failure">Failure</option><option value="Refunded">Refunded</option></select></div>
             <div class="col-md-auto"><label class="form-label mb-0 d-block">View By</label>
-                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="view_circle"><label class="form-check-label" for="view_circle">Circle</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="view_circle"><label class="form-check-label" for="view_circle">State</label></div>
                 <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="view_api"><label class="form-check-label" for="view_api">API</label></div>
             </div>
             <div class="col-md-auto d-flex gap-2"><button type="button" class="btn btn-success" id="btnSearch">Search Transactions</button><button type="button" class="btn btn-info" id="btnDownload">Download</button></div>
@@ -30,7 +30,7 @@
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-bordered table-striped mb-0">
-                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>CIRCLE</th><th>API</th><th>STATUS</th><th>MRP</th><th>NO OF TXNS</th><th>TOTAL MRP</th><th>PERCENTAGE</th></tr></thead>
+                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>STATE</th><th>API</th><th>STATUS</th><th>MRP</th><th>NO OF TXNS</th><th>TOTAL MRP</th><th>PERCENTAGE</th></tr></thead>
                 <tbody id="body"><tr><td colspan="9" class="text-center text-muted py-4">No data available in table</td></tr></tbody>
             </table>
         </div>

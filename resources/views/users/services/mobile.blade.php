@@ -110,11 +110,11 @@
 
                                 <div>
 
-                                    <label class="form-label mb-0">Circle </label>
+                                    <label class="form-label mb-0">State </label>
 
                                     <select class="form-control state_id" name="state_id" id="state_id">
 
-                                        <option value="" selected>Select Circle</option>
+                                        <option value="" selected>Select State</option>
 
                                     </select>
 
@@ -274,7 +274,7 @@
 
                                 <tr>
 
-                                    <th>Circle : </th>
+                                    <th>State : </th>
 
                                     <th id="cd_state"></th>
 
@@ -878,7 +878,7 @@
 
 
 
-                    $('#state_id').empty().append('<option value="" selected>Select Circle</option>');
+                    $('#state_id').empty().append('<option value="" selected>Select State</option>');
 
                     $.each(res.state, function(k, v) {
 
@@ -924,7 +924,7 @@
 
             } else if (state_id == "") {
 
-                Error_Msg("Oops...", "Please Select Circle", "error");
+                Error_Msg("Oops...", "Please Select State", "error");
 
             } else if (amount == "") {
 
@@ -1255,11 +1255,24 @@
 
                         $(".provider_id").val(data.provider_id).change();
 
-                        if (data.state_id && $(".state_id option[value='" + data.state_id + "']").length === 0 && data.state_name) {
-                            $(".state_id").append($('<option>').val(data.state_id).text(String(data.state_name).toUpperCase()));
+                        var apiState = $.trim(data.state_name || '');
+                        var matched = '';
+                        if (apiState) {
+                            $(".state_id option").each(function () {
+                                if ($.trim($(this).text()).toUpperCase() === apiState.toUpperCase()) {
+                                    matched = $(this).val();
+                                }
+                            });
                         }
-
-                        $(".state_id").val(String(data.state_id)).change();
+                        if (!matched && apiState) {
+                            matched = apiState;
+                            if ($(".state_id option[value='" + apiState.replace(/'/g, '') + "']").length === 0) {
+                                $(".state_id").append($('<option>').val(apiState).text(apiState.toUpperCase()));
+                            }
+                        }
+                        if (matched) {
+                            $(".state_id").val(String(matched)).change();
+                        }
 
                     } else if (data.message) {
 
@@ -1434,7 +1447,7 @@
 
             if (state_id == "") {
 
-                Error_Msg("Oops...", "Please Select Circle", "error");
+                Error_Msg("Oops...", "Please Select State", "error");
 
             } else if (provider_id == "") {
 
