@@ -935,12 +935,35 @@ table thead.table-dark > tr > th {
     border-radius: 0;
     overflow: hidden;
 }
+.modal-dialog.modal-lg .modal-content > form,
+.modal-dialog.modal-xl .modal-content > form,
+.modal-dialog.modal-fullscreen .modal-content > form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
 .modal-dialog.modal-lg .modal-body,
 .modal-dialog.modal-xl .modal-body,
 .modal-dialog.modal-fullscreen .modal-body {
-    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
     background-color: #fff !important;
     color: #212529 !important;
+}
+.modal-dialog.modal-lg .modal-body::-webkit-scrollbar,
+.modal-dialog.modal-xl .modal-body::-webkit-scrollbar,
+.modal-dialog.modal-fullscreen .modal-body::-webkit-scrollbar {
+    width: 12px;
+}
+.modal-dialog.modal-lg .modal-body::-webkit-scrollbar-thumb,
+.modal-dialog.modal-xl .modal-body::-webkit-scrollbar-thumb,
+.modal-dialog.modal-fullscreen .modal-body::-webkit-scrollbar-thumb {
+    background: #16356e;
+    border-radius: 8px;
 }
 .modal-footer {
     background-color: #fff !important;
