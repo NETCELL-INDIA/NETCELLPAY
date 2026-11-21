@@ -182,6 +182,15 @@ class helpers
             $agent = $outlet !== '' ? $outlet : $mobile;
         }
 
+        $circleName = self::reportCircleName($report);
+        $stateCode = trim((string) $stateCode);
+        $isRealRobo = str_contains(strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '').' '.$url)), 'realrobo');
+        if ($isRealRobo && $circleName !== '' && ($stateCode === '' || $stateCode === '0')) {
+            $stateCode = $circleName;
+        }
+        $circleOut = $circleName === '' ? '' : rawurlencode($circleName);
+        $stateOut = ($isRealRobo && preg_match('/\s/', $stateCode)) ? rawurlencode($stateCode) : $stateCode;
+
         $replacements = [
             '{API_USERNAME}' => (string) ($api->api_username ?? ''),
             '{API_PASSWORD}' => (string) ($api->api_password ?? ''),
@@ -189,7 +198,10 @@ class helpers
             '{NUMBER}' => (string) ($report->number ?? ''),
             '{MN}' => (string) ($report->number ?? ''),
             '{PROVIDER_CODE}' => (string) $providerCode,
-            '{STATE_CODE}' => (string) $stateCode,
+            '{STATE_CODE}' => (string) $stateOut,
+            '{CIRCLE}' => $circleOut,
+            '{CIRCLE_NAME}' => $circleOut,
+            '{STATE_NAME}' => $circleOut,
             '{AMOUNT}' => (string) ($report->total_amount ?? $report->amount ?? ''),
             '{ORDER_ID}' => (string) ($report->order_id ?? ''),
             '{REQUEST_ORDER_ID}' => (string) ($report->request_order_id ?? $report->order_id ?? ''),
@@ -204,7 +216,26 @@ class helpers
             $replacements['{ORDER_ID}'] = $replacements['{REQID}'];
         }
 
-        return str_replace(array_keys($replacements), array_values($replacements), $url);
+        $built = str_replace(array_keys($replacements), array_values($replacements), $url);
+        $isRechargeUrl = trim($url) !== '' && trim($url) === trim((string) ($api->api_url ?? ''));
+        if ($isRealRobo && $isRechargeUrl && $circleName !== '' && ! preg_match('/(?:circle|cricle|state)(?:_?code)?=/i', $built)) {
+            $built .= (str_contains($built, '?') ? '&' : '?').'circle='.$circleOut;
+        }
+
+        return $built;
+    }
+
+    public static function reportCircleName($report): string
+    {
+        $stateId = (int) ($report->state_id ?? 0);
+        if ($stateId < 1) {
+            return '';
+        }
+        try {
+            return trim((string) DB::table('states')->where('id', $stateId)->value('state_name'));
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     public static function ensureHotIndexes(): void

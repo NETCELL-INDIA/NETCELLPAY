@@ -240,7 +240,7 @@
 
                                 <div>
 
-                                    <label for="api_url" class="col-form-label">Api URL: {API_USERNAME},{API_KEY},{NUMBER},{AMOUNT},{PROVIDER_CODE},{ORDER_ID},{STATE_CODE},{OUTLET_NAME},{USER_MOBILE},{AGENT_NAME},{USER_ID}</label>
+                                    <label for="api_url" class="col-form-label">Api URL: {API_USERNAME},{API_KEY},{NUMBER},{AMOUNT},{PROVIDER_CODE},{ORDER_ID},{STATE_CODE},{CIRCLE},{OUTLET_NAME},{USER_MOBILE},{AGENT_NAME},{USER_ID}</label>
 
                                     <textarea class="form-control" name="api_url" id="api_url"></textarea>
 
