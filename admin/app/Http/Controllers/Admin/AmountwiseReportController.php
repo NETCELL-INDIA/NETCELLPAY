@@ -59,19 +59,20 @@ class AmountwiseReportController extends Controller
         return $q;
     }
 
-    public function list(Request $request)
+    private function grouped(Request $request)
     {
         $byCircle = $request->view_circle == 1;
         $byApi = $request->view_api == 1;
+        $mrp = 'COALESCE(r.total_amount, r.amount)';
 
         $select = [
             'p.provider_name',
             'r.status',
-            'r.amount',
+            DB::raw($mrp . ' as amount'),
             DB::raw('COUNT(r.id) as no_of_txns'),
-            DB::raw('SUM(r.amount) as total_mrp'),
+            DB::raw('SUM(' . $mrp . ') as total_mrp'),
         ];
-        $group = ['r.provider_id', 'p.provider_name', 'r.status', 'r.amount'];
+        $group = ['r.provider_id', 'p.provider_name', 'r.status', DB::raw($mrp)];
 
         if ($byCircle) {
             $select[] = 'st.state_name as circle_name';
@@ -88,7 +89,12 @@ class AmountwiseReportController extends Controller
             $select[] = DB::raw("'ALL' as api_name");
         }
 
-        $rows = $this->base($request)->select($select)->groupBy($group)->orderBy('p.provider_name')->orderBy('r.amount')->get();
+        return $this->base($request)->select($select)->groupBy($group)->orderBy('p.provider_name')->orderByRaw($mrp)->get();
+    }
+
+    public function list(Request $request)
+    {
+        $rows = $this->grouped($request);
         $grand = (float) $rows->sum('total_mrp');
         $sumTxn = (int) $rows->sum('no_of_txns');
 
@@ -120,33 +126,12 @@ class AmountwiseReportController extends Controller
 
     public function download(Request $request)
     {
-        $request->merge(['view_circle' => $request->view_circle, 'view_api' => $request->view_api]);
-        $res = json_decode($this->list($request)->getContent(), true);
-        // rebuild simple CSV via same grouping
-        $byCircle = $request->view_circle == 1;
-        $byApi = $request->view_api == 1;
-        $select = ['p.provider_name', 'r.status', 'r.amount', DB::raw('COUNT(r.id) as no_of_txns'), DB::raw('SUM(r.amount) as total_mrp')];
-        $group = ['r.provider_id', 'p.provider_name', 'r.status', 'r.amount'];
-        if ($byCircle) {
-            $select[] = 'st.state_name as circle_name';
-            $group[] = 'r.state_id';
-            $group[] = 'st.state_name';
-        } else {
-            $select[] = DB::raw("'ALL' as circle_name");
-        }
-        if ($byApi) {
-            $select[] = 'a.api_name';
-            $group[] = 'r.api_id';
-            $group[] = 'a.api_name';
-        } else {
-            $select[] = DB::raw("'ALL' as api_name");
-        }
-        $rows = $this->base($request)->select($select)->groupBy($group)->orderBy('p.provider_name')->get();
+        $rows = $this->grouped($request);
         $grand = (float) $rows->sum('total_mrp');
         $filename = 'amountwise-report-' . date('Ymd-His') . '.csv';
         return response()->stream(function () use ($rows, $grand) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['SR NO', 'OPERATOR', 'CIRCLE', 'API', 'STATUS', 'AMOUNT', 'NO OF TXNS', 'TOTAL MRP', 'PERCENTAGE']);
+            fputcsv($out, ['SR NO', 'OPERATOR', 'CIRCLE', 'API', 'STATUS', 'MRP', 'NO OF TXNS', 'TOTAL MRP', 'PERCENTAGE']);
             $i = 1;
             foreach ($rows as $row) {
                 $pct = $grand > 0 ? ((float) $row->total_mrp / $grand) * 100 : 0;

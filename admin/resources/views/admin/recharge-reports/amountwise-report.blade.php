@@ -30,7 +30,7 @@
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-bordered table-striped mb-0">
-                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>CIRCLE</th><th>API</th><th>STATUS</th><th>AMOUNT</th><th>NO OF TXNS</th><th>TOTAL MRP</th><th>PERCENTAGE</th></tr></thead>
+                <thead class="table-dark"><tr><th>SR NO</th><th>OPERATOR</th><th>CIRCLE</th><th>API</th><th>STATUS</th><th>MRP</th><th>NO OF TXNS</th><th>TOTAL MRP</th><th>PERCENTAGE</th></tr></thead>
                 <tbody id="body"><tr><td colspan="9" class="text-center text-muted py-4">No data available in table</td></tr></tbody>
             </table>
         </div>
