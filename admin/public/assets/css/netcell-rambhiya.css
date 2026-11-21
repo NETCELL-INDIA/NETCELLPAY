@@ -704,6 +704,45 @@
     margin-bottom: 0.25rem !important;
 }
 
+/* Complaint page: keep body text dark on the white card (dark-mode ink is too pale) */
+.complaint-page .form-label,
+.complaint-page .form-control:not(.btn),
+.complaint-page .form-select,
+.complaint-page .table tbody td,
+.complaint-page #list_result,
+.complaint-page #list_result h4 {
+    color: #212529 !important;
+}
+.complaint-page .form-control:not(.btn),
+.complaint-page .form-select {
+    background-color: #fff !important;
+    opacity: 1 !important;
+}
+.complaint-page .form-control::placeholder {
+    color: #6c757d !important;
+    opacity: 1 !important;
+}
+.complaint-page input[type="date"]::-webkit-datetime-edit,
+.complaint-page input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.complaint-page input[type="date"]::-webkit-datetime-edit-text,
+.complaint-page input[type="date"]::-webkit-datetime-edit-month-field,
+.complaint-page input[type="date"]::-webkit-datetime-edit-day-field,
+.complaint-page input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #212529 !important;
+    opacity: 1 !important;
+}
+.complaint-page .text-muted {
+    color: #495057 !important;
+}
+.complaint-page .table thead th {
+    background-color: #16356e !important;
+    color: #fff !important;
+}
+.complaint-page .btn-secondary,
+.complaint-page .btn-danger {
+    color: #fff !important;
+}
+
 .form-control,
 .form-select {
     border-color: #ced4da !important;

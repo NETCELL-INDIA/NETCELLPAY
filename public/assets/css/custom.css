@@ -127,3 +127,37 @@ body {
   text-align: right;
   word-break: break-word;
 }
+
+.portal-shell .complaint-page .form-label,
+.portal-shell .complaint-page .form-control:not(.btn),
+.portal-shell .complaint-page .form-select,
+.portal-shell .complaint-page .table tbody td,
+.portal-shell .complaint-page #list_result,
+.portal-shell .complaint-page #list_result h4 {
+  color: #172033 !important;
+}
+.portal-shell .complaint-page .form-control:not(.btn),
+.portal-shell .complaint-page .form-select {
+  background-color: #fff !important;
+  opacity: 1 !important;
+}
+.portal-shell .complaint-page .form-control::placeholder {
+  color: #4a5568 !important;
+  opacity: 1 !important;
+}
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit,
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit-text,
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit-month-field,
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit-day-field,
+.portal-shell .complaint-page input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #172033 !important;
+  opacity: 1 !important;
+}
+.portal-shell .complaint-page .table thead th {
+  background: #111936 !important;
+  color: #fff !important;
+}
+.portal-shell .complaint-page .btn-secondary {
+  color: #fff !important;
+}

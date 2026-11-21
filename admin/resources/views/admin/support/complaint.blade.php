@@ -14,6 +14,7 @@
 @slot('title')Complaints @endslot
 @endcomponent
 
+<div class="complaint-page">
 <div class="row">
     <div class="col-lg-12">
         <div class="card">
@@ -90,6 +91,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 
