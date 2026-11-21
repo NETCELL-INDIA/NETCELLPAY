@@ -2,30 +2,68 @@
 @section('title') Consumption Report @endsection
 @section('css')
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<style>.select2-container{width:100%!important}</style>
+<style>
+.select2-container{width:100%!important}
+.recharge-filter-grid > .consumption-operator{width:220px}
+</style>
 @endsection
 @section('content')
+<div class="recharge-report-page">
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">Consumption Report</h4></div></div></div>
-<div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
+<div class="card recharge-filter-card">
+    <div class="card-header align-items-center d-flex">
+        <h4 class="card-title mb-0 flex-grow-1">Filters</h4>
+    </div>
     <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-2"><label class="form-label mb-0">From Date</label><input type="date" class="form-control" id="from_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"></div>
-            <div class="col-md-2"><label class="form-label mb-0">To Date</label><input type="date" class="form-control" id="to_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"></div>
-            <div class="col-md-2"><label class="form-label mb-0">API</label><select class="form-select" id="api_id"><option value="">ALL APIS</option>@foreach($apis as $a)<option value="{{ $a->id }}">{{ $a->api_name }}</option>@endforeach</select></div>
-            <div class="col-md-3"><label class="form-label mb-0">User / Client</label><select class="form-select" id="user_id"><option value=""></option></select>
-                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="include_child"><label class="form-check-label" for="include_child">Tick to see child transactions also.</label></div>
+        <div class="recharge-filter-grid">
+            <div class="recharge-filter-field">
+                <label class="form-label" for="from_date">From Date</label>
+                <input type="date" class="form-control form-control-sm" id="from_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
             </div>
-            <div class="col-md-2"><label class="form-label mb-0">Service Type</label><select class="form-select" id="service_id"><option value="">All Services</option>@foreach($services as $s)<option value="{{ $s->id }}">{{ strtoupper($s->service_name) }}</option>@endforeach</select></div>
-            <div class="col-md-2"><label class="form-label mb-0">Operator</label><select class="form-select" id="provider_id"><option value="">Select Operator</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->provider_name }}</option>@endforeach</select>
-                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="circle_wise"><label class="form-check-label" for="circle_wise">Circle Wise</label></div>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="to_date">To Date</label>
+                <input type="date" class="form-control form-control-sm" id="to_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}">
             </div>
-            <div class="col-md-auto d-flex gap-2"><button type="button" class="btn btn-success" id="btnSubmit">Submit</button><button type="button" class="btn btn-info" id="btnDownload">Download</button></div>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="api_id">API</label>
+                <select class="form-select form-select-sm" id="api_id"><option value="">All APIs</option>@foreach($apis as $a)<option value="{{ $a->id }}">{{ $a->api_name }}</option>@endforeach</select>
+            </div>
+            <div class="recharge-filter-field recharge-filter-field--user">
+                <div class="recharge-filter-label-row">
+                    <label class="form-label" for="user_id">User / Client</label>
+                    <label class="recharge-child-check" for="include_child">
+                        <input class="form-check-input" type="checkbox" id="include_child">
+                        <span>Include child</span>
+                    </label>
+                </div>
+                <select class="form-select form-select-sm" id="user_id"><option value=""></option></select>
+            </div>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="service_id">Service</label>
+                <select class="form-select form-select-sm" id="service_id"><option value="">All Services</option>@foreach($services as $s)<option value="{{ $s->id }}">{{ strtoupper($s->service_name) }}</option>@endforeach</select>
+            </div>
+            <div class="recharge-filter-field consumption-operator">
+                <div class="recharge-filter-label-row">
+                    <label class="form-label" for="provider_id">Operator</label>
+                    <label class="recharge-child-check" for="circle_wise">
+                        <input class="form-check-input" type="checkbox" id="circle_wise">
+                        <span>Circle wise</span>
+                    </label>
+                </div>
+                <select class="form-select form-select-sm" id="provider_id"><option value="">All</option>@foreach($providers as $p)<option value="{{ $p->id }}">{{ $p->provider_name }}</option>@endforeach</select>
+            </div>
+            <div class="recharge-filter-field recharge-filter-field--actions">
+                <label class="form-label">&nbsp;</label>
+                <div class="recharge-filter-actions">
+                    <button type="button" class="btn btn-sm btn-success" id="btnSubmit">Submit</button>
+                    <button type="button" class="btn btn-sm btn-info" id="btnDownload">Download</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-<div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">List of Transactions</h6></div>
+<div class="card recharge-list-card">
+    <div class="card-header align-items-center d-flex"><h4 class="card-title mb-0 flex-grow-1">List of Transactions</h4></div>
     <div class="card-body">
         <div class="d-flex align-items-center gap-1 mb-3"><span class="text-muted small">Show</span>
             <select class="form-select form-select-sm" id="show" style="width:auto"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select>
@@ -41,6 +79,7 @@
             <div class="btn-group"><button type="button" class="btn btn-outline-secondary btn-sm" id="btnPrev">Previous</button><button type="button" class="btn btn-outline-secondary btn-sm" id="btnNext">Next</button></div>
         </div>
     </div>
+</div>
 </div>
 @endsection
 @section('script')
