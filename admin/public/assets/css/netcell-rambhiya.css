@@ -816,8 +816,21 @@ table thead.table-dark > tr > th {
     margin-bottom: 1.25rem;
     max-width: min(1100px, calc(100vw - 1.5rem));
 }
+.modal-dialog.modal-fullscreen {
+    width: 100vw;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+}
 .modal-dialog-scrollable .modal-content {
     max-height: calc(100vh - 2.5rem);
+}
+.modal-dialog.modal-fullscreen .modal-content,
+.modal-fullscreen.modal-dialog-scrollable .modal-content {
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
 }
 
 /* Modals */
