@@ -142,9 +142,113 @@ class RechargeReportsController extends Controller
         return $q;
     }
 
+    /**
+     * Old rows stored state 40 when no circle was chosen. In this database that row is
+     * Andaman. Replace it only when the saved supplier response names a circle.
+     */
+    private function correctLegacyCircles(Request $post): void
+    {
+        $table = ((int) ($post->tbl_type ?? 0) === 1 && Schema::hasTable('backup_reports')) ? 'backup_reports' : 'reports';
+        $from = $post->from_date ?: Carbon::today()->format('Y-m-d');
+        $to = $post->to_date ?: Carbon::today()->format('Y-m-d');
+        try {
+            $rows = DB::table($table)
+                ->whereIn('transaction_type', ['Recharge', 'Bill Pay', 'Bill Payment'])
+                ->where(function ($w) {
+                    $w->whereIn('state_id', [0, 40])->orWhereNull('state_id');
+                })
+                ->where(function ($w) use ($from, $to) {
+                    $w->whereBetween('created_at', [$from.' 00:00:00', $to.' 23:59:59'])
+                        ->orWhereBetween('transaction_date', [$from.' 00:00:00', $to.' 23:59:59']);
+                })
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(['id', 'order_id', 'state_id', 'callback_response']);
+        } catch (\Throwable $e) {
+            return;
+        }
+        if ($rows->isEmpty()) {
+            return;
+        }
+        $bodies = $this->storedCircleBodies($rows);
+        foreach ($rows as $row) {
+            $this->historyStateName($row, $table, $bodies);
+        }
+    }
+
+    private function storedCircleBodies($reports): array
+    {
+        $ids = [];
+        foreach ($reports as $list) {
+            $orderId = trim((string) ($list->order_id ?? ''));
+            if ($orderId !== '' && in_array((int) ($list->state_id ?? 0), [0, 40], true)) {
+                $ids[] = $orderId;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $grouped = [];
+        if ($ids === [] || ! Schema::hasTable('apilogs')) {
+            return $grouped;
+        }
+        try {
+            $logs = DB::table('apilogs')
+                ->whereIn('txnid', $ids)
+                ->orderByDesc('id')
+                ->limit(max(50, count($ids) * 4))
+                ->get(['txnid', 'response']);
+        } catch (\Throwable $e) {
+            return $grouped;
+        }
+        foreach ($logs as $log) {
+            $grouped[(string) $log->txnid][] = (string) ($log->response ?? '');
+        }
+
+        return $grouped;
+    }
+
+    private function historyStateName($list, string $table, array $storedCircles): string
+    {
+        $storedId = (int) ($list->state_id ?? 0);
+        $known = trim((string) ($list->circle_name ?? ''));
+        if (! in_array($storedId, [0, 40], true)) {
+            return $known !== '' ? $known : '-';
+        }
+
+        $payloadId = 0;
+        $callback = trim((string) ($list->callback_response ?? ''));
+        if ($callback !== '') {
+            $payloadId = \Helper::supplierCircleStateId(\Helper::supplierPayload($callback));
+        }
+        if ($payloadId < 1) {
+            foreach ($storedCircles[(string) ($list->order_id ?? '')] ?? [] as $body) {
+                if (trim($body) === '') {
+                    continue;
+                }
+                $payloadId = \Helper::supplierCircleStateId(\Helper::supplierPayload($body));
+                if ($payloadId > 0) {
+                    break;
+                }
+            }
+        }
+        if ($payloadId > 0) {
+            if ($payloadId !== $storedId) {
+                try {
+                    DB::table($table)->where('id', $list->id)->update(['state_id' => $payloadId]);
+                } catch (\Throwable $e) {
+                }
+            }
+            $name = (string) DB::table('states')->where('id', $payloadId)->value('state_name');
+
+            return $name !== '' ? $name : '-';
+        }
+
+        return '-';
+    }
+
     public function fetchAllModern(Request $post)
     {
         $this->ensureManualColumn();
+        $this->correctLegacyCircles($post);
 
         $limit = (int) ($post->show ?: 10);
         if (!in_array($limit, [10, 25, 50, 100], true)) {
@@ -192,6 +296,7 @@ class RechargeReportsController extends Controller
         $hasComplaint = Schema::hasColumn($table, 'complaint_id');
 
         $rows = '';
+        $storedCircles = $this->storedCircleBodies($reports);
         if ($reports->count() > 0) {
             foreach ($reports as $list) {
                 $status = $list->status ?: '-';
@@ -239,7 +344,7 @@ class RechargeReportsController extends Controller
                         <span class="recharge-user-meta">' . $userMobile . ' · ID:' . $userId . '</span>
                     </td>
                     <td>' . e($list->provider_name ?: '-') . '</td>
-                    <td>' . e($list->circle_name ?: '-') . '</td>
+                    <td>' . e($this->historyStateName($list, $table, $storedCircles)) . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
                     <td class="text-end recharge-amount">' . (function_exists('recharge_report_money') ? recharge_report_money($list->total_amount ?? 0) : number_format((float) ($list->total_amount ?? 0), 2)) . '</td>
                     <td class="text-end recharge-commission">' . (function_exists('recharge_report_money') ? recharge_report_money($list->commission ?? 0) : number_format((float) ($list->commission ?? 0), 2)) . '</td>
@@ -286,6 +391,7 @@ class RechargeReportsController extends Controller
 
     public function downloadModern(Request $post)
     {
+        $this->correctLegacyCircles($post);
         $reports = $this->rechargeReportBaseQuery($post)
             ->select(
                 'r.*',
@@ -306,16 +412,18 @@ class RechargeReportsController extends Controller
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ];
 
-        $callback = function () use ($reports) {
+        $table = ((int) ($post->tbl_type ?? 0) === 1 && Schema::hasTable('backup_reports')) ? 'backup_reports' : 'reports';
+        $callback = function () use ($reports, $table) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'State', 'Number', 'Recharge', 'Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
+            $storedCircles = $this->storedCircleBodies($reports);
             foreach ($reports as $list) {
                 fputcsv($out, [
                     $list->order_id ?: ('R' . $list->id),
                     $list->transaction_date ?: $list->created_at,
                     trim(($list->outlet_name ?: $list->first_name ?: 'User') . ' / ' . ($list->mobile_number ?: '')),
                     $list->provider_name,
-                    $list->circle_name,
+                    $this->historyStateName($list, $table, $storedCircles),
                     $list->number,
                     $list->total_amount,
                     $list->commission,

@@ -360,10 +360,15 @@ class ProcessRecharge implements ShouldQueue
                 }
 
                 // Identity columns (user_id / path / balances) must never change on failover.
+                $payload = (isset($data) && is_array($data)) ? $data : [];
+                $circleId = \helpers::supplierCircleStateId($payload);
+                if ($circleId > 0) {
+                    $update['state_id'] = $circleId;
+                }
                 DB::table('reports')->where('id', $this->report_id)->update(
                     \helpers::safeReportApiUpdate(\helpers::realRoboIdPatch(
                         array_merge(['api_id' => $try_api_id], $update),
-                        (isset($data) && is_array($data)) ? $data : [],
+                        $payload,
                         $report,
                         $api_details
                     ))

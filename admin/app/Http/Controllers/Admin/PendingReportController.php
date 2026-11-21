@@ -703,6 +703,10 @@ class PendingReportController extends Controller
                 $update['api_operator_id'] = $apiOperatorId;
             }
             if (isset($data) && is_array($data)) {
+                $circleId = \Helper::supplierCircleStateId($data);
+                if ($circleId > 0) {
+                    $update['state_id'] = $circleId;
+                }
                 $update = \Helper::realRoboIdPatch($update, $data, $report, $api);
             }
             DB::table('reports')->where('id', $report->id)->update($update);

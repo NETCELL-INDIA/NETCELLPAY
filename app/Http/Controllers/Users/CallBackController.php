@@ -128,6 +128,10 @@ class CallBackController extends Controller
                 return response()->json(['type' => 'error', 'message' => 'record not found or already finalized.']);
             }
 
+            $circleId = \helpers::supplierCircleStateId($data);
+            if ($circleId > 0) {
+                $update['state_id'] = $circleId;
+            }
             $update = \helpers::realRoboIdPatch($update, $data, $report, $api);
 
             if ($mapped === 'Pending') {
@@ -143,7 +147,7 @@ class CallBackController extends Controller
                     }
                     \helpers::alertMroboticsSession($report, $robo['reason']);
                 }
-                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id'] as $idColumn) {
+                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id', 'state_id'] as $idColumn) {
                     if (array_key_exists($idColumn, $update)) {
                         $touch[$idColumn] = $update[$idColumn];
                     }
@@ -164,7 +168,7 @@ class CallBackController extends Controller
                 if ($operatorId !== '' && empty($report->operator_id)) {
                     $touch['operator_id'] = $operatorId;
                 }
-                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id'] as $idColumn) {
+                foreach (['provider_req_id', 'provider_txid', 'provider_recharge_id', 'state_id'] as $idColumn) {
                     if (array_key_exists($idColumn, $update)) {
                         $touch[$idColumn] = $update[$idColumn];
                     }

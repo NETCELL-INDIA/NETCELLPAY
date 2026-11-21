@@ -183,6 +183,10 @@ class PendingRechargeStatusService
             if (Schema::hasColumn('reports', 'callback_status') && strcasecmp((string) ($report->path ?? ''), 'Api') === 0) {
                 $update['callback_status'] = 0;
             }
+            $circleId = \Helper::supplierCircleStateId($data);
+            if ($circleId > 0) {
+                $update['state_id'] = $circleId;
+            }
             $update = \Helper::realRoboIdPatch($update, $data, $report, $api);
             $columns = array_flip(Schema::getColumnListing('reports'));
             DB::table('reports')->where('id', $id)->whereIn('status', $pending)->update(array_intersect_key($update, $columns));

@@ -1297,6 +1297,116 @@ class Helper {
         return $update;
     }
 
+    /**
+     * Telecom circle from a supplier payload. Never uses the retailer profile.
+     * Returns a states.id only when the response itself names that circle.
+     */
+    public static function supplierCircleStateId(array $data): int
+    {
+        $name = self::supplierCircleName($data);
+        if ($name === null) {
+            return 0;
+        }
+
+        return self::stateIdByCircleName($name);
+    }
+
+    private static function supplierCircleName(array $data): ?string
+    {
+        $sources = [$data];
+        foreach ($data as $key => $value) {
+            if (! is_array($value) || array_is_list($value)) {
+                continue;
+            }
+            if (in_array(strtolower((string) $key), ['data', 'records', 'response', 'result', 'payload'], true)) {
+                $sources[] = $value;
+            }
+        }
+        foreach ([['state', 'statename', 'state_name'], ['circle', 'circlename', 'circle_name', 'comcircle']] as $keys) {
+            foreach ($sources as $source) {
+                $lower = array_change_key_case($source, CASE_LOWER);
+                foreach ($keys as $key) {
+                    $value = self::supplierPlaceName($lower[$key] ?? null);
+                    if ($value !== null) {
+                        return $value;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function supplierPlaceName($value): ?string
+    {
+        if ($value === null || is_array($value)) {
+            return null;
+        }
+        $value = trim((string) $value);
+        if ($value === '' || strcasecmp($value, 'null') === 0 || ctype_digit($value)) {
+            return null;
+        }
+        if (preg_match('/^(success|successful|failed|failure|fail|pending|error|true|false|active|ok|yes|no)$/i', $value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    public static function stateIdByCircleName(string $name): int
+    {
+        $needle = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
+        if ($needle === '') {
+            return 0;
+        }
+        $aliases = [
+            'upw' => 'upwest',
+            'uttarpradeshwest' => 'upwest',
+            'upe' => 'upeast',
+            'uttarpradesheast' => 'upeast',
+            'delhincr' => 'delhi',
+            'maharashtragoa' => 'maharashtra',
+            'kolkatta' => 'kolkata',
+            'orissa' => 'odisha',
+            'chhatisgarh' => 'chhattisgarh',
+            'mizzoram' => 'mizoram',
+            'jammukashmir' => 'jammuandkashmir',
+            'jk' => 'jammuandkashmir',
+            'hp' => 'himachalpradesh',
+            'tn' => 'tamilnadu',
+            'ap' => 'andhrapradesh',
+            'mp' => 'madhyapradesh',
+            'nesa' => 'northeast',
+            'ne' => 'northeast',
+            'biharjharkhand' => 'bihar',
+        ];
+        $needle = $aliases[$needle] ?? $needle;
+        foreach (self::portalStates() as $state) {
+            foreach (['state_name', 'mplan_state_code'] as $field) {
+                $value = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', (string) ($state->{$field} ?? '')));
+                if ($value !== '' && $value === $needle) {
+                    return (int) $state->id;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    private static function portalStates()
+    {
+        static $states;
+        if ($states === null) {
+            try {
+                $states = \Illuminate\Support\Facades\DB::table('states')->get(['id', 'state_name', 'mplan_state_code']);
+            } catch (\Throwable $e) {
+                $states = collect();
+            }
+        }
+
+        return $states;
+    }
+
     public static function mroboticsSessionMessage(string $text): bool
     {
         $text = strtolower($text);
