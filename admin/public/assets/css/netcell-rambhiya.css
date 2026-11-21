@@ -919,6 +919,10 @@ table thead.table-dark > tr > th {
 .modal-dialog-scrollable .modal-content {
     max-height: calc(100vh - 2.5rem);
 }
+.modal-content {
+    background-color: #fff !important;
+    color: #212529 !important;
+}
 .modal-dialog.modal-lg .modal-content,
 .modal-dialog.modal-xl .modal-content,
 .modal-dialog.modal-fullscreen .modal-content,
@@ -929,6 +933,27 @@ table thead.table-dark > tr > th {
     max-height: 100%;
     border: 0;
     border-radius: 0;
+    overflow: hidden;
+}
+.modal-dialog.modal-lg .modal-body,
+.modal-dialog.modal-xl .modal-body,
+.modal-dialog.modal-fullscreen .modal-body {
+    overflow-y: auto;
+    background-color: #fff !important;
+    color: #212529 !important;
+}
+.modal-footer {
+    background-color: #fff !important;
+}
+.modal .form-control:not(.btn),
+.modal .form-select,
+.modal .table tbody td {
+    color: #212529 !important;
+    background-color: #fff !important;
+}
+.modal .table thead th {
+    background-color: #16356e !important;
+    color: #fff !important;
 }
 
 /* Modals */
