@@ -160,17 +160,135 @@ class helpers
     }
 
     /**
-     * Telecom circle from a supplier payload. Never uses the retailer profile.
-     * Returns a states.id only when the response itself names that circle.
+     * Official RealRobo circle codes. The number is never a states.id.
+     * Code 0 is All States and has no circle.
      */
-    public static function supplierCircleStateId(array $data): int
+    public static function realRoboCircleLabel(string $code): ?string
     {
+        if (! preg_match('/^\d+$/', trim($code))) {
+            return null;
+        }
+        $labels = [
+            '1' => 'Andhra Pradesh',
+            '2' => 'Assam',
+            '3' => 'Bihar',
+            '4' => 'Chennai',
+            '5' => 'Delhi',
+            '6' => 'Gujarat',
+            '7' => 'Haryana',
+            '8' => 'Himachal Pradesh',
+            '9' => 'Jammu and Kashmir',
+            '10' => 'Karnataka',
+            '11' => 'Kerala',
+            '12' => 'Kolkata',
+            '13' => 'Maharashtra',
+            '14' => 'Madhya Pradesh',
+            '15' => 'Mumbai',
+            '16' => 'North East',
+            '17' => 'Odisha',
+            '18' => 'Punjab',
+            '19' => 'Rajasthan',
+            '20' => 'Tamil Nadu',
+            '21' => 'Uttar Pradesh (East)',
+            '22' => 'Uttar Pradesh (West)',
+            '23' => 'West Bengal',
+            '24' => 'Chhattisgarh',
+            '25' => 'Jharkhand',
+            '26' => 'Andaman and Nicobar Islands',
+            '27' => 'North East Two',
+        ];
+
+        return $labels[(string) (int) $code] ?? null;
+    }
+
+    public static function realRoboCodeForCircleName(string $name): ?string
+    {
+        $needle = self::circleNameKey($name);
+        if ($needle === '') {
+            return null;
+        }
+        for ($code = 1; $code <= 27; $code++) {
+            $label = self::realRoboCircleLabel((string) $code);
+            if ($label !== null && self::circleNameKey($label) === $needle) {
+                return (string) $code;
+            }
+        }
+        $shared = [
+            'goa' => '13',
+            'uttarakhand' => '22',
+            'uttaranchal' => '22',
+        ];
+
+        return $shared[$needle] ?? null;
+    }
+
+    /**
+     * Telecom circle from a supplier payload. Never uses the retailer profile.
+     * RealRobo codes 1-27 are resolved by circle name. Code 0 stays unresolved.
+     * MRobotics does not use the RealRobo code list.
+     */
+    public static function supplierCircleStateId(array $data, $api = null): int
+    {
+        $apiText = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '')));
+        $namedMrobotics = str_contains($apiText, 'mrobotics');
+        $namedRealRobo = str_contains($apiText, 'realrobo');
+        $keys = array_change_key_case($data, CASE_LOWER);
+        $mroboticsShape = array_key_exists('tnx_id', $keys) || array_key_exists('lapu_id', $keys);
+        $useRealRoboCodes = $namedRealRobo || (! $namedMrobotics && ! $mroboticsShape && self::isRealRoboContext(null, $data));
+        if ($useRealRoboCodes) {
+            $code = self::realRoboCodeFromPayload($data);
+            if ($code !== null && $code !== '0') {
+                $label = self::realRoboCircleLabel($code);
+                if ($label !== null) {
+                    $id = self::stateIdByCircleName($label);
+                    if ($id > 0) {
+                        return $id;
+                    }
+                }
+            }
+        }
         $name = self::supplierCircleName($data);
         if ($name === null) {
             return 0;
         }
 
         return self::stateIdByCircleName($name);
+    }
+
+    private static function realRoboCodeFromPayload(array $data): ?string
+    {
+        $sources = [$data];
+        foreach ($data as $key => $value) {
+            if (! is_array($value) || array_is_list($value)) {
+                continue;
+            }
+            if (in_array(strtolower((string) $key), ['data', 'records', 'response', 'result', 'payload'], true)) {
+                $sources[] = $value;
+            }
+        }
+        $sawZero = false;
+        foreach (['statecode', 'state_code', 'circlecode', 'circle_code', 'state', 'circle'] as $key) {
+            foreach ($sources as $source) {
+                $lower = array_change_key_case($source, CASE_LOWER);
+                if (! array_key_exists($key, $lower) || is_array($lower[$key])) {
+                    continue;
+                }
+                $raw = trim((string) $lower[$key]);
+                if (! preg_match('/^\d+$/', $raw)) {
+                    continue;
+                }
+                $num = (int) $raw;
+                if ($num === 0) {
+                    $sawZero = true;
+                    continue;
+                }
+                if ($num >= 1 && $num <= 27) {
+                    return (string) $num;
+                }
+            }
+        }
+
+        return $sawZero ? '0' : null;
     }
 
     private static function supplierCircleName(array $data): ?string
@@ -217,20 +335,40 @@ class helpers
 
     public static function stateIdByCircleName(string $name): int
     {
-        $needle = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
+        $needle = self::circleNameKey($name);
         if ($needle === '') {
             return 0;
         }
+        foreach (self::portalStates() as $state) {
+            foreach (['state_name', 'mplan_state_code'] as $field) {
+                $value = self::circleNameKey((string) ($state->{$field} ?? ''));
+                if ($value !== '' && $value === $needle) {
+                    return (int) $state->id;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    private static function circleNameKey(string $name): string
+    {
+        $needle = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
         $aliases = [
             'upw' => 'upwest',
             'uttarpradeshwest' => 'upwest',
+            'upwestuttarakhand' => 'upwest',
             'upe' => 'upeast',
             'uttarpradesheast' => 'upeast',
             'delhincr' => 'delhi',
             'maharashtragoa' => 'maharashtra',
+            'maharashtraandgoaexceptmumbai' => 'maharashtra',
             'kolkatta' => 'kolkata',
             'orissa' => 'odisha',
             'chhatisgarh' => 'chhattisgarh',
+            'chattisgarh' => 'chhattisgarh',
+            'mpchattisgarh' => 'madhyapradesh',
+            'mpchhattisgarh' => 'madhyapradesh',
             'mizzoram' => 'mizoram',
             'jammukashmir' => 'jammuandkashmir',
             'jk' => 'jammuandkashmir',
@@ -241,18 +379,12 @@ class helpers
             'nesa' => 'northeast',
             'ne' => 'northeast',
             'biharjharkhand' => 'bihar',
+            'andaman' => 'andamanandnicobarislands',
+            'andamanandnicobar' => 'andamanandnicobarislands',
+            'andamannicobar' => 'andamanandnicobarislands',
         ];
-        $needle = $aliases[$needle] ?? $needle;
-        foreach (self::portalStates() as $state) {
-            foreach (['state_name', 'mplan_state_code'] as $field) {
-                $value = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', (string) ($state->{$field} ?? '')));
-                if ($value !== '' && $value === $needle) {
-                    return (int) $state->id;
-                }
-            }
-        }
 
-        return 0;
+        return $aliases[$needle] ?? $needle;
     }
 
     private static function portalStates()
@@ -296,7 +428,8 @@ class helpers
         $stateCode = trim((string) $stateCode);
         $isRealRobo = str_contains(strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '').' '.$url)), 'realrobo');
         if ($isRealRobo && $circleName !== '' && ($stateCode === '' || $stateCode === '0')) {
-            $stateCode = $circleName;
+            $official = self::realRoboCodeForCircleName($circleName);
+            $stateCode = $official !== null ? $official : $circleName;
         }
         $circleOut = $circleName === '' ? '' : rawurlencode($circleName);
         $stateOut = ($isRealRobo && preg_match('/\s/', $stateCode)) ? rawurlencode($stateCode) : $stateCode;

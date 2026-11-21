@@ -128,7 +128,7 @@ class CallBackController extends Controller
                 return response()->json(['type' => 'error', 'message' => 'record not found or already finalized.']);
             }
 
-            $circleId = \helpers::supplierCircleStateId($data);
+            $circleId = \helpers::supplierCircleStateId($data, $api);
             if ($circleId > 0) {
                 $update['state_id'] = $circleId;
             }

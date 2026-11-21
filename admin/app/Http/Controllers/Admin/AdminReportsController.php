@@ -133,6 +133,7 @@ class AdminReportsController extends Controller
         $total = $reports->count();
 
         $hasPath = Schema::hasColumn('reports', 'path');
+        $storedCircles = \Helper::storedRechargeCircleBodies($reports);
         $rows = '';
         if ($reports->count() > 0) {
             foreach ($reports as $list) {
@@ -168,7 +169,7 @@ class AdminReportsController extends Controller
                     <td class="live-time">' . e($this->liveReportTime($list->transaction_date ?: $list->created_at)) . '</td>
                     <td><span class="live-user">' . $userName . '</span><span class="live-user-meta">' . $userMeta . '</span></td>
                     <td>' . e($list->provider_name ?: '-') . '</td>
-                    <td>' . e($list->circle_name ?: '-') . '</td>
+                    <td>' . e(\Helper::rechargeReportStateName($list, 'reports', $storedCircles)) . '</td>
                     <td class="live-number">' . e($list->number ?: '-') . '</td>
                     <td class="live-amt">₹' . number_format((float) ($list->total_amount ?: $list->amount), 2) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
@@ -274,13 +275,14 @@ class AdminReportsController extends Controller
         $callback = function () use ($reports) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'State', 'Number', 'Amount', 'Status', 'API', 'Operator ID', 'Mode']);
+            $storedCircles = \Helper::storedRechargeCircleBodies($reports);
             foreach ($reports as $list) {
                 fputcsv($out, [
                     $list->order_id ?: ('R' . $list->id),
                     $list->transaction_date ?: $list->created_at,
                     trim(($list->outlet_name ?: $list->first_name ?: 'User') . ' / ' . ($list->mobile_number ?: '')),
                     $list->provider_name,
-                    $list->circle_name,
+                    \Helper::rechargeReportStateName($list, 'reports', $storedCircles),
                     $list->number,
                     $list->total_amount ?: $list->amount,
                     $list->status,

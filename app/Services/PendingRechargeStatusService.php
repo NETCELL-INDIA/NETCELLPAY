@@ -189,7 +189,7 @@ class PendingRechargeStatusService
             if (\helpers::isApiPartnerPath($report->path ?? '') && Schema::hasColumn('reports', 'callback_status')) {
                 $update['callback_status'] = 0;
             }
-            $circleId = \helpers::supplierCircleStateId($data);
+            $circleId = \helpers::supplierCircleStateId($data, $api);
             if ($circleId > 0) {
                 $update['state_id'] = $circleId;
             }

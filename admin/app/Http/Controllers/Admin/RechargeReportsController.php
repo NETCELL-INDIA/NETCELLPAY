@@ -170,7 +170,7 @@ class RechargeReportsController extends Controller
         if ($rows->isEmpty()) {
             return;
         }
-        $bodies = $this->storedCircleBodies($rows);
+        $bodies = \Helper::storedRechargeCircleBodies($rows);
         foreach ($rows as $row) {
             $this->historyStateName($row, $table, $bodies);
         }
@@ -178,71 +178,12 @@ class RechargeReportsController extends Controller
 
     private function storedCircleBodies($reports): array
     {
-        $ids = [];
-        foreach ($reports as $list) {
-            $orderId = trim((string) ($list->order_id ?? ''));
-            if ($orderId !== '' && in_array((int) ($list->state_id ?? 0), [0, 40], true)) {
-                $ids[] = $orderId;
-            }
-        }
-        $ids = array_values(array_unique($ids));
-        $grouped = [];
-        if ($ids === [] || ! Schema::hasTable('apilogs')) {
-            return $grouped;
-        }
-        try {
-            $logs = DB::table('apilogs')
-                ->whereIn('txnid', $ids)
-                ->orderByDesc('id')
-                ->limit(max(50, count($ids) * 4))
-                ->get(['txnid', 'response']);
-        } catch (\Throwable $e) {
-            return $grouped;
-        }
-        foreach ($logs as $log) {
-            $grouped[(string) $log->txnid][] = (string) ($log->response ?? '');
-        }
-
-        return $grouped;
+        return \Helper::storedRechargeCircleBodies($reports);
     }
 
     private function historyStateName($list, string $table, array $storedCircles): string
     {
-        $storedId = (int) ($list->state_id ?? 0);
-        $known = trim((string) ($list->circle_name ?? ''));
-        if (! in_array($storedId, [0, 40], true)) {
-            return $known !== '' ? $known : '-';
-        }
-
-        $payloadId = 0;
-        $callback = trim((string) ($list->callback_response ?? ''));
-        if ($callback !== '') {
-            $payloadId = \Helper::supplierCircleStateId(\Helper::supplierPayload($callback));
-        }
-        if ($payloadId < 1) {
-            foreach ($storedCircles[(string) ($list->order_id ?? '')] ?? [] as $body) {
-                if (trim($body) === '') {
-                    continue;
-                }
-                $payloadId = \Helper::supplierCircleStateId(\Helper::supplierPayload($body));
-                if ($payloadId > 0) {
-                    break;
-                }
-            }
-        }
-        if ($payloadId > 0) {
-            if ($payloadId !== $storedId) {
-                try {
-                    DB::table($table)->where('id', $list->id)->update(['state_id' => $payloadId]);
-                } catch (\Throwable $e) {
-                }
-            }
-            $name = (string) DB::table('states')->where('id', $payloadId)->value('state_name');
-
-            return $name !== '' ? $name : '-';
-        }
-
-        return '-';
+        return \Helper::rechargeReportStateName($list, $table, $storedCircles);
     }
 
     public function fetchAllModern(Request $post)

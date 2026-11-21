@@ -703,7 +703,7 @@ class PendingReportController extends Controller
                 $update['api_operator_id'] = $apiOperatorId;
             }
             if (isset($data) && is_array($data)) {
-                $circleId = \Helper::supplierCircleStateId($data);
+                $circleId = \Helper::supplierCircleStateId($data, $api);
                 if ($circleId > 0) {
                     $update['state_id'] = $circleId;
                 }
