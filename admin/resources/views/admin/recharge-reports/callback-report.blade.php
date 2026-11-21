@@ -2,50 +2,68 @@
 @section('title') Callback Report @endsection
 @section('css')
 <style>
-.btn-icon{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.cb-stat{border-radius:10px;padding:14px 16px;border:1px solid #e9ecef}
-.cb-stat .n{font-size:1.5rem;font-weight:700;line-height:1.1}
-.cb-stat .l{font-size:.8rem;color:#6c757d;text-transform:uppercase;letter-spacing:.04em}
+.btn-icon{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.cb-top{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.55rem}
+.cb-top h4{margin:0;font-size:1.15rem}
+.cb-stats{display:flex;gap:.4rem;flex-wrap:wrap}
+.cb-stat{border-radius:8px;padding:4px 10px;border:1px solid #e9ecef;display:inline-flex;align-items:center;gap:.45rem}
+.cb-stat .n{font-size:1rem;font-weight:700;line-height:1}
+.cb-stat .l{font-size:.72rem;color:#6c757d;text-transform:uppercase;letter-spacing:.03em}
 .cb-stat.active{outline:2px solid #0d6efd;outline-offset:1px}
 </style>
 @endsection
 @section('content')
-<div class="row"><div class="col-12"><div class="page-title-box d-flex align-items-center justify-content-between">
-    <h4 class="mb-0">Callback Request — Sent / Received</h4>
-</div></div></div>
-
-<div class="row g-3 mb-3">
-    <div class="col-md-4"><button type="button" class="cb-stat w-100 text-start btn btn-light cb-dir-btn" data-dir="received"><div class="l">Received (Supplier)</div><div class="n text-success" id="statReceived">0</div></button></div>
-    <div class="col-md-4"><button type="button" class="cb-stat w-100 text-start btn btn-light cb-dir-btn" data-dir="sent"><div class="l">Sent (Partner)</div><div class="n text-info" id="statSent">0</div></button></div>
-    <div class="col-md-4"><button type="button" class="cb-stat w-100 text-start btn btn-light cb-dir-btn" data-dir="error"><div class="l">Errors</div><div class="n text-danger" id="statError">0</div></button></div>
+<div class="recharge-report-page">
+<div class="cb-top">
+    <h4>Callback Request — Sent / Received</h4>
+    <div class="cb-stats">
+        <button type="button" class="cb-stat text-start btn btn-light cb-dir-btn" data-dir="received"><span class="l">Received</span><span class="n text-success" id="statReceived">0</span></button>
+        <button type="button" class="cb-stat text-start btn btn-light cb-dir-btn" data-dir="sent"><span class="l">Sent</span><span class="n text-info" id="statSent">0</span></button>
+        <button type="button" class="cb-stat text-start btn btn-light cb-dir-btn" data-dir="error"><span class="l">Errors</span><span class="n text-danger" id="statError">0</span></button>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
+<div class="card recharge-filter-card">
     <div class="card-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-2"><label class="form-label mb-0">From</label><input type="date" class="form-control" id="from_date" value="{{ $defaultDate }}"></div>
-            <div class="col-md-2"><label class="form-label mb-0">To</label><input type="date" class="form-control" id="to_date" value="{{ $defaultDate }}"></div>
-            <div class="col-md-2"><label class="form-label mb-0">Direction</label>
-                <select class="form-select" id="direction">
+        <div class="recharge-filter-grid">
+            <div class="recharge-filter-field">
+                <label class="form-label" for="from_date">From</label>
+                <input type="date" class="form-control form-control-sm" id="from_date" value="{{ $defaultDate }}">
+            </div>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="to_date">To</label>
+                <input type="date" class="form-control form-control-sm" id="to_date" value="{{ $defaultDate }}">
+            </div>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="direction">Direction</label>
+                <select class="form-select form-select-sm" id="direction">
                     <option value="all">All</option>
                     <option value="received">Received</option>
                     <option value="sent">Sent</option>
                     <option value="error">Error</option>
                 </select>
             </div>
-            <div class="col-md-2"><label class="form-label mb-0">API</label>
-                <select class="form-select" id="api_id"><option value="">ALL APIS</option>@foreach($apis as $a)<option value="{{ $a->id }}">{{ $a->api_name }}</option>@endforeach</select>
+            <div class="recharge-filter-field">
+                <label class="form-label" for="api_id">API</label>
+                <select class="form-select form-select-sm" id="api_id"><option value="">All APIs</option>@foreach($apis as $a)<option value="{{ $a->id }}">{{ $a->api_name }}</option>@endforeach</select>
             </div>
-            <div class="col-md-3"><label class="form-label mb-0">Search</label><input type="text" class="form-control" id="search" placeholder="Order / Number / User / Log ID"></div>
-            <div class="col-md-auto"><button type="button" class="btn btn-success btn-icon" id="btnSearch" title="Search"><i class="ri-search-line"></i></button></div>
+            <div class="recharge-filter-field recharge-filter-field--search">
+                <label class="form-label" for="search">Search</label>
+                <input type="text" class="form-control form-control-sm" id="search" placeholder="Order / Number / User / Log ID">
+            </div>
+            <div class="recharge-filter-field recharge-filter-field--actions">
+                <label class="form-label">&nbsp;</label>
+                <div class="recharge-filter-actions">
+                    <button type="button" class="btn btn-sm btn-success btn-icon" id="btnSearch" title="Search"><i class="ri-search-line"></i></button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header bg-primary d-flex align-items-center justify-content-between">
-        <h6 class="mb-0 text-white">Callback List</h6>
+<div class="card recharge-list-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h4 class="card-title mb-0">Callback List</h4>
         <span class="badge bg-light text-dark" id="dirLabel">All</span>
     </div>
     <div class="card-body">
@@ -81,6 +99,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 
 <div class="modal fade" id="cbModal" tabindex="-1">
