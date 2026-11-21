@@ -2,41 +2,9 @@
 <script>
 window.openLiveRechargeReport = function (url) {
     url = url || '';
-    var availLeft = (typeof screen.availLeft === 'number') ? screen.availLeft : 0;
-    var availTop = (typeof screen.availTop === 'number') ? screen.availTop : 0;
-    var availW = screen.availWidth || screen.width || 1200;
-    var availH = screen.availHeight || screen.height || 800;
-    var adminW = Math.max(720, Math.floor(availW * 0.52));
-    if (adminW > availW - 640) {
-        adminW = Math.floor(availW * 0.5);
-    }
-    var liveW = Math.max(640, availW - adminW);
-    try {
-        window.moveTo(availLeft, availTop);
-        window.resizeTo(adminW, availH);
-    } catch (e) {}
-    var features = [
-        'popup=yes',
-        'resizable=yes',
-        'scrollbars=yes',
-        'toolbar=no',
-        'menubar=no',
-        'location=no',
-        'status=no',
-        'width=' + liveW,
-        'height=' + availH,
-        'left=' + (availLeft + adminW),
-        'top=' + availTop
-    ].join(',');
-    var w = window.open(url, 'liveRechargeReport', features);
+    var w = window.open(url, '_blank');
     if (w) {
         try { w.focus(); } catch (e) {}
-        try {
-            w.moveTo(availLeft + adminW, availTop);
-            w.resizeTo(liveW, availH);
-        } catch (e) {}
-    } else {
-        window.open(url, '_blank');
     }
     return false;
 };

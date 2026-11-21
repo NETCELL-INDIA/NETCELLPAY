@@ -61,8 +61,12 @@ class RechargeController extends Controller
 
     private function withApiWalletBalance(array $payload, $user): array
     {
-        if ($user && !empty($user->id) && request()->filled('api_key')) {
+        $apiPartner = request()->filled('api_key') || request()->attributes->get('netcell_api_partner');
+        if ($user && !empty($user->id) && $apiPartner) {
             $payload['balance'] = $this->currentWalletBalance($user->id);
+            if (isset($payload['data']) && is_object($payload['data'])) {
+                $payload['data']->balance = $payload['balance'];
+            }
         }
         return $payload;
     }
@@ -153,6 +157,7 @@ class RechargeController extends Controller
 		$resolvedState = PlanInfoFetchService::resolvePortalStateId($post->input('state_id'), (string) $post->number);
 		$post['state_id'] = $resolvedState > 0 ? $resolvedState : 40; 
         if (isset($post->api_key)) {
+            $post->attributes->set('netcell_api_partner', 1);
 
             $rules = array(
 
