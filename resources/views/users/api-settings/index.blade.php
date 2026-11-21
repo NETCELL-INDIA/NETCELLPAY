@@ -222,7 +222,7 @@ API Settings
                                 <td><code>{{ $baseUrl }}/Recharge</code></td>
                                 <td>
                                     <code>api_key</code>, <code>number</code>, <code>amount</code>, <code>provider_id</code>, <code>service_id</code>, <code>request_order_id</code><br>
-                                    Optional: <code>state_id</code> (default 40)
+                                    Optional: <code>state_id</code>. If it is omitted, the circle is taken from the mobile number.
                                 </td>
                             </tr>
                             <tr>

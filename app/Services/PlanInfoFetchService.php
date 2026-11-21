@@ -1925,6 +1925,49 @@ class PlanInfoFetchService
         return $circle;
     }
 
+    private static function stateForPlanCircleCode(string $code): ?object
+    {
+        $code = ltrim(trim($code), '0');
+        $names = [
+            '10' => 'Delhi',
+            '97' => 'Uttar Pradesh (West)',
+            '2' => 'Punjab',
+            '3' => 'Himachal Pradesh',
+            '96' => 'Haryana',
+            '55' => 'Jammu and Kashmir',
+            '54' => 'Uttar Pradesh (East)',
+            '92' => 'Mumbai',
+            '90' => 'Maharashtra',
+            '98' => 'Gujarat',
+            '93' => 'Madhya Pradesh',
+            '70' => 'Rajasthan',
+            '31' => 'Kolkata',
+            '51' => 'West Bengal',
+            '53' => 'Odisha',
+            '56' => 'Assam',
+            '16' => 'North East',
+            '52' => 'Bihar',
+            '6' => 'Karnataka',
+            '40' => 'Chennai',
+            '94' => 'Tamil Nadu',
+            '95' => 'Kerala',
+            '49' => 'Andhra Pradesh',
+            '99' => 'Sikkim',
+            '100' => 'Tripura',
+            '101' => 'Chhattisgarh',
+            '102' => 'Goa',
+            '103' => 'Meghalaya',
+            '104' => 'Mizoram',
+            '105' => 'Jharkhand',
+            '106' => 'Manipur',
+        ];
+        if ($code === '' || ! isset($names[$code])) {
+            return null;
+        }
+
+        return self::matchStateByCircleName($names[$code]);
+    }
+
     private static function planApiCircleCode(object $state): string
     {
         $code = trim((string) ($state->plan_api_code ?? ''));
@@ -3623,7 +3666,7 @@ class PlanInfoFetchService
     public static function resolvePortalStateId($raw, string $number = ''): int
     {
         $raw = trim((string) $raw);
-        if ($raw !== '' && ctype_digit($raw)) {
+        if ($raw !== '' && ctype_digit($raw) && $raw !== '40') {
             $id = (int) $raw;
             if ($id > 0 && DB::table('states')->where('id', $id)->exists()) {
                 return $id;
@@ -3753,18 +3796,30 @@ class PlanInfoFetchService
             $provider = self::matchMobileProviderByName($operatorName);
         }
 
-        $state = null;
-        if ($circleCode !== null) {
-            $codes = array_values(array_unique(array_filter([
-                $circleCode,
-                ltrim($circleCode, '0'),
-                str_pad(ltrim($circleCode, '0'), 2, '0', STR_PAD_LEFT),
-            ], function ($code) {
-                return $code !== '';
-            })));
-            $state = DB::table('states')->whereIn('plan_api_code', $codes)->orWhereIn('mplan_state_code', $codes)->first();
+        $byName = null;
+        if ($circleName !== null && ! ctype_digit($circleName)) {
+            $byName = self::matchStateByCircleName($circleName);
         }
-        if (!$state && $circleName !== null) {
+        $byCode = null;
+        if ($circleCode !== null) {
+            $byCode = self::stateForPlanCircleCode($circleCode);
+            if (! $byCode) {
+                $codes = array_values(array_unique(array_filter([
+                    $circleCode,
+                    ltrim($circleCode, '0'),
+                    str_pad(ltrim($circleCode, '0'), 2, '0', STR_PAD_LEFT),
+                ], function ($code) {
+                    return $code !== '';
+                })));
+                if ($codes !== []) {
+                    $byCode = DB::table('states')->where(function ($q) use ($codes) {
+                        $q->whereIn('plan_api_code', $codes)->orWhereIn('mplan_state_code', $codes);
+                    })->orderBy('id')->first();
+                }
+            }
+        }
+        $state = $byName ?: $byCode;
+        if (! $state && $circleName !== null) {
             $state = self::matchStateByCircleName($circleName);
         }
 

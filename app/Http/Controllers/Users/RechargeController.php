@@ -170,8 +170,18 @@ class RechargeController extends Controller
             ));
 
         }
-		$resolvedState = PlanInfoFetchService::resolvePortalStateId($post->input('state_id'), (string) $post->number);
-		$post['state_id'] = $resolvedState > 0 ? $resolvedState : 40; 
+		$incomingState = trim((string) $post->input('state_id'));
+		$mobileDigits = preg_replace('/\D/', '', (string) $post->number) ?? '';
+		// 40 is the old "no circle" default. In this database that row is Andaman,
+		// so a Karnataka number was stored as Andaman and Nicobar Islands.
+		$circleMissing = $incomingState === '' || $incomingState === '0' || $incomingState === '40';
+		$resolvedState = $circleMissing
+			? 0
+			: PlanInfoFetchService::resolvePortalStateId($incomingState, $mobileDigits);
+		if ($resolvedState <= 0 && strlen($mobileDigits) >= 10 && (int) $post->input('service_id') !== 2) {
+			$resolvedState = PlanInfoFetchService::resolvePortalStateId('', substr($mobileDigits, -10));
+		}
+		$post['state_id'] = $resolvedState > 0 ? $resolvedState : 0; 
         if (isset($post->api_key)) {
             $post->attributes->set('netcell_api_partner', 1);
 
