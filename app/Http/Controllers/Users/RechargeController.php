@@ -64,8 +64,24 @@ class RechargeController extends Controller
         $apiPartner = request()->filled('api_key') || request()->attributes->get('netcell_api_partner');
         if ($user && !empty($user->id) && $apiPartner) {
             $payload['balance'] = $this->currentWalletBalance($user->id);
+            $stateId = (int) request()->input('state_id');
+            if ($stateId <= 0 && isset($payload['data']) && is_object($payload['data'])) {
+                $stateId = (int) ($payload['data']->state_id ?? 0);
+            }
+            $circle = $stateId > 0
+                ? (string) DB::table('states')->where('id', $stateId)->value('state_name')
+                : '';
+            if ($circle !== '') {
+                $payload['state_id'] = $stateId;
+                $payload['state_name'] = $circle;
+                $payload['circle'] = $circle;
+            }
             if (isset($payload['data']) && is_object($payload['data'])) {
                 $payload['data']->balance = $payload['balance'];
+                if ($circle !== '') {
+                    $payload['data']->state_name = $circle;
+                    $payload['data']->circle = $circle;
+                }
             }
         }
         return $payload;
@@ -1511,6 +1527,8 @@ class RechargeController extends Controller
 
             'reports.number',
 
+            'reports.state_id',
+
             'users.mobile_number',
 
             'users.email_address',
@@ -2235,7 +2253,9 @@ class RechargeController extends Controller
 
             'state_id' => $state->id,
 
-            'state_name' => $state->state_name
+            'state_name' => $state->state_name,
+
+            'circle' => $state->state_name
 
         ]);
 

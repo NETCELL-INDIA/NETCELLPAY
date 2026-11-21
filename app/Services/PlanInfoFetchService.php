@@ -3074,6 +3074,9 @@ class PlanInfoFetchService
         if (is_array($data['records'] ?? null) && !isset($data['data'])) {
             $data['data'] = $data['records'];
         }
+        if (isset($data['data']) && is_array($data['data']) && array_is_list($data['data']) && isset($data['data'][0]) && is_array($data['data'][0])) {
+            $data['data'] = $data['data'][0];
+        }
 
         $opCode = self::hlrNonEmpty(
             $data['OpCode']
@@ -3103,9 +3106,15 @@ class PlanInfoFetchService
             $data['Circle']
             ?? $data['circle']
             ?? $data['circleName']
+            ?? $data['CircleName']
+            ?? $data['state']
+            ?? $data['State']
             ?? ($data['data']['Circle'] ?? null)
             ?? ($data['data']['circle'] ?? null)
             ?? ($data['data']['circleName'] ?? null)
+            ?? ($data['data']['CircleName'] ?? null)
+            ?? ($data['data']['state'] ?? null)
+            ?? ($data['data']['State'] ?? null)
         );
 
         if ($opCode === null && $operatorName === null) {
@@ -3746,7 +3755,14 @@ class PlanInfoFetchService
 
         $state = null;
         if ($circleCode !== null) {
-            $state = DB::table('states')->where('plan_api_code', $circleCode)->first();
+            $codes = array_values(array_unique(array_filter([
+                $circleCode,
+                ltrim($circleCode, '0'),
+                str_pad(ltrim($circleCode, '0'), 2, '0', STR_PAD_LEFT),
+            ], function ($code) {
+                return $code !== '';
+            })));
+            $state = DB::table('states')->whereIn('plan_api_code', $codes)->orWhereIn('mplan_state_code', $codes)->first();
         }
         if (!$state && $circleName !== null) {
             $state = self::matchStateByCircleName($circleName);
@@ -3791,18 +3807,61 @@ class PlanInfoFetchService
 
     private static function matchStateByCircleName(string $name): ?object
     {
-        $needle = strtolower(trim($name));
+        $needle = self::normalizeLookupName($name);
+        if ($needle === '') {
+            return null;
+        }
+        $aliases = [
+            'upw' => 'upwest',
+            'uttarpradeshwest' => 'upwest',
+            'upe' => 'upeast',
+            'uttarpradesheast' => 'upeast',
+            'delhincr' => 'delhi',
+            'maharashtragoa' => 'maharashtra',
+            'mumbai' => 'mumbai',
+            'kolkatta' => 'kolkata',
+            'orissa' => 'odisha',
+            'chhatisgarh' => 'chhattisgarh',
+            'mizzoram' => 'mizoram',
+            'meghalay' => 'meghalaya',
+            'jammukashmir' => 'jammuandkashmir',
+            'jk' => 'jammuandkashmir',
+            'hp' => 'himachalpradesh',
+            'himachal' => 'himachalpradesh',
+            'tn' => 'tamilnadu',
+            'ap' => 'andhrapradesh',
+            'mp' => 'madhyapradesh',
+            'nesa' => 'northeast',
+            'ne' => 'northeast',
+            'biharjharkhand' => 'bihar',
+        ];
+        $needle = $aliases[$needle] ?? $needle;
+
         $states = DB::table('states')->get();
         foreach ($states as $state) {
-            foreach (['state_name', 'mplan_state_code', 'plan_api_code'] as $field) {
-                $value = strtolower(trim((string) ($state->{$field} ?? '')));
-                if ($value !== '' && ($value === $needle || str_contains($value, $needle) || str_contains($needle, $value))) {
+            foreach (['state_name', 'mplan_state_code'] as $field) {
+                $value = self::normalizeLookupName((string) ($state->{$field} ?? ''));
+                if ($value !== '' && $value === $needle) {
                     return $state;
                 }
             }
         }
 
-        return null;
+        $best = null;
+        $bestLen = 0;
+        foreach ($states as $state) {
+            $value = self::normalizeLookupName((string) ($state->state_name ?? ''));
+            if (strlen($value) < 4) {
+                continue;
+            }
+            $matched = str_starts_with($needle, $value) || str_starts_with($value, $needle);
+            if ($matched && strlen($value) > $bestLen) {
+                $best = $state;
+                $bestLen = strlen($value);
+            }
+        }
+
+        return $best;
     }
 
     private static function normalizeLookupName(string $name): string

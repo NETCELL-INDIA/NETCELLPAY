@@ -878,7 +878,7 @@
 
 
 
-                    //$('#state_id').empty();
+                    $('#state_id').empty().append('<option value="" selected>Select Circle</option>');
 
                     $.each(res.state, function(k, v) {
 
@@ -1255,7 +1255,11 @@
 
                         $(".provider_id").val(data.provider_id).change();
 
-                        $(".state_id").val(data.state_id).change();
+                        if (data.state_id && $(".state_id option[value='" + data.state_id + "']").length === 0 && data.state_name) {
+                            $(".state_id").append($('<option>').val(data.state_id).text(String(data.state_name).toUpperCase()));
+                        }
+
+                        $(".state_id").val(String(data.state_id)).change();
 
                     } else if (data.message) {
 
