@@ -3,9 +3,8 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">Plan / ROffer / HLR Requests Logs</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
     <div class="card-body">
-        <div class="row g-3 align-items-end">
+        <div class="np-filter-row">
             <div class="col-md-2"><label class="form-label mb-0">Select Date</label><input type="date" class="form-control" id="from_date" value="{{ $defaultDate }}"></div>
             <div class="col-md-2"><label class="form-label mb-0">Type</label>
                 <select class="form-select" id="type"><option value="All">All Types</option><option value="Plans">Plans</option><option value="Roffer">Roffer</option><option value="CHECK_MOBILE">HLR / Mobile</option><option value="DTH">DTH</option></select>

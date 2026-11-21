@@ -7,9 +7,8 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">API Requests Logs</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
     <div class="card-body">
-        <div class="row g-3 align-items-end">
+        <div class="np-filter-row">
             <div class="col-md-2"><label class="form-label mb-0">Select Date</label><input type="date" class="form-control" id="from_date" value="{{ $defaultDate }}"></div>
             <div class="col-md-3"><label class="form-label mb-0">User / Client</label><select class="form-select" id="user_id"><option value=""></option></select></div>
             <div class="col-md-2"><label class="form-label mb-0">API</label>

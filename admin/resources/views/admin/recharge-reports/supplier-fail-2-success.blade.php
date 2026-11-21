@@ -15,9 +15,8 @@
 </div>
 
 <div class="card">
-    <div class="card-header"><h6 class="mb-0">Filters</h6></div>
     <div class="card-body">
-        <div class="row g-3 align-items-end">
+        <div class="np-filter-row">
             <div class="col-md-2">
                 <label class="form-label mb-0">From Date</label>
                 <input type="date" class="form-control" id="from_date" value="{{ \Carbon\Carbon::today()->subDays(30)->format('Y-m-d') }}">

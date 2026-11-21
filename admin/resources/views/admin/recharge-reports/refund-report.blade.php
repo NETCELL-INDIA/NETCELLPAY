@@ -12,9 +12,8 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">Refund Report</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
     <div class="card-body">
-        <div class="row g-3 align-items-end">
+        <div class="np-filter-row">
             <div class="col-md-2"><label class="form-label mb-0">From Date</label><input type="date" class="form-control" id="from_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"></div>
             <div class="col-md-2"><label class="form-label mb-0">To Date</label><input type="date" class="form-control" id="to_date" value="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"></div>
             <div class="col-md-2"><label class="form-label mb-0">API</label>

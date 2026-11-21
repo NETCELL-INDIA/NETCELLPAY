@@ -11,10 +11,9 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">R-Offer Report</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
     <div class="card-body">
-        <p class="text-muted small mb-3">Shows R-Offer check logs from Plan / Roffer API (not recharge transactions). Use Plan Logs Report for Plans / HLR / DTH.</p>
-        <div class="row g-3 align-items-end">
+        <p class="text-muted small mb-2">R-Offer check logs. Plans, HLR and DTH are in Plan Logs.</p>
+        <div class="np-filter-row">
             <div class="col-md-2"><label class="form-label mb-0">From Date</label><input type="date" class="form-control" id="from_date" value="{{ $defaultDate }}"></div>
             <div class="col-md-2"><label class="form-label mb-0">To Date</label><input type="date" class="form-control" id="to_date" value="{{ $defaultDate }}"></div>
             <div class="col-md-3"><label class="form-label mb-0">Number</label><input type="text" class="form-control" id="number" placeholder="Mobile number"><div class="date-note mt-1">NOTE : Confirm dates before searching.</div></div>

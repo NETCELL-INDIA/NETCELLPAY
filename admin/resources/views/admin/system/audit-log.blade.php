@@ -3,8 +3,7 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">Audit Log</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
-    <div class="card-body row g-3 align-items-end">
+    <div class="card-body np-filter-row">
         <div class="col-md-2"><label class="form-label">From</label><input type="date" class="form-control" id="from_date" value="{{ date('Y-m-d') }}"></div>
         <div class="col-md-2"><label class="form-label">To</label><input type="date" class="form-control" id="to_date" value="{{ date('Y-m-d') }}"></div>
         <div class="col-md-2"><label class="form-label">Module</label>

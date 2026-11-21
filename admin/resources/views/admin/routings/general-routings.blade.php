@@ -17,11 +17,8 @@ General Routings
 </div>
 
 <div class="card">
-    <div class="card-header bg-primary">
-        <h6 class="mb-0 text-white">Filters</h6>
-    </div>
     <div class="card-body">
-        <div class="row g-3">
+        <div class="np-filter-row">
             <div class="col-md-3">
                 <label class="form-label fw-semibold">Operator</label>
                 <select class="form-select" id="filter_provider">

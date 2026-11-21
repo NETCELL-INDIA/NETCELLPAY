@@ -3,8 +3,7 @@
 @section('content')
 <div class="row"><div class="col-12"><div class="page-title-box"><h4 class="mb-0">Manage KYC</h4></div></div></div>
 <div class="card">
-    <div class="card-header bg-primary"><h6 class="mb-0 text-white">Filters</h6></div>
-    <div class="card-body row g-3 align-items-end">
+    <div class="card-body np-filter-row">
         <div class="col-md-3"><label class="form-label">KYC Status</label>
             <select class="form-select" id="kyc_status">
                 <option value="Pending">Pending</option>
