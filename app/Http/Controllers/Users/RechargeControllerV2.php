@@ -942,7 +942,8 @@ class RechargeControllerV2 extends Controller
 
         $data = is_array($result['data'] ?? null) ? $result['data'] : [];
         $mapped = PlanInfoFetchService::mapHlrToPortal(isset($result['api_id']) ? (int) $result['api_id'] : null, $data);
-        if (!$mapped['provider'] || !$mapped['state']) {
+        $apiState = trim((string) ($data['State'] ?? $data['Circle'] ?? ''));
+        if (!$mapped['provider'] || ($apiState === '' && !$mapped['state'])) {
             return response()->json([
                 'type' => 'error',
                 'message' => 'Provider or circle mapping not found. Contact admin.',
@@ -951,6 +952,7 @@ class RechargeControllerV2 extends Controller
 
         $provider_data = $mapped['provider'];
         $state = $mapped['state'];
+        $shownState = $apiState !== '' ? $apiState : (string) ($state->state_name ?? '');
 
         return response()->json([
             'type' => 'success',
@@ -958,8 +960,8 @@ class RechargeControllerV2 extends Controller
             'provider_id' => $provider_data->id,
             'provider_name' => $provider_data->provider_name,
             'provider_logo' => \helpers::providerLogoUrl($provider_data->provider_logo ?? ''),
-            'state_id' => $state->id,
-            'state_name' => $state->state_name
+            'state_id' => $state->id ?? 0,
+            'state_name' => $shownState
         ]);
    }
 

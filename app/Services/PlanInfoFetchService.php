@@ -1927,8 +1927,32 @@ class PlanInfoFetchService
 
     private static function stateForPlanCircleCode(string $code): ?object
     {
-        $code = ltrim(trim($code), '0');
+        $rawCode = strtoupper(trim($code));
+        $code = ltrim($rawCode, '0');
         $names = [
+            'KA' => 'Karnataka',
+            'DL' => 'Delhi',
+            'MH' => 'Maharashtra',
+            'MU' => 'Mumbai',
+            'GJ' => 'Gujarat',
+            'TN' => 'Tamil Nadu',
+            'KL' => 'Kerala',
+            'AP' => 'Andhra Pradesh',
+            'UE' => 'Uttar Pradesh (East)',
+            'UW' => 'Uttar Pradesh (West)',
+            'WB' => 'West Bengal',
+            'RJ' => 'Rajasthan',
+            'MP' => 'Madhya Pradesh',
+            'KO' => 'Kolkata',
+            'CH' => 'Chennai',
+            'PB' => 'Punjab',
+            'HR' => 'Haryana',
+            'HP' => 'Himachal Pradesh',
+            'JK' => 'Jammu and Kashmir',
+            'AS' => 'Assam',
+            'NE' => 'North East',
+            'OR' => 'Odisha',
+            'BR' => 'Bihar',
             '10' => 'Delhi',
             '97' => 'Uttar Pradesh (West)',
             '2' => 'Punjab',
@@ -1961,11 +1985,26 @@ class PlanInfoFetchService
             '105' => 'Jharkhand',
             '106' => 'Manipur',
         ];
-        if ($code === '' || ! isset($names[$code])) {
+        $picked = $names[$rawCode] ?? ($code !== '' ? ($names[$code] ?? null) : null);
+        if ($picked === null) {
             return null;
         }
 
-        return self::matchStateByCircleName($names[$code]);
+        return self::matchStateByCircleName($picked);
+    }
+
+    /**
+     * State text exactly as that API response sent it. A circle code must not replace it.
+     */
+    private static function pickOperatorState(array $data, ?string $circleCode = null): ?string
+    {
+        unset($circleCode);
+        $fromState = self::hlrLocationName($data, ['state', 'statename', 'state_name']);
+        if ($fromState !== null) {
+            return $fromState;
+        }
+
+        return self::hlrLocationName($data, ['circle', 'circlename', 'circle_name', 'comcircle']);
     }
 
     private static function planApiCircleCode(object $state): string
@@ -3145,9 +3184,8 @@ class PlanInfoFetchService
             ?? ($data['data']['operator'] ?? null)
             ?? ($data['data']['operatorName'] ?? null)
         );
-        $stateName = self::hlrLocationName($data, ['state', 'statename', 'state_name']);
-        $circleName = $stateName ?? self::hlrLocationName($data, ['circle', 'circlename', 'circle_name']);
-        if ($stateName !== null) {
+        $circleName = self::pickOperatorState($data);
+        if ($circleName !== null) {
             $circleCode = null;
         }
 
@@ -3180,7 +3218,7 @@ class PlanInfoFetchService
             $data['Circle'] = $circleName;
             $data['State'] = $circleName;
         }
-        if ($stateName !== null) {
+        if ($circleName !== null) {
             unset($data['CircleCode']);
         }
 
@@ -3813,9 +3851,8 @@ class PlanInfoFetchService
     {
         $opCode = self::hlrNonEmpty($data['OpCode'] ?? null);
         $operatorName = self::hlrNonEmpty($data['Operator'] ?? $data['operator'] ?? null);
-        $stateName = self::hlrLocationName($data, ['state', 'statename', 'state_name']);
-        $circleName = $stateName ?? self::hlrLocationName($data, ['circle', 'circlename', 'circle_name']);
-        $circleCode = $stateName !== null ? null : self::hlrNonEmpty($data['CircleCode'] ?? null);
+        $circleName = self::pickOperatorState($data);
+        $circleCode = $circleName === null ? self::hlrNonEmpty($data['CircleCode'] ?? null) : null;
 
         $provider = null;
         if ($apiId && $opCode !== null) {
