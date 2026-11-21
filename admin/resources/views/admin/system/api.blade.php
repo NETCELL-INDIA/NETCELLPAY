@@ -76,7 +76,7 @@
 
 <!-- API Logs Modal -->
 <div class="modal fade" id="apiRequestLogsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Api request and response log list <small class="text-muted" id="apiLogsModalApiName"></small></h5>
@@ -109,7 +109,7 @@
 </div>
 
 <div class="modal fade" id="apiRequestLogDetailModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">API Log Detail</h5>

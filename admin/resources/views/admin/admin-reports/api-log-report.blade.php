@@ -18,7 +18,6 @@
 .api-log-pre{
     white-space:pre-wrap;
     word-break:break-word;
-    max-height:260px;
     overflow:auto;
     background:#f8f9fa;
     border:1px solid #e9ebec;
@@ -98,7 +97,7 @@
 
 <!-- API Log Detail Modal -->
 <div id="apiLogDetailModal" class="modal fade" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">API Log Detail</h5>

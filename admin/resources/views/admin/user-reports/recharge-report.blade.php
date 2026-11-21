@@ -238,7 +238,7 @@
 
 {{-- API Log Modal --}}
 <div id="checkApiLogModal" class="modal" tabindex="-1" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="checkApiLogModalLabel"></h5>
@@ -256,7 +256,7 @@
 
 {{-- Check Callback Modal --}}
 <div id="checkCallbackModal" class="modal" tabindex="-1" aria-hidden="true" style="display: none;">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Check Callback</h5>

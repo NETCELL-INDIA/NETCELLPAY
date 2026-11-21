@@ -33,9 +33,9 @@
         </div>
     </div>
 </div>
-<div class="modal fade" id="logModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+<div class="modal fade" id="logModal" tabindex="-1"><div class="modal-dialog modal-fullscreen modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Request / Response</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body"><h6>Request</h6><pre id="logReq" class="bg-light p-2" style="white-space:pre-wrap;max-height:220px;overflow:auto"></pre><h6>Response</h6><pre id="logRes" class="bg-light p-2" style="white-space:pre-wrap;max-height:220px;overflow:auto"></pre></div>
+    <div class="modal-body"><h6>Request</h6><pre id="logReq" class="bg-light p-2" style="white-space:pre-wrap;word-break:break-word"></pre><h6>Response</h6><pre id="logRes" class="bg-light p-2" style="white-space:pre-wrap;word-break:break-word"></pre></div>
 </div></div></div>
 @endsection
 @section('script')

@@ -213,7 +213,7 @@
 
 {{-- Check Callback Modal --}}
 <div id="checkCallbackModal" class="modal fade" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Check Callback</h5>
