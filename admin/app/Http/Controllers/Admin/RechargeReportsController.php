@@ -186,6 +186,23 @@ class RechargeReportsController extends Controller
         return \Helper::rechargeReportStateName($list, $table, $storedCircles);
     }
 
+    private function commissionSplitHtml($list): string
+    {
+        $money = function ($value): string {
+            $amount = (float) ($value ?? 0);
+
+            return function_exists('recharge_report_money')
+                ? recharge_report_money($amount)
+                : number_format($amount, 2);
+        };
+
+        return '<div style="line-height:1.3;font-size:12px;white-space:nowrap">'
+            .'<div>RT '.$money($list->commission ?? 0).'</div>'
+            .'<div>DT '.$money($list->dt_commission ?? 0).'</div>'
+            .'<div>MD '.$money($list->md_commission ?? 0).'</div>'
+            .'</div>';
+    }
+
     public function fetchAllModern(Request $post)
     {
         $this->ensureManualColumn();
@@ -288,7 +305,7 @@ class RechargeReportsController extends Controller
                     <td>' . e($this->historyStateName($list, $table, $storedCircles)) . '</td>
                     <td class="recharge-number">' . e($list->number ?: '-') . '</td>
                     <td class="text-end recharge-amount">' . (function_exists('recharge_report_money') ? recharge_report_money($list->total_amount ?? 0) : number_format((float) ($list->total_amount ?? 0), 2)) . '</td>
-                    <td class="text-end recharge-commission">' . (function_exists('recharge_report_money') ? recharge_report_money($list->commission ?? 0) : number_format((float) ($list->commission ?? 0), 2)) . '</td>
+                    <td class="text-end recharge-commission">' . $this->commissionSplitHtml($list) . '</td>
                     <td class="text-end recharge-debit">' . (function_exists('recharge_report_money') ? recharge_report_money($list->amount ?? 0) : number_format((float) ($list->amount ?? 0), 2)) . '</td>
                     <td class="text-end recharge-balance">' . (function_exists('recharge_report_money') ? recharge_report_money($list->closing_balance ?? 0) : number_format((float) ($list->closing_balance ?? 0), 2)) . '</td>
                     <td>' . report_status_html($status, $list->id) . '</td>
@@ -356,7 +373,7 @@ class RechargeReportsController extends Controller
         $table = ((int) ($post->tbl_type ?? 0) === 1 && Schema::hasTable('backup_reports')) ? 'backup_reports' : 'reports';
         $callback = function () use ($reports, $table) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'State', 'Number', 'Recharge', 'Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
+            fputcsv($out, ['Recharge ID', 'Date Time', 'User', 'Operator', 'State', 'Number', 'Recharge', 'Retailer Commission', 'DT Commission', 'MD Commission', 'Debit', 'Balance', 'Status', 'API', 'Operator ID', 'Mode']);
             $storedCircles = $this->storedCircleBodies($reports);
             foreach ($reports as $list) {
                 fputcsv($out, [
@@ -368,6 +385,8 @@ class RechargeReportsController extends Controller
                     $list->number,
                     $list->total_amount,
                     $list->commission,
+                    $list->dt_commission ?? 0,
+                    $list->md_commission ?? 0,
                     $list->amount,
                     $list->closing_balance,
                     $list->status,
