@@ -1442,11 +1442,12 @@ class Helper {
             }
         }
         foreach ([['state', 'statename', 'state_name'], ['circle', 'circlename', 'circle_name', 'comcircle']] as $keys) {
+            $fromCircle = $keys[0] === 'circle';
             foreach ($sources as $source) {
                 $lower = array_change_key_case($source, CASE_LOWER);
                 foreach ($keys as $key) {
                     $value = self::supplierPlaceName($lower[$key] ?? null);
-                    if ($value !== null) {
+                    if ($value !== null && ! ($fromCircle && self::isAndamanPlaceName($value))) {
                         return $value;
                     }
                 }
@@ -1470,6 +1471,13 @@ class Helper {
         }
 
         return $value;
+    }
+
+    private static function isAndamanPlaceName(string $name): bool
+    {
+        $key = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
+
+        return in_array($key, ['andaman', 'andamanandnicobar', 'andamanandnicobarislands', 'andamannicobar'], true);
     }
 
     public static function stateIdByCircleName(string $name): int

@@ -942,7 +942,7 @@ class RechargeControllerV2 extends Controller
 
         $data = is_array($result['data'] ?? null) ? $result['data'] : [];
         $mapped = PlanInfoFetchService::mapHlrToPortal(isset($result['api_id']) ? (int) $result['api_id'] : null, $data);
-        $apiState = trim((string) ($data['State'] ?? $data['Circle'] ?? ''));
+        $apiState = trim((string) (PlanInfoFetchService::operatorStateText($data) ?? ''));
         if (!$mapped['provider'] || ($apiState === '' && !$mapped['state'])) {
             return response()->json([
                 'type' => 'error',

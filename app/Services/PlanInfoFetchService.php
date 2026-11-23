@@ -1995,6 +1995,7 @@ class PlanInfoFetchService
 
     /**
      * State text exactly as that API response sent it. A circle code must not replace it.
+     * The lookup Circle field is Andaman for other numbers, so that label is not a state.
      */
     private static function pickOperatorState(array $data, ?string $circleCode = null): ?string
     {
@@ -2003,8 +2004,24 @@ class PlanInfoFetchService
         if ($fromState !== null) {
             return $fromState;
         }
+        $fromCircle = self::hlrLocationName($data, ['circle', 'circlename', 'circle_name', 'comcircle']);
+        if ($fromCircle !== null && self::isAndamanPlaceName($fromCircle)) {
+            return null;
+        }
 
-        return self::hlrLocationName($data, ['circle', 'circlename', 'circle_name', 'comcircle']);
+        return $fromCircle;
+    }
+
+    public static function operatorStateText(array $data): ?string
+    {
+        return self::pickOperatorState($data);
+    }
+
+    private static function isAndamanPlaceName(string $name): bool
+    {
+        $key = strtolower((string) preg_replace('/[^a-z0-9]+/i', '', $name));
+
+        return in_array($key, ['andaman', 'andamanandnicobar', 'andamanandnicobarislands', 'andamannicobar'], true);
     }
 
     private static function planApiCircleCode(object $state): string
