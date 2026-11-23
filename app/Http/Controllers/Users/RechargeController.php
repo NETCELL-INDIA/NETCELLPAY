@@ -64,7 +64,13 @@ class RechargeController extends Controller
         $apiPartner = request()->filled('api_key') || request()->attributes->get('netcell_api_partner');
         if ($user && !empty($user->id) && $apiPartner) {
             $payload['balance'] = $this->currentWalletBalance($user->id);
-            $stateId = (int) request()->input('state_id');
+            $stateId = (int) ($payload['state_id'] ?? 0);
+            if ($stateId <= 0) {
+                $stateId = (int) request()->input('state_id');
+            }
+            if ($stateId <= 0 && ! empty($payload['id'])) {
+                $stateId = (int) DB::table('reports')->where('id', (int) $payload['id'])->value('state_id');
+            }
             if ($stateId <= 0 && isset($payload['data']) && is_object($payload['data'])) {
                 $stateId = (int) ($payload['data']->state_id ?? 0);
             }
@@ -170,7 +176,14 @@ class RechargeController extends Controller
             ));
 
         }
-		$incomingState = trim((string) $post->input('state_id'));
+		$incomingState = '';
+		foreach (['state_id', 'circle_id', 'circle', 'state'] as $stateKey) {
+			$value = trim((string) $post->input($stateKey, ''));
+			if ($value !== '' && $value !== '0' && $value !== '40') {
+				$incomingState = $value;
+				break;
+			}
+		}
 		$mobileDigits = preg_replace('/\D/', '', (string) $post->number) ?? '';
 		// 40 is the old "no circle" default. In this database that row is Andaman,
 		// so a Karnataka number was stored as Andaman and Nicobar Islands.

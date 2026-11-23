@@ -1242,12 +1242,18 @@ class helpers
             $operatorId = ($alt !== '' && strcasecmp($alt, $orderId) !== 0) ? $alt : '';
         }
 
+        $stateId = (int) ($report->state_id ?? 0);
+        $stateName = $stateId > 0
+            ? trim((string) DB::table('states')->where('id', $stateId)->value('state_name'))
+            : '';
         $query = http_build_query([
             'request_order_id' => (string) ($report->request_order_id ?? ''),
             'status' => (string) $report->status,
             'amount' => (string) ($report->total_amount ?? $report->amount),
             'order_id' => $orderId,
             'operator_id' => $operatorId,
+            'state_id' => $stateId > 0 ? (string) $stateId : '',
+            'state_name' => $stateName,
             'balance' => round((float) ($user->wallet_balance ?? 0), 2),
         ]);
         $sep = str_contains($base, '?') ? '&' : '?';
