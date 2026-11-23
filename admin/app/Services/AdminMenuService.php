@@ -112,6 +112,7 @@ class AdminMenuService
                 ['key' => 'accounts.account_report', 'label' => 'Account Reports', 'paths' => ['admin/user-reports/account-report']],
                 ['key' => 'accounts.user_sale', 'label' => 'User Sale Report', 'paths' => ['admin/admin-reports/user-sale-report']],
                 ['key' => 'accounts.md_dt_sale', 'label' => 'MD / DT Sale Report', 'paths' => ['admin/admin-reports/md-dt-sale-report']],
+                ['key' => 'accounts.md_dt_commission', 'label' => 'MD / DT Commission', 'paths' => ['admin/admin-reports/md-dt-commission']],
                 ['key' => 'accounts.operator_sale', 'label' => 'Operator Sale Report', 'paths' => ['admin/admin-reports/provider-sale-report']],
                 ['key' => 'accounts.api_sale', 'label' => 'API Sale Report', 'paths' => ['admin/admin-reports/api-sale-report']],
                 ['key' => 'accounts.api_log', 'label' => 'API Log Report', 'paths' => ['admin/admin-reports/api-log-report']],

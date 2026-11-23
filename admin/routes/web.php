@@ -1131,6 +1131,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/admin-reports/md-dt-sale-report/list',[AdminReportsController::class,'mdAndDtSaleReportsList'])->name('mdAndDtSaleReportsList');
 
+    Route::get('admin/admin-reports/md-dt-commission',[App\Http\Controllers\Admin\MdDtCommissionController::class,'index']);
+    Route::post('admin/admin-reports/md-dt-commission/list',[App\Http\Controllers\Admin\MdDtCommissionController::class,'list'])->name('mdDtCommissionList');
+
 
 
     //Provider Sale Reports Routes

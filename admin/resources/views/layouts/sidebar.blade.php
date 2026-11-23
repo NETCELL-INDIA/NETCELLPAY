@@ -349,6 +349,7 @@
                             @if(admin_can('accounts.account_report'))<li class="nav-item"><a href="{{ URL::asset('admin/user-reports/account-report') }}" class="nav-link">Account Reports</a></li>@endif
                             @if(admin_can('accounts.user_sale'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/user-sale-report') }}" class="nav-link">User Sale Report</a></li>@endif
                             @if(admin_can('accounts.md_dt_sale'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/md-dt-sale-report') }}" class="nav-link">MD / DT Sale Report</a></li>@endif
+                            @if(admin_can('accounts.md_dt_commission') || admin_can('accounts.md_dt_sale') || admin_can('accounts'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/md-dt-commission') }}" class="nav-link">MD / DT Commission</a></li>@endif
                             @if(admin_can('accounts.operator_sale'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/provider-sale-report') }}" class="nav-link">Operator Sale Report</a></li>@endif
                             @if(admin_can('accounts.api_sale'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/api-sale-report') }}" class="nav-link">API Sale Report</a></li>@endif
                             @if(admin_can('accounts.api_log'))<li class="nav-item"><a href="{{ URL::asset('admin/admin-reports/api-log-report') }}" class="nav-link">API Log Report</a></li>@endif
