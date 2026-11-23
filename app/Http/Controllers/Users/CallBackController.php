@@ -160,6 +160,16 @@ class CallBackController extends Controller
                     : 'status left as Pending']);
             }
 
+            if (in_array($mapped, ['Failed', 'Failure', 'Refunded'], true) && \helpers::rechargeHasUnusedBackup($report)) {
+                DB::table('reports')->where('id', $report->id)->update([
+                    'callback_response' => $update['callback_response'] ?? null,
+                    'updated_at' => Carbon::now(),
+                ]);
+                DB::commit();
+
+                return response()->json(['type' => 'success', 'message' => 'failure held until the final API result']);
+            }
+
             if ($partnerOnly) {
                 $touch = [
                     'callback_response' => $update['callback_response'],

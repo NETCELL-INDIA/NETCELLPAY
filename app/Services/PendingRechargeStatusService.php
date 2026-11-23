@@ -172,6 +172,16 @@ class PendingRechargeStatusService
                 return ['ok' => false, 'id' => $id, 'message' => 'Status changed before the check finished'];
             }
 
+            if ($mapped !== 'Success' && \helpers::rechargeHasUnusedBackup($report)) {
+                DB::table('reports')->where('id', $id)->update([
+                    'status_checked_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+                DB::commit();
+
+                return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Primary failure is hidden until the backup API finishes'];
+            }
+
             $opId = \helpers::sanitizeOperatorId(\helpers::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
             if ($opId === '') {
                 $opId = \helpers::sanitizeOperatorId($data['field1'] ?? $data['tnx_id'] ?? $data['opid'] ?? '');

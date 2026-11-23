@@ -150,7 +150,7 @@ class ProcessRecharge implements ShouldQueue
             ], fn ($id) => $id > 0)));
 
             $final_result = null;
-            foreach ($api_ids_to_try as $try_api_id) {
+            foreach ($api_ids_to_try as $index => $try_api_id) {
                 $api_details = DB::table('apis')->where('id', $try_api_id)->first();
                 if (!$api_details || $api_details->status != '1') {
                     continue;
@@ -250,6 +250,9 @@ class ProcessRecharge implements ShouldQueue
                             'updated_at' => Carbon::now(),
                         ], $final_result)));
                         break;
+                    }
+                    if ($this->laterApiRemains($api_ids_to_try, $index)) {
+                        continue;
                     }
                     $final_result = [
                         'status' => 'Failed',
@@ -359,6 +362,11 @@ class ProcessRecharge implements ShouldQueue
                     }
                 }
 
+                // A primary Failure must not reach the user while a backup API is still waiting.
+                if (($update['status'] ?? '') === 'Failed' && ! $isMrobotics && $this->laterApiRemains($api_ids_to_try, $index)) {
+                    continue;
+                }
+
                 // Identity columns (user_id / path / balances) must never change on failover.
                 $payload = (isset($data) && is_array($data)) ? $data : [];
                 $circleId = \helpers::supplierCircleStateId($payload, $api_details);
@@ -465,6 +473,11 @@ class ProcessRecharge implements ShouldQueue
 
             throw $th;
         }
+    }
+
+    private function laterApiRemains(array $apiIds, int $index): bool
+    {
+        return $index < count($apiIds) - 1;
     }
 
     /**

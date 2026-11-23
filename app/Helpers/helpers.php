@@ -2421,6 +2421,34 @@ class helpers
         return ['Pending', 'Under Process', 'Under Proces', 'Processing'];
     }
 
+    /**
+     * True while a later backup API can still change the recharge.
+     * A primary Failure must stay hidden until that chain finishes.
+     */
+    public static function rechargeHasUnusedBackup(?object $report): bool
+    {
+        if (! $report || ! in_array((string) ($report->status ?? ''), self::rechargePendingStatuses(), true)) {
+            return false;
+        }
+        $provider = DB::table('providers')->where('id', (int) ($report->provider_id ?? 0))->first();
+        if (! $provider) {
+            return false;
+        }
+        $chain = array_values(array_unique(array_filter([
+            (int) ($provider->api_id ?? 0),
+            (int) ($provider->backup_api_id ?? 0),
+            (int) ($provider->backup_api2_id ?? 0),
+            (int) ($provider->backup_api3_id ?? 0),
+        ], fn ($id) => $id > 0)));
+        $current = (int) ($report->api_id ?? 0);
+        $pos = array_search($current, $chain, true);
+        if ($pos === false) {
+            return count($chain) > 0;
+        }
+
+        return $pos < count($chain) - 1;
+    }
+
     public static function reportAllowsComplaint(?object $report): bool
     {
         if (!$report) {

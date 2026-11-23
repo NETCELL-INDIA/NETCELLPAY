@@ -165,6 +165,16 @@ class PendingRechargeStatusService
                 return ['ok' => false, 'id' => $id, 'message' => 'Status changed before the check finished'];
             }
 
+            if ($mapped !== 'Success' && self::backupStillOpen($report)) {
+                DB::table('reports')->where('id', $id)->update([
+                    'status_checked_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+                DB::commit();
+
+                return ['ok' => true, 'id' => $id, 'status' => 'Pending', 'message' => 'Primary failure is hidden until the backup API finishes'];
+            }
+
             $opId = \Helper::sanitizeOperatorId(\Helper::apiArrayGet($data, $api->operator_id_value ?? '') ?? '');
             if ($opId === '') {
                 $opId = \Helper::sanitizeOperatorId($data['field1'] ?? $data['opid'] ?? $data['operatorRef'] ?? $data['txnId'] ?? $data['txid'] ?? '');
@@ -413,5 +423,30 @@ class PendingRechargeStatusService
             DB::table('reports')->where('id', $id)->update($payload);
         } catch (\Throwable $e) {
         }
+    }
+
+    private static function backupStillOpen(object $report): bool
+    {
+        $status = (string) ($report->status ?? '');
+        if (! in_array($status, ['Pending', 'Under Process', 'Under Proces', 'Processing'], true)) {
+            return false;
+        }
+        $provider = DB::table('providers')->where('id', (int) ($report->provider_id ?? 0))->first();
+        if (! $provider) {
+            return false;
+        }
+        $chain = array_values(array_unique(array_filter([
+            (int) ($provider->api_id ?? 0),
+            (int) ($provider->backup_api_id ?? 0),
+            (int) ($provider->backup_api2_id ?? 0),
+            (int) ($provider->backup_api3_id ?? 0),
+        ], fn ($id) => $id > 0)));
+        $current = (int) ($report->api_id ?? 0);
+        $pos = array_search($current, $chain, true);
+        if ($pos === false) {
+            return count($chain) > 0;
+        }
+
+        return $pos < count($chain) - 1;
     }
 }
