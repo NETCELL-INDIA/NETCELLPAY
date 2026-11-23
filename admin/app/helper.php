@@ -1475,6 +1475,22 @@ class Helper {
     public static function stateIdByCircleName(string $name): int
     {
         $needle = self::circleNameKey($name);
+        $id = self::stateIdForCircleKey($needle);
+        if ($id > 0) {
+            return $id;
+        }
+        foreach (self::circleKeyFallbacks($needle) as $alt) {
+            $id = self::stateIdForCircleKey($alt);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        return 0;
+    }
+
+    private static function stateIdForCircleKey(string $needle): int
+    {
         if ($needle === '') {
             return 0;
         }
@@ -1488,6 +1504,50 @@ class Helper {
         }
 
         return 0;
+    }
+
+    /**
+     * Used only when the portal has no exact circle row.
+     * Combined master names such as "Andhra Pradesh & Telangana" still match.
+     */
+    private static function circleKeyFallbacks(string $needle): array
+    {
+        $map = [
+            'andhrapradesh' => ['andhrapradeshtelangana'],
+            'telangana' => ['andhrapradeshtelangana'],
+            'kerala' => ['keralalakshadweep'],
+            'lakshadweep' => ['keralalakshadweep'],
+            'madhyapradesh' => ['madhyapradeshchhattisgarh'],
+            'chhattisgarh' => ['madhyapradeshchhattisgarh'],
+            'jharkhand' => ['bihar'],
+            'goa' => ['maharashtra'],
+        ];
+
+        return $map[$needle] ?? [];
+    }
+
+    /**
+     * Circle text from the supplier payload. RealRobo numbers become the official circle name.
+     */
+    public static function supplierCircleText(array $data, $api = null): string
+    {
+        $apiText = strtolower(trim((string) ($api->api_name ?? '').' '.(string) ($api->api_url ?? '')));
+        $namedMrobotics = str_contains($apiText, 'mrobotics');
+        $namedRealRobo = str_contains($apiText, 'realrobo');
+        $keys = array_change_key_case($data, CASE_LOWER);
+        $mroboticsShape = array_key_exists('tnx_id', $keys) || array_key_exists('lapu_id', $keys);
+        $useRealRoboCodes = $namedRealRobo || (! $namedMrobotics && ! $mroboticsShape && self::isRealRoboContext(null, $data));
+        if ($useRealRoboCodes) {
+            $code = self::realRoboCodeFromPayload($data);
+            if ($code !== null && $code !== '0') {
+                $label = self::realRoboCircleLabel($code);
+                if ($label !== null) {
+                    return $label;
+                }
+            }
+        }
+
+        return (string) (self::supplierCircleName($data) ?? '');
     }
 
     private static function circleNameKey(string $name): string
@@ -1588,18 +1648,23 @@ class Helper {
         }
 
         $payloadId = 0;
+        $payloadName = '';
         $apiHint = (object) ['api_name' => (string) ($list->api_name ?? ''), 'api_url' => ''];
         $callback = trim((string) ($list->callback_response ?? ''));
         if ($callback !== '') {
-            $payloadId = self::supplierCircleStateId(self::supplierPayload($callback), $apiHint);
+            $parsed = self::supplierPayload($callback);
+            $payloadId = self::supplierCircleStateId($parsed, $apiHint);
+            $payloadName = self::supplierCircleText($parsed, $apiHint);
         }
-        if ($payloadId < 1) {
+        if ($payloadId < 1 && $payloadName === '') {
             foreach ($storedCircles[(string) ($list->order_id ?? '')] ?? [] as $body) {
                 if (trim($body) === '') {
                     continue;
                 }
-                $payloadId = self::supplierCircleStateId(self::supplierPayload($body), $apiHint);
-                if ($payloadId > 0) {
+                $parsed = self::supplierPayload($body);
+                $payloadId = self::supplierCircleStateId($parsed, $apiHint);
+                $payloadName = self::supplierCircleText($parsed, $apiHint);
+                if ($payloadId > 0 || $payloadName !== '') {
                     break;
                 }
             }
@@ -1613,10 +1678,10 @@ class Helper {
             }
             $name = (string) \Illuminate\Support\Facades\DB::table('states')->where('id', $payloadId)->value('state_name');
 
-            return $name !== '' ? $name : '-';
+            return $name !== '' ? $name : ($payloadName !== '' ? $payloadName : '-');
         }
 
-        return '-';
+        return $payloadName !== '' ? $payloadName : '-';
     }
 
     public static function mroboticsSessionMessage(string $text): bool

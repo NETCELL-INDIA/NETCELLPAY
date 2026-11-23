@@ -336,6 +336,22 @@ class helpers
     public static function stateIdByCircleName(string $name): int
     {
         $needle = self::circleNameKey($name);
+        $id = self::stateIdForCircleKey($needle);
+        if ($id > 0) {
+            return $id;
+        }
+        foreach (self::circleKeyFallbacks($needle) as $alt) {
+            $id = self::stateIdForCircleKey($alt);
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        return 0;
+    }
+
+    private static function stateIdForCircleKey(string $needle): int
+    {
         if ($needle === '') {
             return 0;
         }
@@ -349,6 +365,26 @@ class helpers
         }
 
         return 0;
+    }
+
+    /**
+     * Used only when the portal has no exact circle row.
+     * Combined master names such as "Andhra Pradesh & Telangana" still match.
+     */
+    private static function circleKeyFallbacks(string $needle): array
+    {
+        $map = [
+            'andhrapradesh' => ['andhrapradeshtelangana'],
+            'telangana' => ['andhrapradeshtelangana'],
+            'kerala' => ['keralalakshadweep'],
+            'lakshadweep' => ['keralalakshadweep'],
+            'madhyapradesh' => ['madhyapradeshchhattisgarh'],
+            'chhattisgarh' => ['madhyapradeshchhattisgarh'],
+            'jharkhand' => ['bihar'],
+            'goa' => ['maharashtra'],
+        ];
+
+        return $map[$needle] ?? [];
     }
 
     private static function circleNameKey(string $name): string
