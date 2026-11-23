@@ -87,6 +87,8 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/dth-info',[RechargeController::class,'dthInfo']);
     Route::post('/v1/dth-plans',[RechargeController::class,'dthPlans']);
     Route::post('/v1/dth-heavy-refresh',[RechargeController::class,'dthHeavyRefresh']);
+    Route::post('/v1/heavy-refresh',[RechargeController::class,'dthHeavyRefresh']);
+    Route::post('/v1/dthheavyrefresh',[RechargeController::class,'dthHeavyRefresh']);
     Route::post('/v1/services-list',[ServicesController::class,'servicesList']);
     Route::post('/v1/service-providers',[ServicesController::class,'serviceProviders']);
     Route::post('/v1/bill-params',[ServicesController::class,'billParams']);

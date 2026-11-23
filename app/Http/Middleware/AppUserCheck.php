@@ -16,6 +16,9 @@ class AppUserCheck
         'api/v1/check-view-plan',
         'api/v1/dth-info',
         'api/v1/dth-plans',
+        'api/v1/dth-heavy-refresh',
+        'api/v1/heavy-refresh',
+        'api/v1/dthheavyrefresh',
         'api/v1/bill-params',
         'api/v1/bill-fetch',
     ];

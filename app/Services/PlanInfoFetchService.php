@@ -1102,7 +1102,15 @@ class PlanInfoFetchService
             }
             $result = \helpers::curl($url, 'GET', '', $headers, 'yes', $modal, $orderId);
             $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
-            if ($serviceKey !== 'dth_heavy_refresh') {
+            if ($serviceKey === 'dth_heavy_refresh') {
+                foreach (self::mplanHeavyFallbackUrls($url) as $fallbackUrl) {
+                    if (! empty($parsed['ok'])) {
+                        break;
+                    }
+                    $result = \helpers::curl($fallbackUrl, 'GET', '', $headers, 'yes', $modal, $orderId);
+                    $parsed = self::parseDthInfoResponse(is_array($result) ? $result : [], (int) $api->id);
+                }
+            } else {
                 foreach (self::mplanSunInfoFallbackUrls($url) as $fallbackUrl) {
                     if (self::dthInfoHasCustomer($parsed['data'] ?? [])) {
                         break;
@@ -1239,17 +1247,49 @@ class PlanInfoFetchService
             return null;
         }
 
-        // PlanConnect: /api/heavyRefresh?apiKey=&token=&vcNo=&operatorCode=
+        // PlanConnect: /api/heavyRefresh?apiKey=&token=&vcNo=&operatorCode=TATASKY
         if (self::isPlanConnectHost($base) || self::isPlanConnectHost($host)) {
+            $connectCode = self::planConnectDthOpcode((int) $api->id, $providerId, $providerName);
+            if ($connectCode === null) {
+                return null;
+            }
+
             return $base.'/heavyRefresh?'.self::planConnectAuthQuery($key)
                 .'&vcNo='.urlencode($number)
-                .'&operatorCode='.urlencode($opcode);
+                .'&operatorCode='.urlencode($connectCode);
         }
 
-        // MPlan: /Dthheavy.php
+        if (str_contains($host, 'mplan')) {
+            $operator = self::mplanDthOperator($providerName);
+            if ($operator === null) {
+                return null;
+            }
+            $origin = 'https://www.mplan.in';
+            $parts = parse_url($rawUrl);
+            if (is_array($parts) && ! empty($parts['host'])) {
+                $origin = ($parts['scheme'] ?? 'https').'://'.$parts['host'];
+            }
+
+            return $origin.'/apiv2/Dthheavy.php?apikey='.urlencode($key)
+                .'&operator='.urlencode($operator)
+                .'&tel='.urlencode($number)
+                .'&offer=roffer';
+        }
+
         return $base . '/Dthheavy.php?apikey=' . urlencode($key)
             . '&operator=' . urlencode($opcode)
             . '&offer=roffer&tel=' . urlencode($number);
+    }
+
+    /** @return list<string> */
+    private static function mplanHeavyFallbackUrls(string $url): array
+    {
+        if (! str_contains(strtolower($url), 'mplan') || ! str_contains($url, '/apiv2/Dthheavy.php')) {
+            return [];
+        }
+        $fallback = str_replace('/apiv2/Dthheavy.php', '/api/Dthheavy.php', $url);
+
+        return $fallback !== $url ? [$fallback] : [];
     }
 
     public static function buildLastRechargeUrl(object $api, int $providerId, string $number): ?string

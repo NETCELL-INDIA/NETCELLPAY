@@ -2150,7 +2150,27 @@ class RechargeController extends Controller
 
     {
 
-
+        if (! $post->filled('provider_id')) {
+            $post->merge([
+                'provider_id' => $post->input('operator_id', $post->input('opid', $post->input('operator', $post->input('provider')))),
+            ]);
+        }
+        if (! $post->filled('number')) {
+            $post->merge([
+                'number' => $post->input('vc_number', $post->input('vc', $post->input('vcno', $post->input('mobile', $post->input('dth_number', $post->input('customer_id')))))),
+            ]);
+        }
+        $providerRaw = trim((string) $post->input('provider_id', ''));
+        if ($providerRaw !== '' && ! ctype_digit($providerRaw)) {
+            $providerId = (int) DB::table('providers')
+                ->where('service_id', 2)
+                ->where('status', 1)
+                ->where('provider_name', 'like', '%'.$providerRaw.'%')
+                ->value('id');
+            if ($providerId > 0) {
+                $post->merge(['provider_id' => $providerId]);
+            }
+        }
 
         $rules = array(
 
@@ -2193,10 +2213,16 @@ class RechargeController extends Controller
             ]);
         }
 
+        $data = is_array($result['data'] ?? null) ? $result['data'] : [];
+        $payload = ($data !== [] && ! array_is_list($data)) ? $data : new \stdClass();
+
         return response()->json([
             'type' => 'success',
+            'status' => 'success',
             'message' => $result['message'] ?? 'Heavy Refresh Successfully Completed',
-            'data' => $result['data'] ?? [],
+            'data' => $payload,
+            'RDATA' => $payload,
+            'records' => $payload,
         ]);
 
         } catch (\Throwable $e) {
