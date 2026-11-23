@@ -41,10 +41,10 @@
 
 <div class="row">
     <div class="col-md-4">
-        <div class="card"><div class="card-body"><p class="text-muted mb-1">DT commission</p><h4 class="mb-0" id="dt_total">₹ 0.00</h4></div></div>
+        <div class="card"><div class="card-body"><p class="text-muted mb-1">DT commission</p><h4 class="mb-0" id="dt_total">₹ 0.00</h4><p class="mb-0 text-muted" id="dt_amount">on recharge ₹ 0.00</p></div></div>
     </div>
     <div class="col-md-4">
-        <div class="card"><div class="card-body"><p class="text-muted mb-1">MD commission</p><h4 class="mb-0" id="md_total">₹ 0.00</h4></div></div>
+        <div class="card"><div class="card-body"><p class="text-muted mb-1">MD commission</p><h4 class="mb-0" id="md_total">₹ 0.00</h4><p class="mb-0 text-muted" id="md_amount">on recharge ₹ 0.00</p></div></div>
     </div>
     <div class="col-md-4">
         <div class="card"><div class="card-body"><p class="text-muted mb-1">Total</p><h4 class="mb-0" id="all_total">₹ 0.00</h4></div></div>
@@ -65,13 +65,14 @@
                                 <th>Mobile</th>
                                 <th>ID</th>
                                 <th class="text-end">Credits</th>
+                                <th class="text-end">Recharge amount</th>
                                 <th class="text-end">Commission</th>
                                 <th class="text-end">Reversed</th>
                                 <th class="text-end">Net</th>
                             </tr>
                         </thead>
                         <tbody id="commission_rows">
-                            <tr><td colspan="8" class="text-center text-muted">Search to load commission</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted">Search to load commission</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -104,9 +105,11 @@
                 $('#dt_total').text(money(res.dt_total));
                 $('#md_total').text(money(res.md_total));
                 $('#all_total').text(money(res.total));
+                $('#dt_amount').text('on recharge ' + money(res.dt_amount));
+                $('#md_amount').text('on recharge ' + money(res.md_amount));
                 var rows = res.rows || [];
                 if (!rows.length) {
-                    $('#commission_rows').html('<tr><td colspan="8" class="text-center text-muted">No commission in this date range</td></tr>');
+                    $('#commission_rows').html('<tr><td colspan="9" class="text-center text-muted">No commission in this date range</td></tr>');
                     return;
                 }
                 var html = '';
@@ -117,6 +120,7 @@
                         + '<td>' + $('<div>').text(row.mobile).html() + '</td>'
                         + '<td>' + $('<div>').text(row.id).html() + '</td>'
                         + '<td class="text-end">' + $('<div>').text(row.count).html() + '</td>'
+                        + '<td class="text-end">' + money(row.recharge_amount) + '</td>'
                         + '<td class="text-end">' + money(row.credit) + '</td>'
                         + '<td class="text-end">' + money(row.reverse) + '</td>'
                         + '<td class="text-end"><strong>' + money(row.net) + '</strong></td>'
@@ -126,7 +130,7 @@
             },
             error: function () {
                 button.prop('disabled', false).text('Search');
-                $('#commission_rows').html('<tr><td colspan="8" class="text-center text-danger">Unable to load commission</td></tr>');
+                $('#commission_rows').html('<tr><td colspan="9" class="text-center text-danger">Unable to load commission</td></tr>');
             }
         });
     }

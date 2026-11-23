@@ -39,20 +39,26 @@ class MdDtCommissionController extends Controller
                 DB::raw("SUM(CASE WHEN r.transaction_type = 'Commission' THEN r.amount ELSE 0 END) as credit_commission"),
                 DB::raw("SUM(CASE WHEN r.transaction_type = 'Reverse Commission' THEN r.amount ELSE 0 END) as reverse_commission"),
                 DB::raw("SUM(CASE WHEN r.transaction_type = 'Commission' THEN r.amount ELSE 0 END) - SUM(CASE WHEN r.transaction_type = 'Reverse Commission' THEN r.amount ELSE 0 END) as net_commission"),
+                DB::raw("SUM(CASE WHEN r.transaction_type = 'Commission' THEN COALESCE(r.total_amount, 0) ELSE 0 END) as recharge_amount"),
                 DB::raw("SUM(CASE WHEN r.transaction_type = 'Commission' THEN 1 ELSE 0 END) as credit_count")
             )
             ->get();
 
         $dtTotal = 0.0;
         $mdTotal = 0.0;
+        $dtAmount = 0.0;
+        $mdAmount = 0.0;
         $list = [];
         foreach ($rows as $row) {
             $net = round((float) $row->net_commission, 2);
+            $rechargeAmount = round((float) $row->recharge_amount, 2);
             if ((int) $row->role_id === 4) {
                 $mdTotal += $net;
+                $mdAmount += $rechargeAmount;
                 $roleName = 'MD';
             } else {
                 $dtTotal += $net;
+                $dtAmount += $rechargeAmount;
                 $roleName = 'DT';
             }
             $list[] = [
@@ -61,6 +67,7 @@ class MdDtCommissionController extends Controller
                 'mobile' => (string) ($row->mobile_number ?: ''),
                 'role' => $roleName,
                 'count' => (int) $row->credit_count,
+                'recharge_amount' => $rechargeAmount,
                 'credit' => round((float) $row->credit_commission, 2),
                 'reverse' => round((float) $row->reverse_commission, 2),
                 'net' => $net,
@@ -73,6 +80,8 @@ class MdDtCommissionController extends Controller
             'to_date' => $to,
             'dt_total' => round($dtTotal, 2),
             'md_total' => round($mdTotal, 2),
+            'dt_amount' => round($dtAmount, 2),
+            'md_amount' => round($mdAmount, 2),
             'total' => round($dtTotal + $mdTotal, 2),
             'rows' => $list,
         ]);
