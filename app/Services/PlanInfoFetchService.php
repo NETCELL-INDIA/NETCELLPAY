@@ -3794,6 +3794,39 @@ class PlanInfoFetchService
     }
 
     /**
+     * Same circle the mobile app Operator/Circle Fetch shows.
+     * null means the lookup did not run. 0 means it ran and named no portal circle.
+     */
+    public static function operatorFetchStateId(string $number): ?int
+    {
+        $digits = preg_replace('/\D/', '', $number) ?? '';
+        if (strlen($digits) < 10) {
+            return null;
+        }
+        try {
+            $lookup = self::fetchOperatorLookup(substr($digits, -10));
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if (empty($lookup['ok'])) {
+            return null;
+        }
+        $data = is_array($lookup['data'] ?? null) ? $lookup['data'] : [];
+        $name = trim((string) (self::operatorStateText($data) ?? ''));
+        if ($name !== '') {
+            $state = self::matchStateByCircleName($name);
+
+            return $state ? (int) $state->id : 0;
+        }
+        $mapped = self::mapHlrToPortal(
+            isset($lookup['api_id']) ? (int) $lookup['api_id'] : null,
+            $data
+        );
+
+        return (int) ($mapped['state']->id ?? 0);
+    }
+
+    /**
      * Website reads data as category → rows. The Android app also reads RDATA/records
      * and shows "Plans not available from API" when those keys are missing or data is a list.
      *
@@ -3951,12 +3984,30 @@ class PlanInfoFetchService
         return null;
     }
 
-    private static function matchStateByCircleName(string $name): ?object
+    public static function matchStateByCircleName(string $name): ?object
     {
-        $needle = self::normalizeLookupName($name);
+        $needle = self::portalCircleKey($name);
         if ($needle === '') {
             return null;
         }
+        $wanted = array_merge([$needle], self::circleNameFallbacks($needle));
+
+        $states = DB::table('states')->get();
+        foreach ($states as $state) {
+            foreach (['state_name', 'mplan_state_code'] as $field) {
+                $value = self::portalCircleKey((string) ($state->{$field} ?? ''));
+                if ($value !== '' && in_array($value, $wanted, true)) {
+                    return $state;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function portalCircleKey(string $name): string
+    {
+        $needle = self::normalizeLookupName($name);
         $aliases = [
             'upw' => 'upwest',
             'uttarpradeshwest' => 'upwest',
@@ -3981,19 +4032,27 @@ class PlanInfoFetchService
             'ne' => 'northeast',
             'biharjharkhand' => 'bihar',
         ];
-        $needle = $aliases[$needle] ?? $needle;
 
-        $states = DB::table('states')->get();
-        foreach ($states as $state) {
-            foreach (['state_name', 'mplan_state_code'] as $field) {
-                $value = self::normalizeLookupName((string) ($state->{$field} ?? ''));
-                if ($value !== '' && $value === $needle) {
-                    return $state;
-                }
-            }
-        }
+        return $aliases[$needle] ?? $needle;
+    }
 
-        return null;
+    /** @return list<string> */
+    private static function circleNameFallbacks(string $needle): array
+    {
+        $map = [
+            'andhrapradesh' => ['andhrapradeshtelangana'],
+            'telangana' => ['andhrapradeshtelangana'],
+            'kerala' => ['keralalakshadweep'],
+            'lakshadweep' => ['keralalakshadweep'],
+            'madhyapradesh' => ['madhyapradeshchhattisgarh'],
+            'chhattisgarh' => ['madhyapradeshchhattisgarh'],
+            'maharashtra' => ['maharashtragoa'],
+            'goa' => ['maharashtra'],
+            'jharkhand' => ['bihar'],
+            'bihar' => ['biharjharkhand'],
+        ];
+
+        return $map[$needle] ?? [];
     }
 
     private static function normalizeLookupName(string $name): string

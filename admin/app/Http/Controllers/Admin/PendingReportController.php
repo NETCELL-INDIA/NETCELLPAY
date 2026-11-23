@@ -704,7 +704,7 @@ class PendingReportController extends Controller
             }
             if (isset($data) && is_array($data)) {
                 $circleId = \Helper::supplierCircleStateId($data, $api);
-                if ($circleId > 0) {
+                if ($circleId > 0 && ! \Helper::keepOperatorFetchCircle($report)) {
                     $update['state_id'] = $circleId;
                 }
                 $update = \Helper::realRoboIdPatch($update, $data, $report, $api);

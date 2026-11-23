@@ -370,7 +370,7 @@ class ProcessRecharge implements ShouldQueue
                 // Identity columns (user_id / path / balances) must never change on failover.
                 $payload = (isset($data) && is_array($data)) ? $data : [];
                 $circleId = \helpers::supplierCircleStateId($payload, $api_details);
-                if ($circleId > 0) {
+                if ($circleId > 0 && ! \helpers::keepOperatorFetchCircle($report)) {
                     $update['state_id'] = $circleId;
                 }
                 DB::table('reports')->where('id', $this->report_id)->update(

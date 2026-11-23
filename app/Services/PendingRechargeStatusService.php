@@ -200,7 +200,7 @@ class PendingRechargeStatusService
                 $update['callback_status'] = 0;
             }
             $circleId = \helpers::supplierCircleStateId($data, $api);
-            if ($circleId > 0) {
+            if ($circleId > 0 && ! \helpers::keepOperatorFetchCircle($report)) {
                 $update['state_id'] = $circleId;
             }
             $update = \helpers::realRoboIdPatch($update, $data, $report, $api);

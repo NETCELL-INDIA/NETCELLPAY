@@ -1257,7 +1257,10 @@
 
                         var apiState = $.trim(data.state_name || '');
                         var matched = '';
-                        if (apiState) {
+                        if (data.state_id && $(".state_id option[value='" + data.state_id + "']").length) {
+                            matched = String(data.state_id);
+                        }
+                        if (!matched && apiState) {
                             $(".state_id option").each(function () {
                                 if ($.trim($(this).text()).toUpperCase() === apiState.toUpperCase()) {
                                     matched = $(this).val();

@@ -185,14 +185,18 @@ class RechargeController extends Controller
 			}
 		}
 		$mobileDigits = preg_replace('/\D/', '', (string) $post->number) ?? '';
-		// 40 is the old "no circle" default. In this database that row is Andaman,
-		// so a Karnataka number was stored as Andaman and Nicobar Islands.
-		$circleMissing = $incomingState === '' || $incomingState === '0' || $incomingState === '40';
-		$resolvedState = $circleMissing
-			? 0
-			: PlanInfoFetchService::resolvePortalStateId($incomingState, $mobileDigits);
-		if ($resolvedState <= 0 && strlen($mobileDigits) >= 10 && (int) $post->input('service_id') !== 2) {
-			$resolvedState = PlanInfoFetchService::resolvePortalStateId('', substr($mobileDigits, -10));
+		$serviceId = (int) $post->input('service_id');
+		// Mobile uses the same Operator/Circle Fetch the app shows. That result stays.
+		$fromFetch = ($serviceId !== 2 && strlen($mobileDigits) >= 10)
+			? PlanInfoFetchService::operatorFetchStateId(substr($mobileDigits, -10))
+			: null;
+		if ($fromFetch !== null) {
+			$resolvedState = $fromFetch;
+		} else {
+			$circleMissing = $incomingState === '' || $incomingState === '0' || $incomingState === '40';
+			$resolvedState = $circleMissing
+				? 0
+				: PlanInfoFetchService::resolvePortalStateId($incomingState, $mobileDigits);
 		}
 		$post['state_id'] = $resolvedState > 0 ? $resolvedState : 0; 
         if (isset($post->api_key)) {
@@ -2261,7 +2265,9 @@ class RechargeController extends Controller
         }
 
         $provider_data = $mapped['provider'];
-        $state = $mapped['state'];
+        $state = $apiState !== ''
+            ? PlanInfoFetchService::matchStateByCircleName($apiState)
+            : $mapped['state'];
         $shownState = $apiState !== '' ? $apiState : (string) ($state->state_name ?? '');
 
         return response()->json([

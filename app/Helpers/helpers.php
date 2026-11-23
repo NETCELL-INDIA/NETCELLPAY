@@ -223,6 +223,17 @@ class helpers
     }
 
     /**
+     * Mobile prepaid keeps the Operator/Circle Fetch circle. The recharge supplier must not replace it.
+     */
+    public static function keepOperatorFetchCircle($report): bool
+    {
+        $serviceId = (int) ($report->service_id ?? 0);
+        $digits = preg_replace('/\D/', '', (string) ($report->number ?? '')) ?? '';
+
+        return $serviceId !== 2 && strlen($digits) >= 10;
+    }
+
+    /**
      * Telecom circle from a supplier payload. Never uses the retailer profile.
      * RealRobo codes 1-27 are resolved by circle name. Code 0 stays unresolved.
      * MRobotics does not use the RealRobo code list.
