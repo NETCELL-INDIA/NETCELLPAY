@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class SmartNotificationService
@@ -22,8 +25,21 @@ class SmartNotificationService
 
     public const TRANSACTIONAL = ['wallet', 'recharge', 'refund', 'security', 'maintenance'];
 
+    public function schemaReady(): bool
+    {
+        return Schema::hasTable('notification_campaigns')
+            && Schema::hasTable('notification_campaign_events')
+            && Schema::hasTable('messages')
+            && Schema::hasColumn('messages', 'campaign_id')
+            && Schema::hasColumn('users', 'promotional_push_consent');
+    }
+
     public function statistics(): array
     {
+        if (! $this->schemaReady()) {
+            return $this->emptyStatistics();
+        }
+
         $campaigns = DB::table('notification_campaigns')
             ->selectRaw('COUNT(*) as total_campaigns')
             ->selectRaw("SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_campaigns")
@@ -55,15 +71,90 @@ class SmartNotificationService
         ];
     }
 
-    public function recentCampaigns(int $limit = 8)
+    public function campaignPage(array $filters): LengthAwarePaginator
     {
-        return DB::table('notification_campaigns')
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get([
-                'id', 'title', 'category', 'target_type', 'target_role_id', 'status',
-                'total_recipients', 'success_count', 'failure_count', 'scheduled_at', 'created_at',
+        if (! $this->schemaReady()) {
+            return new Paginator([], 0, 20);
+        }
+
+        $query = DB::table('notification_campaigns');
+        $status = (string) ($filters['status'] ?? '');
+        if (in_array($status, ['draft', 'scheduled', 'processing', 'completed', 'partially_failed', 'failed', 'cancelled'], true)) {
+            $query->where('status', $status);
+        }
+        $category = (string) ($filters['category'] ?? '');
+        if (isset(self::CATEGORIES[$category])) {
+            $query->where('category', $category);
+        }
+        $target = (string) ($filters['target_type'] ?? '');
+        if (in_array($target, ['all', 'user', 'role'], true)) {
+            $query->where('target_type', $target);
+        }
+        $from = (string) ($filters['from'] ?? '');
+        $to = (string) ($filters['to'] ?? '');
+        if ($from !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $query->where('created_at', '>=', $from.' 00:00:00');
+        }
+        if ($to !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $query->where('created_at', '<=', $to.' 23:59:59');
+        }
+        $search = trim((string) ($filters['q'] ?? ''));
+        if ($search !== '') {
+            $query->where('title', 'like', '%'.addcslashes($search, '%_\\').'%');
+        }
+
+        return $query->orderByDesc('id')->paginate(20)->withQueryString();
+    }
+
+    public function campaign(int $id): ?object
+    {
+        if (! $this->schemaReady()) {
+            return null;
+        }
+
+        return DB::table('notification_campaigns as c')
+            ->leftJoin('users as creator', 'creator.id', '=', 'c.created_by')
+            ->where('c.id', $id)
+            ->first([
+                'c.*',
+                'creator.first_name as created_by_name',
+                'creator.mobile_number as created_by_mobile',
             ]);
+    }
+
+    public function recipientPage(int $campaignId): LengthAwarePaginator
+    {
+        return DB::table('messages')
+            ->leftJoin('users', 'users.id', '=', 'messages.to_user_id')
+            ->where('messages.campaign_id', $campaignId)
+            ->orderBy('messages.id')
+            ->paginate(50, [
+                'messages.id',
+                'messages.to_user_id',
+                'messages.status',
+                'messages.delivery_error',
+                'messages.updated_at',
+                'users.first_name',
+                'users.mobile_number',
+                'users.role_id',
+            ])
+            ->withQueryString();
+    }
+
+    private function emptyStatistics(): array
+    {
+        return [
+            'total_campaigns' => 0,
+            'draft_campaigns' => 0,
+            'processing_campaigns' => 0,
+            'completed_campaigns' => 0,
+            'failed_campaigns' => 0,
+            'partially_failed_campaigns' => 0,
+            'scheduled_campaigns' => 0,
+            'total_recipients' => 0,
+            'successful_deliveries' => 0,
+            'failed_deliveries' => 0,
+        ];
     }
 
     public function requiresConsent(string $category): bool

@@ -439,6 +439,29 @@ class NotificationCampaignSenderTest extends TestCase
         $this->assertStringNotContainsString('evil.example', $this->bodies[0]);
     }
 
+    public function test_due_schedule_sends_and_a_future_schedule_waits(): void
+    {
+        $this->fakeFcm(200, ['name' => 'projects/netcellpay-fe31a/messages/1']);
+        $userId = $this->user(6, 1, 'due-token-zzzzzzzz');
+        $due = $this->campaign('user', $userId, null, 'maintenance');
+        $future = $this->campaign('user', $userId, null, 'maintenance');
+        DB::table('notification_campaigns')->where('id', $due)->update([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->subMinute(),
+        ]);
+        DB::table('notification_campaigns')->where('id', $future)->update([
+            'status' => 'scheduled',
+            'scheduled_at' => now()->addDay(),
+        ]);
+
+        $this->artisan('notifications:dispatch-due')->assertExitCode(0);
+
+        $this->assertSame('completed', $this->campaignStatus($due));
+        $this->assertSame('scheduled', $this->campaignStatus($future));
+        $this->assertSame(1, $this->sends);
+        $this->assertSame(1, $this->deliveryStatus($due, $userId));
+    }
+
     public function test_all_role_targets_skip_admin_roles(): void
     {
         $this->fakeFcm(200, ['name' => 'projects/netcellpay-fe31a/messages/1']);

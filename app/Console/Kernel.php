@@ -34,6 +34,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('check_pending_recharge_status')->everyMinute();
         $schedule->command('notify_low_balance')->everyFifteenMinutes();
         $schedule->command('send_daily_sales_summary')->hourly();
+        $schedule->command('notifications:dispatch-due')->everyMinute()->withoutOverlapping();
     }
 
     /**

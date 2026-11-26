@@ -7,10 +7,16 @@ class UserAppCampaignDispatcher
     /** @var array<int, int> */
     public static array $testCalls = [];
 
-    public function send(int $campaignId): array
+    /** @var array<int, int> */
+    public static array $testRetryIds = [];
+
+    public function send(int $campaignId, bool $retry = false): array
     {
         if (app()->runningUnitTests()) {
             self::$testCalls[] = $campaignId;
+            if ($retry) {
+                self::$testRetryIds[] = $campaignId;
+            }
 
             return ['ok' => true, 'output' => ''];
         }
@@ -22,6 +28,9 @@ class UserAppCampaignDispatcher
         }
 
         $command = escapeshellarg(PHP_BINARY).' '.escapeshellarg($artisan).' notifications:send-campaign '.((int) $campaignId);
+        if ($retry) {
+            $command .= ' --retry';
+        }
         $descriptors = [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],

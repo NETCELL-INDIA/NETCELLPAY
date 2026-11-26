@@ -850,6 +850,9 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/extras/smart-notifications/create', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'create'])->name('smartNotificationCreate');
     Route::post('admin/extras/smart-notifications/preview', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'preview'])->name('smartNotificationPreview');
     Route::post('admin/extras/smart-notifications/confirm', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'confirm'])->name('smartNotificationConfirm');
+    Route::get('admin/extras/smart-notifications/{id}', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'show'])->whereNumber('id')->name('smartNotificationShow');
+    Route::post('admin/extras/smart-notifications/{id}/cancel', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'cancel'])->whereNumber('id')->name('smartNotificationCancel');
+    Route::post('admin/extras/smart-notifications/{id}/retry', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'retry'])->whereNumber('id')->name('smartNotificationRetry');
 
 
 

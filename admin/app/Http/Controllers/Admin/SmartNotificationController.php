@@ -15,12 +15,78 @@ use Illuminate\Validation\ValidationException;
 
 class SmartNotificationController extends Controller
 {
-    public function index(SmartNotificationService $notifications)
+    public function index(Request $request, SmartNotificationService $notifications)
     {
         return view('admin.extras.smart-notifications', [
             'stats' => $notifications->statistics(),
-            'recent' => $notifications->recentCampaigns(),
+            'campaigns' => $notifications->campaignPage($request->only(['status', 'category', 'target_type', 'from', 'to', 'q'])),
+            'filters' => $request->only(['status', 'category', 'target_type', 'from', 'to', 'q']),
+            'schemaReady' => $notifications->schemaReady(),
+            'categories' => SmartNotificationService::CATEGORIES,
         ]);
+    }
+
+    public function show(int $id, SmartNotificationService $notifications)
+    {
+        $campaign = $notifications->campaign($id);
+        if (! $campaign) {
+            return redirect()->route('smartNotifications')->with('error', 'That campaign was not found.');
+        }
+
+        return view('admin.extras.smart-notification-show', [
+            'campaign' => $campaign,
+            'recipients' => $notifications->recipientPage($id),
+            'audience' => $notifications->audienceLabel([
+                'target_type' => $campaign->target_type,
+                'target_role_id' => $campaign->target_role_id,
+            ]),
+        ]);
+    }
+
+    public function cancel(int $id, SmartNotificationService $notifications)
+    {
+        $campaign = $notifications->campaign($id);
+        if (! $campaign || ! in_array($campaign->status, ['draft', 'scheduled'], true)) {
+            return redirect()->route('smartNotifications')->with('error', 'Only a draft or a scheduled campaign can be cancelled. A notification that was already sent cannot be taken back.');
+        }
+        DB::table('notification_campaigns')->where('id', $id)->whereIn('status', ['draft', 'scheduled'])->update([
+            'status' => 'cancelled',
+            'completed_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+        DB::table('notification_campaign_events')->insert([
+            'campaign_id' => $id,
+            'actor_id' => (int) session('user_id'),
+            'action' => 'cancelled',
+            'note' => 'cancelled before send',
+            'created_at' => Carbon::now(),
+        ]);
+
+        return redirect()->route('smartNotificationShow', $id)->with('status', 'Campaign '.$id.' was cancelled. Nothing already delivered can be recalled.');
+    }
+
+    public function retry(int $id, SmartNotificationService $notifications, UserAppCampaignDispatcher $dispatcher)
+    {
+        $adminId = (int) session('user_id');
+        $key = 'smart-notification:'.$adminId;
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return redirect()->route('smartNotificationShow', $id)->with('error', 'Too many attempts. Wait a minute and try again.');
+        }
+        $campaign = $notifications->campaign($id);
+        if (! $campaign || ! in_array($campaign->status, ['failed', 'partially_failed'], true)) {
+            return redirect()->route('smartNotificationShow', $id)->with('error', 'Only failed deliveries can be retried. Successful recipients are not sent again.');
+        }
+        $pending = (int) DB::table('messages')->where('campaign_id', $id)->whereIn('status', [0, 3])->count();
+        if ($pending < 1) {
+            return redirect()->route('smartNotificationShow', $id)->with('error', 'There is no failed recipient left to retry.');
+        }
+        RateLimiter::hit($key, 60);
+        $result = $dispatcher->send($id, true);
+        if (! $result['ok']) {
+            return redirect()->route('smartNotificationShow', $id)->with('error', 'Retry did not start. '.$result['output']);
+        }
+
+        return redirect()->route('smartNotificationShow', $id)->with('status', 'Retry started for campaign '.$id.'. Recipients who already received it are skipped.');
     }
 
     public function create()
@@ -32,6 +98,9 @@ class SmartNotificationController extends Controller
 
     public function preview(Request $request, SmartNotificationService $notifications)
     {
+        if (! $notifications->schemaReady()) {
+            return redirect()->route('smartNotifications')->with('error', 'The notification tables are not on this database yet. Run the campaign migration before creating a campaign.');
+        }
         $input = $this->validated($request, $notifications);
         $summary = $notifications->audienceSummary($input);
         $uuid = (string) Str::uuid();

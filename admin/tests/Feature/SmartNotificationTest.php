@@ -21,11 +21,13 @@ class SmartNotificationTest extends TestCase
             $this->fail('Refusing admin notification tests against '.$host.'/'.$name);
         }
         UserAppCampaignDispatcher::$testCalls = [];
+        UserAppCampaignDispatcher::$testRetryIds = [];
     }
 
     protected function tearDown(): void
     {
         if ($this->campaignIds !== []) {
+            DB::table('messages')->whereIn('campaign_id', $this->campaignIds)->delete();
             DB::table('notification_campaign_events')->whereIn('campaign_id', $this->campaignIds)->delete();
             DB::table('notification_campaigns')->whereIn('id', $this->campaignIds)->delete();
         }
@@ -159,6 +161,59 @@ class SmartNotificationTest extends TestCase
         $count = (int) DB::table('notification_campaigns')->where('campaign_uuid', $draft['uuid'])->count();
         $this->assertSame(1, $count);
         $this->campaignIds[] = (int) DB::table('notification_campaigns')->where('campaign_uuid', $draft['uuid'])->value('id');
+    }
+
+    public function test_scheduled_campaign_can_be_cancelled_before_send(): void
+    {
+        $id = $this->insertCampaign('scheduled');
+
+        $this->actingAsAdmin($this->adminUser())
+            ->post('/admin/extras/smart-notifications/'.$id.'/cancel')
+            ->assertRedirect('/admin/extras/smart-notifications/'.$id);
+
+        $this->assertSame('cancelled', DB::table('notification_campaigns')->where('id', $id)->value('status'));
+        $this->assertSame([], UserAppCampaignDispatcher::$testCalls);
+        $this->assertTrue(DB::table('notification_campaign_events')->where('campaign_id', $id)->where('action', 'cancelled')->exists());
+    }
+
+    public function test_retry_requests_only_the_failed_campaign(): void
+    {
+        $id = $this->insertCampaign('failed');
+        DB::table('messages')->insert([
+            'user_id' => 1,
+            'to_user_id' => 2,
+            'subject' => 'Phase2C test title',
+            'msg_source' => 'PUSH',
+            'template_id' => '0',
+            'content' => 'Hello',
+            'status' => 3,
+            'campaign_id' => $id,
+            'delivery_error' => 'temporary failure',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAsAdmin($this->adminUser())
+            ->post('/admin/extras/smart-notifications/'.$id.'/retry')
+            ->assertRedirect('/admin/extras/smart-notifications/'.$id);
+
+        $this->assertSame([$id], UserAppCampaignDispatcher::$testRetryIds);
+        $this->actingAsAdmin($this->adminUser())
+            ->get('/admin/extras/smart-notifications/'.$id)
+            ->assertOk()
+            ->assertSee('Retry failed recipients')
+            ->assertDontSee('temporary failure token');
+    }
+
+    public function test_completed_campaign_cannot_be_cancelled(): void
+    {
+        $id = $this->insertCampaign('completed');
+
+        $this->actingAsAdmin($this->adminUser())
+            ->post('/admin/extras/smart-notifications/'.$id.'/cancel')
+            ->assertRedirect('/admin/extras/smart-notifications');
+
+        $this->assertSame('completed', DB::table('notification_campaigns')->where('id', $id)->value('status'));
     }
 
     public function test_existing_send_message_page_still_opens(): void
