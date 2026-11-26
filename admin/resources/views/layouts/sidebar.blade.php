@@ -445,6 +445,7 @@
                             @if(admin_can('extras.whatsapp_template'))<li class="nav-item"><a href="{{ route('whatsappTemplatePage') }}" class="nav-link">WhatsApp Template List</a></li>@endif
                             @if(admin_can('extras.message_settings'))<li class="nav-item"><a href="{{ route('messageSettings') }}" class="nav-link">Notification / Message Settings</a></li>@endif
                             @if(admin_can('extras.send_message'))<li class="nav-item"><a href="{{ URL::asset('admin/users/send-message') }}" class="nav-link">Send SMS / Notification</a></li>@endif
+                            @if(admin_can('extras.smart_notifications'))<li class="nav-item"><a href="{{ route('smartNotifications') }}" class="nav-link">Smart Notifications</a></li>@endif
                             @if(admin_can('extras.sms_report'))<li class="nav-item"><a href="{{ route('sendSmsReport') }}" class="nav-link">Send SMS Report</a></li>@endif
                             @if(admin_can('extras.notification_report'))<li class="nav-item"><a href="{{ route('notificationSendReport') }}" class="nav-link">Notification Send Report</a></li>@endif
                             @if(admin_can('extras.sms_template'))<li class="nav-item"><a href="{{ URL::asset('admin/company/sms-template') }}" class="nav-link">SMS Templates</a></li>@endif

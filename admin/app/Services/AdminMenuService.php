@@ -172,6 +172,7 @@ class AdminMenuService
                 ['key' => 'extras.whatsapp_template', 'label' => 'WhatsApp Template List', 'paths' => ['admin/company/whatsapp-template']],
                 ['key' => 'extras.message_settings', 'label' => 'Notification / Message Settings', 'paths' => ['admin/extras/message-settings']],
                 ['key' => 'extras.send_message', 'label' => 'Send SMS / Notification', 'paths' => ['admin/users/send-message']],
+                ['key' => 'extras.smart_notifications', 'label' => 'Smart Notifications', 'paths' => ['admin/extras/smart-notifications']],
                 ['key' => 'extras.sms_report', 'label' => 'Send SMS Report', 'paths' => ['admin/extras/send-sms-report']],
                 ['key' => 'extras.notification_report', 'label' => 'Notification Send Report', 'paths' => ['admin/extras/notification-send-report']],
                 ['key' => 'extras.sms_template', 'label' => 'SMS Templates', 'paths' => ['admin/company/sms-template']],

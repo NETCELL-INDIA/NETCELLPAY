@@ -19,9 +19,22 @@ class FcmHttpV1Service
     /** @var string|null Safe last failure reason (no secrets / no absolute paths) */
     private static ?string $lastError = null;
 
+    /**
+     * Test seam. Production leaves this null, so real FCM HTTP is unchanged.
+     *
+     * @var null|\Closure(string,string,array): array{status:int,body:string}
+     */
+    public static $httpResponder = null;
+
     public static function lastError(): ?string
     {
         return self::$lastError;
+    }
+
+    public static function fakeHttp(?callable $responder): void
+    {
+        self::$httpResponder = $responder === null ? null : \Closure::fromCallable($responder);
+        self::$lastError = null;
     }
 
     public static function projectId(): string
@@ -156,7 +169,7 @@ class FcmHttpV1Service
             return false;
         }
 
-        if (! self::isHttpV1Configured()) {
+        if (self::$httpResponder === null && ! self::isHttpV1Configured()) {
             self::$lastError = self::status()['message'];
 
             return false;
@@ -186,30 +199,62 @@ class FcmHttpV1Service
 
     private static function sendHttpV1(string $deviceToken, string $title, string $body, array $data, int $userId): bool
     {
-        $accessToken = self::accessToken();
-        if ($accessToken === null) {
-            self::$lastError = 'FCM v1 OAuth failed (check service account JSON)';
+        if (self::$httpResponder !== null) {
+            $accessToken = 'test';
+        } else {
+            $accessToken = self::accessToken();
+            if ($accessToken === null) {
+                self::$lastError = 'FCM v1 OAuth failed (check service account JSON)';
 
-            return false;
+                return false;
+            }
+        }
+
+        $androidPriority = 'HIGH';
+        if (isset($data['android_priority'])) {
+            $androidPriority = strtoupper((string) $data['android_priority']) === 'NORMAL' ? 'NORMAL' : 'HIGH';
+            unset($data['android_priority']);
+        }
+        $ttl = null;
+        if (isset($data['android_ttl'])) {
+            $seconds = (int) $data['android_ttl'];
+            unset($data['android_ttl']);
+            if ($seconds > 0) {
+                $ttl = $seconds.'s';
+            }
+        }
+        $image = trim((string) ($data['image'] ?? ''));
+        if ($image !== '' && ! preg_match('#^https://#i', $image)) {
+            $image = '';
         }
 
         $payloadData = self::buildDataPayload($title, $body, $data);
         $channelId = self::channelId();
+        $notification = [
+            'title' => $title,
+            'body' => $body,
+        ];
+        $androidNotification = [
+            'channel_id' => $channelId,
+            'sound' => 'default',
+            'default_sound' => true,
+        ];
+        if ($image !== '') {
+            $notification['image'] = $image;
+            $androidNotification['image'] = $image;
+        }
+        $android = [
+            'priority' => $androidPriority,
+            'notification' => $androidNotification,
+        ];
+        if ($ttl !== null) {
+            $android['ttl'] = $ttl;
+        }
         $message = [
             'message' => [
                 'token' => $deviceToken,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                ],
-                'android' => [
-                    'priority' => 'HIGH',
-                    'notification' => [
-                        'channel_id' => $channelId,
-                        'sound' => 'default',
-                        'default_sound' => true,
-                    ],
-                ],
+                'notification' => $notification,
+                'android' => $android,
                 'data' => $payloadData,
             ],
         ];
@@ -424,6 +469,15 @@ class FcmHttpV1Service
 
     private static function curl(string $url, string $body, array $headers): array
     {
+        if (self::$httpResponder !== null) {
+            $response = (self::$httpResponder)($url, $body, $headers);
+
+            return [
+                'status' => (int) ($response['status'] ?? 0),
+                'body' => (string) ($response['body'] ?? ''),
+            ];
+        }
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
