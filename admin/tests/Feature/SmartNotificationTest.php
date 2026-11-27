@@ -38,7 +38,7 @@ class SmartNotificationTest extends TestCase
             $query->select('id')->from('notification_campaigns')->where('title', 'Phase2C test title');
         })->delete();
         DB::table('notification_campaigns')->where('title', 'Phase2C test title')->delete();
-        DB::table('messages')->whereIn('subject', ['Phase1 report delete', 'Phase1 edited title', 'Corrected title'])->delete();
+        DB::table('messages')->whereIn('subject', ['Phase1 report delete', 'Phase1 edited title', 'Corrected title', 'Bulk date delete'])->delete();
         foreach ($this->consentRestore as $userId => $value) {
             DB::table('users')->where('id', $userId)->update(['promotional_push_consent' => $value]);
         }
@@ -313,6 +313,57 @@ class SmartNotificationTest extends TestCase
         $this->assertSame(3, (int) $campaign->total_recipients);
     }
 
+    public function test_date_and_user_delete_does_not_remove_other_notifications(): void
+    {
+        $admin = $this->adminUser();
+        $users = DB::table('users')
+            ->where('mobile_number', '!=', '')
+            ->orderBy('id')
+            ->limit(2)
+            ->get(['id', 'mobile_number']);
+        if ($users->count() < 2) {
+            $this->markTestSkipped('Need two users with mobile numbers.');
+        }
+        $day = '2037-11-27 10:00:00';
+        $otherDay = '2037-11-28 10:00:00';
+        $this->assertSame(0, DB::table('messages')->whereBetween('created_at', ['2037-11-27 00:00:00', '2037-11-28 23:59:59'])->count());
+
+        $campaignId = $this->insertCampaign('completed');
+        $first = $this->insertInbox((int) $users[0]->id, $day, $campaignId);
+        $second = $this->insertInbox((int) $users[1]->id, $day, null);
+        $kept = $this->insertInbox((int) $users[0]->id, $otherDay, null);
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete-filtered', [])
+            ->assertOk()
+            ->assertJsonPath('type', 'error');
+        $this->assertNotNull(DB::table('messages')->where('id', $first)->first());
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete-filtered', [
+                'mobile' => $users[0]->mobile_number,
+                'from_date' => '2037-11-27',
+                'to_date' => '2037-11-27',
+            ])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+
+        $this->assertNull(DB::table('messages')->where('id', $first)->first());
+        $this->assertNotNull(DB::table('messages')->where('id', $second)->first());
+        $this->assertNotNull(DB::table('messages')->where('id', $kept)->first());
+        $this->assertNotNull(DB::table('notification_campaigns')->where('id', $campaignId)->first());
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete-filtered', [
+                'from_date' => '2037-11-27',
+                'to_date' => '2037-11-28',
+            ])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+        $this->assertNull(DB::table('messages')->where('id', $second)->first());
+        $this->assertNull(DB::table('messages')->where('id', $kept)->first());
+    }
+
     public function test_admin_can_edit_and_delete_a_notification(): void
     {
         $admin = $this->adminUser();
@@ -403,6 +454,22 @@ class SmartNotificationTest extends TestCase
         }
 
         return $user;
+    }
+
+    private function insertInbox(int $userId, string $createdAt, ?int $campaignId): int
+    {
+        return (int) DB::table('messages')->insertGetId([
+            'user_id' => 1,
+            'to_user_id' => $userId,
+            'subject' => 'Bulk date delete',
+            'msg_source' => 'PUSH',
+            'template_id' => '0',
+            'content' => 'bulk body',
+            'status' => 1,
+            'campaign_id' => $campaignId,
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
     }
 
     private function insertCampaign(string $status): int

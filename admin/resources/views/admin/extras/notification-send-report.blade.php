@@ -43,6 +43,11 @@
                     <i class="ri-search-line"></i> Search
                 </button>
             </div>
+            <div class="sms-filter-field sms-filter-field--btn">
+                <button type="button" class="btn btn-danger btn-sm w-100" id="btnDeleteFiltered">
+                    Delete by date / user
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -166,6 +171,65 @@ function fetchNotifyReport() {
 }
 
 $(function () {
+    $('#btnDeleteFiltered').on('click', function () {
+        var fromDate = $('#from_date').val();
+        var toDate = $('#to_date').val();
+        var user = $.trim($('#mobile').val());
+        if (!fromDate && !toDate && !user) {
+            Swal.fire({ title: 'Choose a filter', text: 'Enter a date, a date range, or a user before deleting.', icon: 'warning' });
+            return;
+        }
+        var scope = [];
+        if (fromDate || toDate) {
+            scope.push((fromDate || '...') + ' to ' + (toDate || '...'));
+        }
+        if (user) {
+            scope.push('user "' + user + '"');
+        }
+        Swal.fire({
+            title: 'Delete these notifications?',
+            text: 'This deletes the app inbox notifications for ' + scope.join(' and ') + '. The campaign record stays. An alert already shown on a phone cannot be recalled.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            customClass: {
+                confirmButton: 'btn btn-danger w-xs mt-2',
+                cancelButton: 'btn btn-light w-xs mt-2 ms-2',
+            },
+            buttonsStyling: false
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            $.ajax({
+                url: '{{ route('notificationSendReportDeleteFiltered') }}',
+                method: 'POST',
+                dataType: 'json',
+                data: {
+                    _token: csrf,
+                    from_date: fromDate,
+                    to_date: toDate,
+                    mobile: user,
+                    status: $('#status').val()
+                },
+                success: function (res) {
+                    Swal.fire({
+                        title: res && res.type === 'success' ? 'Deleted' : 'Error',
+                        text: (res && res.message) || 'Done',
+                        icon: res && res.type === 'success' ? 'success' : 'error'
+                    });
+                    if (res && res.type === 'success') {
+                        currentPage = 1;
+                        fetchNotifyReport();
+                    }
+                },
+                error: function () {
+                    Swal.fire({ title: 'Error', text: 'Unable to delete', icon: 'error' });
+                }
+            });
+        });
+    });
     $('#btnSearch').on('click', function () {
         currentPage = 1;
         fetchNotifyReport();

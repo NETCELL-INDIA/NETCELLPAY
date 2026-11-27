@@ -30,34 +30,8 @@ class NotificationSendReportController extends Controller
 
         $page = max(1, (int) ($request->page ?: 1));
         $offset = ($page - 1) * $limit;
-        $mobile = trim((string) $request->mobile);
-        $status = trim((string) $request->status);
-        $from = trim((string) $request->from_date);
-        $to = trim((string) $request->to_date);
-
-        $q = DB::table('messages as m')
-            ->leftJoin('users as u', 'u.id', '=', 'm.to_user_id')
-            ->whereIn('m.msg_source', ['PUSH', 'NOTIFICATION']);
-
-        if ($mobile !== '') {
-            $q->where(function ($w) use ($mobile) {
-                $w->where('u.mobile_number', 'like', '%'.$mobile.'%')
-                    ->orWhere('u.outlet_name', 'like', '%'.$mobile.'%')
-                    ->orWhere('m.subject', 'like', '%'.$mobile.'%');
-            });
-        }
-
-        if ($status !== '' && $status !== 'all') {
-            $q->where('m.status', (int) $status);
-        }
-
-        if ($from !== '') {
-            $q->where('m.created_at', '>=', $from.' 00:00:00');
-        }
-        if ($to !== '') {
-            $q->where('m.created_at', '<=', $to.' 23:59:59');
-        }
-
+        $filters = $this->reportFilters($request);
+        $q = $this->filteredMessages($filters);
         $total = (clone $q)->count();
         $hasCampaign = Schema::hasColumn('messages', 'campaign_id');
         $columns = [
@@ -208,6 +182,38 @@ class NotificationSendReportController extends Controller
         ]);
     }
 
+    public function destroyFiltered(Request $request)
+    {
+        if (! $this->canManageNotification()) {
+            return response()->json(['type' => 'error', 'message' => 'You are not allowed to delete these notifications.'], 403);
+        }
+        if (! Schema::hasTable('messages')) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid notification']);
+        }
+
+        $filters = $this->reportFilters($request);
+        $dayError = $this->dateFilterError($filters['from'], $filters['to']);
+        if ($dayError !== null) {
+            return response()->json(['type' => 'error', 'message' => $dayError]);
+        }
+        if ($filters['from'] === '' && $filters['to'] === '' && $filters['user'] === '') {
+            return response()->json(['type' => 'error', 'message' => 'Choose a date, a date range, or a user before deleting.']);
+        }
+        if ($filters['user'] !== '' && mb_strlen($filters['user']) < 4) {
+            return response()->json(['type' => 'error', 'message' => 'Enter at least 4 characters of the mobile or user name.']);
+        }
+
+        $deleted = 0;
+        $this->filteredMessages($filters, false)->select('m.id')->orderBy('m.id')->chunkById(500, function ($rows) use (&$deleted) {
+            $deleted += DB::table('messages')->whereIn('id', $rows->pluck('id'))->delete();
+        }, 'm.id', 'id');
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Deleted '.$deleted.' inbox notification'.($deleted === 1 ? '' : 's').'. An alert already shown on a phone cannot be recalled.',
+        ]);
+    }
+
     public function destroy(Request $request)
     {
         if (! $this->canManageNotification()) {
@@ -248,6 +254,75 @@ class NotificationSendReportController extends Controller
             'type' => 'success',
             'message' => 'Wrong notification deleted ('.$deleted.' row'.($deleted === 1 ? '' : 's').').',
         ]);
+    }
+
+    private function reportFilters(Request $request): array
+    {
+        $status = trim((string) $request->status);
+
+        return [
+            'user' => trim(strip_tags((string) $request->mobile)),
+            'status' => $status,
+            'from' => trim((string) $request->from_date),
+            'to' => trim((string) $request->to_date),
+        ];
+    }
+
+    private function filteredMessages(array $filters, bool $matchSubject = true)
+    {
+        $query = DB::table('messages as m')
+            ->leftJoin('users as u', 'u.id', '=', 'm.to_user_id');
+        $this->applyMessageFilters($query, $filters, $matchSubject);
+
+        return $query;
+    }
+
+    private function applyMessageFilters($query, array $filters, bool $matchSubject): void
+    {
+        $query->whereIn('m.msg_source', ['PUSH', 'NOTIFICATION']);
+
+        $user = $filters['user'];
+        if ($user !== '') {
+            $like = '%'.addcslashes($user, '%_\\').'%';
+            $query->where(function ($inner) use ($like, $matchSubject) {
+                $inner->where('u.mobile_number', 'like', $like)
+                    ->orWhere('u.outlet_name', 'like', $like)
+                    ->orWhere('u.first_name', 'like', $like)
+                    ->orWhere('u.last_name', 'like', $like);
+                if ($matchSubject) {
+                    $inner->orWhere('m.subject', 'like', $like);
+                }
+            });
+        }
+
+        if ($filters['status'] !== '' && $filters['status'] !== 'all' && ctype_digit($filters['status'])) {
+            $query->where('m.status', (int) $filters['status']);
+        }
+
+        if ($filters['from'] !== '') {
+            $query->where('m.created_at', '>=', $filters['from'].' 00:00:00');
+        }
+        if ($filters['to'] !== '') {
+            $query->where('m.created_at', '<=', $filters['to'].' 23:59:59');
+        }
+    }
+
+    private function dateFilterError(string $from, string $to): ?string
+    {
+        foreach (['From date' => $from, 'To date' => $to] as $label => $value) {
+            if ($value === '') {
+                continue;
+            }
+            $day = Carbon::createFromFormat('Y-m-d', $value);
+            if (! $day || $day->format('Y-m-d') !== $value) {
+                return $label.' is not a valid date.';
+            }
+        }
+        if ($from !== '' && $to !== '' && $from > $to) {
+            return 'From date must be on or before the to date.';
+        }
+
+        return null;
     }
 
     private function notificationRow(int $id): ?object

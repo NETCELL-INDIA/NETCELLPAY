@@ -846,6 +846,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/extras/notification-send-report', [NotificationSendReportController::class, 'index'])->name('notificationSendReport');
     Route::post('admin/extras/notification-send-report/list', [NotificationSendReportController::class, 'list'])->name('notificationSendReportList');
     Route::post('admin/extras/notification-send-report/delete', [NotificationSendReportController::class, 'destroy'])->name('notificationSendReportDelete');
+    Route::post('admin/extras/notification-send-report/delete-filtered', [NotificationSendReportController::class, 'destroyFiltered'])->name('notificationSendReportDeleteFiltered');
     Route::post('admin/extras/notification-send-report/get', [NotificationSendReportController::class, 'showMessage'])->name('notificationSendReportGet');
     Route::post('admin/extras/notification-send-report/update', [NotificationSendReportController::class, 'update'])->name('notificationSendReportUpdate');
     Route::get('admin/extras/notification-consent', [\App\Http\Controllers\Admin\NotificationConsentController::class, 'index'])->name('notificationConsentHistory');
