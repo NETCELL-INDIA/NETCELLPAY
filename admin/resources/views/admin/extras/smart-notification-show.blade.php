@@ -15,6 +15,13 @@
 
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{{ route('smartNotifications') }}" class="btn btn-outline-secondary">Back</a>
+    <a href="{{ route('smartNotificationEdit', $campaign->id) }}" class="btn btn-primary">Edit</a>
+    @if($campaign->status !== 'processing')
+    <form method="post" action="{{ route('smartNotificationDelete', $campaign->id) }}" onsubmit="return confirm('Delete this notification from the admin list and the app inbox? An alert already shown on a phone cannot be recalled.');">
+        @csrf
+        <button class="btn btn-danger" type="submit">Delete</button>
+    </form>
+    @endif
     @if(in_array($campaign->status, ['draft', 'scheduled'], true))
     <form method="post" action="{{ route('smartNotificationCancel', $campaign->id) }}">
         @csrf

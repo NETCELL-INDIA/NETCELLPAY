@@ -96,6 +96,33 @@
 </div>
 
 </div>
+
+<div class="modal fade" id="editNotifyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit notification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">This updates the in-app inbox text. An alert already shown on a phone cannot be changed, and this does not send it again.</p>
+                <input type="hidden" id="editNotifyId">
+                <div class="mb-3">
+                    <label class="form-label" for="editNotifySubject">Title</label>
+                    <input class="form-control" id="editNotifySubject" maxlength="120">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="editNotifyContent">Message</label>
+                    <textarea class="form-control" id="editNotifyContent" maxlength="1000" rows="5"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSaveNotify">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('script')
@@ -165,14 +192,67 @@ $(function () {
             fetchNotifyReport();
         }
     });
+    $(document).on('click', '.btn-edit-notify', function () {
+        var id = $(this).data('id');
+        if (!id) {
+            return;
+        }
+        $.ajax({
+            url: '{{ route('notificationSendReportGet') }}',
+            method: 'POST',
+            dataType: 'json',
+            data: { _token: csrf, id: id },
+            success: function (res) {
+                if (!res || res.type !== 'success') {
+                    Swal.fire({ title: 'Error', text: (res && res.message) || 'Unable to open this notification', icon: 'error' });
+                    return;
+                }
+                $('#editNotifyId').val(res.id);
+                $('#editNotifySubject').val(res.subject || '');
+                $('#editNotifyContent').val(res.content || '');
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('editNotifyModal')).show();
+            },
+            error: function () {
+                Swal.fire({ title: 'Error', text: 'Unable to open this notification', icon: 'error' });
+            }
+        });
+    });
+    $('#btnSaveNotify').on('click', function () {
+        $.ajax({
+            url: '{{ route('notificationSendReportUpdate') }}',
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                _token: csrf,
+                id: $('#editNotifyId').val(),
+                subject: $('#editNotifySubject').val(),
+                content: $('#editNotifyContent').val()
+            },
+            success: function (res) {
+                if (!res || res.type !== 'success') {
+                    Swal.fire({ title: 'Error', text: (res && res.message) || 'Unable to save', icon: 'error' });
+                    return;
+                }
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('editNotifyModal')).hide();
+                Swal.fire({ title: 'Saved', text: res.message || 'Updated', icon: 'success' });
+                fetchNotifyReport();
+            },
+            error: function () {
+                Swal.fire({ title: 'Error', text: 'Unable to save', icon: 'error' });
+            }
+        });
+    });
     $(document).on('click', '.btn-del-notify', function () {
         var id = $(this).data('id');
+        var one = String($(this).data('scope')) === 'one';
         if (!id) {
             return;
         }
         Swal.fire({
             title: 'Delete this notification?',
-            text: 'This removes the same wrong APP NOTIFICATION for all users in that send.',
+            text: one
+                ? 'This removes this inbox copy only. Other recipients and the campaign record stay. An alert already shown on a phone cannot be recalled.'
+                : 'This removes the same wrong APP NOTIFICATION for all users in that send.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Delete',

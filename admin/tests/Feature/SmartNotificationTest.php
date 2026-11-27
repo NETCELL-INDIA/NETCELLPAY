@@ -38,7 +38,7 @@ class SmartNotificationTest extends TestCase
             $query->select('id')->from('notification_campaigns')->where('title', 'Phase2C test title');
         })->delete();
         DB::table('notification_campaigns')->where('title', 'Phase2C test title')->delete();
-        DB::table('messages')->where('subject', 'Phase1 report delete')->delete();
+        DB::table('messages')->whereIn('subject', ['Phase1 report delete', 'Phase1 edited title', 'Corrected title'])->delete();
         foreach ($this->consentRestore as $userId => $value) {
             DB::table('users')->where('id', $userId)->update(['promotional_push_consent' => $value]);
         }
@@ -282,27 +282,98 @@ class SmartNotificationTest extends TestCase
             ->assertRedirect();
 
         $this->actingAsAdmin($admin)
-            ->postJson('/admin/extras/notification-send-report/delete', ['id' => $campaignMessage])
-            ->assertStatus(403)
-            ->assertJsonPath('message', 'Campaign delivery history cannot be deleted.');
-
-        $this->actingAsAdmin($admin)
             ->postJson('/admin/extras/notification-send-report/delete', ['id' => $manualMessage])
             ->assertOk()
             ->assertJsonPath('type', 'success');
 
         $this->assertNull(DB::table('messages')->where('id', $manualMessage)->first());
         $this->assertSame(1, (int) DB::table('messages')->where('id', $campaignMessage)->value('status'));
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/update', [
+                'id' => $campaignMessage,
+                'subject' => 'Phase1 edited title',
+                'content' => 'corrected body',
+            ])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+        $edited = DB::table('messages')->where('id', $campaignMessage)->first();
+        $this->assertSame('Phase1 edited title', $edited->subject);
+        $this->assertSame('corrected body', $edited->content);
+        $this->assertSame(1, (int) $edited->status);
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete', ['id' => $campaignMessage])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+        $this->assertNull(DB::table('messages')->where('id', $campaignMessage)->first());
         $campaign = DB::table('notification_campaigns')->where('id', $campaignId)->first();
         $this->assertSame(2, (int) $campaign->success_count);
         $this->assertSame(1, (int) $campaign->failure_count);
         $this->assertSame(3, (int) $campaign->total_recipients);
+    }
+
+    public function test_admin_can_edit_and_delete_a_notification(): void
+    {
+        $admin = $this->adminUser();
+        $id = $this->insertCampaign('completed');
+        DB::table('notification_campaigns')->where('id', $id)->update([
+            'success_count' => 2,
+            'failure_count' => 1,
+            'total_recipients' => 3,
+        ]);
+        $now = now();
+        $messageId = DB::table('messages')->insertGetId([
+            'user_id' => 1,
+            'to_user_id' => 2,
+            'subject' => 'Phase2C test title',
+            'msg_source' => 'PUSH',
+            'template_id' => '0',
+            'content' => 'Phase2C test body',
+            'status' => 1,
+            'campaign_id' => $id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
 
         $this->actingAsAdmin($admin)
-            ->postJson('/admin/extras/notification-send-report/list', ['page' => 1, 'show' => 50])
+            ->get('/admin/extras/smart-notifications/'.$id.'/edit')
             ->assertOk()
-            ->assertSee('Campaign history', false)
-            ->assertDontSee('data-id="'.$campaignMessage.'"', false);
+            ->assertSee('Edit notification');
+
+        $this->actingAsAdmin($admin)
+            ->post('/admin/extras/smart-notifications/'.$id.'/update', [
+                'title' => 'Corrected title',
+                'message' => 'Corrected body',
+            ])
+            ->assertRedirect('/admin/extras/smart-notifications/'.$id);
+
+        $campaign = DB::table('notification_campaigns')->where('id', $id)->first();
+        $this->assertSame('Corrected title', $campaign->title);
+        $this->assertSame('Corrected body', $campaign->message);
+        $this->assertSame('completed', $campaign->status);
+        $this->assertSame(2, (int) $campaign->success_count);
+        $message = DB::table('messages')->where('id', $messageId)->first();
+        $this->assertSame('Corrected title', $message->subject);
+        $this->assertSame('Corrected body', $message->content);
+        $this->assertSame(1, (int) $message->status);
+
+        $this->actingAsAdmin($admin)
+            ->post('/admin/extras/smart-notifications/'.$id.'/delete')
+            ->assertRedirect('/admin/extras/smart-notifications');
+        $this->assertNull(DB::table('notification_campaigns')->where('id', $id)->first());
+        $this->assertNull(DB::table('messages')->where('id', $messageId)->first());
+    }
+
+    public function test_processing_notification_cannot_be_deleted(): void
+    {
+        $id = $this->insertCampaign('processing');
+
+        $this->actingAsAdmin($this->adminUser())
+            ->post('/admin/extras/smart-notifications/'.$id.'/delete')
+            ->assertRedirect('/admin/extras/smart-notifications/'.$id);
+
+        $this->assertSame('processing', DB::table('notification_campaigns')->where('id', $id)->value('status'));
     }
 
     private function grantRetailerConsent(): void

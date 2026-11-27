@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -88,6 +89,91 @@ class SmartNotificationController extends Controller
         }
 
         return redirect()->route('smartNotificationShow', $id)->with('status', 'Retry started for campaign '.$id.'. Recipients who already received it are skipped.');
+    }
+
+    public function edit(int $id, SmartNotificationService $notifications)
+    {
+        $campaign = $notifications->campaign($id);
+        if (! $campaign) {
+            return redirect()->route('smartNotifications')->with('error', 'That notification was not found.');
+        }
+
+        return view('admin.extras.smart-notification-edit', [
+            'campaign' => $campaign,
+        ]);
+    }
+
+    public function update(Request $request, int $id, SmartNotificationService $notifications)
+    {
+        $campaign = $notifications->campaign($id);
+        if (! $campaign) {
+            return redirect()->route('smartNotifications')->with('error', 'That notification was not found.');
+        }
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+            'message' => ['required', 'string', 'max:1000'],
+            'schedule_date' => ['nullable', 'date'],
+            'schedule_time' => ['nullable', 'date_format:H:i'],
+        ]);
+        $title = trim(preg_replace('/\s+/', ' ', strip_tags((string) $data['title'])) ?? '');
+        $message = trim(strip_tags((string) $data['message']));
+        if ($title === '' || $message === '') {
+            $this->failValidation('title', 'Title and message are required.');
+        }
+
+        $update = [
+            'title' => $title,
+            'message' => $message,
+            'updated_at' => Carbon::now(),
+        ];
+        if (in_array($campaign->status, ['draft', 'scheduled'], true) && (($data['schedule_date'] ?? null) || ($data['schedule_time'] ?? null))) {
+            $scheduled = $notifications->normalizeSchedule($data['schedule_date'] ?? null, $data['schedule_time'] ?? null);
+            if ($scheduled === null || $scheduled->lte(Carbon::now())) {
+                $this->failValidation('schedule_date', 'Choose a future schedule date and time.');
+            }
+            $update['scheduled_at'] = $scheduled->toDateTimeString();
+            $update['status'] = 'scheduled';
+        }
+
+        DB::table('notification_campaigns')->where('id', $id)->update($update);
+        if (Schema::hasTable('messages') && Schema::hasColumn('messages', 'campaign_id')) {
+            DB::table('messages')->where('campaign_id', $id)->update([
+                'subject' => $title,
+                'content' => $message,
+                'updated_at' => Carbon::now(),
+            ]);
+        }
+        DB::table('notification_campaign_events')->insert([
+            'campaign_id' => $id,
+            'actor_id' => (int) session('user_id'),
+            'action' => 'edited',
+            'note' => 'title and message updated',
+            'created_at' => Carbon::now(),
+        ]);
+
+        return redirect()->route('smartNotificationShow', $id)->with('status', 'Notification updated. The alert already shown on a phone cannot be changed. The in-app inbox uses this text.');
+    }
+
+    public function destroy(int $id, SmartNotificationService $notifications)
+    {
+        $campaign = $notifications->campaign($id);
+        if (! $campaign) {
+            return redirect()->route('smartNotifications')->with('error', 'That notification was not found.');
+        }
+        if ($campaign->status === 'processing') {
+            return redirect()->route('smartNotificationShow', $id)->with('error', 'A notification that is still sending cannot be deleted.');
+        }
+
+        DB::transaction(function () use ($id) {
+            if (Schema::hasTable('messages') && Schema::hasColumn('messages', 'campaign_id')) {
+                DB::table('messages')->where('campaign_id', $id)->delete();
+            }
+            DB::table('notification_campaign_events')->where('campaign_id', $id)->delete();
+            DB::table('notification_campaigns')->where('id', $id)->delete();
+        });
+
+        return redirect()->route('smartNotifications')->with('status', 'Notification '.$id.' was deleted. The in-app inbox copy was removed. An alert already shown on a phone cannot be recalled.');
     }
 
     public function create()

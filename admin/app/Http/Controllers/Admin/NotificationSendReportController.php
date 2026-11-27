@@ -93,9 +93,9 @@ class NotificationSendReportController extends Controller
                     ? Carbon::parse($row->created_at)->format('d-m-Y h:i:s a')
                     : '-';
                 $badge = $this->statusBadge((int) $row->status);
-                $action = $hasCampaign && $row->campaign_id !== null
-                    ? '<span class="text-muted">Campaign history</span>'
-                    : '<button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'">Delete</button>';
+                $isCampaign = $hasCampaign && $row->campaign_id !== null;
+                $action = '<button type="button" class="btn btn-primary btn-sm py-0 px-2 btn-edit-notify" data-id="'.(int) $row->id.'">Edit</button> '
+                    .'<button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'" data-scope="'.($isCampaign ? 'one' : 'send').'">Delete</button>';
 
                 $rows .= '<tr>
                     <td>'.$i.'</td>
@@ -145,9 +145,72 @@ class NotificationSendReportController extends Controller
         return '<span class="badge bg-secondary">Inbox saved</span>';
     }
 
+    public function showMessage(Request $request)
+    {
+        if (! $this->canManageNotification()) {
+            return response()->json(['type' => 'error', 'message' => 'You are not allowed to edit this notification.'], 403);
+        }
+        $row = $this->notificationRow((int) $request->id);
+        if (! $row) {
+            return response()->json(['type' => 'error', 'message' => 'Notification not found']);
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'id' => (int) $row->id,
+            'subject' => (string) $row->subject,
+            'content' => (string) $row->content,
+            'campaign' => Schema::hasColumn('messages', 'campaign_id') && $row->campaign_id !== null,
+        ]);
+    }
+
+    public function update(Request $request)
+    {
+        if (! $this->canManageNotification()) {
+            return response()->json(['type' => 'error', 'message' => 'You are not allowed to edit this notification.'], 403);
+        }
+        $subject = trim(preg_replace('/\s+/', ' ', strip_tags((string) $request->input('subject'))) ?? '');
+        $content = trim(strip_tags((string) $request->input('content')));
+        if ($subject === '' || mb_strlen($subject) > 120 || $content === '' || mb_strlen($content) > 1000) {
+            return response()->json(['type' => 'error', 'message' => 'Title is required (max 120) and message is required (max 1000).']);
+        }
+
+        $row = $this->notificationRow((int) $request->id);
+        if (! $row) {
+            return response()->json(['type' => 'error', 'message' => 'Notification not found']);
+        }
+
+        $changes = [
+            'subject' => $subject,
+            'content' => $content,
+            'updated_at' => Carbon::now(),
+        ];
+        if (Schema::hasColumn('messages', 'campaign_id') && $row->campaign_id !== null) {
+            DB::table('messages')->where('id', $row->id)->update($changes);
+            $updated = 1;
+        } else {
+            $from = Carbon::parse($row->created_at)->subMinutes(2);
+            $to = Carbon::parse($row->created_at)->addMinutes(2);
+            $query = DB::table('messages')
+                ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+                ->where('subject', $row->subject)
+                ->where('content', $row->content)
+                ->whereBetween('created_at', [$from, $to]);
+            if (Schema::hasColumn('messages', 'campaign_id')) {
+                $query->whereNull('campaign_id');
+            }
+            $updated = $query->update($changes);
+        }
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Notification updated ('.$updated.' inbox row'.($updated === 1 ? '' : 's').'). The phone tray alert cannot be changed.',
+        ]);
+    }
+
     public function destroy(Request $request)
     {
-        if (! $this->canDeleteManualNotification()) {
+        if (! $this->canManageNotification()) {
             return response()->json(['type' => 'error', 'message' => 'You are not allowed to delete this notification.'], 403);
         }
 
@@ -156,24 +219,18 @@ class NotificationSendReportController extends Controller
             return response()->json(['type' => 'error', 'message' => 'Invalid notification']);
         }
 
-        $row = DB::table('messages')
-            ->where('id', $id)
-            ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
-            ->whereNull('campaign_id')
-            ->first();
-
+        $row = $this->notificationRow($id);
         if (! $row) {
-            $isCampaign = DB::table('messages')
-                ->where('id', $id)
-                ->whereNotNull('campaign_id')
-                ->exists();
+            return response()->json(['type' => 'error', 'message' => 'Notification not found']);
+        }
+
+        if (Schema::hasColumn('messages', 'campaign_id') && $row->campaign_id !== null) {
+            DB::table('messages')->where('id', $row->id)->delete();
 
             return response()->json([
-                'type' => 'error',
-                'message' => $isCampaign
-                    ? 'Campaign delivery history cannot be deleted.'
-                    : 'Notification not found',
-            ], $isCampaign ? 403 : 200);
+                'type' => 'success',
+                'message' => 'This inbox notification was deleted. Other recipients and the campaign record were kept. The phone tray alert cannot be recalled.',
+            ]);
         }
 
         $from = Carbon::parse($row->created_at)->subMinutes(2);
@@ -193,7 +250,19 @@ class NotificationSendReportController extends Controller
         ]);
     }
 
-    private function canDeleteManualNotification(): bool
+    private function notificationRow(int $id): ?object
+    {
+        if ($id <= 0 || ! Schema::hasTable('messages')) {
+            return null;
+        }
+
+        return DB::table('messages')
+            ->where('id', $id)
+            ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->first();
+    }
+
+    private function canManageNotification(): bool
     {
         $adminId = (int) session('user_id');
         if ($adminId <= 0) {

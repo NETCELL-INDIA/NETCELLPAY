@@ -107,6 +107,7 @@
                         <th class="text-end">Recipients</th>
                         <th class="text-end">Success</th>
                         <th class="text-end">Failed</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -120,9 +121,18 @@
                         <td class="text-end">{{ number_format((int) $row->total_recipients) }}</td>
                         <td class="text-end">{{ number_format((int) $row->success_count) }}</td>
                         <td class="text-end">{{ number_format((int) $row->failure_count) }}</td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-sm btn-primary" href="{{ route('smartNotificationEdit', $row->id) }}">Edit</a>
+                            @if($row->status !== 'processing')
+                            <form method="post" action="{{ route('smartNotificationDelete', $row->id) }}" class="d-inline" onsubmit="return confirm('Delete this notification from the admin list and the app inbox? An alert already shown on a phone cannot be recalled.');">
+                                @csrf
+                                <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                            </form>
+                            @endif
+                        </td>
                     </tr>
                     @empty
-                    <tr><td colspan="8" class="text-center text-muted">No campaigns match this filter.</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted">No campaigns match this filter.</td></tr>
                     @endforelse
                 </tbody>
             </table>
