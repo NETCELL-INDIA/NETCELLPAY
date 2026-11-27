@@ -3176,12 +3176,32 @@ class helpers
         }
 
         try {
+            $hasRead = Schema::hasColumn('messages', 'read_at');
+            $hasCampaign = Schema::hasColumn('messages', 'campaign_id');
+            $columns = ['id', 'subject', 'content', 'status', 'created_at'];
+            if ($hasRead) {
+                $columns[] = 'read_at';
+            }
+            if ($hasCampaign) {
+                $columns[] = 'campaign_id';
+            }
+
             return DB::table('messages')
                 ->where('to_user_id', $userId)
                 ->where('msg_source', 'PUSH')
+                ->where('status', '<>', 4)
                 ->orderByDesc('id')
                 ->take($limit)
-                ->get(['id', 'subject', 'content', 'status', 'created_at']);
+                ->get($columns)
+                ->map(function ($row) use ($hasRead, $hasCampaign) {
+                    $readAt = $hasRead ? ($row->read_at ?? null) : null;
+                    $isCampaign = $hasCampaign && $row->campaign_id !== null;
+                    $row->read_at = $readAt;
+                    $row->is_read = ($isCampaign ? $readAt !== null : ((int) $row->status !== 0 || $readAt !== null)) ? 1 : 0;
+                    unset($row->campaign_id);
+
+                    return $row;
+                });
         } catch (\Throwable $e) {
             return collect();
         }
@@ -3194,11 +3214,23 @@ class helpers
         }
 
         try {
-            return (int) DB::table('messages')
+            $query = DB::table('messages')
                 ->where('to_user_id', $userId)
                 ->where('msg_source', 'PUSH')
-                ->where('status', 0)
-                ->count();
+                ->where('status', '<>', 4);
+            if (Schema::hasColumn('messages', 'campaign_id') && Schema::hasColumn('messages', 'read_at')) {
+                $query->where(function ($inner) {
+                    $inner->where(function ($legacy) {
+                        $legacy->whereNull('campaign_id')->where('status', 0);
+                    })->orWhere(function ($campaign) {
+                        $campaign->whereNotNull('campaign_id')->whereNull('read_at');
+                    });
+                });
+            } else {
+                $query->where('status', 0);
+            }
+
+            return (int) $query->count();
         } catch (\Throwable $e) {
             return 0;
         }
@@ -3325,18 +3357,37 @@ class helpers
         }
 
         try {
-            $query = DB::table('messages')
+            $now = Carbon::now();
+            $scoped = DB::table('messages')
                 ->where('to_user_id', $userId)
-                ->where('msg_source', 'PUSH')
-                ->where('status', 0);
-
+                ->where('msg_source', 'PUSH');
             if (is_array($ids) && count($ids) > 0) {
-                $query->whereIn('id', $ids);
+                $scoped->whereIn('id', $ids);
             }
 
-            $query->update([
+            if (Schema::hasColumn('messages', 'campaign_id') && Schema::hasColumn('messages', 'read_at')) {
+                (clone $scoped)
+                    ->whereNotNull('campaign_id')
+                    ->whereNull('read_at')
+                    ->update([
+                        'read_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                (clone $scoped)
+                    ->whereNull('campaign_id')
+                    ->where('status', 0)
+                    ->update([
+                        'status' => 1,
+                        'read_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                return;
+            }
+
+            $scoped->where('status', 0)->update([
                 'status' => 1,
-                'updated_at' => Carbon::now(),
+                'updated_at' => $now,
             ]);
         } catch (\Throwable $e) {
         }

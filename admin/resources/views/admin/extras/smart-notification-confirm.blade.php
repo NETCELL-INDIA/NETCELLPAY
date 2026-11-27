@@ -15,16 +15,15 @@
             <div class="col-md-4"><p class="text-muted mb-1">Priority</p><h5 class="mb-0">{{ $draft['input']['priority'] }}</h5></div>
             <div class="col-12"><p class="text-muted mb-1">Message</p><p class="mb-0">{{ $draft['input']['message'] }}</p></div>
             <div class="col-md-4"><p class="text-muted mb-1">Audience</p><h5 class="mb-0">{{ $audience }}</h5>@if($userLabel)<p class="mb-0">{{ $userLabel }}</p>@endif</div>
-            <div class="col-md-4"><p class="text-muted mb-1">Eligible recipients</p><h4 class="mb-0" data-eligible="{{ (int) $draft['summary']['eligible'] }}">{{ number_format($draft['summary']['eligible']) }}</h4></div>
-            <div class="col-md-4"><p class="text-muted mb-1">With an FCM token</p><h4 class="mb-0">{{ number_format($draft['summary']['with_token']) }}</h4></div>
+            <div class="col-md-4"><p class="text-muted mb-1">Total users</p><h4 class="mb-0" data-total-users="{{ (int) $draft['summary']['total_users'] }}">{{ number_format($draft['summary']['total_users']) }}</h4></div>
+            <div class="col-md-4"><p class="text-muted mb-1">Consent approved</p><h4 class="mb-0" data-consent-approved="{{ (int) $draft['summary']['consent_approved'] }}">{{ number_format($draft['summary']['consent_approved']) }}</h4></div>
+            <div class="col-md-4"><p class="text-muted mb-1">Consent not approved</p><h4 class="mb-0" data-consent-missing="{{ (int) $draft['summary']['consent_not_approved'] }}">{{ number_format($draft['summary']['consent_not_approved']) }}</h4></div>
+            <div class="col-md-4"><p class="text-muted mb-1">No device token</p><h4 class="mb-0" data-no-token="{{ (int) $draft['summary']['no_token'] }}">{{ number_format($draft['summary']['no_token']) }}</h4></div>
+            <div class="col-md-4"><p class="text-muted mb-1">Estimated eligible recipients</p><h4 class="mb-0" data-eligible="{{ (int) $draft['summary']['final_recipients'] }}">{{ number_format($draft['summary']['final_recipients']) }}</h4></div>
         </div>
         <div class="alert alert-warning mt-3 mb-0">
-            @if($consentApplies)
-            General, Offers, and Announcements go only to users who allowed promotional notifications.
-            @else
-            This category is transactional or security. Promotional consent does not block it.
-            @endif
-            Users without a token are skipped. This does not change wallet or recharge status.
+            Only users who have explicitly enabled promotional notifications will receive this campaign.
+            Users without a token are skipped. There is no override for consent. This does not change wallet or recharge status.
             @if($draft['input']['send_mode'] === 'schedule')
             Saving a schedule does not send it. The clock job that sends scheduled campaigns is not part of this screen.
             @else

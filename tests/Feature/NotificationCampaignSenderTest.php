@@ -40,6 +40,7 @@ class NotificationCampaignSenderTest extends TestCase
             $this->fail('Refusing to run campaign tests against '.$host.'/'.$name);
         }
         NotificationCampaignSender::$onlyUserIds = [];
+        NotificationCampaignSender::$beforeSend = null;
         FcmHttpV1Service::fakeHttp(null);
         $this->sends = 0;
         $this->bodies = [];
@@ -49,6 +50,7 @@ class NotificationCampaignSenderTest extends TestCase
     {
         FcmHttpV1Service::fakeHttp(null);
         NotificationCampaignSender::$onlyUserIds = null;
+        NotificationCampaignSender::$beforeSend = null;
         if ($this->campaignIds !== []) {
             DB::table('notification_campaign_events')->whereIn('campaign_id', $this->campaignIds)->delete();
             DB::table('messages')->whereIn('campaign_id', $this->campaignIds)->delete();
@@ -254,16 +256,61 @@ class NotificationCampaignSenderTest extends TestCase
         }
     }
 
-    public function test_transactional_categories_ignore_promotional_consent(): void
+    public function test_bulk_categories_cannot_bypass_consent(): void
     {
         $this->fakeFcm(200, ['name' => 'projects/netcellpay-fe31a/messages/1']);
         $userId = $this->user(6, 0, 'txn-token-mmmmmmmm');
 
-        foreach (['wallet', 'recharge', 'refund', 'security', 'maintenance'] as $category) {
+        foreach (['wallet', 'recharge', 'refund', 'security', 'maintenance', 'unknown-offer'] as $category) {
             $campaignId = $this->campaign('user', $userId, null, $category);
             $this->sender()->deliver($campaignId);
-            $this->assertSame(1, $this->deliveryStatus($campaignId, $userId), $category);
+            $this->assertSame(0, $this->messageRows($campaignId, $userId), $category);
         }
+        $this->assertSame(0, $this->sends);
+    }
+
+    public function test_revoked_consent_skips_a_pending_promotional_row(): void
+    {
+        $this->fakeFcm(200, ['name' => 'projects/netcellpay-fe31a/messages/1']);
+        $userId = $this->user(6, 0, 'revoked-token-hhhhhhhh');
+        $campaignId = $this->campaign('user', $userId, null, 'offers');
+        DB::table('messages')->insert([
+            'user_id' => 1,
+            'to_user_id' => $userId,
+            'subject' => 'Pending offer',
+            'msg_source' => 'PUSH',
+            'template_id' => '0',
+            'content' => 'Hello',
+            'status' => 0,
+            'campaign_id' => $campaignId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->sender()->deliver($campaignId);
+
+        $this->assertSame(0, $this->sends);
+        $this->assertSame(4, $this->deliveryStatus($campaignId, $userId));
+        $this->assertSame('consent_revoked', $this->deliveryError($campaignId, $userId));
+        $this->assertSame(0, (int) DB::table('notification_campaigns')->where('id', $campaignId)->value('failure_count'));
+        $this->assertSame(0, (int) DB::table('notification_campaigns')->where('id', $campaignId)->value('success_count'));
+    }
+
+    public function test_consent_is_checked_again_immediately_before_send(): void
+    {
+        $this->fakeFcm(200, ['name' => 'projects/netcellpay-fe31a/messages/1']);
+        $userId = $this->user(6, 1, 'late-revoke-token-iiiiiiii');
+        NotificationCampaignSender::$beforeSend = function (int $id) use ($userId): void {
+            if ($id === $userId) {
+                DB::table('users')->where('id', $id)->update(['promotional_push_consent' => 0]);
+            }
+        };
+        $campaignId = $this->campaign('user', $userId, null, 'offers');
+
+        $this->sender()->deliver($campaignId);
+
+        $this->assertSame(0, $this->sends);
+        $this->assertSame(4, $this->deliveryStatus($campaignId, $userId));
     }
 
     public function test_second_connection_cannot_lock_same_recipient(): void
@@ -421,7 +468,7 @@ class NotificationCampaignSenderTest extends TestCase
 
             return ['status' => 200, 'body' => json_encode(['name' => 'projects/netcellpay-fe31a/messages/9'])];
         });
-        $userId = $this->user(6, 0, 'payload-token-pppppppp');
+        $userId = $this->user(6, 1, 'payload-token-pppppppp');
         $campaignId = $this->campaign('user', $userId, null, 'security', now()->addHour(), 'normal', 'https://cdn.netcellpay.in/a.png', 'https://evil.example/phish');
         DB::table('notification_campaigns')->where('id', $campaignId)->update([
             'deep_link' => 'https://netcellpay.in/offers',

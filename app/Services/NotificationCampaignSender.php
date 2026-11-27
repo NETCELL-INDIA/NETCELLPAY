@@ -12,6 +12,9 @@ class NotificationCampaignSender
     /** @var array<int, int>|null Test seam. Production leaves this null. */
     public static ?array $onlyUserIds = null;
 
+    /** @var null|\Closure(int):void Test seam. Production leaves this null. */
+    public static $beforeSend = null;
+
     public const PROMOTIONAL = ['general', 'offers', 'announcements'];
 
     public const TRANSACTIONAL = ['wallet', 'recharge', 'refund', 'security', 'maintenance'];
@@ -45,6 +48,7 @@ class NotificationCampaignSender
             return true;
         });
 
+        $this->skipRevokedPending($campaignId);
         $this->refreshCounters($campaignId);
         if ($this->mustStop($campaignId)) {
             $this->finalize($campaignId, $this->stopReason($campaignId));
@@ -148,6 +152,18 @@ class NotificationCampaignSender
                 return 'skip';
             }
             if ($status === 3 && ! $retryFailed) {
+                return 'skip';
+            }
+            if ($status === 4) {
+                return 'skip';
+            }
+
+            if (is_callable(self::$beforeSend)) {
+                (self::$beforeSend)($userId);
+            }
+            if ((int) DB::table('users')->where('id', $userId)->value('promotional_push_consent') !== 1) {
+                $this->saveDelivery((int) $row->id, 4, 'consent_revoked');
+
                 return 'skip';
             }
 
@@ -259,7 +275,32 @@ class NotificationCampaignSender
 
     private function requiresConsent(string $category): bool
     {
-        return ! in_array(strtolower(trim($category)), self::TRANSACTIONAL, true);
+        unset($category);
+
+        // Every bulk campaign is promotional. Recharge, wallet, and security
+        // alerts stay on their own business-event senders.
+        return true;
+    }
+
+    private function skipRevokedPending(int $campaignId): void
+    {
+        $ids = DB::table('messages')
+            ->join('users', 'users.id', '=', 'messages.to_user_id')
+            ->where('messages.campaign_id', $campaignId)
+            ->where('messages.status', 0)
+            ->where(function ($query) {
+                $query->whereNull('users.promotional_push_consent')
+                    ->orWhere('users.promotional_push_consent', '<>', 1);
+            })
+            ->pluck('messages.id');
+        if ($ids->isEmpty()) {
+            return;
+        }
+        DB::table('messages')->whereIn('id', $ids->all())->update([
+            'status' => 4,
+            'delivery_error' => 'consent_revoked',
+            'updated_at' => Carbon::now(),
+        ]);
     }
 
     private function payloadData(object $campaign): array

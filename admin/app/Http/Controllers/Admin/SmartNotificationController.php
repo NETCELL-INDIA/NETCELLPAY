@@ -22,7 +22,7 @@ class SmartNotificationController extends Controller
             'campaigns' => $notifications->campaignPage($request->only(['status', 'category', 'target_type', 'from', 'to', 'q'])),
             'filters' => $request->only(['status', 'category', 'target_type', 'from', 'to', 'q']),
             'schemaReady' => $notifications->schemaReady(),
-            'categories' => SmartNotificationService::CATEGORIES,
+            'categories' => SmartNotificationService::CATEGORIES + SmartNotificationService::LEGACY_CATEGORIES,
         ]);
     }
 
@@ -36,6 +36,7 @@ class SmartNotificationController extends Controller
         return view('admin.extras.smart-notification-show', [
             'campaign' => $campaign,
             'recipients' => $notifications->recipientPage($id),
+            'breakdown' => $notifications->deliveryBreakdown($id),
             'audience' => $notifications->audienceLabel([
                 'target_type' => $campaign->target_type,
                 'target_role_id' => $campaign->target_role_id,

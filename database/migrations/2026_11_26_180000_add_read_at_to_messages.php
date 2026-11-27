@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasTable('messages') && ! Schema::hasColumn('messages', 'read_at')) {
+            Schema::table('messages', function (Blueprint $table) {
+                $table->timestamp('read_at')->nullable();
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        // Intentionally empty. Rollback must not drop notification history.
+    }
+};

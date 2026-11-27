@@ -14,16 +14,17 @@ class SmartNotificationService
 {
     public const CATEGORIES = [
         'general' => 'General',
+        'offers' => 'Offers',
+        'announcements' => 'Announcements',
+    ];
+
+    public const LEGACY_CATEGORIES = [
         'wallet' => 'Wallet',
         'recharge' => 'Recharge',
         'refund' => 'Refund',
         'security' => 'Security',
-        'offers' => 'Offers',
-        'announcements' => 'Announcements',
         'maintenance' => 'Maintenance',
     ];
-
-    public const TRANSACTIONAL = ['wallet', 'recharge', 'refund', 'security', 'maintenance'];
 
     public function schemaReady(): bool
     {
@@ -83,7 +84,7 @@ class SmartNotificationService
             $query->where('status', $status);
         }
         $category = (string) ($filters['category'] ?? '');
-        if (isset(self::CATEGORIES[$category])) {
+        if (isset(self::CATEGORIES[$category]) || isset(self::LEGACY_CATEGORIES[$category])) {
             $query->where('category', $category);
         }
         $target = (string) ($filters['target_type'] ?? '');
@@ -159,10 +160,12 @@ class SmartNotificationService
 
     public function requiresConsent(string $category): bool
     {
-        return ! in_array(strtolower(trim($category)), self::TRANSACTIONAL, true);
+        unset($category);
+
+        return true;
     }
 
-    public function eligibleQuery(array $input): Builder
+    public function eligibleQuery(array $input, bool $requireConsent = true): Builder
     {
         $query = DB::table('users')
             ->where('status', 1)
@@ -185,7 +188,7 @@ class SmartNotificationService
             $query->whereRaw('1 = 0');
         }
 
-        if ($this->requiresConsent((string) ($input['category'] ?? ''))) {
+        if ($requireConsent) {
             $query->where('promotional_push_consent', 1);
         }
 
@@ -194,8 +197,45 @@ class SmartNotificationService
 
     public function audienceSummary(array $input): array
     {
-        $eligible = $this->eligibleQuery($input);
-        $withToken = (clone $eligible)->where(function ($inner) {
+        $audience = $this->eligibleQuery($input, false);
+        $approved = (clone $audience)->where('promotional_push_consent', 1);
+        $withToken = $this->withToken(clone $approved);
+        $total = (int) (clone $audience)->count();
+        $consentApproved = (int) (clone $approved)->count();
+        $tokenCount = (int) $withToken->count();
+
+        return [
+            'total_users' => $total,
+            'consent_approved' => $consentApproved,
+            'consent_not_approved' => max(0, $total - $consentApproved),
+            'no_token' => max(0, $consentApproved - $tokenCount),
+            'with_token' => $tokenCount,
+            'eligible' => $consentApproved,
+            'final_recipients' => $tokenCount,
+        ];
+    }
+
+    public function deliveryBreakdown(int $campaignId): array
+    {
+        $row = DB::table('messages')
+            ->where('campaign_id', $campaignId)
+            ->selectRaw('SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as successful')
+            ->selectRaw('SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as no_token')
+            ->selectRaw('SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as failed')
+            ->selectRaw('SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END) as consent_skipped')
+            ->first();
+
+        return [
+            'successful' => (int) ($row->successful ?? 0),
+            'no_token' => (int) ($row->no_token ?? 0),
+            'failed' => (int) ($row->failed ?? 0),
+            'consent_skipped' => (int) ($row->consent_skipped ?? 0),
+        ];
+    }
+
+    private function withToken(Builder $query): Builder
+    {
+        return $query->where(function ($inner) {
             $inner->where(function ($token) {
                 $token->whereNotNull('android_fcm_token')->where('android_fcm_token', '!=', '');
             })->orWhere(function ($token) {
@@ -204,11 +244,6 @@ class SmartNotificationService
                 $token->whereNotNull('device_token')->where('device_token', '!=', '');
             });
         });
-
-        return [
-            'eligible' => (int) $eligible->count(),
-            'with_token' => (int) $withToken->count(),
-        ];
     }
 
     public function resolveUserIdByMobile(string $mobile): ?int

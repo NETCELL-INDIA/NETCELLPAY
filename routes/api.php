@@ -71,6 +71,8 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/device-token',[AuthController::class,'updateFcmToken']);
     Route::post('/v1/notifications',[AuthController::class,'notificationList']);
     Route::post('/v1/notifications/read',[AuthController::class,'notificationMarkRead']);
+    Route::get('/user/notification-preferences',[\App\Http\Controllers\AppV1\NotificationPreferenceController::class,'show']);
+    Route::post('/user/notification-preferences',[\App\Http\Controllers\AppV1\NotificationPreferenceController::class,'update']);
     Route::post('/v1/my-profile',[AuthController::class,'myProfile']);
     Route::post('/v1/profile',[AuthController::class,'myProfile']);
     Route::post('/v1/update-profile',[AuthController::class,'myProfile']);
@@ -124,6 +126,7 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/search-user-list-name',[ParentController::class,'userListSearchUserName']);
     //////
 });
+
 //Route::get('/ApiPartner/V1/Recharge',[RechargeController::class,'mobileIndex'])->middleware('api_partner_check');
 
 

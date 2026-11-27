@@ -49,10 +49,11 @@
     <div class="col-lg-4">
         <div class="card" style="border-top: 3px solid #6D28D9;">
             <div class="card-body">
-                <p class="mb-1">Recipients {{ number_format((int) $campaign->total_recipients) }}</p>
-                <p class="mb-1">Sent {{ number_format((int) $campaign->success_count) }}</p>
-                <p class="mb-1">Failed {{ number_format((int) $campaign->failure_count) }}</p>
-                <p class="mb-0">Skipped {{ number_format((int) $campaign->skipped_count) }}</p>
+                <p class="mb-1">Consent eligible {{ number_format((int) $campaign->total_recipients) }}</p>
+                <p class="mb-1">Sent {{ number_format($breakdown['successful']) }}</p>
+                <p class="mb-1">Failed {{ number_format($breakdown['failed']) }}</p>
+                <p class="mb-1">No token {{ number_format($breakdown['no_token']) }}</p>
+                <p class="mb-0">Consent skipped {{ number_format($breakdown['consent_skipped']) }}</p>
             </div>
         </div>
     </div>
@@ -82,6 +83,7 @@
                             @if((int) $row->status === 1) Sent
                             @elseif((int) $row->status === 2) No token
                             @elseif((int) $row->status === 3) Failed
+                            @elseif((int) $row->status === 4) Consent skipped
                             @else Pending
                             @endif
                         </td>

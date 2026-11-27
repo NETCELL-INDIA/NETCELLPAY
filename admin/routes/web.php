@@ -846,6 +846,7 @@ Route::group(['middleware' => AdminCheck::class], function () {
     Route::get('admin/extras/notification-send-report', [NotificationSendReportController::class, 'index'])->name('notificationSendReport');
     Route::post('admin/extras/notification-send-report/list', [NotificationSendReportController::class, 'list'])->name('notificationSendReportList');
     Route::post('admin/extras/notification-send-report/delete', [NotificationSendReportController::class, 'destroy'])->name('notificationSendReportDelete');
+    Route::get('admin/extras/notification-consent', [\App\Http\Controllers\Admin\NotificationConsentController::class, 'index'])->name('notificationConsentHistory');
     Route::get('admin/extras/smart-notifications', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'index'])->name('smartNotifications');
     Route::get('admin/extras/smart-notifications/create', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'create'])->name('smartNotificationCreate');
     Route::post('admin/extras/smart-notifications/preview', [\App\Http\Controllers\Admin\SmartNotificationController::class, 'preview'])->name('smartNotificationPreview');

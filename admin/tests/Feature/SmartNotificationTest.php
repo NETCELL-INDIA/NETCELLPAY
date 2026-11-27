@@ -12,6 +12,9 @@ class SmartNotificationTest extends TestCase
     /** @var array<int, int> */
     private array $campaignIds = [];
 
+    /** @var array<int, int> */
+    private array $consentRestore = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,6 +38,10 @@ class SmartNotificationTest extends TestCase
             $query->select('id')->from('notification_campaigns')->where('title', 'Phase2C test title');
         })->delete();
         DB::table('notification_campaigns')->where('title', 'Phase2C test title')->delete();
+        DB::table('messages')->where('subject', 'Phase1 report delete')->delete();
+        foreach ($this->consentRestore as $userId => $value) {
+            DB::table('users')->where('id', $userId)->update(['promotional_push_consent' => $value]);
+        }
         parent::tearDown();
     }
 
@@ -72,21 +79,11 @@ class SmartNotificationTest extends TestCase
         $this->assertSame('draft', DB::table('notification_campaigns')->where('id', $id)->value('status'));
     }
 
-    public function test_preview_counts_retailers_for_a_wallet_campaign(): void
+    public function test_preview_rejects_a_transactional_bulk_category(): void
     {
-        $eligible = (int) DB::table('users')
-            ->where('status', 1)
-            ->where('role_id', 6)
-            ->where(function ($inner) {
-                $inner->where('deleted_at', 0)->orWhereNull('deleted_at');
-            })
-            ->count();
-
         $this->actingAsAdmin($this->adminUser())
             ->post('/admin/extras/smart-notifications/preview', $this->payload('wallet', 'role:6', 'now'))
-            ->assertOk()
-            ->assertSee('data-eligible="'.$eligible.'"', false)
-            ->assertSee('Promotional consent does not block');
+            ->assertSessionHasErrors('category');
     }
 
     public function test_promotional_preview_excludes_users_without_consent(): void
@@ -103,15 +100,17 @@ class SmartNotificationTest extends TestCase
         $this->actingAsAdmin($this->adminUser())
             ->post('/admin/extras/smart-notifications/preview', $this->payload('offers', 'role:6', 'now'))
             ->assertOk()
-            ->assertSee('allowed promotional notifications')
-            ->assertSee('data-eligible="'.$consented.'"', false);
+            ->assertSee('Only users who have explicitly enabled promotional notifications')
+            ->assertDontSee('does not block')
+            ->assertSee('data-consent-approved="'.$consented.'"', false);
     }
 
     public function test_schedule_is_saved_and_not_dispatched(): void
     {
+        $this->grantRetailerConsent();
         $when = Carbon::now()->addDay();
         $response = $this->actingAsAdmin($this->adminUser())
-            ->post('/admin/extras/smart-notifications/preview', $this->payload('maintenance', 'role:6', 'schedule', [
+            ->post('/admin/extras/smart-notifications/preview', $this->payload('offers', 'role:6', 'schedule', [
                 'schedule_date' => $when->format('Y-m-d'),
                 'schedule_time' => $when->format('H:i'),
             ]));
@@ -132,8 +131,9 @@ class SmartNotificationTest extends TestCase
 
     public function test_send_now_dispatches_the_user_app_command_without_sending_here(): void
     {
+        $this->grantRetailerConsent();
         $this->actingAsAdmin($this->adminUser())
-            ->post('/admin/extras/smart-notifications/preview', $this->payload('security', 'role:6', 'now'))
+            ->post('/admin/extras/smart-notifications/preview', $this->payload('offers', 'role:6', 'now'))
             ->assertOk();
         $uuid = session('smart_notification_draft.uuid');
 
@@ -149,8 +149,9 @@ class SmartNotificationTest extends TestCase
 
     public function test_second_confirm_does_not_create_another_campaign(): void
     {
+        $this->grantRetailerConsent();
         $this->actingAsAdmin($this->adminUser())
-            ->post('/admin/extras/smart-notifications/preview', $this->payload('refund', 'role:6', 'now'))
+            ->post('/admin/extras/smart-notifications/preview', $this->payload('offers', 'role:6', 'now'))
             ->assertOk();
         $draft = session('smart_notification_draft');
         $this->post('/admin/extras/smart-notifications/confirm', ['campaign_uuid' => $draft['uuid']]);
@@ -216,11 +217,102 @@ class SmartNotificationTest extends TestCase
         $this->assertSame('completed', DB::table('notification_campaigns')->where('id', $id)->value('status'));
     }
 
+    public function test_consent_history_page_cannot_change_consent(): void
+    {
+        $logId = DB::table('notification_consent_logs')->insertGetId([
+            'user_id' => 1,
+            'channel' => 'push',
+            'consent_type' => 'promotional_push',
+            'previous_value' => 0,
+            'new_value' => 1,
+            'action' => 'granted',
+            'source' => 'app',
+            'created_at' => now(),
+        ]);
+
+        $this->get('/admin/extras/notification-consent')->assertRedirect();
+        $this->actingAsAdmin($this->adminUser())
+            ->get('/admin/extras/notification-consent?user_id=1')
+            ->assertOk()
+            ->assertSee('Consent changes')
+            ->assertSee('granted')
+            ->assertDontSee('name="promotional_push_consent"', false);
+
+        DB::table('notification_consent_logs')->where('id', $logId)->delete();
+        $this->assertSame(0, (int) DB::table('users')->where('id', 1)->value('promotional_push_consent'));
+    }
+
     public function test_existing_send_message_page_still_opens(): void
     {
         $this->actingAsAdmin($this->adminUser())
             ->get('/admin/users/send-message')
             ->assertOk();
+    }
+
+    public function test_send_report_cannot_delete_a_campaign_with_the_same_text(): void
+    {
+        $admin = $this->adminUser();
+        $campaignId = $this->insertCampaign('completed');
+        DB::table('notification_campaigns')->where('id', $campaignId)->update([
+            'total_recipients' => 3,
+            'success_count' => 2,
+            'failure_count' => 1,
+        ]);
+        $now = now();
+        $shared = [
+            'user_id' => 1,
+            'to_user_id' => 2,
+            'subject' => 'Phase1 report delete',
+            'msg_source' => 'PUSH',
+            'template_id' => '0',
+            'content' => 'same body',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+        $campaignMessage = DB::table('messages')->insertGetId($shared + [
+            'status' => 1,
+            'campaign_id' => $campaignId,
+        ]);
+        $manualMessage = DB::table('messages')->insertGetId($shared + [
+            'status' => 1,
+            'campaign_id' => null,
+        ]);
+
+        $this->post('/admin/extras/notification-send-report/delete', ['id' => $manualMessage])
+            ->assertRedirect();
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete', ['id' => $campaignMessage])
+            ->assertStatus(403)
+            ->assertJsonPath('message', 'Campaign delivery history cannot be deleted.');
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete', ['id' => $manualMessage])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+
+        $this->assertNull(DB::table('messages')->where('id', $manualMessage)->first());
+        $this->assertSame(1, (int) DB::table('messages')->where('id', $campaignMessage)->value('status'));
+        $campaign = DB::table('notification_campaigns')->where('id', $campaignId)->first();
+        $this->assertSame(2, (int) $campaign->success_count);
+        $this->assertSame(1, (int) $campaign->failure_count);
+        $this->assertSame(3, (int) $campaign->total_recipients);
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/list', ['page' => 1, 'show' => 50])
+            ->assertOk()
+            ->assertSee('Campaign history', false)
+            ->assertDontSee('data-id="'.$campaignMessage.'"', false);
+    }
+
+    private function grantRetailerConsent(): void
+    {
+        $user = DB::table('users')->where('role_id', 6)->where('status', 1)->orderBy('id')->first();
+        if (! $user) {
+            $this->fail('No active retailer in the local database.');
+        }
+        $this->consentRestore[(int) $user->id] = (int) $user->promotional_push_consent;
+        DB::table('users')->where('id', $user->id)->update(['promotional_push_consent' => 1]);
     }
 
     private function actingAsAdmin(object $user)

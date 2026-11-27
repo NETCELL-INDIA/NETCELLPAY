@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AdminMenuService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,22 +59,27 @@ class NotificationSendReportController extends Controller
         }
 
         $total = (clone $q)->count();
+        $hasCampaign = Schema::hasColumn('messages', 'campaign_id');
+        $columns = [
+            'm.id',
+            'm.subject',
+            'm.content',
+            'm.status',
+            'm.created_at',
+            'u.first_name',
+            'u.middle_name',
+            'u.last_name',
+            'u.outlet_name',
+            'u.mobile_number',
+        ];
+        if ($hasCampaign) {
+            $columns[] = 'm.campaign_id';
+        }
         $rowsData = (clone $q)
             ->orderByDesc('m.id')
             ->offset($offset)
             ->limit($limit)
-            ->get([
-                'm.id',
-                'm.subject',
-                'm.content',
-                'm.status',
-                'm.created_at',
-                'u.first_name',
-                'u.middle_name',
-                'u.last_name',
-                'u.outlet_name',
-                'u.mobile_number',
-            ]);
+            ->get($columns);
 
         $rows = '';
         if ($rowsData->count() > 0) {
@@ -87,12 +93,13 @@ class NotificationSendReportController extends Controller
                     ? Carbon::parse($row->created_at)->format('d-m-Y h:i:s a')
                     : '-';
                 $badge = $this->statusBadge((int) $row->status);
+                $action = $hasCampaign && $row->campaign_id !== null
+                    ? '<span class="text-muted">Campaign history</span>'
+                    : '<button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'">Delete</button>';
 
                 $rows .= '<tr>
                     <td>'.$i.'</td>
-                    <td>
-                        <button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'">Delete</button>
-                    </td>
+                    <td>'.$action.'</td>
                     <td>'.e($name).'<br><small>'.e($row->outlet_name ?: '-').'</small></td>
                     <td>'.e($row->mobile_number ?: '-').'</td>
                     <td>'.e($row->subject ?: '-').'</td>
@@ -131,24 +138,42 @@ class NotificationSendReportController extends Controller
         if ($status === 3) {
             return '<span class="badge bg-danger">Failed</span>';
         }
+        if ($status === 4) {
+            return '<span class="badge bg-secondary">Consent skipped</span>';
+        }
 
         return '<span class="badge bg-secondary">Inbox saved</span>';
     }
 
     public function destroy(Request $request)
     {
+        if (! $this->canDeleteManualNotification()) {
+            return response()->json(['type' => 'error', 'message' => 'You are not allowed to delete this notification.'], 403);
+        }
+
         $id = (int) $request->id;
-        if ($id <= 0 || ! Schema::hasTable('messages')) {
+        if ($id <= 0 || ! Schema::hasTable('messages') || ! Schema::hasColumn('messages', 'campaign_id')) {
             return response()->json(['type' => 'error', 'message' => 'Invalid notification']);
         }
 
         $row = DB::table('messages')
             ->where('id', $id)
             ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->whereNull('campaign_id')
             ->first();
 
         if (! $row) {
-            return response()->json(['type' => 'error', 'message' => 'Notification not found']);
+            $isCampaign = DB::table('messages')
+                ->where('id', $id)
+                ->whereNotNull('campaign_id')
+                ->exists();
+
+            return response()->json([
+                'type' => 'error',
+                'message' => $isCampaign
+                    ? 'Campaign delivery history cannot be deleted.'
+                    : 'Notification not found',
+            ], $isCampaign ? 403 : 200);
         }
 
         $from = Carbon::parse($row->created_at)->subMinutes(2);
@@ -156,6 +181,7 @@ class NotificationSendReportController extends Controller
 
         $deleted = DB::table('messages')
             ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->whereNull('campaign_id')
             ->where('subject', $row->subject)
             ->where('content', $row->content)
             ->whereBetween('created_at', [$from, $to])
@@ -165,6 +191,20 @@ class NotificationSendReportController extends Controller
             'type' => 'success',
             'message' => 'Wrong notification deleted ('.$deleted.' row'.($deleted === 1 ? '' : 's').').',
         ]);
+    }
+
+    private function canDeleteManualNotification(): bool
+    {
+        $adminId = (int) session('user_id');
+        if ($adminId <= 0) {
+            return false;
+        }
+        $admin = DB::table('users')->where('id', $adminId)->first(['role_id', 'status']);
+        if (! $admin || (int) $admin->status !== 1 || ! in_array((int) $admin->role_id, AdminMenuService::adminRoleIds(), true)) {
+            return false;
+        }
+
+        return AdminMenuService::can('extras.notification_report', (int) $admin->role_id);
     }
 
     private function emptyResponse()
