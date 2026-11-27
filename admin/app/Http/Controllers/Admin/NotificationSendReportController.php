@@ -68,10 +68,12 @@ class NotificationSendReportController extends Controller
                     : '-';
                 $badge = $this->statusBadge((int) $row->status);
                 $isCampaign = $hasCampaign && $row->campaign_id !== null;
+                $check = '<input type="checkbox" class="form-check-input notify-check" value="'.(int) $row->id.'" aria-label="Select notification '.(int) $row->id.'">';
                 $action = '<button type="button" class="btn btn-primary btn-sm py-0 px-2 btn-edit-notify" data-id="'.(int) $row->id.'">Edit</button> '
                     .'<button type="button" class="btn btn-danger btn-sm py-0 px-2 btn-del-notify" data-id="'.(int) $row->id.'" data-scope="'.($isCampaign ? 'one' : 'send').'">Delete</button>';
 
                 $rows .= '<tr>
+                    <td>'.$check.'</td>
                     <td>'.$i.'</td>
                     <td>'.$action.'</td>
                     <td>'.e($name).'<br><small>'.e($row->outlet_name ?: '-').'</small></td>
@@ -84,7 +86,7 @@ class NotificationSendReportController extends Controller
                 $i++;
             }
         } else {
-            $rows = '<tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>';
+            $rows = '<tr><td colspan="9" class="text-center text-muted py-3">No notification records found</td></tr>';
         }
 
         return response()->json([
@@ -211,6 +213,44 @@ class NotificationSendReportController extends Controller
         return response()->json([
             'type' => 'success',
             'message' => 'Deleted '.$deleted.' inbox notification'.($deleted === 1 ? '' : 's').'. An alert already shown on a phone cannot be recalled.',
+        ]);
+    }
+
+    public function destroySelected(Request $request)
+    {
+        if (! $this->canManageNotification()) {
+            return response()->json(['type' => 'error', 'message' => 'You are not allowed to delete these notifications.'], 403);
+        }
+        $raw = $request->input('ids', []);
+        if (! is_array($raw)) {
+            return response()->json(['type' => 'error', 'message' => 'Choose at least one notification.']);
+        }
+        $ids = [];
+        foreach ($raw as $value) {
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        $ids = array_values($ids);
+        if ($ids === []) {
+            return response()->json(['type' => 'error', 'message' => 'Choose at least one notification.']);
+        }
+        if (count($ids) > 100) {
+            return response()->json(['type' => 'error', 'message' => 'Select at most 100 notifications at a time.']);
+        }
+        if (! Schema::hasTable('messages')) {
+            return response()->json(['type' => 'error', 'message' => 'Invalid notification']);
+        }
+
+        $deleted = DB::table('messages')
+            ->whereIn('id', $ids)
+            ->whereIn('msg_source', ['PUSH', 'NOTIFICATION'])
+            ->delete();
+
+        return response()->json([
+            'type' => 'success',
+            'message' => 'Deleted '.$deleted.' selected inbox notification'.($deleted === 1 ? '' : 's').'. An alert already shown on a phone cannot be recalled.',
         ]);
     }
 
@@ -355,7 +395,7 @@ class NotificationSendReportController extends Controller
     {
         return response()->json([
             'type' => 'success',
-            'rows' => '<tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>',
+            'rows' => '<tr><td colspan="9" class="text-center text-muted py-3">No notification records found</td></tr>',
             'pagination' => [
                 'page' => 1,
                 'show' => 10,

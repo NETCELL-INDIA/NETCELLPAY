@@ -313,6 +313,31 @@ class SmartNotificationTest extends TestCase
         $this->assertSame(3, (int) $campaign->total_recipients);
     }
 
+    public function test_selected_checkbox_delete_removes_only_the_ticked_rows(): void
+    {
+        $admin = $this->adminUser();
+        $campaignId = $this->insertCampaign('completed');
+        $now = now()->format('Y-m-d H:i:s');
+        $selected = $this->insertInbox(2, $now, $campaignId);
+        $kept = $this->insertInbox(3, $now, null);
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete-selected', ['ids' => []])
+            ->assertOk()
+            ->assertJsonPath('type', 'error');
+        $this->assertNotNull(DB::table('messages')->where('id', $selected)->first());
+
+        $this->actingAsAdmin($admin)
+            ->postJson('/admin/extras/notification-send-report/delete-selected', ['ids' => [$selected]])
+            ->assertOk()
+            ->assertJsonPath('type', 'success');
+
+        $this->assertNull(DB::table('messages')->where('id', $selected)->first());
+        $this->assertNotNull(DB::table('messages')->where('id', $kept)->first());
+        $this->assertNotNull(DB::table('notification_campaigns')->where('id', $campaignId)->first());
+        DB::table('messages')->where('id', $kept)->delete();
+    }
+
     public function test_date_and_user_delete_does_not_remove_other_notifications(): void
     {
         $admin = $this->adminUser();

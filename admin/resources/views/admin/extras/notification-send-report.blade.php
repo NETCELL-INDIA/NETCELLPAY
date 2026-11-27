@@ -59,6 +59,7 @@
     <div class="card-body py-2 px-3">
         <div class="sms-list-toolbar">
             <div class="sms-list-toolbar__left">
+                <button type="button" class="btn btn-danger btn-sm" id="btnDeleteSelected">Delete selected</button>
                 <label class="sms-list-toolbar__label">Show</label>
                 <select class="form-select form-select-sm" id="show">
                     <option value="10" selected>10</option>
@@ -74,6 +75,7 @@
             <table class="table table-sm table-hover sms-list-table mb-0">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" class="form-check-input" id="checkAllNotify" aria-label="All"> All</th>
                         <th>#</th>
                         <th>Action</th>
                         <th>User</th>
@@ -85,7 +87,7 @@
                     </tr>
                 </thead>
                 <tbody id="notifyBody">
-                    <tr><td colspan="8" class="text-center text-muted py-3">No notification records found</td></tr>
+                    <tr><td colspan="9" class="text-center text-muted py-3">No notification records found</td></tr>
                 </tbody>
             </table>
         </div>
@@ -137,7 +139,7 @@ var currentPage = 1;
 var lastPage = 1;
 
 function fetchNotifyReport() {
-    $('#notifyBody').html('<tr><td colspan="8" class="text-center text-muted py-3">Loading...</td></tr>');
+    $('#notifyBody').html('<tr><td colspan="9" class="text-center text-muted py-3">Loading...</td></tr>');
     $.ajax({
         url: '{{ route('notificationSendReportList') }}',
         method: 'POST',
@@ -153,10 +155,11 @@ function fetchNotifyReport() {
         },
         success: function (res) {
             if (!res || res.type !== 'success') {
-                $('#notifyBody').html('<tr><td colspan="8" class="text-center text-danger py-3">Failed to load</td></tr>');
+                $('#notifyBody').html('<tr><td colspan="9" class="text-center text-danger py-3">Failed to load</td></tr>');
                 return;
             }
             $('#notifyBody').html(res.rows);
+            $('#checkAllNotify').prop('checked', false);
             var p = res.pagination || {};
             currentPage = p.page || 1;
             lastPage = p.last_page || 1;
@@ -165,12 +168,65 @@ function fetchNotifyReport() {
             $('#btnNext').prop('disabled', currentPage >= lastPage);
         },
         error: function () {
-            $('#notifyBody').html('<tr><td colspan="8" class="text-center text-danger py-3">Failed to load</td></tr>');
+            $('#notifyBody').html('<tr><td colspan="9" class="text-center text-danger py-3">Failed to load</td></tr>');
         }
     });
 }
 
 $(function () {
+    $('#checkAllNotify').on('change', function () {
+        $('.notify-check').prop('checked', this.checked);
+    });
+    $(document).on('change', '.notify-check', function () {
+        var total = $('.notify-check').length;
+        var checked = $('.notify-check:checked').length;
+        $('#checkAllNotify').prop('checked', total > 0 && checked === total);
+    });
+    $('#btnDeleteSelected').on('click', function () {
+        var ids = $('.notify-check:checked').map(function () {
+            return $(this).val();
+        }).get();
+        if (!ids.length) {
+            Swal.fire({ title: 'Choose notifications', text: 'Tick the notifications to delete, or use All.', icon: 'warning' });
+            return;
+        }
+        Swal.fire({
+            title: 'Delete selected notifications?',
+            text: 'This deletes ' + ids.length + ' selected inbox notification' + (ids.length === 1 ? '' : 's') + '. An alert already shown on a phone cannot be recalled.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            customClass: {
+                confirmButton: 'btn btn-danger w-xs mt-2',
+                cancelButton: 'btn btn-light w-xs mt-2 ms-2',
+            },
+            buttonsStyling: false
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                return;
+            }
+            $.ajax({
+                url: '{{ route('notificationSendReportDeleteSelected') }}',
+                method: 'POST',
+                dataType: 'json',
+                data: { _token: csrf, ids: ids },
+                success: function (res) {
+                    Swal.fire({
+                        title: res && res.type === 'success' ? 'Deleted' : 'Error',
+                        text: (res && res.message) || 'Done',
+                        icon: res && res.type === 'success' ? 'success' : 'error'
+                    });
+                    if (res && res.type === 'success') {
+                        fetchNotifyReport();
+                    }
+                },
+                error: function () {
+                    Swal.fire({ title: 'Error', text: 'Unable to delete', icon: 'error' });
+                }
+            });
+        });
+    });
     $('#btnDeleteFiltered').on('click', function () {
         var fromDate = $('#from_date').val();
         var toDate = $('#to_date').val();
