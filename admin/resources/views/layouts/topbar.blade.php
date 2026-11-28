@@ -61,11 +61,23 @@ window.openLiveRechargeReport = function (url) {
                 </button>
                 @endif
 
-                <button type="button" class="btn rb-icon-btn" title="Complaints"
-                    onclick="location.href='{{ URL::asset('admin/support/complaint') }}'">
-                    <i class="ri-customer-service-2-line"></i>
-                    <span class="rb-badge" id="TopBarComplaintCount"></span>
-                </button>
+                <style>#ComplaintBellBtn.rb-bell-new{animation:ncBell 1s ease-in-out 3}@keyframes ncBell{0%,100%{transform:rotate(0)}20%{transform:rotate(18deg)}40%{transform:rotate(-16deg)}60%{transform:rotate(10deg)}}</style>
+                <div class="dropdown">
+                    <button type="button" class="btn rb-icon-btn" id="ComplaintBellBtn" title="Complaint notifications"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="ri-notification-3-line"></i>
+                        <span class="rb-badge" id="TopBarComplaintCount"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-0" id="ComplaintBellMenu" style="width:320px;max-width:90vw">
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                            <strong>Complaints</strong>
+                            <a href="{{ route('complaintDeskAll') }}">View all</a>
+                        </div>
+                        <div id="ComplaintBellList" style="max-height:320px;overflow:auto">
+                            <div class="px-3 py-3 text-muted">No open complaints</div>
+                        </div>
+                    </div>
+                </div>
 
                 <button type="button" class="btn rb-icon-btn" title="Pending Recharges"
                     onclick="location.href='{{ URL::asset('admin/user-reports/recharge-report?status=Pending') }}'">
@@ -256,7 +268,7 @@ window.openLiveRechargeReport = function (url) {
                             <i class="ri-time-line me-2"></i> Pending Recharges
                             <span class="rb-dd-badge rb-dd-badge-warn" id="DropPendingCount"></span>
                         </a>
-                        <a class="dropdown-item" href="{{ URL::asset('admin/support/complaint') }}">
+                        <a class="dropdown-item" href="{{ route('complaintDeskAll') }}">
                             <i class="ri-customer-service-2-line me-2"></i> Complaints
                             <span class="rb-dd-badge" id="DropComplaintCount"></span>
                         </a>

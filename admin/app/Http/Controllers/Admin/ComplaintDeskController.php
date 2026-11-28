@@ -44,7 +44,7 @@ class ComplaintDeskController extends Controller
 
     public function show(int $id, ComplaintDeskService $desk)
     {
-        $complaint = $desk->schemaReady() ? $desk->find($id) : null;
+        $complaint = $desk->find($id);
         if (! $complaint) {
             return redirect()->route('complaintDeskAll')->with('error', 'That complaint was not found.');
         }

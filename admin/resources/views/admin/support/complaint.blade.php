@@ -84,7 +84,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="text-muted mb-2" style="font-size:.8rem">Pending shows every open ticket, including complaints raised in the app after a successful recharge. Clear SUCCESS tickets closes those tickets and does not refund.</div>
+                <div class="text-muted mb-2" style="font-size:.8rem">Resolve marks the ticket finished and does not refund the wallet. Reject needs a reason. Open shows the full ticket. Neither action changes the recharge status.</div>
                 <div id="list_result">
                     <h4 class="text-center text-secondary my-3">No record found</h4>
                 </div>
@@ -147,6 +147,32 @@
             error: function() {
                 $("#search_btn").text('Search Records');
                 $('#search_btn').prop('disabled', false);
+            }
+        });
+    }
+
+    function decideComplaint(id, action){
+        var remark = '';
+        if (action === 'resolve') {
+            remark = prompt('How was this complaint resolved? Wallet will not be refunded.', 'Resolved. Recharge was successful.');
+            if (remark === null) return;
+        } else if (action === 'reject') {
+            remark = prompt('Why is this complaint rejected?', '');
+            if (remark === null || !String(remark).trim()) {
+                alert('Enter a rejection reason.');
+                return;
+            }
+        }
+        $.ajax({
+            url: '{{ route('ComplaintsClose') }}',
+            method: 'post',
+            data: {_token: '{{csrf_token()}}', id: id, action: action, remark: remark},
+            success: function(res) {
+                alert(res.message || 'Done');
+                if (res.type === 'success') fetchAllSearch();
+            },
+            error: function() {
+                alert('Unable to update complaint.');
             }
         });
     }

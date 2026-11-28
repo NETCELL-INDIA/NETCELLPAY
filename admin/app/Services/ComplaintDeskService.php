@@ -115,16 +115,19 @@ class ComplaintDeskService
             return null;
         }
 
-        return DB::table('complaints as c')
+        $query = DB::table('complaints as c')
             ->leftJoin('reports as r', 'r.id', '=', 'c.report_id')
             ->leftJoin('users as u', 'u.id', '=', 'c.user_id')
             ->leftJoin('users as parent', 'parent.id', '=', 'u.parent_id')
-            ->leftJoin('users as staff', 'staff.id', '=', 'c.assigned_to')
             ->leftJoin('services as s', 's.id', '=', 'c.service_id')
             ->leftJoin('providers as p', 'p.id', '=', 'r.provider_id')
             ->leftJoin('apis as a', 'a.id', '=', 'r.api_id')
-            ->where('c.id', $id)
-            ->first($this->detailColumns());
+            ->where('c.id', $id);
+        if (Schema::hasColumn('complaints', 'assigned_to')) {
+            $query->leftJoin('users as staff', 'staff.id', '=', 'c.assigned_to');
+        }
+
+        return $query->first($this->detailColumns());
     }
 
     public function detailSections(object $complaint): array
@@ -505,12 +508,19 @@ class ComplaintDeskService
 
     private function detailColumns(): array
     {
-        return [
+        $columns = [
             'c.*',
             'u.outlet_name', 'u.first_name', 'u.last_name', 'u.mobile_number', 'u.email_address',
             'u.parent_id', 'u.status as account_status',
             'parent.role_id as parent_role_id',
-            'staff.outlet_name as staff_outlet', 'staff.first_name as staff_first', 'staff.last_name as staff_last',
+        ];
+        if (Schema::hasColumn('complaints', 'assigned_to')) {
+            array_push($columns, 'staff.outlet_name as staff_outlet', 'staff.first_name as staff_first', 'staff.last_name as staff_last');
+        } else {
+            array_push($columns, DB::raw('NULL as staff_outlet'), DB::raw('NULL as staff_first'), DB::raw('NULL as staff_last'));
+        }
+        array_push(
+            $columns,
             's.service_name',
             'p.provider_name',
             'a.api_name',
@@ -518,7 +528,9 @@ class ComplaintDeskService
             'r.closing_balance', 'r.status as txn_status', 'r.transaction_date', 'r.operator_id',
             'r.remark as txn_remark', 'r.transaction_type', 'r.debit_user_id', 'r.credit_user_id',
             'r.api_id', 'r.provider_id', 'r.callback_response', 'r.created_at as txn_created_at',
-        ];
+        );
+
+        return $columns;
     }
 
     private function transactionSection(object $complaint): array

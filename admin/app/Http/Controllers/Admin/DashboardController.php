@@ -117,7 +117,8 @@ class DashboardController extends Controller
                 $complaint = $this->countPendingComplaints();
                 return [
                     'pending' => $pending,
-                    'complaint' => $complaint
+                    'complaint' => $complaint,
+                    'complaints' => $this->recentOpenComplaints(),
                 ];
             });
             return response()->json([
@@ -174,6 +175,28 @@ class DashboardController extends Controller
                 'announcement' => '',
             ]);
         }
+    }
+
+    private function recentOpenComplaints(): array
+    {
+        return DB::table('complaints as c')
+            ->leftJoin('users as u', 'u.id', '=', 'c.user_id')
+            ->whereIn('c.status', ['Open', 'Under Review', 'Pending', 'NEW'])
+            ->orderByDesc('c.id')
+            ->limit(8)
+            ->get(['c.id', 'c.request_id', 'c.subject', 'c.created_at', 'u.outlet_name', 'u.first_name'])
+            ->map(function ($row) {
+                $name = trim((string) ($row->outlet_name ?: $row->first_name));
+
+                return [
+                    'id' => (int) $row->id,
+                    'ticket' => (string) $row->request_id,
+                    'subject' => (string) $row->subject,
+                    'when' => (string) $row->created_at,
+                    'name' => $name !== '' ? $name : 'Customer',
+                ];
+            })
+            ->all();
     }
 
     private function countPendingComplaints(): int

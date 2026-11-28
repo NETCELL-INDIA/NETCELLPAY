@@ -141,6 +141,34 @@ function capitalizeFirstLetter(string){
         return Object.keys(res.users).map(function (k) { return res.users[k]; }).filter(Boolean);
     }
 
+    function renderComplaintBell(items) {
+        var box = document.getElementById('ComplaintBellList');
+        if (!box) return;
+        if (!items.length) {
+            box.innerHTML = '<div class="px-3 py-3 text-muted">No open complaints</div>';
+            return;
+        }
+        var html = '';
+        items.forEach(function (item) {
+            var subject = $('<div>').text(item.subject || '').html();
+            var name = $('<div>').text(item.name || '').html();
+            var ticket = $('<div>').text(item.ticket || '').html();
+            var when = $('<div>').text(item.when || '').html();
+            html += '<a class="dropdown-item border-bottom py-2" href="{{ url('admin/support/complaints/ticket') }}/' + Number(item.id) + '">'
+                + '<div class="fw-semibold text-truncate">' + ticket + '</div>'
+                + '<div class="text-truncate">' + subject + '</div>'
+                + '<div class="text-muted" style="font-size:.75rem">' + name + ' · ' + when + '</div></a>';
+        });
+        box.innerHTML = html;
+    }
+
+    $(document).on('click', '#ComplaintBellBtn', function () {
+        $(this).removeClass('rb-bell-new');
+        if (window.Notification && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    });
+
     function ajaxCalltopbar() {
         $.ajax({
             url: '{{ route('topbarCount') }}',
@@ -148,10 +176,23 @@ function capitalizeFirstLetter(string){
             data: {_token: '{{ csrf_token() }}'},
             success: function(data) {
                 if(data && data.type == "success" && data.data){
-                    $("#TopBarComplaintCount").text(data.data.complaint);
+                    var complaintCount = Number(data.data.complaint || 0);
+                    var seen = sessionStorage.getItem('ncComplaintSeen');
+                    $("#TopBarComplaintCount").text(complaintCount);
                     $("#TopBarPendingCount").text(data.data.pending);
-                    $("#DropComplaintCount").text(data.data.complaint || '');
+                    $("#DropComplaintCount").text(complaintCount || '');
                     $("#DropPendingCount").text(data.data.pending || '');
+                    renderComplaintBell(data.data.complaints || []);
+                    if (seen !== null && complaintCount > Number(seen)) {
+                        $("#ComplaintBellBtn").addClass('rb-bell-new');
+                        if (window.Notification && Notification.permission === 'granted') {
+                            var newest = (data.data.complaints || [])[0];
+                            new Notification('New complaint', {
+                                body: newest ? (newest.ticket + ' — ' + newest.subject) : 'A new complaint is waiting.'
+                            });
+                        }
+                    }
+                    sessionStorage.setItem('ncComplaintSeen', String(complaintCount));
                 }
             },
             error: function(err) {

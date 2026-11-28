@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Redirect;
 use Validator;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Session;
 use Illuminate\Support\Str;
 class ComplaintController extends Controller
@@ -157,7 +159,7 @@ class ComplaintController extends Controller
                     <th>Subject</th>
                     <th>Action Details</th>
                     <th>Status</th>
-                    <th>Clear</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>';
@@ -201,11 +203,14 @@ class ComplaintController extends Controller
                 $statusHtml = function_exists('report_status_html')
                     ? report_status_html($list->txn_status ?? '')
                     : '<span class="rpt-status">'.e(strtoupper((string) ($list->txn_status ?? '-'))).'</span>';
-                $ticketOpen = in_array((string) $list->status, ['Open', 'Under Review', 'Pending'], true);
+                $ticketOpen = in_array((string) $list->status, ['Open', 'Under Review', 'Pending', 'NEW'], true);
                 $statusHtml .= '<div class="text-muted mt-1" style="font-size:.75rem">Ticket: '.e(strtoupper((string) $list->status)).'</div>';
+                $ticketUrl = e(route('complaintDeskShow', ['id' => (int) $list->id]));
                 $clearBtn = $ticketOpen
-                    ? '<button type="button" class="btn btn-sm btn-outline-danger" onclick="closeComplaint('.(int) $list->id.')">Clear</button>'
-                    : '<span class="text-muted">-</span>';
+                    ? '<a class="btn btn-sm btn-outline-primary mb-1" href="'.$ticketUrl.'">Open</a> '
+                        .'<button type="button" class="btn btn-sm btn-success mb-1" onclick="decideComplaint('.(int) $list->id.', \'resolve\')">Resolve</button> '
+                        .'<button type="button" class="btn btn-sm btn-outline-danger mb-1" onclick="decideComplaint('.(int) $list->id.', \'reject\')">Reject</button>'
+                    : '<a class="btn btn-sm btn-outline-secondary" href="'.$ticketUrl.'">View</a>';
 				$output .= '<tr>
                     <td>' . $i . '</td>
                     <td>' . e((string) $list->request_id) . '</td>
@@ -368,11 +373,28 @@ class ComplaintController extends Controller
         if (!$complaint) {
             return response()->json(['type' => 'error', 'message' => 'Complaint not found.']);
         }
-        if (!in_array((string) $complaint->status, ['Open', 'Under Review', 'Pending'], true)) {
+        if (!in_array((string) $complaint->status, ['Open', 'Under Review', 'Pending', 'NEW'], true)) {
             return response()->json(['type' => 'error', 'message' => 'This complaint is already closed.']);
         }
 
-        $remark = trim((string) ($post->remark ?? ''));
+        $action = trim((string) ($post->action ?? 'clear'));
+        $remark = mb_substr(trim((string) ($post->remark ?? '')), 0, 240);
+        if ($action === 'resolve') {
+            if ($remark === '') {
+                $remark = 'Resolved. Recharge and wallet were not changed.';
+            }
+            $this->decideComplaint($complaint, $this->storedComplaintStatus('RESOLVED'), $remark);
+
+            return response()->json(['type' => 'success', 'message' => 'Complaint resolved. Wallet and recharge status were not changed.']);
+        }
+        if ($action === 'reject') {
+            if ($remark === '') {
+                return response()->json(['type' => 'error', 'message' => 'Enter a rejection reason.']);
+            }
+            $this->decideComplaint($complaint, $this->storedComplaintStatus('REJECTED'), 'Rejected: '.$remark);
+
+            return response()->json(['type' => 'success', 'message' => 'Complaint rejected. Wallet and recharge status were not changed.']);
+        }
         if ($remark === '') {
             $remark = 'Cleared from complaints (no refund)';
         }
@@ -406,6 +428,46 @@ class ComplaintController extends Controller
         ]);
     }
 
+    private function storedComplaintStatus(string $wanted): string
+    {
+        $row = DB::selectOne("SHOW COLUMNS FROM complaints WHERE Field = 'status'");
+        $type = strtolower((string) ($row->Type ?? ''));
+        if (str_starts_with($type, 'enum(')) {
+            return $wanted === 'RESOLVED' ? 'Sloved' : 'Closed';
+        }
+
+        return $wanted;
+    }
+
+    private function decideComplaint($complaint, string $status, string $remark): void
+    {
+        $update = [
+            'decision_by' => Session::get('user_id'),
+            'decision_remark' => $remark,
+            'status' => $status,
+            'decision_date' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ];
+        if (in_array($status, ['RESOLVED', 'Sloved'], true) && Schema::hasColumn('complaints', 'resolved_at')) {
+            $update['resolved_at'] = Carbon::now();
+        }
+        if (str_starts_with($remark, 'Rejected:') && Schema::hasColumn('complaints', 'rejected_reason')) {
+            $update['rejected_reason'] = $remark;
+        }
+        DB::table('complaints')->where('id', $complaint->id)->update($update);
+        if (Schema::hasTable('complaint_status_history')) {
+            DB::table('complaint_status_history')->insert([
+                'complaint_id' => $complaint->id,
+                'previous_status' => (string) $complaint->status,
+                'new_status' => $status,
+                'admin_id' => (int) Session::get('user_id'),
+                'remarks' => $remark,
+                'created_at' => Carbon::now(),
+            ]);
+        }
+        Cache::forget('admin_topbar_counts');
+    }
+
     private function markComplaintClosed($complaint, string $remark): void
     {
         if (!empty($complaint->report_id)) {
@@ -421,6 +483,7 @@ class ComplaintController extends Controller
             'decision_date' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
+        Cache::forget('admin_topbar_counts');
     }
 
 }
