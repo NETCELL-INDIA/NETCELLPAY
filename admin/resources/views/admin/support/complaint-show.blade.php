@@ -96,7 +96,7 @@
                     <label class="form-label">Priority</label>
                     <select class="form-select mb-2" name="priority">
                         @foreach(['low','normal','high','urgent'] as $priority)
-                        <option value="{{ $priority }}" @selected(($complaint->priority ?: 'normal') === $priority)>{{ $priority }}</option>
+                        <option value="{{ $priority }}" @selected((property_exists($complaint, 'priority') && $complaint->priority ? $complaint->priority : 'normal') === $priority)>{{ $priority }}</option>
                         @endforeach
                     </select>
                     <button class="btn btn-outline-primary" type="submit">Change Priority</button>

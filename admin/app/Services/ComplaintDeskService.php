@@ -149,11 +149,11 @@ class ComplaintDeskService
 
         $ticket = [
             'Unique Ticket ID' => $this->text($complaint->request_id),
-            'Complaint Category' => $this->text($complaint->category ?: $this->matchedCategory($complaint)),
+            'Complaint Category' => $this->text($this->col($complaint, 'category') ?: $this->matchedCategory($complaint)),
             'Complaint Reason' => $this->text($complaint->subject),
-            'Description' => $this->text($complaint->description ?: $complaint->subject),
+            'Description' => $this->text($this->col($complaint, 'description') ?: $complaint->subject),
             'Submission Date' => $this->text($complaint->created_at),
-            'Priority' => $this->text($complaint->priority ?: 'normal'),
+            'Priority' => $this->text($this->col($complaint, 'priority') ?: 'normal'),
             'Current Status' => $this->workflowStatus($complaint->status),
             'Assigned Staff' => $this->personName($complaint->staff_outlet, $complaint->staff_first, $complaint->staff_last),
         ];
@@ -529,6 +529,11 @@ class ComplaintDeskService
             'r.remark as txn_remark', 'r.transaction_type', 'r.debit_user_id', 'r.credit_user_id',
             'r.api_id', 'r.provider_id', 'r.callback_response', 'r.created_at as txn_created_at',
         );
+        foreach (['category', 'description', 'priority', 'intended_number', 'duplicate_report_id', 'assigned_to', 'resolved_at', 'rejected_reason'] as $column) {
+            if (! Schema::hasColumn('complaints', $column)) {
+                $columns[] = DB::raw('NULL as '.$column);
+            }
+        }
 
         return $columns;
     }
@@ -563,7 +568,7 @@ class ComplaintDeskService
 
     private function specificSection(object $complaint, array $transaction): array
     {
-        $subject = strtolower((string) ($complaint->subject.' '.$complaint->category.' '.$complaint->service_name));
+        $subject = strtolower((string) ($complaint->subject.' '.$this->col($complaint, 'category').' '.$complaint->service_name));
         $blocks = [];
         if (str_contains($subject, 'fail')) {
             $blocks['Recharge Failed'] = [
@@ -593,13 +598,13 @@ class ComplaintDeskService
         if (str_contains($subject, 'wrong')) {
             $blocks['Wrong Number'] = [
                 'Original Number' => $this->text($complaint->number),
-                'Intended Number' => $this->text($complaint->intended_number),
+                'Intended Number' => $this->text($this->col($complaint, 'intended_number')),
             ];
         }
         if (str_contains($subject, 'duplicate')) {
             $other = null;
-            if (! empty($complaint->duplicate_report_id)) {
-                $other = DB::table('reports')->where('id', $complaint->duplicate_report_id)->first(['id', 'order_id', 'number', 'total_amount', 'status', 'transaction_date']);
+            if (! empty($this->col($complaint, 'duplicate_report_id'))) {
+                $other = DB::table('reports')->where('id', $this->col($complaint, 'duplicate_report_id'))->first(['id', 'order_id', 'number', 'total_amount', 'status', 'transaction_date']);
             }
             $blocks['Duplicate Recharge'] = [
                 'This Transaction' => $this->text($complaint->txn_order_id).' / '.$this->text($complaint->txn_status),
@@ -673,6 +678,11 @@ class ComplaintDeskService
         }
 
         return $name !== '' ? $name : 'Not recorded';
+    }
+
+    private function col(object $row, string $name)
+    {
+        return property_exists($row, $name) ? $row->{$name} : null;
     }
 
     private function text($value): string
