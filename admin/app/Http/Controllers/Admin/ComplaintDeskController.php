@@ -9,6 +9,7 @@ use App\Services\AdminMenuService;
 use App\Services\ComplaintDeskService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -19,8 +20,8 @@ class ComplaintDeskController extends Controller
         $filters = $this->filters($request);
 
         return view('admin.support.complaint-dashboard', [
-            'ready' => $desk->schemaReady(),
-            'counts' => $desk->schemaReady() ? $desk->counts($filters) : [],
+            'ready' => Schema::hasTable('complaints'),
+            'counts' => Schema::hasTable('complaints') ? $desk->counts($filters) : [],
             'filters' => $filters,
             'categories' => $desk->schemaReady() ? $desk->categories() : [],
         ]);
@@ -32,10 +33,10 @@ class ComplaintDeskController extends Controller
         $filters['queue'] = $queue;
 
         return view('admin.support.complaint-list', [
-            'ready' => $desk->schemaReady(),
+            'ready' => Schema::hasTable('complaints'),
             'queue' => $queue,
             'title' => $this->queueTitle($queue),
-            'rows' => $desk->schemaReady() ? $desk->page($filters) : null,
+            'rows' => Schema::hasTable('complaints') ? $desk->page($filters) : null,
             'filters' => $filters,
             'categories' => $desk->schemaReady() ? $desk->categories() : [],
         ]);

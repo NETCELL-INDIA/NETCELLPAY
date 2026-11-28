@@ -489,11 +489,18 @@ class ComplaintDeskService
 
     private function listColumns(): array
     {
-        return [
-            'c.id', 'c.request_id', 'c.subject', 'c.status', 'c.priority', 'c.category', 'c.created_at',
-            'c.user_id', 'c.report_id', 'c.assigned_to', 'c.resolved_at', 'u.outlet_name', 'u.first_name', 'u.mobile_number',
+        $columns = [
+            'c.id', 'c.request_id', 'c.subject', 'c.status', 'c.created_at',
+            'c.user_id', 'c.report_id', 'u.outlet_name', 'u.first_name', 'u.mobile_number',
             's.service_name', 'p.provider_name', 'a.api_name', 'r.status as txn_status', 'r.total_amount',
         ];
+        foreach (['priority', 'category', 'assigned_to', 'resolved_at'] as $column) {
+            if (Schema::hasColumn('complaints', $column)) {
+                $columns[] = 'c.'.$column;
+            }
+        }
+
+        return $columns;
     }
 
     private function detailColumns(): array

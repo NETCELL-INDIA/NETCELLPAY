@@ -180,9 +180,8 @@ class DashboardController extends Controller
     {
         return (int) DB::table('complaints as c')
             ->join('reports as r', 'r.id', '=', 'c.report_id')
-            ->whereIn('c.status', ['Open', 'Under Review', 'Pending'])
+            ->whereIn('c.status', ['Open', 'Under Review', 'Pending', 'NEW'])
             ->whereColumn('r.complaint_id', 'c.id')
-            ->whereNotIn('r.status', ['Success', 'Refunded', 'Refund'])
             ->count('c.id');
     }
 

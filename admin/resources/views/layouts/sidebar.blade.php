@@ -374,14 +374,14 @@
                 </li>
                 @endif
 
-                @if(admin_can('support'))
+                @if(admin_can('support') || admin_can('complains'))
                 <li class="nav-item">
                     <a class="nav-link menu-link" href="#sidebarSupport" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarSupport">
                         <i class="bx bx-support"></i> <span>Support Management</span>
                     </a>
                     <div class="collapse menu-dropdown" id="sidebarSupport">
                         <ul class="nav nav-sm flex-column">
-                            @if(admin_can('support.manage'))
+                            @if(admin_can('support.manage') || admin_can('complains.all'))
                             <li class="nav-item"><a href="{{ route('complaintDeskDashboard') }}" class="nav-link">Complaint Dashboard</a></li>
                             <li class="nav-item"><a href="{{ route('complaintDeskAll') }}" class="nav-link">All Complaints</a></li>
                             <li class="nav-item"><a href="{{ route('complaintDeskMobile') }}" class="nav-link">Mobile Recharge Complaints</a></li>
@@ -394,19 +394,6 @@
                             <li class="nav-item"><a href="{{ route('complaintDeskRejected') }}" class="nav-link">Rejected Complaints</a></li>
                             <li class="nav-item"><a href="{{ route('complaintDeskReports') }}" class="nav-link">Complaint Reports</a></li>
                             @endif
-                        </ul>
-                    </div>
-                </li>
-                @endif
-
-                @if(admin_can('complains'))
-                <li class="nav-item">
-                    <a class="nav-link menu-link" href="#sidebarComplains" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="sidebarComplains">
-                        <i class="bx bx-message-rounded-dots"></i> <span>Complains</span>
-                    </a>
-                    <div class="collapse menu-dropdown" id="sidebarComplains">
-                        <ul class="nav nav-sm flex-column">
-                            @if(admin_can('complains.all'))<li class="nav-item"><a href="{{ URL::asset('admin/support/complaint') }}" class="nav-link">All Complains</a></li>@endif
                             @if(admin_can('recharge_reports.recharge_report'))<li class="nav-item"><a href="{{ URL::asset('admin/user-reports/recharge-report?complaint=1') }}" class="nav-link">Complaint from Recharge</a></li>@endif
                         </ul>
                     </div>

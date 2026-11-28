@@ -84,7 +84,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="text-muted mb-2" style="font-size:.8rem">Pending list hides SUCCESS recharges. Use <strong>Clear SUCCESS tickets</strong> to close those tickets (no refund). Dates are only for history search.</div>
+                <div class="text-muted mb-2" style="font-size:.8rem">Pending shows every open ticket, including complaints raised in the app after a successful recharge. Clear SUCCESS tickets closes those tickets and does not refund.</div>
                 <div id="list_result">
                     <h4 class="text-center text-secondary my-3">No record found</h4>
                 </div>

@@ -124,7 +124,7 @@ class AdminMenuService
                 ['key' => 'apis.plan', 'label' => 'Plan / Circle / DTH Info Fetch API', 'paths' => ['admin/apis/plan-circle-dth-api', 'admin/apis/plan_circle_fetch_api_settings']],
             ]],
             ['key' => 'complains', 'label' => 'Complains', 'children' => [
-                ['key' => 'complains.all', 'label' => 'All Complains', 'paths' => ['admin/support/complaint']],
+                ['key' => 'complains.all', 'label' => 'All Complains', 'paths' => ['admin/support/complaint', 'admin/support/complaints']],
             ]],
             ['key' => 'support', 'label' => 'Support Management', 'children' => [
                 ['key' => 'support.manage', 'label' => 'Complaint Desk', 'paths' => ['admin/support/complaints']],

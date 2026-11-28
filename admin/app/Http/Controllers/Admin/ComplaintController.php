@@ -97,11 +97,7 @@ class ComplaintController extends Controller
 
         $status = trim((string) ($post->status ?? 'Pending'));
         if ($status === '' || $status === 'Pending') {
-            $query->whereIn('c.status', ['Open', 'Under Review', 'Pending'])
-                ->where(function ($q) {
-                    $q->whereNull('r.status')
-                        ->orWhereNotIn('r.status', ['Success', 'Refunded', 'Refund']);
-                });
+            $query->whereIn('c.status', ['Open', 'Under Review', 'Pending', 'NEW']);
         } elseif ($status === 'Success') {
             $query->where('r.status', 'Success');
         } elseif ($status === 'Failure' || $status === 'Failed') {
