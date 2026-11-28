@@ -359,34 +359,46 @@ class ComplaintDeskService
     {
         $previous = $this->workflowStatus($complaint->status);
         $now = Carbon::now();
+        $stored = $next;
+        $column = DB::selectOne("SHOW COLUMNS FROM complaints WHERE Field = 'status'");
+        if (str_starts_with(strtolower((string) ($column->Type ?? '')), 'enum(')) {
+            $stored = match ($next) {
+                'RESOLVED' => 'Sloved',
+                'REJECTED', 'CLOSED' => 'Closed',
+                'UNDER REVIEW' => 'Under Review',
+                default => 'Open',
+            };
+        }
         $update = [
-            'status' => $next,
+            'status' => $stored,
             'updated_at' => $now,
         ];
         if ($remarks !== '') {
-            $update['decision_remark'] = mb_substr($remarks, 0, 255);
+            $update['decision_remark'] = mb_substr($remarks, 0, 240);
             $update['decision_by'] = $adminId;
             $update['decision_date'] = $now;
         }
-        if ($next === 'RESOLVED') {
+        if ($next === 'RESOLVED' && Schema::hasColumn('complaints', 'resolved_at')) {
             $update['resolved_at'] = $now;
         }
-        if ($next === 'CLOSED') {
+        if ($next === 'CLOSED' && Schema::hasColumn('complaints', 'closed_at')) {
             $update['closed_at'] = $now;
         }
-        if ($next === 'REJECTED') {
-            $update['rejected_reason'] = mb_substr($remarks, 0, 255);
+        if ($next === 'REJECTED' && Schema::hasColumn('complaints', 'rejected_reason')) {
+            $update['rejected_reason'] = mb_substr($remarks, 0, 240);
         }
         DB::table('complaints')->where('id', $complaint->id)->update($update);
-        DB::table('complaint_status_history')->insert([
-            'complaint_id' => $complaint->id,
-            'previous_status' => $previous,
-            'new_status' => $next,
-            'admin_id' => $adminId,
-            'remarks' => $remarks !== '' ? mb_substr($remarks, 0, 255) : null,
-            'created_at' => $now,
-        ]);
-        $complaint->status = $next;
+        if (Schema::hasTable('complaint_status_history')) {
+            DB::table('complaint_status_history')->insert([
+                'complaint_id' => $complaint->id,
+                'previous_status' => $previous,
+                'new_status' => $stored,
+                'admin_id' => $adminId,
+                'remarks' => $remarks !== '' ? mb_substr($remarks, 0, 240) : null,
+                'created_at' => $now,
+            ]);
+        }
+        $complaint->status = $stored;
     }
 
     private function notifyCustomer(object $complaint, string $body): array

@@ -59,6 +59,7 @@ class ComplaintDeskController extends Controller
             'staff' => $desk->staffOptions(),
             'canReopen' => (int) session('role_id') === AdminMenuService::SUPERADMIN_ROLE_ID
                 || AdminMenuService::can('support.reopen'),
+            'ready' => $desk->schemaReady(),
         ]);
     }
 
@@ -259,7 +260,7 @@ class ComplaintDeskController extends Controller
 
     private function act(int $id, ComplaintDeskService $desk, callable $callback)
     {
-        $complaint = $desk->schemaReady() ? $desk->find($id) : null;
+        $complaint = $desk->find($id);
         if (! $complaint) {
             return redirect()->route('complaintDeskAll')->with('error', 'That complaint was not found.');
         }

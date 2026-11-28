@@ -382,17 +382,9 @@
                     <div class="collapse menu-dropdown" id="sidebarSupport">
                         <ul class="nav nav-sm flex-column">
                             @if(admin_can('support.manage') || admin_can('complains.all'))
-                            <li class="nav-item"><a href="{{ route('complaintDeskDashboard') }}" class="nav-link">Complaint Dashboard</a></li>
                             <li class="nav-item"><a href="{{ route('complaintDeskAll') }}" class="nav-link">All Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskMobile') }}" class="nav-link">Mobile Recharge Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskDth') }}" class="nav-link">DTH Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskNew') }}" class="nav-link">New Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskPending') }}" class="nav-link">Pending Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskAssigned') }}" class="nav-link">Assigned Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskWaiting') }}" class="nav-link">Waiting for Customer</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskResolved') }}" class="nav-link">Resolved Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskRejected') }}" class="nav-link">Rejected Complaints</a></li>
-                            <li class="nav-item"><a href="{{ route('complaintDeskReports') }}" class="nav-link">Complaint Reports</a></li>
+                            <li class="nav-item"><a href="{{ route('complaintDeskResolved') }}" class="nav-link">Resolved</a></li>
+                            <li class="nav-item"><a href="{{ route('complaintDeskRejected') }}" class="nav-link">Rejected</a></li>
                             @endif
                             @if(admin_can('recharge_reports.recharge_report'))<li class="nav-item"><a href="{{ URL::asset('admin/user-reports/recharge-report?complaint=1') }}" class="nav-link">Complaint from Recharge</a></li>@endif
                         </ul>

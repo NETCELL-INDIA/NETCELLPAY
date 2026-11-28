@@ -79,12 +79,10 @@
         <div class="card">
             <div class="card-header align-items-center d-flex">
                 <h4 class="card-title mb-0 flex-grow-1">Complaint List</h4>
-                <div class="flex-shrink-0">
-                    <button type="button" class="btn btn-sm btn-danger" id="clear_success_btn" onclick="clearSuccessTickets()">Clear SUCCESS tickets</button>
-                </div>
+                <div class="flex-shrink-0"></div>
             </div>
             <div class="card-body">
-                <div class="text-muted mb-2" style="font-size:.8rem">Resolve marks the ticket finished and does not refund the wallet. Reject needs a reason. Open shows the full ticket. Neither action changes the recharge status.</div>
+                <div class="text-muted mb-2" style="font-size:.8rem">Resolve finishes the ticket. Reject needs a reason. The wallet is not refunded and the recharge status stays the same.</div>
                 <div id="list_result">
                     <h4 class="text-center text-secondary my-3">No record found</h4>
                 </div>

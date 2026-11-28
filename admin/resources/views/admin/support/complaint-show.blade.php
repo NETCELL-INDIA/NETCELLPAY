@@ -39,124 +39,73 @@
             <div class="card-body">
                 @forelse($messages as $message)
                     @if($message->visibility === 'customer')
-                    <p class="mb-2"><strong>{{ $message->sender_role }}</strong> {{ $message->created_at }}
-                        @if($message->delivery_status) <span class="text-muted">Push: {{ $message->delivery_status }}</span>@endif
-                        <br>{{ $message->body }}</p>
+                    <p class="mb-2"><strong>{{ $message->sender_role }}</strong> {{ $message->created_at }}<br>{{ $message->body }}</p>
                     @endif
                 @empty
                 <p class="text-muted">No customer messages recorded.</p>
                 @endforelse
-                <form method="post" action="{{ route('complaintDeskReply', $complaint->id) }}" enctype="multipart/form-data" class="mt-3">
+                @if($ready)
+                <form method="post" action="{{ route('complaintDeskReply', $complaint->id) }}" class="mt-3">
                     @csrf
                     <textarea class="form-control mb-2" name="body" rows="3" placeholder="Reply to the customer"></textarea>
-                    <input class="form-control mb-2" type="file" name="file" accept=".jpg,.jpeg,.png,.pdf">
                     <button class="btn btn-primary" type="submit">Send Reply</button>
                 </form>
-                <form method="post" action="{{ route('complaintDeskRequestInfo', $complaint->id) }}" class="mt-3">
-                    @csrf
-                    <textarea class="form-control mb-2" name="body" rows="2" placeholder="What should the customer send?"></textarea>
-                    <button class="btn btn-outline-primary" type="submit">Request More Information</button>
-                </form>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-header"><h4 class="card-title mb-0">Internal notes</h4></div>
-            <div class="card-body">
-                <p class="text-muted">Internal notes are not shown to the customer.</p>
-                @foreach($messages as $message)
-                    @if($message->visibility === 'internal')
-                    <p class="mb-2"><strong>Staff {{ $message->sender_id }}</strong> {{ $message->created_at }}<br>{{ $message->body }}</p>
-                    @endif
-                @endforeach
-                <form method="post" action="{{ route('complaintDeskNote', $complaint->id) }}">
-                    @csrf
-                    <textarea class="form-control mb-2" name="body" rows="2" placeholder="Internal note"></textarea>
-                    <button class="btn btn-secondary" type="submit">Add Internal Note</button>
-                </form>
+                @endif
             </div>
         </div>
     </div>
     <div class="col-lg-5">
-        <div class="card">
-            <div class="card-header"><h4 class="card-title mb-0">Actions</h4></div>
+        <div class="card" style="border-top: 3px solid #175CD3;">
+            <div class="card-header"><h4 class="card-title mb-0">Resolve this complaint</h4></div>
             <div class="card-body">
-                <form method="post" action="{{ route('complaintDeskAssign', $complaint->id) }}" class="mb-3">
+                <p class="text-muted">Choose one. The wallet is not refunded and the recharge status stays the same.</p>
+                <form method="post" action="{{ route('complaintDeskResolve', $complaint->id) }}" class="mb-4">
                     @csrf
-                    <label class="form-label">Assign to staff</label>
-                    <select class="form-select mb-2" name="staff_id">
-                        @foreach($staff as $person)
-                        <option value="{{ $person->id }}">{{ $person->outlet_name ?: $person->first_name }} (#{{ $person->id }})</option>
-                        @endforeach
-                    </select>
-                    <input class="form-control mb-2" name="remarks" placeholder="Remarks">
-                    <button class="btn btn-primary" type="submit">Assign</button>
+                    <label class="form-label">Resolved</label>
+                    <textarea class="form-control mb-2" name="remarks" rows="2" placeholder="What was done? Optional."></textarea>
+                    <button class="btn btn-success" type="submit">Mark Resolved</button>
                 </form>
-                <form method="post" action="{{ route('complaintDeskPriority', $complaint->id) }}" class="mb-3">
+                <form method="post" action="{{ route('complaintDeskReject', $complaint->id) }}">
                     @csrf
-                    <label class="form-label">Priority</label>
-                    <select class="form-select mb-2" name="priority">
-                        @foreach(['low','normal','high','urgent'] as $priority)
-                        <option value="{{ $priority }}" @selected((property_exists($complaint, 'priority') && $complaint->priority ? $complaint->priority : 'normal') === $priority)>{{ $priority }}</option>
-                        @endforeach
-                    </select>
-                    <button class="btn btn-outline-primary" type="submit">Change Priority</button>
+                    <label class="form-label">Rejected</label>
+                    <textarea class="form-control mb-2" name="remarks" rows="2" placeholder="Why is this rejected?" required></textarea>
+                    <button class="btn btn-danger" type="submit">Reject</button>
                 </form>
-                <form method="post" action="{{ route('complaintDeskStatus', $complaint->id) }}" class="mb-3">
-                    @csrf
-                    <label class="form-label">Status</label>
-                    <select class="form-select mb-2" name="status">
-                        @foreach(['NEW','UNDER REVIEW','ASSIGNED','IN PROGRESS','WAITING FOR CUSTOMER','RESOLVED','REJECTED','CLOSED'] as $status)
-                        <option value="{{ $status }}">{{ $status }}</option>
-                        @endforeach
-                    </select>
-                    <input class="form-control mb-2" name="remarks" placeholder="Remarks. Required when rejecting.">
-                    <button class="btn btn-outline-primary" type="submit">Change Status</button>
-                </form>
-                <form method="post" action="{{ route('complaintDeskAttachment', $complaint->id) }}" enctype="multipart/form-data" class="mb-3">
-                    @csrf
-                    <input type="hidden" name="visibility" value="internal">
-                    <input class="form-control mb-2" type="file" name="file" accept=".jpg,.jpeg,.png,.pdf" required>
-                    <input class="form-control mb-2" name="body" placeholder="File note">
-                    <button class="btn btn-outline-secondary" type="submit">Upload Supporting Document</button>
-                </form>
-                <form method="post" action="{{ route('complaintDeskResolve', $complaint->id) }}" class="d-inline">@csrf<button class="btn btn-success" type="submit">Mark as Resolved</button></form>
-                <form method="post" action="{{ route('complaintDeskReject', $complaint->id) }}" class="d-inline">@csrf<input name="remarks" class="form-control d-inline w-auto" placeholder="Rejection reason" required><button class="btn btn-danger" type="submit">Reject</button></form>
-                <form method="post" action="{{ route('complaintDeskClose', $complaint->id) }}" class="d-inline">@csrf<button class="btn btn-dark" type="submit">Close</button></form>
-                @if($canReopen)
-                <form method="post" action="{{ route('complaintDeskReopen', $complaint->id) }}" class="d-inline">@csrf<button class="btn btn-warning" type="submit">Reopen</button></form>
-                @endif
             </div>
         </div>
+        @if(count($attachments))
         <div class="card">
             <div class="card-header"><h4 class="card-title mb-0">Attachments</h4></div>
             <div class="card-body">
                 @forelse($attachments as $file)
                 <p class="mb-1"><a href="{{ route('complaintDeskDownload', $file->id) }}">{{ $file->original_name }}</a> <span class="text-muted">{{ $file->visibility }}</span></p>
                 @empty
-                <p class="text-muted">No attachment recorded.</p>
                 @endforelse
             </div>
         </div>
+        @endif
+        @if(count($history))
         <div class="card">
             <div class="card-header"><h4 class="card-title mb-0">Status history</h4></div>
             <div class="card-body">
                 @forelse($history as $event)
                 <p class="mb-1">{{ $event->created_at }}: {{ $event->previous_status }} → {{ $event->new_status }} by admin {{ $event->admin_id }}. {{ $event->remarks }}</p>
                 @empty
-                <p class="text-muted">No status change recorded yet.</p>
                 @endforelse
             </div>
         </div>
+        @endif
+        @if(count($feedback))
         <div class="card">
             <div class="card-header"><h4 class="card-title mb-0">Feedback</h4></div>
             <div class="card-body">
                 @forelse($feedback as $item)
                 <p class="mb-1">Rating {{ $item->rating ?? 'Not recorded' }}: {{ $item->comment ?: 'Not recorded' }}</p>
                 @empty
-                <p class="text-muted">No feedback recorded.</p>
                 @endforelse
             </div>
         </div>
+        @endif
     </div>
 </div>
 @endsection
