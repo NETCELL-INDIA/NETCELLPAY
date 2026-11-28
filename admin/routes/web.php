@@ -1209,6 +1209,32 @@ Route::group(['middleware' => AdminCheck::class], function () {
 
     Route::post('admin/support/complaint/clear-success',[ComplaintController::class,'clearSuccessTickets'])->name('ComplaintsClearSuccess');
 
+    Route::get('admin/support/complaints/dashboard', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'dashboard'])->name('complaintDeskDashboard');
+    Route::get('admin/support/complaints/all', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'all')->name('complaintDeskAll');
+    Route::get('admin/support/complaints/mobile', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'mobile')->name('complaintDeskMobile');
+    Route::get('admin/support/complaints/dth', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'dth')->name('complaintDeskDth');
+    Route::get('admin/support/complaints/new', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'new')->name('complaintDeskNew');
+    Route::get('admin/support/complaints/pending', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'pending')->name('complaintDeskPending');
+    Route::get('admin/support/complaints/assigned', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'assigned')->name('complaintDeskAssigned');
+    Route::get('admin/support/complaints/waiting', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'waiting')->name('complaintDeskWaiting');
+    Route::get('admin/support/complaints/resolved', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'resolved')->name('complaintDeskResolved');
+    Route::get('admin/support/complaints/rejected', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'index'])->defaults('queue', 'rejected')->name('complaintDeskRejected');
+    Route::get('admin/support/complaints/reports', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'reports'])->name('complaintDeskReports');
+    Route::get('admin/support/complaints/reports/export', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'export'])->name('complaintDeskExport');
+    Route::get('admin/support/complaints/ticket/{id}', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'show'])->whereNumber('id')->name('complaintDeskShow');
+    Route::post('admin/support/complaints/ticket/{id}/assign', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'assign'])->whereNumber('id')->name('complaintDeskAssign');
+    Route::post('admin/support/complaints/ticket/{id}/priority', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'priority'])->whereNumber('id')->name('complaintDeskPriority');
+    Route::post('admin/support/complaints/ticket/{id}/status', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'status'])->whereNumber('id')->name('complaintDeskStatus');
+    Route::post('admin/support/complaints/ticket/{id}/reply', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'reply'])->whereNumber('id')->name('complaintDeskReply');
+    Route::post('admin/support/complaints/ticket/{id}/request-info', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'requestInfo'])->whereNumber('id')->name('complaintDeskRequestInfo');
+    Route::post('admin/support/complaints/ticket/{id}/note', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'note'])->whereNumber('id')->name('complaintDeskNote');
+    Route::post('admin/support/complaints/ticket/{id}/attachment', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'attachment'])->whereNumber('id')->name('complaintDeskAttachment');
+    Route::post('admin/support/complaints/ticket/{id}/resolve', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'resolve'])->whereNumber('id')->name('complaintDeskResolve');
+    Route::post('admin/support/complaints/ticket/{id}/reject', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'reject'])->whereNumber('id')->name('complaintDeskReject');
+    Route::post('admin/support/complaints/ticket/{id}/close', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'close'])->whereNumber('id')->name('complaintDeskClose');
+    Route::post('admin/support/complaints/ticket/{id}/reopen', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'reopen'])->whereNumber('id')->name('complaintDeskReopen');
+    Route::get('admin/support/complaints/attachment/{id}', [\App\Http\Controllers\Admin\ComplaintDeskController::class, 'download'])->whereNumber('id')->name('complaintDeskDownload');
+
 
 
 

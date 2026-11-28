@@ -109,6 +109,8 @@ Route::group(['middleware' => AppUserCheck::class], function () {
     Route::post('/v1/payment-receipts/{id}/download',[AppBillingController::class,'receiptDownload'])->whereNumber('id');
     Route::post('/v1/gst-invoices/{id}/download',[AppBillingController::class,'invoiceDownload'])->whereNumber('id');
     Route::post('/v1/complaint-reports',[ReportsController::class,'fetchAllComplaints']);
+    Route::post('/v1/complaint-thread',[\App\Http\Controllers\AppV1\ComplaintThreadController::class,'thread']);
+    Route::post('/v1/complaint-reply',[\App\Http\Controllers\AppV1\ComplaintThreadController::class,'reply']);
     Route::post('/v1/fund-request-reports',[ReportsController::class,'fetchAllFundRequest']);
     Route::post('/v1/bill-payment-reports',[ReportsController::class,'fetchAllBillPayment']);
     Route::post('/v1/money-transfer-reports',[ReportsController::class,'fetchAllMoneyTransfer']);

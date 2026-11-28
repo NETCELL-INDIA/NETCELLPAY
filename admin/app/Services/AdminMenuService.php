@@ -126,6 +126,10 @@ class AdminMenuService
             ['key' => 'complains', 'label' => 'Complains', 'children' => [
                 ['key' => 'complains.all', 'label' => 'All Complains', 'paths' => ['admin/support/complaint']],
             ]],
+            ['key' => 'support', 'label' => 'Support Management', 'children' => [
+                ['key' => 'support.manage', 'label' => 'Complaint Desk', 'paths' => ['admin/support/complaints']],
+                ['key' => 'support.reopen', 'label' => 'Reopen Complaint', 'paths' => ['admin/support/complaints/ticket']],
+            ]],
             ['key' => 'system', 'label' => 'System', 'children' => [
                 ['key' => 'system.settings', 'label' => 'System Setting', 'paths' => ['admin/system-settings', 'admin/billing']],
                 ['key' => 'system.banks', 'label' => 'Banks', 'paths' => ['admin/system/banks']],
