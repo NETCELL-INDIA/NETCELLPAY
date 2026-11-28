@@ -56,11 +56,14 @@
     <div class="col-lg-4">
         <div class="card" style="border-top: 3px solid #6D28D9;">
             <div class="card-body">
-                <p class="mb-1">Consent eligible {{ number_format((int) $campaign->total_recipients) }}</p>
+                <p class="mb-1">Recipients {{ number_format((int) $campaign->total_recipients) }}</p>
                 <p class="mb-1">Sent {{ number_format($breakdown['successful']) }}</p>
                 <p class="mb-1">Failed {{ number_format($breakdown['failed']) }}</p>
+                <p class="mb-1">Pending {{ number_format($breakdown['pending'] ?? 0) }}</p>
                 <p class="mb-1">No token {{ number_format($breakdown['no_token']) }}</p>
-                <p class="mb-0">Consent skipped {{ number_format($breakdown['consent_skipped']) }}</p>
+                <p class="mb-1">Consent skipped {{ number_format($breakdown['consent_skipped']) }}</p>
+                <p class="mb-1">Read in app {{ number_format($breakdown['read_in_app'] ?? 0) }}</p>
+                <p class="mb-0 text-muted">Opened is not shown. The phone tray does not report a reliable open.</p>
             </div>
         </div>
     </div>

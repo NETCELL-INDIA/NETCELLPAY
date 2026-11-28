@@ -168,11 +168,11 @@ class SmartNotificationService
     public function eligibleQuery(array $input, bool $requireConsent = true): Builder
     {
         $query = DB::table('users')
-            ->where('status', 1)
             ->where(function ($inner) {
                 $inner->where('deleted_at', 0)->orWhereNull('deleted_at');
             })
             ->whereNotIn('role_id', [1, 2]);
+        $this->applyAudienceFilters($query, $input);
 
         $target = (string) ($input['target_type'] ?? '');
         if ($target === 'user') {
@@ -223,6 +223,10 @@ class SmartNotificationService
             ->selectRaw('SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as no_token')
             ->selectRaw('SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as failed')
             ->selectRaw('SUM(CASE WHEN status = 4 THEN 1 ELSE 0 END) as consent_skipped')
+            ->selectRaw('SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as pending')
+            ->selectRaw(Schema::hasColumn('messages', 'read_at')
+                ? 'SUM(CASE WHEN read_at IS NOT NULL THEN 1 ELSE 0 END) as read_in_app'
+                : '0 as read_in_app')
             ->first();
 
         return [
@@ -230,6 +234,8 @@ class SmartNotificationService
             'no_token' => (int) ($row->no_token ?? 0),
             'failed' => (int) ($row->failed ?? 0),
             'consent_skipped' => (int) ($row->consent_skipped ?? 0),
+            'pending' => (int) ($row->pending ?? 0),
+            'read_in_app' => (int) ($row->read_in_app ?? 0),
         ];
     }
 
@@ -305,6 +311,13 @@ class SmartNotificationService
         if ($target === 'user') {
             return 'Selected user';
         }
+        $activity = (string) ($input['activity'] ?? '');
+        if ($activity === 'inactive') {
+            return 'Inactive users';
+        }
+        if ($activity === 'new') {
+            return 'New registrations';
+        }
         $roles = [4 => 'Master Distributor', 5 => 'Distributor', 6 => 'Retailer'];
 
         return $roles[(int) ($input['target_role_id'] ?? 0)] ?? 'Role';
@@ -319,5 +332,94 @@ class SmartNotificationService
         }
 
         return Carbon::parse($date.' '.$time, config('app.timezone'));
+    }
+
+    public function applyAudienceFilters(Builder $query, array $input): void
+    {
+        $activity = (string) ($input['activity'] ?? 'active');
+        if ($activity === 'inactive') {
+            $query->where('status', '<>', 1);
+        } else {
+            $query->where('status', 1);
+            if ($activity === 'new' && Schema::hasColumn('users', 'created_at')) {
+                $query->where('created_at', '>=', Carbon::now()->subDays(30)->toDateTimeString());
+            }
+        }
+        if (Schema::hasColumn('users', 'created_at')) {
+            $from = trim((string) ($input['registered_from'] ?? ''));
+            $to = trim((string) ($input['registered_to'] ?? ''));
+            if ($from !== '') {
+                $query->where('created_at', '>=', $from.' 00:00:00');
+            }
+            if ($to !== '') {
+                $query->where('created_at', '<=', $to.' 23:59:59');
+            }
+        }
+        $stateId = (int) ($input['state_id'] ?? 0);
+        if ($stateId > 0 && Schema::hasColumn('users', 'state_id')) {
+            $query->where('state_id', $stateId);
+        }
+    }
+
+    public function sanitizeRichHtml(?string $html): string
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return '';
+        }
+        $html = preg_replace('#<(script|style|iframe|object|embed|link|meta)[^>]*>.*?</\1>#is', '', $html) ?? '';
+        $html = strip_tags($html, '<b><strong><i><em><u><s><strike><br><p><div><span><ul><ol><li>');
+        $html = preg_replace('/\s(on\w+|href|src)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? $html;
+        $html = preg_replace_callback('/\sstyle\s*=\s*("|\')(.*?)\1/i', function (array $match) {
+            $safe = $this->safeStyle($match[2]);
+
+            return $safe === '' ? '' : ' style="'.$safe.'"';
+        }, $html) ?? $html;
+
+        return mb_substr(trim($html), 0, 8000);
+    }
+
+    public function safeHttpsUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '' || preg_match('/[\s<>]/', $url)) {
+            return null;
+        }
+        $parts = parse_url($url);
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if ($scheme !== 'https' || $host === '' || isset($parts['user'])) {
+            return null;
+        }
+
+        return $url;
+    }
+
+    private function safeStyle(string $style): string
+    {
+        $allowed = [];
+        foreach (explode(';', $style) as $part) {
+            $bits = explode(':', $part, 2);
+            if (count($bits) !== 2) {
+                continue;
+            }
+            $name = strtolower(trim($bits[0]));
+            $value = strtolower(trim($bits[1]));
+            if ($name === 'font-size' && preg_match('/^(\d{1,2})px$/', $value, $size) && (int) $size[1] >= 10 && (int) $size[1] <= 36) {
+                $allowed[] = 'font-size:'.$value;
+            } elseif ($name === 'font-family' && preg_match('/^(arial|georgia|tahoma|verdana|sans-serif)$/', $value)) {
+                $allowed[] = 'font-family:'.$value;
+            } elseif (in_array($name, ['color', 'background-color'], true) && preg_match('/^#[0-9a-f]{3}([0-9a-f]{3})?$/', $value)) {
+                $allowed[] = $name.':'.$value;
+            } elseif ($name === 'text-align' && in_array($value, ['left', 'center', 'right'], true)) {
+                $allowed[] = 'text-align:'.$value;
+            } elseif ($name === 'line-height' && preg_match('/^(1|1\.[0-9]|2|2\.5)$/', $value)) {
+                $allowed[] = 'line-height:'.$value;
+            } elseif ($name === 'text-decoration' && in_array($value, ['underline', 'line-through', 'none'], true)) {
+                $allowed[] = 'text-decoration:'.$value;
+            }
+        }
+
+        return implode(';', $allowed);
     }
 }

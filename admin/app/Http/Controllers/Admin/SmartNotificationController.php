@@ -178,8 +178,15 @@ class SmartNotificationController extends Controller
 
     public function create()
     {
+        $states = collect();
+        if (Schema::hasTable('states') && Schema::hasColumn('users', 'state_id')) {
+            $states = DB::table('states')->orderBy('state_name')->get(['id', 'state_name']);
+        }
+
         return view('admin.extras.smart-notification-compose', [
             'categories' => SmartNotificationService::CATEGORIES,
+            'states' => $states,
+            'hasRegistrationDate' => Schema::hasColumn('users', 'created_at'),
         ]);
     }
 
@@ -240,7 +247,7 @@ class SmartNotificationController extends Controller
         $sendNow = ($input['send_mode'] ?? '') === 'now';
         try {
             $campaignId = DB::transaction(function () use ($draft, $input, $adminId, $now, $sendNow, $summary) {
-                $id = DB::table('notification_campaigns')->insertGetId([
+                $row = [
                     'campaign_uuid' => $draft['uuid'],
                     'title' => $input['title'],
                     'message' => $input['message'],
@@ -261,7 +268,21 @@ class SmartNotificationController extends Controller
                     'created_by' => $adminId,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ]);
+                ];
+                foreach ([
+                    'campaign_name' => $input['campaign_name'],
+                    'short_message' => $input['short_message'],
+                    'body_html' => $input['body_html'],
+                    'banner_url' => $input['banner_url'],
+                    'button_label' => $input['button_label'],
+                    'action_url' => $input['action_url'],
+                    'audience_filters' => $input['audience_filters'],
+                ] as $column => $value) {
+                    if (Schema::hasColumn('notification_campaigns', $column)) {
+                        $row[$column] = $value;
+                    }
+                }
+                $id = DB::table('notification_campaigns')->insertGetId($row);
                 DB::table('notification_campaign_events')->insert([
                     'campaign_id' => $id,
                     'actor_id' => $adminId,
@@ -311,15 +332,26 @@ class SmartNotificationController extends Controller
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:120'],
+            'campaign_name' => ['nullable', 'string', 'max:120'],
             'message' => ['required', 'string', 'max:1000'],
+            'body_html' => ['nullable', 'string', 'max:20000'],
             'category' => ['required', Rule::in(array_keys(SmartNotificationService::CATEGORIES))],
             'image_url' => ['nullable', 'string', 'max:500'],
+            'banner_url' => ['nullable', 'string', 'max:500'],
+            'image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:1024'],
+            'banner_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:1024'],
+            'button_label' => ['nullable', 'string', 'max:40'],
+            'action_url' => ['nullable', 'string', 'max:500'],
             'deep_link' => ['nullable', 'string', 'max:500'],
             'priority' => ['required', Rule::in(['low', 'normal', 'high'])],
             'expires_date' => ['nullable', 'date'],
             'expires_time' => ['nullable', 'date_format:H:i'],
-            'audience' => ['required', Rule::in(['all', 'user', 'role:4', 'role:5', 'role:6'])],
+            'audience' => ['required', Rule::in(['all', 'user', 'userid', 'inactive', 'new', 'role:4', 'role:5', 'role:6'])],
             'mobile_number' => ['nullable', 'string', 'max:20'],
+            'user_id' => ['nullable', 'integer'],
+            'state_id' => ['nullable', 'integer'],
+            'registered_from' => ['nullable', 'date'],
+            'registered_to' => ['nullable', 'date'],
             'send_mode' => ['required', Rule::in(['now', 'schedule'])],
             'schedule_date' => ['nullable', 'date'],
             'schedule_time' => ['nullable', 'date_format:H:i'],
@@ -331,10 +363,8 @@ class SmartNotificationController extends Controller
             $this->failValidation('title', 'Title and message are required.');
         }
 
-        $image = trim((string) ($data['image_url'] ?? ''));
-        if ($image !== '' && ! preg_match('#^https://#i', $image)) {
-            $this->failValidation('image_url', 'Image URL must start with https://.');
-        }
+        $image = $this->campaignImage($request, $notifications, 'image_file', (string) ($data['image_url'] ?? ''), 'image_url');
+        $banner = $this->campaignImage($request, $notifications, 'banner_file', (string) ($data['banner_url'] ?? ''), 'banner_url');
         $linkInput = trim((string) ($data['deep_link'] ?? ''));
         $link = $notifications->safeDeepLink($linkInput);
         if ($linkInput !== '' && $link === null) {
@@ -360,6 +390,7 @@ class SmartNotificationController extends Controller
             }
         }
 
+        $activity = 'active';
         $targetType = 'all';
         $roleId = null;
         $userId = null;
@@ -369,25 +400,95 @@ class SmartNotificationController extends Controller
             if ($userId === null) {
                 $this->failValidation('mobile_number', 'That mobile is not an active retailer, distributor, or other non-admin user.');
             }
+        } elseif ($data['audience'] === 'userid') {
+            $targetType = 'user';
+            $userId = (int) ($data['user_id'] ?? 0);
+            $found = DB::table('users')->where('id', $userId)->where('status', 1)->whereNotIn('role_id', [1, 2])->value('id');
+            if (! $found) {
+                $this->failValidation('user_id', 'That user id is not an active non-admin user.');
+            }
+        } elseif ($data['audience'] === 'inactive') {
+            $activity = 'inactive';
+        } elseif ($data['audience'] === 'new') {
+            $activity = 'new';
+            if (! Schema::hasColumn('users', 'created_at')) {
+                $this->failValidation('audience', 'New-registration targeting needs a user registration date, and this database does not have one.');
+            }
         } elseif (str_starts_with($data['audience'], 'role:')) {
             $targetType = 'role';
             $roleId = (int) substr($data['audience'], 5);
         }
+        $stateId = (int) ($data['state_id'] ?? 0);
+        if ($stateId > 0 && ! Schema::hasColumn('users', 'state_id')) {
+            $this->failValidation('state_id', 'Users do not have a district or state column, so that filter cannot be applied.');
+        }
+        $registeredFrom = $data['registered_from'] ?? null;
+        $registeredTo = $data['registered_to'] ?? null;
+        if (($registeredFrom || $registeredTo) && ! Schema::hasColumn('users', 'created_at')) {
+            $this->failValidation('registered_from', 'Registration date filtering is not available on this database.');
+        }
+        if ($registeredFrom && $registeredTo && $registeredFrom > $registeredTo) {
+            $this->failValidation('registered_to', 'The registration end date must be on or after the start date.');
+        }
+        $button = trim(preg_replace('/\s+/', ' ', strip_tags((string) ($data['button_label'] ?? ''))) ?? '');
+        $actionInput = trim((string) ($data['action_url'] ?? ''));
+        $action = $actionInput === '' ? null : $notifications->safeHttpsUrl($actionInput);
+        if ($actionInput !== '' && $action === null) {
+            $this->failValidation('action_url', 'The button URL must be an https address.');
+        }
+        $rich = $notifications->sanitizeRichHtml($data['body_html'] ?? null);
+        $filters = json_encode([
+            'activity' => $activity,
+            'registered_from' => $registeredFrom,
+            'registered_to' => $registeredTo,
+            'state_id' => $stateId > 0 ? $stateId : null,
+        ]);
 
         return [
+            'campaign_name' => trim(strip_tags((string) ($data['campaign_name'] ?? ''))) ?: null,
             'title' => $title,
             'message' => $message,
+            'short_message' => $message,
+            'body_html' => $rich !== '' ? $rich : null,
             'category' => $data['category'],
             'image_url' => $image !== '' ? $image : null,
+            'banner_url' => $banner !== '' ? $banner : null,
+            'button_label' => $button !== '' ? $button : null,
+            'action_url' => $action,
             'deep_link' => $link,
             'priority' => $data['priority'],
             'expires_at' => $expires ? $expires->toDateTimeString() : null,
             'target_type' => $targetType,
             'target_role_id' => $roleId,
             'target_user_id' => $userId,
+            'activity' => $activity,
+            'registered_from' => $registeredFrom,
+            'registered_to' => $registeredTo,
+            'state_id' => $stateId > 0 ? $stateId : null,
+            'audience_filters' => $filters,
             'send_mode' => $data['send_mode'],
             'scheduled_at' => $scheduled ? $scheduled->toDateTimeString() : null,
         ];
+    }
+
+    private function campaignImage(Request $request, SmartNotificationService $notifications, string $fileField, string $url, string $errorField): string
+    {
+        $file = $request->file($fileField);
+        if ($file) {
+            $stored = $file->store('smart-notifications', 'public');
+            $public = $stored ? url('storage/'.$stored) : '';
+            if (! str_starts_with(strtolower($public), 'https://')) {
+                $this->failValidation($errorField, 'Uploaded images can be sent only when this site uses https. Paste an https image URL instead.');
+            }
+
+            return $public;
+        }
+        $url = trim($url);
+        if ($url !== '' && $notifications->safeHttpsUrl($url) === null) {
+            $this->failValidation($errorField, 'Image URL must be an https address.');
+        }
+
+        return $url;
     }
 
     private function failValidation(string $field, string $message): void

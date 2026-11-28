@@ -5,6 +5,7 @@ namespace App\Services;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class NotificationCampaignSender
@@ -209,7 +210,7 @@ class NotificationCampaignSender
 
         $now = Carbon::now();
         try {
-            $id = DB::table('messages')->insertGetId([
+            $insert = [
                 'user_id' => (int) $campaign->created_by,
                 'to_user_id' => $userId,
                 'subject' => $this->plain((string) $campaign->title, 191),
@@ -221,7 +222,11 @@ class NotificationCampaignSender
                 'delivery_error' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
-            ]);
+            ];
+            if (Schema::hasColumn('messages', 'content_html')) {
+                $insert['content_html'] = $this->inboxHtml((string) ($campaign->body_html ?? ''));
+            }
+            $id = DB::table('messages')->insertGetId($insert);
         } catch (QueryException $e) {
             if (! $this->isDuplicate($e)) {
                 throw $e;
@@ -241,13 +246,32 @@ class NotificationCampaignSender
 
     private function recipientQuery(object $campaign)
     {
+        $filters = $this->audienceFilters($campaign);
         $query = DB::table('users')
             ->select(['id', 'role_id', 'android_fcm_token', 'fcm_token', 'device_token'])
-            ->where('status', 1)
             ->where(function ($inner) {
                 $inner->where('deleted_at', 0)->orWhereNull('deleted_at');
             })
             ->whereNotIn('role_id', [1, 2]);
+        if (($filters['activity'] ?? 'active') === 'inactive') {
+            $query->where('status', '<>', 1);
+        } else {
+            $query->where('status', 1);
+            if (($filters['activity'] ?? '') === 'new' && Schema::hasColumn('users', 'created_at')) {
+                $query->where('created_at', '>=', Carbon::now()->subDays(30)->toDateTimeString());
+            }
+        }
+        if (Schema::hasColumn('users', 'created_at')) {
+            if (! empty($filters['registered_from'])) {
+                $query->where('created_at', '>=', $filters['registered_from'].' 00:00:00');
+            }
+            if (! empty($filters['registered_to'])) {
+                $query->where('created_at', '<=', $filters['registered_to'].' 23:59:59');
+            }
+        }
+        if (! empty($filters['state_id']) && Schema::hasColumn('users', 'state_id')) {
+            $query->where('state_id', (int) $filters['state_id']);
+        }
 
         $target = strtolower(trim((string) $campaign->target_type));
         if ($target === 'user') {
@@ -271,6 +295,33 @@ class NotificationCampaignSender
         }
 
         return $query;
+    }
+
+    private function audienceFilters(object $campaign): array
+    {
+        $raw = property_exists($campaign, 'audience_filters') ? (string) $campaign->audience_filters : '';
+        $decoded = $raw !== '' ? json_decode($raw, true) : null;
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    private function inboxHtml(string $html): ?string
+    {
+        $html = trim(strip_tags($html, '<b><strong><i><em><u><s><br><p><div><span><ul><ol><li>'));
+        $html = preg_replace('/\s(on\w+|href|src)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html) ?? '';
+
+        return $html !== '' ? mb_substr($html, 0, 8000) : null;
+    }
+
+    private function safeHttps(string $url): ?string
+    {
+        $url = trim($url);
+        $parts = parse_url($url);
+        if (strtolower((string) ($parts['scheme'] ?? '')) !== 'https' || empty($parts['host']) || isset($parts['user'])) {
+            return null;
+        }
+
+        return $url;
     }
 
     private function requiresConsent(string $category): bool
@@ -317,6 +368,16 @@ class NotificationCampaignSender
         $link = $this->safeDeepLink($campaign->deep_link ?? null);
         if ($link !== null) {
             $data['deep_link'] = $link;
+        }
+        $button = $this->plain((string) ($campaign->button_label ?? ''), 40);
+        $action = $this->safeHttps((string) ($campaign->action_url ?? ''));
+        if ($button !== '' && $action !== null) {
+            $data['button_label'] = $button;
+            $data['action_url'] = $action;
+        }
+        $banner = trim((string) ($campaign->banner_url ?? ''));
+        if (preg_match('#^https://#i', $banner)) {
+            $data['banner'] = $banner;
         }
         if (! empty($campaign->expires_at)) {
             $seconds = Carbon::parse($campaign->expires_at)->getTimestamp() - Carbon::now()->getTimestamp();

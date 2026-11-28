@@ -3178,12 +3178,16 @@ class helpers
         try {
             $hasRead = Schema::hasColumn('messages', 'read_at');
             $hasCampaign = Schema::hasColumn('messages', 'campaign_id');
+            $hasRich = Schema::hasColumn('messages', 'content_html');
             $columns = ['id', 'subject', 'content', 'status', 'created_at'];
             if ($hasRead) {
                 $columns[] = 'read_at';
             }
             if ($hasCampaign) {
                 $columns[] = 'campaign_id';
+            }
+            if ($hasRich) {
+                $columns[] = 'content_html';
             }
 
             return DB::table('messages')
@@ -3193,12 +3197,13 @@ class helpers
                 ->orderByDesc('id')
                 ->take($limit)
                 ->get($columns)
-                ->map(function ($row) use ($hasRead, $hasCampaign) {
+                ->map(function ($row) use ($hasRead, $hasCampaign, $hasRich) {
                     $readAt = $hasRead ? ($row->read_at ?? null) : null;
                     $isCampaign = $hasCampaign && $row->campaign_id !== null;
                     $row->read_at = $readAt;
                     $row->is_read = ($isCampaign ? $readAt !== null : ((int) $row->status !== 0 || $readAt !== null)) ? 1 : 0;
-                    unset($row->campaign_id);
+                    $row->rich_body = $hasRich ? (string) ($row->content_html ?? '') : '';
+                    unset($row->campaign_id, $row->content_html);
 
                     return $row;
                 });

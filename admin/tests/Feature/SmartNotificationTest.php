@@ -521,6 +521,52 @@ class SmartNotificationTest extends TestCase
         return $id;
     }
 
+    public function test_rich_html_is_sanitized_and_plain_text_stays_on_the_campaign(): void
+    {
+        $service = new \App\Services\SmartNotificationService();
+        $clean = $service->sanitizeRichHtml('<script>alert(1)</script><p style="font-size:16px;color:#175CD3" onclick="evil()">Hello</p><a href="javascript:alert(1)">x</a>');
+        $this->assertStringNotContainsString('<script', $clean);
+        $this->assertStringNotContainsString('onclick', $clean);
+        $this->assertStringNotContainsString('javascript:', $clean);
+        $this->assertStringContainsString('Hello', $clean);
+        $this->assertStringContainsString('font-size:16px', $clean);
+
+        $this->grantRetailerConsent();
+        $this->actingAsAdmin($this->adminUser())
+            ->post('/admin/extras/smart-notifications/preview', $this->payload('offers', 'role:6', 'schedule', [
+                'schedule_date' => Carbon::now()->addDay()->format('Y-m-d'),
+                'schedule_time' => Carbon::now()->addDay()->format('H:i'),
+                'campaign_name' => 'Composer test',
+                'body_html' => '<script>alert(1)</script><b>Offer</b>',
+                'button_label' => 'Open',
+                'action_url' => 'https://netcellpay.in/offers',
+            ]))
+            ->assertOk();
+        $uuid = session('smart_notification_draft.uuid');
+        $this->post('/admin/extras/smart-notifications/confirm', ['campaign_uuid' => $uuid])->assertRedirect();
+        $row = DB::table('notification_campaigns')->where('campaign_uuid', $uuid)->first();
+        $this->campaignIds[] = (int) $row->id;
+        $this->assertSame('Hello from the admin composer', $row->message);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('notification_campaigns', 'body_html')) {
+            $this->assertStringNotContainsString('<script', (string) $row->body_html);
+            $this->assertStringContainsString('<b>Offer</b>', (string) $row->body_html);
+            $this->assertSame('Composer test', $row->campaign_name);
+        }
+    }
+
+    public function test_inactive_audience_excludes_active_users(): void
+    {
+        $service = new \App\Services\SmartNotificationService();
+        $active = (int) $service->eligibleQuery(['target_type' => 'all', 'activity' => 'active'], false)->count();
+        $inactive = (int) $service->eligibleQuery(['target_type' => 'all', 'activity' => 'inactive'], false)->count();
+        $this->assertGreaterThan(0, $active);
+        $overlap = (int) $service->eligibleQuery(['target_type' => 'all', 'activity' => 'active'], false)
+            ->whereIn('id', $service->eligibleQuery(['target_type' => 'all', 'activity' => 'inactive'], false)->pluck('id'))
+            ->count();
+        $this->assertSame(0, $overlap);
+        $this->assertGreaterThanOrEqual(0, $inactive);
+    }
+
     private function payload(string $category, string $audience, string $mode, array $extra = []): array
     {
         return array_merge([
